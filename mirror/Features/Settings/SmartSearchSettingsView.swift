@@ -30,10 +30,10 @@ struct SmartSearchSettingsView: View {
                 SettingsGroup(title: "Smarter Ask search") {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Ask finds the entries that match what you mean, not only the words you type. \"Have I been working out?\" finds your run and gym entries.")
-                            .font(.system(size: 14))
+                            .scaledFont(14)
                             .foregroundStyle(MirrorTheme.textPrimary)
                         Text("It needs a one-time download of a search model (\(sizeText)). Your journal never leaves this device: the model runs here, and the download sends nothing about you or your entries.")
-                            .font(.system(size: 13))
+                            .scaledFont(13)
                             .foregroundStyle(MirrorTheme.textSecondary)
 
                         SettingsDivider()
@@ -49,11 +49,11 @@ struct SmartSearchSettingsView: View {
                         } else {
                             HStack {
                                 Text("Status")
-                                    .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .bold) : .system(size: 14, weight: .medium))
+                                    .scaledFont(displayMode == .sentinel ? 13 : 14, weight: displayMode == .sentinel ? .bold : .medium, design: displayMode == .sentinel ? .monospaced : .default)
                                     .foregroundStyle(MirrorTheme.textPrimary)
                                 Spacer()
                                 Text(statusText)
-                                    .font(.system(size: 13))
+                                    .scaledFont(13)
                                     .foregroundStyle(MirrorTheme.textSecondary)
                                     .multilineTextAlignment(.trailing)
                             }
@@ -68,11 +68,11 @@ struct SmartSearchSettingsView: View {
                 SettingsGroup(title: "Model") {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("EmbeddingGemma 300M by Google, downloaded from models.mirrornotes.org. Provided under and subject to the Gemma Terms of Use.")
-                            .font(.system(size: 13))
+                            .scaledFont(13)
                             .foregroundStyle(MirrorTheme.textSecondary)
                         if let terms = URL(string: "https://ai.google.dev/gemma/terms") {
                             Link("Gemma Terms of Use", destination: terms)
-                                .font(.system(size: 13, weight: .medium))
+                                .scaledFont(13, weight: .medium)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -160,14 +160,14 @@ struct SmartSearchOfferCard: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 Text(displayMode == .sentinel ? "SMARTER SEARCH" : "Smarter search for Ask")
-                    .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 14, weight: .semibold))
+                    .scaledFont(displayMode == .sentinel ? 12 : 14, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                     .foregroundStyle(MirrorTheme.textPrimary)
                 Spacer(minLength: 0)
                 if accepted, !isInstalled {
                     // Hides the card only; the download carries on (Settings shows it too).
                     Button(action: onDone) {
                         Image(systemName: "xmark")
-                            .font(.system(size: 11, weight: .bold))
+                            .scaledFont(11, weight: .bold)
                             .foregroundStyle(MirrorTheme.textSecondary)
                             .frame(width: 24, height: 24)
                             .contentShape(Rectangle())
@@ -197,7 +197,7 @@ struct SmartSearchOfferCard: View {
     private var offerContent: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Find entries by meaning, not just matching words. One-time \(sizeText) download. Your journal never leaves this device.")
-                .font(.system(size: 12.5))
+                .scaledFont(12.5)
                 .foregroundStyle(MirrorTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 10) {
@@ -206,7 +206,7 @@ struct SmartSearchOfferCard: View {
                     onAnswer(true)
                 }
                 Button("Not now") { onAnswer(false) }
-                    .font(.system(size: 13, weight: .semibold))
+                    .scaledFont(13, weight: .semibold)
                     .foregroundStyle(MirrorTheme.textSecondary)
                     .padding(.horizontal, 12)
                     .frame(minHeight: 38)
@@ -219,13 +219,13 @@ struct SmartSearchOfferCard: View {
         switch state {
         case .installed:
             Label("Ready", systemImage: "checkmark.circle.fill")
-                .font(.system(size: 13, weight: .semibold))
+                .scaledFont(13, weight: .semibold)
                 .foregroundStyle(accent)
                 .transition(.opacity)
         case .failed:
             HStack(spacing: 10) {
                 Text("Download didn't finish.")
-                    .font(.system(size: 12.5))
+                    .scaledFont(12.5)
                     .foregroundStyle(MirrorTheme.textSecondary)
                 Spacer(minLength: 0)
                 ModelDownloadButton(title: "Try Again", systemImage: "arrow.clockwise", compact: true) {

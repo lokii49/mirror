@@ -78,7 +78,7 @@ struct ModelDownloadProgressPanel: View {
                 }
                 if showsBackgroundHint {
                     Text(isSentinel ? "DOWNLOADING IN BACKGROUND — DO NOT FORCE-QUIT" : "Downloading in the background — lock your phone or switch apps freely, just don't force-quit.")
-                        .font(isSentinel ? MirrorTheme.mono(9.5, weight: .semibold) : .system(size: 11))
+                        .scaledFont(isSentinel ? 9.5 : 11, weight: isSentinel ? .semibold : .regular, design: isSentinel ? .monospaced : .default)
                         .kerning(isSentinel ? 0.3 : 0)
                         .foregroundStyle(MirrorTheme.textTertiary)
                         .multilineTextAlignment(alignment == .center ? .center : .leading)
@@ -146,7 +146,7 @@ struct ModelDownloadProgressPanel: View {
                     if isRunning { onPause() } else { onResume() }
                 } label: {
                     Image(systemName: isRunning ? "pause.fill" : "play.fill")
-                        .font(.system(size: 13, weight: .bold))
+                        .scaledFont(13, weight: .bold)
                         .foregroundStyle(isRunning ? accent : Color.white)
                         .contentTransition(.symbolEffect(.replace))
                         .frame(width: 34, height: 34)
@@ -247,13 +247,16 @@ struct ModelDownloadButton: View {
         Button(action: action) {
             HStack(spacing: compact ? 8 : 10) {
                 Image(systemName: systemImage)
-                    .font(.system(size: compact ? 12 : 14, weight: .bold))
+                    .scaledFont(compact ? 12 : 14, weight: .bold)
                     .frame(width: compact ? 22 : 28, height: compact ? 22 : 28)
                     .background(.white.opacity(0.2), in: isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 5, style: .continuous)) : AnyShape(Circle()))
                 Text(title)
-                    .font(isSentinel ? MirrorTheme.mono(compact ? 12 : 14, weight: .bold) : .system(size: compact ? 14 : 16, weight: .semibold))
+                    .scaledFont(isSentinel ? compact ? 12 : 14 : compact ? 14 : 16, weight: isSentinel ? .bold : .semibold, design: isSentinel ? .monospaced : .default)
                     .kerning(isSentinel ? 0.4 : 0)
-                    .lineLimit(1)
+                    // A second line only when the title doesn't fit (large text sizes). Not an
+                    // @Environment(\.dynamicTypeSize) check: that property on this struct made
+                    // SettingsView crash on open in Debug builds on device (2026-10-24).
+                    .lineLimit(1...2)
                     .minimumScaleFactor(0.8)
                 if let byteCount {
                     Spacer(minLength: 8)

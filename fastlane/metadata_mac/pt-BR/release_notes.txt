@@ -1,9 +1,12 @@
-Apagados recentemente, Rascunhos e planos pagos a partir de 15 de novembro
+Planos pagos a partir de 15 de novembro
 
-• Os planos pagos começam em 15 de novembro. A partir daí, a reflexão diária, Perguntar ao Mirror, o Resumo semanal, o Relatório mensal, a linha do humor e os widgets precisam do Core ou do Deep. Escrever, ler, buscar e o backup no iCloud continuam grátis, para sempre. Novos assinantes ganham 7 dias de teste grátis.
-• Apagados recentemente: registros apagados ficam 30 dias em todos os seus dispositivos, e Desfazer traz um de volta na hora. Escolha 7, 30 ou 90 dias em Ajustes.
-• Rascunhos: guarde um registro, comece outro e retome depois em Escrever.
-• Escolha uma coleção enquanto escreve, ou crie uma nova ali mesmo.
-• Selecione vários registros para movê-los para uma coleção ou apagá-los.
-• Duplicados encontra registros salvos duas vezes e os mescla. Salvar o mesmo texto de novo agora pergunta antes.
-• Corrigido: sair de Escrever logo depois de digitar podia perder as últimas palavras.
+• A partir de 15 de novembro, novas reflexões diárias, Pergunte ao Mirror, novos resumos semanais e relatórios mensais, a linha do tempo de humor e os widgets precisam de Core ou Deep. Escrever, ler, buscar e o backup no iCloud continuam grátis, para sempre. Novos assinantes têm 7 dias de teste grátis.
+• Tudo o que já foi feito para você continua disponível para leitura em qualquer plano: reflexões, resumos e relatórios anteriores, no app e nos widgets.
+
+Também nesta atualização
+
+• As janelas reabrem na página e na entrada onde você estava, mesmo depois de fechar o app.
+• Arraste entradas para uma coleção para movê-las, e clique com o botão direito na reflexão do dia e nas entradas relacionadas.
+• A lista de entradas é igual à do iPhone, e o leitor mostra a reflexão do dia e as entradas relacionadas ao lado da entrada.
+• A Linha do tempo de humor e o Mapa mental funcionam com o VoiceOver, e os temas do Mapa mental respondem ao ponteiro.
+• As cores de humor estão mais suaves, e o Mapa mental abre plano, com uma legenda.

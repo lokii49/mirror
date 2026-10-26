@@ -84,12 +84,12 @@ struct MoodCheckInView: View {
         VStack(spacing: 20) {
             VStack(spacing: 6) {
                 Text(isSentinel ? "◆ MOOD CHECK-IN" : "How are you feeling right now?")
-                    .font(isSentinel ? MirrorTheme.mono(15, weight: .bold) : .system(size: 21, weight: .bold, design: .rounded))
+                    .scaledFont(isSentinel ? 15 : 21, weight: .bold, design: isSentinel ? .monospaced : .rounded)
                     .kerning(isSentinel ? 0.4 : 0)
                     .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.textPrimary)
                     .multilineTextAlignment(.center)
                 Text("Pick one, then confirm below.")
-                    .font(.system(size: 13, weight: .medium))
+                    .scaledFont(13, weight: .medium)
                     .foregroundStyle(.secondary)
             }
             .padding(.top, 22)
@@ -104,7 +104,7 @@ struct MoodCheckInView: View {
                     Text(selected == nil
                          ? "Select a mood"
                          : "Log \(MirrorTheme.localizedMoodName(for: selected!))")
-                        .font(.system(size: 15, weight: .semibold))
+                        .scaledFont(15, weight: .semibold)
                         // White on the 30%-grey disabled fill was unreadable in
                         // light mode — use a real muted style when nothing's picked.
                         .foregroundStyle(selected == nil ? AnyShapeStyle(MirrorTheme.textPrimary.opacity(0.5)) : AnyShapeStyle(Color.white))
@@ -123,7 +123,7 @@ struct MoodCheckInView: View {
 
                 Button { dismiss() } label: {
                     Text("Not now")
-                        .font(.system(size: 14, weight: .medium))
+                        .scaledFont(14, weight: .medium)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, minHeight: 40)
                         .contentShape(Rectangle())
@@ -192,18 +192,18 @@ struct MoodCheckInView: View {
                 .frame(width: 76, height: 76)
                 .overlay {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 30, weight: .bold))
+                        .scaledFont(30, weight: .bold)
                         .foregroundStyle(MirrorTheme.moodColor(for: mood))
                 }
             Text(isSentinel ? "LOGGED — \(MirrorTheme.localizedMoodName(for: mood).uppercased())" : "\(MirrorTheme.localizedMoodName(for: mood)), logged.")
-                .font(isSentinel ? MirrorTheme.mono(14, weight: .bold) : .system(size: 18, weight: .semibold, design: .rounded))
+                .scaledFont(isSentinel ? 14 : 18, weight: isSentinel ? .bold : .semibold, design: isSentinel ? .monospaced : .rounded)
                 .foregroundStyle(MirrorTheme.textPrimary)
             Text("Added to your mood timeline.")
-                .font(.system(size: 13, weight: .medium))
+                .scaledFont(13, weight: .medium)
                 .foregroundStyle(.secondary)
             Spacer()
             Button("Done") { dismiss() }
-                .font(.system(size: 15, weight: .semibold))
+                .scaledFont(15, weight: .semibold)
                 .foregroundStyle(.white)
                 .padding(.horizontal, 40)
                 .padding(.vertical, 13)

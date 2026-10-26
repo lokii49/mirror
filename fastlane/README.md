@@ -57,6 +57,16 @@ Usage: fastlane upload_duo_screenshots dir:<folder> [version:3.1.3] [replace:tru
 
 Resubmit the current build for review without re-uploading binary/metadata/screenshots
 
+### ios beta
+
+```sh
+[bundle exec] fastlane ios beta
+```
+
+Archive and upload the current iOS build to TestFlight only: no metadata, no review submission
+
+The internal group "MirrorNotes testers" gets every build once it's processed
+
 ### ios release
 
 ```sh

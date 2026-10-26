@@ -78,7 +78,15 @@ private struct DigestUnlockedView: View {
             VStack(alignment: .leading, spacing: 0) {
                 Spacer(minLength: 0)
 
-                if let text = entry.themeText, entry.isCurrentWeek || entry.isPreviousWeek {
+                if let text = entry.themeText, entry.isCurrentWeek || entry.isPreviousWeek || !WidgetShared.isSubscribed() {
+                    if !entry.isCurrentWeek && !entry.isPreviousWeek {
+                        Text("Earlier")
+                            .font(.system(size: isLarge ? 11 : 9, weight: .semibold, design: sentinel ? .monospaced : .default))
+                            .textCase(.uppercase)
+                            .tracking(1.2)
+                            .foregroundStyle(.white.opacity(0.45))
+                            .padding(.bottom, isLarge ? 6 : 4)
+                    }
                     if entry.isPreviousWeek {
                         Text("Last week")
                             .font(.system(size: isLarge ? 11 : 9, weight: .semibold, design: sentinel ? .monospaced : .default))
@@ -168,7 +176,10 @@ struct DigestWidgetView: View {
     let entry: DigestWidgetEntry
 
     var body: some View {
-        if WidgetShared.isSubscribed() {
+        // Free keeps seeing its latest digest, however old (owner, 2026-10-20), labelled
+        // "Earlier" past last week; the lock shows only when none was ever made, since the empty
+        // states promise a digest Free won't get.
+        if WidgetShared.isSubscribed() || entry.themeText != nil {
             DigestUnlockedView(entry: entry)
         } else {
             DigestLockedView()

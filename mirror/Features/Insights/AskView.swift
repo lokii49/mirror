@@ -77,7 +77,7 @@ struct AskView: View {
         let isLow = remaining <= 3
         let isCritical = remaining <= 1
         return Text(displayMode == .sentinel ? "\(remaining) LEFT" : "\(remaining) left")
-            .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .semibold))
+            .scaledFont(displayMode == .sentinel ? 11 : 12, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
             .foregroundStyle(isCritical ? .red : isLow ? .orange : MirrorTheme.textSecondary)
             .monospacedDigit()
             .padding(.horizontal, 10)
@@ -101,7 +101,7 @@ struct AskView: View {
             }
         } label: {
             Image(systemName: showSuggestions ? "lightbulb.fill" : "lightbulb")
-                .font(.system(size: 17, weight: .medium))
+                .scaledFont(17, weight: .medium)
                 .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
                 .contentTransition(.symbolEffect(.replace))
         }
@@ -214,24 +214,24 @@ struct AskView: View {
                 if displayMode == .sentinel {
                     Circle().stroke(MirrorTheme.ember.opacity(0.4), lineWidth: 1.4).frame(width: 88, height: 88)
                     Image(systemName: "lock.fill")
-                        .font(.system(size: 30, weight: .semibold))
+                        .scaledFont(30, weight: .semibold)
                         .foregroundStyle(MirrorTheme.ember.opacity(0.7))
                 } else {
                     Circle()
                         .fill(Color.secondary.opacity(0.10))
                         .frame(width: 88, height: 88)
                     Image(systemName: "lock.fill")
-                        .font(.system(size: 34, weight: .semibold))
+                        .scaledFont(34, weight: .semibold)
                         .foregroundStyle(.secondary)
                 }
             }
             VStack(spacing: 8) {
                 Text(displayMode == .sentinel ? "COMMS LOCKED" : "Ask is a Core feature")
-                    .font(displayMode == .sentinel ? MirrorTheme.mono(16, weight: .bold) : .system(size: 22, weight: .bold, design: .rounded))
+                    .scaledFont(displayMode == .sentinel ? 16 : 22, weight: .bold, design: displayMode == .sentinel ? .monospaced : .rounded)
                     .kerning(displayMode == .sentinel ? 0.4 : 0)
                     .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.textPrimary)
                 Text("Ask up to 15 questions per month on Core,\nor unlimited on Deep.")
-                    .font(displayMode == .sentinel ? MirrorTheme.mono(12.5, weight: .medium) : .system(size: 15))
+                    .scaledFont(displayMode == .sentinel ? 12.5 : 15, weight: displayMode == .sentinel ? .medium : .regular, design: displayMode == .sentinel ? .monospaced : .default)
                     .foregroundStyle(displayMode == .sentinel ? MirrorTheme.textSecondary : Color.secondary)
                     .multilineTextAlignment(.center)
             }
@@ -239,7 +239,7 @@ struct AskView: View {
                 showPaywall = true
             } label: {
                 Text(displayMode == .sentinel ? "UNLOCK WITH CORE" : "Unlock with Core")
-                    .font(displayMode == .sentinel ? MirrorTheme.mono(14, weight: .bold) : .system(size: 16, weight: .semibold))
+                    .scaledFont(displayMode == .sentinel ? 14 : 16, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                     .kerning(displayMode == .sentinel ? 0.4 : 0)
                     .foregroundStyle(Color.white)
                     .padding(.horizontal, 32)
@@ -280,14 +280,13 @@ struct AskView: View {
         subtitle: LocalizedStringKey,
         @ViewBuilder trailing: () -> Trailing = { EmptyView() }
     ) -> some View {
-        VStack(spacing: 24) {
-            Spacer()
+        let stack = VStack(spacing: 24) {
             ZStack {
                 if displayMode == .sentinel {
                     Circle().stroke(MirrorTheme.ember.opacity(0.55), lineWidth: 1.4).frame(width: 88, height: 88)
                     Circle().stroke(MirrorTheme.ember.opacity(0.28), lineWidth: 1).frame(width: 112, height: 112)
                     Image(systemName: icon)
-                        .font(.system(size: 30, weight: .semibold))
+                        .scaledFont(30, weight: .semibold)
                         .foregroundStyle(MirrorTheme.ember)
                 } else {
                     Circle()
@@ -295,26 +294,29 @@ struct AskView: View {
                         .frame(width: 88, height: 88)
                         .shadow(color: MirrorTheme.primary.opacity(0.35), radius: 24, x: 0, y: 10)
                     Image(systemName: icon)
-                        .font(.system(size: 34, weight: .semibold))
+                        .scaledFont(34, weight: .semibold)
                         .foregroundStyle(.white)
                 }
             }
             VStack(spacing: 8) {
                 Text(title)
-                    .font(displayMode == .sentinel ? MirrorTheme.mono(16, weight: .bold) : .system(size: 22, weight: .bold, design: .rounded))
+                    .scaledFont(displayMode == .sentinel ? 16 : 22, weight: .bold, design: displayMode == .sentinel ? .monospaced : .rounded)
                     .kerning(displayMode == .sentinel ? 0.4 : 0)
                     .textCase(displayMode == .sentinel ? .uppercase : nil)
                     .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.textPrimary)
                 Text(subtitle)
-                    .font(displayMode == .sentinel ? MirrorTheme.mono(12.5, weight: .medium) : .system(size: 15))
+                    .scaledFont(displayMode == .sentinel ? 12.5 : 15, weight: displayMode == .sentinel ? .medium : .regular, design: displayMode == .sentinel ? .monospaced : .default)
                     .foregroundStyle(displayMode == .sentinel ? MirrorTheme.textSecondary : Color.secondary)
                     .multilineTextAlignment(.center)
             }
             trailing()
-            Spacer()
         }
         .padding(28)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Centered when it fits; at large text sizes it scrolls instead of cutting the text off.
+        return ViewThatFits(in: .vertical) {
+            stack.frame(maxWidth: .infinity, maxHeight: .infinity)
+            ScrollView { stack.frame(maxWidth: .infinity) }
+        }
     }
 
     @ViewBuilder
@@ -407,7 +409,7 @@ struct AskView: View {
                 HStack(spacing: 6) {
                     Circle().fill(MirrorTheme.ember).frame(width: 6, height: 6)
                     Text("SENTINEL — LISTENING")
-                        .font(MirrorTheme.mono(10, weight: .bold))
+                        .scaledFont(10, weight: .bold, design: .monospaced)
                         .foregroundStyle(MirrorTheme.ember)
                         .kerning(0.6)
                 }
@@ -418,22 +420,22 @@ struct AskView: View {
                         .frame(width: 88, height: 88)
                         .shadow(color: MirrorTheme.primary.opacity(0.35), radius: 24, x: 0, y: 10)
                     Image(systemName: "bubble.left.and.text.bubble.right.fill")
-                        .font(.system(size: 34, weight: .semibold))
+                        .scaledFont(34, weight: .semibold)
                         .foregroundStyle(.white)
                 }
             }
             VStack(spacing: 8) {
                 Text(displayMode == .sentinel ? "Ask anything" : "Ask your journal")
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
+                    .scaledFont(26, weight: .bold, design: .rounded)
                 Text("Answers come only from entries you've written.")
-                    .font(.system(size: 15, weight: .medium))
+                    .scaledFont(15, weight: .medium)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
 
             VStack(alignment: .leading, spacing: 8) {
                 Text(displayMode == .sentinel ? "SUGGESTED QUERIES" : "Try asking")
-                    .font(displayMode == .sentinel ? MirrorTheme.mono(10.5, weight: .bold) : .system(size: 12, weight: .semibold))
+                    .scaledFont(displayMode == .sentinel ? 10.5 : 12, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                     .kerning(displayMode == .sentinel ? 0.3 : 0)
                     .foregroundStyle(MirrorTheme.textTertiary)
                     .padding(.horizontal, 2)
@@ -450,12 +452,12 @@ struct AskView: View {
                     } label: {
                         HStack(spacing: 10) {
                             Text(prompt)
-                                .font(.system(size: 14, weight: .medium))
+                                .scaledFont(14, weight: .medium)
                                 .foregroundStyle(.primary)
                                 .multilineTextAlignment(.leading)
                             Spacer()
                             Image(systemName: "arrow.up.circle.fill")
-                                .font(.system(size: 18))
+                                .scaledFont(18)
                                 .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.7) : MirrorTheme.primary.opacity(0.6))
                         }
                         .padding(.horizontal, 14)
@@ -485,14 +487,14 @@ struct AskView: View {
                     .fill(displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(MirrorTheme.accentGradient))
                     .frame(width: 36, height: 36)
                 Image(systemName: displayMode == .sentinel ? "dot.radiowaves.left.and.right" : "sparkle")
-                    .font(.system(size: 15, weight: .semibold))
+                    .scaledFont(15, weight: .semibold)
                     .foregroundStyle(.white)
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(displayMode == .sentinel ? "SENTINEL" : "Ask MirrorNotes")
-                    .font(displayMode == .sentinel ? MirrorTheme.mono(15, weight: .bold) : .system(size: 15, weight: .semibold))
+                    .scaledFont(15, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                 Text(subscriptionService.isDeep ? "Unlimited questions" : "\(remaining) of 15 questions this month")
-                    .font(.system(size: 12, weight: .medium))
+                    .scaledFont(12, weight: .medium)
                     .foregroundStyle(remaining <= 2 && !subscriptionService.isDeep ? .orange : .secondary)
             }
             Spacer()
@@ -514,7 +516,7 @@ struct AskView: View {
                         }
                     } label: {
                         Text(prompt)
-                            .font(.system(size: 13, weight: .medium))
+                            .scaledFont(13, weight: .medium)
                             .foregroundStyle(.primary)
                             .lineLimit(1)
                             .padding(.horizontal, 13)
@@ -573,7 +575,7 @@ struct AskView: View {
                     HStack(alignment: .center, spacing: 6) {
                         if displayMode == .sentinel {
                             Text(">")
-                                .font(MirrorTheme.mono(15, weight: .bold))
+                                .scaledFont(15, weight: .bold, design: .monospaced)
                                 .foregroundStyle(MirrorTheme.ember)
                         }
                         TextField(
@@ -593,7 +595,7 @@ struct AskView: View {
                             .onSubmit { if canAsk { Task { await submitQuestion() } } }
                             #endif
                             .disabled(remaining == 0)
-                            .font(displayMode == .sentinel ? MirrorTheme.mono(14) : .system(size: 15))
+                            .scaledFont(displayMode == .sentinel ? 14 : 15, weight: displayMode == .sentinel ? .semibold : .regular, design: displayMode == .sentinel ? .monospaced : .default)
                     }
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
@@ -626,10 +628,11 @@ struct AskView: View {
                                     .frame(width: 40, height: 40)
                             }
                             Image(systemName: "arrow.up")
-                                .font(.system(size: 16, weight: .bold))
+                                .scaledFont(16, weight: .bold)
                                 .foregroundStyle(.white)
                         }
                     }
+                    .accessibilityLabel("Ask")
                     .disabled(!canAsk)
                     .animation(.spring(response: 0.3, dampingFraction: 0.8), value: canAsk)
                 }
@@ -748,7 +751,7 @@ private struct AskBubblePair: View {
                 HStack {
                     Spacer(minLength: 48)
                     Text(question)
-                        .font(.system(size: 15, weight: .medium))
+                        .scaledFont(15, weight: .medium)
                         .foregroundStyle(isSentinel ? MirrorTheme.textPrimary : MirrorTheme.violetLight)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
@@ -779,7 +782,7 @@ private struct AskBubblePair: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 Text("◆ SIGNAL")
-                    .font(MirrorTheme.mono(9, weight: .bold))
+                    .scaledFont(9, weight: .bold, design: .monospaced)
                     .foregroundStyle(MirrorTheme.ember)
                     .kerning(0.4)
                 Spacer()
@@ -791,7 +794,7 @@ private struct AskBubblePair: View {
                 .foregroundStyle(MirrorTheme.textPrimary)
                 .textSelection(.disabled)
             Text(insight.generatedAt, format: .dateTime.month(.abbreviated).day().hour().minute())
-                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .scaledFont(11, weight: .medium, design: .monospaced)
                 .foregroundStyle(MirrorTheme.textTertiary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -819,7 +822,7 @@ private struct AskBubblePair: View {
                     .textSelection(.enabled)
 
                 Text(insight.generatedAt, format: .dateTime.month(.abbreviated).day().hour().minute())
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .scaledFont(11, weight: .medium, design: .monospaced)
                     .foregroundStyle(MirrorTheme.textTertiary)
             }
             .padding(.leading, 14)
@@ -840,7 +843,7 @@ private struct LoadingAskBubble: View {
                 HStack {
                     Spacer(minLength: 48)
                     Text(question)
-                        .font(.system(size: 15, weight: .medium))
+                        .scaledFont(15, weight: .medium)
                         .foregroundStyle(isSentinel ? MirrorTheme.textPrimary : MirrorTheme.violetLight)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
@@ -866,7 +869,7 @@ private struct LoadingAskBubble: View {
                         .scaleEffect(0.8)
                         .tint(accent)
                     Text("Searching your journal")
-                        .font(.system(size: 14, weight: .regular, design: .serif))
+                        .scaledFont(14, design: .serif)
                         .foregroundStyle(MirrorTheme.textSecondary)
                 }
                 .padding(.leading, 14)
@@ -893,7 +896,7 @@ private struct LoadingAskBubble: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             HStack(alignment: .bottom, spacing: 10) {
                 TextField("Ask about your journal…", text: .constant(""))
-                    .font(.system(size: 15))
+                    .scaledFont(15)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
@@ -906,7 +909,7 @@ private struct LoadingAskBubble: View {
                         .fill(LinearGradient(colors: [.secondary.opacity(0.3), .secondary.opacity(0.3)], startPoint: .top, endPoint: .bottom))
                         .frame(width: 40, height: 40)
                     Image(systemName: "arrow.up")
-                        .font(.system(size: 16, weight: .bold))
+                        .scaledFont(16, weight: .bold)
                         .foregroundStyle(.white)
                 }
             }
@@ -920,7 +923,7 @@ private struct LoadingAskBubble: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Image(systemName: "lightbulb")
-                    .font(.system(size: 17, weight: .medium))
+                    .scaledFont(17, weight: .medium)
                     .foregroundStyle(MirrorTheme.primary)
             }
         }
@@ -943,31 +946,31 @@ private struct AskEmptyStatePreview: View {
                     .frame(width: 88, height: 88)
                     .shadow(color: MirrorTheme.primary.opacity(0.35), radius: 24, x: 0, y: 10)
                 Image(systemName: "bubble.left.and.text.bubble.right.fill")
-                    .font(.system(size: 34, weight: .semibold))
+                    .scaledFont(34, weight: .semibold)
                     .foregroundStyle(.white)
             }
             VStack(spacing: 8) {
                 Text("Ask your journal")
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
+                    .scaledFont(26, weight: .bold, design: .rounded)
                 Text("Answers come only from entries you've written.")
-                    .font(.system(size: 15, weight: .medium))
+                    .scaledFont(15, weight: .medium)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
             VStack(alignment: .leading, spacing: 8) {
                 Text("Try asking")
-                    .font(.system(size: 12, weight: .semibold))
+                    .scaledFont(12, weight: .semibold)
                     .foregroundStyle(.tertiary)
                     .padding(.horizontal, 2)
                 ForEach(suggestions, id: \.self) { prompt in
                     HStack(spacing: 10) {
                         Text(prompt)
-                            .font(.system(size: 14, weight: .medium))
+                            .scaledFont(14, weight: .medium)
                             .foregroundStyle(.primary)
                             .multilineTextAlignment(.leading)
                         Spacer()
                         Image(systemName: "arrow.up.circle.fill")
-                            .font(.system(size: 18))
+                            .scaledFont(18)
                             .foregroundStyle(MirrorTheme.primary.opacity(0.6))
                     }
                     .padding(.horizontal, 14)

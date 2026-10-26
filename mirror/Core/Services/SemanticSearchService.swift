@@ -208,8 +208,13 @@ actor SemanticSearchService {
         for (count, document) in stale.enumerated() {
             if Task.isCancelled { break }
             let text = Self.embeddedText(document.text)
-            if let vector = try? Self.embed(Self.documentPrefix + text, with: embedder) {
+            do {
+                let vector = try Self.embed(Self.documentPrefix + text, with: embedder)
                 index[document.id] = IndexRecord(textHash: Self.textHash(text), vector: vector)
+            } catch LlamaError.gpuUnavailable {
+                break   // backgrounded (LlamaGPUGate): the rest waits for the next pass
+            } catch {
+                continue
             }
             if count % 50 == 49 { try? saveIndex() }
         }
@@ -255,5 +260,22 @@ actor SemanticSearchService {
         // Entries written since the last pass get indexed in the background for the next question.
         if covered < documents.count { Task { await refresh(documents) } }
         return result
+    }
+
+    /// How close each of `sentences` is to `question`, scored as `search` scores entries, or nil
+    /// when the model isn't installed or won't load. English Ask on Gemma shows the closest one
+    /// (`InsightService.rankedAskAnswer`). Sentences aren't stored: they're embedded per question
+    /// (0.75–1.0 s for ~48 on an iPhone 14 Pro, tools/llmrig/ask/RUBRIC.md).
+    func sentenceScores(question: String, sentences: [String]) async -> [Float]? {
+        guard modelState == .installed, !sentences.isEmpty else { return nil }
+        LlamaLog.silence()
+        guard let embedder = try? LlamaEmbedder(path: Self.modelFileURL().path),
+              let query = try? Self.embed(Self.queryPrefix + question, with: embedder) else { return nil }
+        var scores: [Float] = []
+        for sentence in sentences {
+            guard let vector = try? Self.embed(Self.documentPrefix + sentence, with: embedder) else { return nil }
+            scores.append(zip(query, vector).reduce(0) { $0 + $1.0 * $1.1 })
+        }
+        return scores
     }
 }

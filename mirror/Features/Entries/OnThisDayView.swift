@@ -67,11 +67,11 @@ private struct OnThisDayCard: View {
                 Group {
                     if displayMode == .sentinel {
                         Text(yearsAgoLabel.uppercased())
-                            .font(MirrorTheme.mono(11, weight: .bold))
+                            .scaledFont(11, weight: .bold, design: .monospaced)
                             .tracking(0.6)
                     } else {
                         Text(yearsAgoLabel)
-                            .font(.system(size: 12, weight: .semibold))
+                            .scaledFont(12, weight: .semibold)
                     }
                 }
                 .foregroundStyle(moodColor)
@@ -79,14 +79,14 @@ private struct OnThisDayCard: View {
                 Circle().fill(moodColor.opacity(0.5)).frame(width: 3, height: 3)
 
                 Text(entry.createdAt, format: .dateTime.month(.abbreviated).day().year())
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .scaledFont(12, weight: .medium, design: .monospaced)
                     .foregroundStyle(MirrorTheme.textTertiary)
 
                 Spacer()
 
                 if let mood = entry.mood, !mood.isEmpty {
                     Text(MirrorTheme.localizedMoodName(for: mood))
-                        .font(.system(size: 11, weight: .medium))
+                        .scaledFont(11, weight: .medium)
                         .foregroundStyle(moodColor)
                 }
             }

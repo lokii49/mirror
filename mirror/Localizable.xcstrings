@@ -262,6 +262,70 @@
         }
       }
     },
+    "1 mood reading, on %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 Stimmungseintrag, am %@."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 mood reading, on %@."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 registro de ánimo, el %@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 relevé d'humeur, le %@."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 rilevazione dell'umore, il %@."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@の気分記録が1件。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@에 기분 기록 1개."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 registro de humor, em %@."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 отметка настроения, %@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 条情绪记录，于%@。"
+          }
+        }
+      }
+    },
     "1 more entry" : {
       "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Row value: one further entry Ask looked through.",
       "extractionState" : "manual",
@@ -579,6 +643,134 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ / 年"
+          }
+        }
+      }
+    },
+    "%@, 1 entry" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, 1 Eintrag"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, 1 entry"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, 1 entrada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, 1 entrée"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, 1 voce"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@、1件のエントリー"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, 항목 1개"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, 1 entrada"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, 1 запись"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@，1 条条目"
+          }
+        }
+      }
+    },
+    "%@, %lld entries" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, %2$lld Einträge"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, %2$lld entries"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, %2$lld entradas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, %2$lld entrées"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, %2$lld voci"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@、%2$lld件のエントリー"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, 항목 %2$lld개"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, %2$lld entradas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, записей: %2$lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@，%2$lld 条条目"
           }
         }
       }
@@ -1035,6 +1227,70 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "已将 %lld 篇移到“最近删除”"
+          }
+        }
+      }
+    },
+    "%lld mood readings from %@ to %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld Stimmungseinträge vom %2$@ bis %3$@."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld mood readings from %2$@ to %3$@."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld registros de ánimo del %2$@ al %3$@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld relevés d'humeur du %2$@ au %3$@."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld rilevazioni dell'umore dal %2$@ al %3$@."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%2$@から%3$@までの気分記録が%1$lld件。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%2$@부터 %3$@까지 기분 기록 %1$lld개."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld registros de humor de %2$@ a %3$@."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отметок настроения: %1$lld, с %2$@ по %3$@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%2$@至%3$@共 %1$lld 条情绪记录。"
           }
         }
       }
@@ -1678,6 +1934,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "一句话就够了。MirrorNotes 会从你写下的一切中学习。"
+          }
+        }
+      }
+    },
+    "About the same at the end as at the start." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Am Ende etwa wie am Anfang."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About the same at the end as at the start."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Al final, más o menos igual que al principio."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À la fin, à peu près comme au début."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alla fine, più o meno come all'inizio."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "始めと終わりはほぼ同じ。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "처음과 끝이 거의 같음."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No fim, mais ou menos como no início."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "В конце примерно как в начале."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "结尾与开头大致相同。"
           }
         }
       }
@@ -3374,6 +3694,70 @@
         }
       }
     },
+    "Copy Reflection" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reflexion kopieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Reflection"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copiar reflexión"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copier la réflexion"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copia riflessione"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "リフレクションをコピー"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "리플렉션 복사"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copiar reflexão"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Скопировать размышление"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拷贝反思"
+          }
+        }
+      }
+    },
     "CORE" : {
       "localizations" : {
         "de" : {
@@ -4716,6 +5100,70 @@
         }
       }
     },
+    "Difficult" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Schwer"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Difficult"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Difícil"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Difficile"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Difficile"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "つらい"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "힘든"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Difícil"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Трудно"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "艰难"
+          }
+        }
+      }
+    },
     "Download" : {
       "localizations" : {
         "de" : {
@@ -5994,6 +6442,130 @@
         }
       }
     },
+    "Every daily reflection, weekly digest and monthly report already made for you stays readable on every plan, in the app and in widgets, including after paid plans start on %@. New ones need Core or Deep." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Jede tägliche Reflexion, jeder Wochenrückblick und jeder Monatsbericht, die schon für dich erstellt wurden, bleiben in jedem Plan lesbar, in der App und in den Widgets, auch nachdem die Bezahlpläne am %@ starten. Neue brauchen Core oder Deep."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Cada reflexión diaria, resumen semanal e informe mensual que ya se creó para ti seguirá pudiendo leerse en cualquier plan, en la app y en los widgets, también después de que empiecen los planes de pago el %@. Los nuevos necesitan Core o Deep."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Chaque réflexion du jour, résumé hebdomadaire et rapport mensuel déjà créé pour vous reste lisible avec tous les abonnements, dans l'app et dans les widgets, y compris après le début des abonnements payants le %@. Les nouveaux nécessitent Core ou Deep."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ogni riflessione quotidiana, riepilogo settimanale e report mensile già creato per te resta leggibile con qualsiasi piano, nell'app e nei widget, anche dopo l'inizio dei piani a pagamento il %@. Quelli nuovi richiedono Core o Deep."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "これまでに作られた毎日の振り返り、週間ダイジェスト、月次レポートは、%@に有料プランが始まった後も、どのプランでもアプリとウィジェットで読めます。新しく作るにはCoreまたはDeepが必要です。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "이미 만들어진 매일의 회고, 주간 요약, 월간 리포트는 %@에 유료 플랜이 시작된 후에도 모든 플랜에서 앱과 위젯으로 계속 볼 수 있습니다. 새로 만들려면 Core 또는 Deep이 필요합니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Cada reflexão diária, resumo semanal e relatório mensal já feito para você continua disponível para leitura em qualquer plano, no app e nos widgets, também depois que os planos pagos começarem em %@. Os novos precisam de Core ou Deep."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Все ежедневные размышления, недельные сводки и месячные отчёты, уже созданные для вас, останутся доступны для чтения на любом тарифе, в приложении и в виджетах, и после начала платных тарифов %@. Для новых нужен Core или Deep."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "已为你生成的每日回顾、每周摘要和月度报告，在 %@ 付费方案开始后，在任何方案下都仍可在应用和小组件中阅读。新的内容需要 Core 或 Deep。"
+          }
+        }
+      }
+    },
+    "Every feature is free until 15 November" : {
+      "comment" : "Settings > Subscription: the plan card's description while every feature is free (before paid plans start on 15 November 2026).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Alle Funktionen sind bis zum 15. November kostenlos"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Every feature is free until 15 November"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Todas las funciones son gratis hasta el 15 de noviembre"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Toutes les fonctionnalités sont gratuites jusqu’au 15 novembre"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tutte le funzionalità sono gratuite fino al 15 novembre"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "11月15日まではすべての機能が無料です"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "11월 15일까지 모든 기능이 무료입니다"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Todos os recursos são gratuitos até 15 de novembro"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Все функции бесплатны до 15 ноября"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "11 月 15 日前所有功能均可免费使用"
+          }
+        }
+      }
+    },
     "Every quote is copied word for word from these entries. Long entries are shortened to fit." : {
       "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Note under the rows.",
       "extractionState" : "manual",
@@ -7178,6 +7750,70 @@
         }
       }
     },
+    "Good" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Gut"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Good"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Bien"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Bien"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Bene"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "良い"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "좋은"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Bem"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Хорошо"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "良好"
+          }
+        }
+      }
+    },
     "Got it" : {
       "comment" : "3.1.4 paid-plans notice, Undo, select mode, duplicate warning, retention. Model-translated; native review pending.",
       "localizations" : {
@@ -7365,6 +8001,70 @@
         }
       }
     },
+    "Higher at the end than at the start." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Am Ende höher als am Anfang."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Higher at the end than at the start."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Más alto al final que al principio."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus haut à la fin qu'au début."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Più alto alla fine che all'inizio."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "始めより終わりのほうが高い。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "처음보다 끝이 더 높음."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mais alto no fim do que no início."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "В конце выше, чем в начале."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "结尾比开头更高。"
+          }
+        }
+      }
+    },
     "Hobbies" : {
       "localizations" : {
         "de" : {
@@ -7541,6 +8241,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "终于把一直拖着的那一章完成了。"
+          }
+        }
+      }
+    },
+    "iCloud storage is full" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "iCloud-Speicher ist voll"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "El almacenamiento de iCloud está lleno"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Le stockage iCloud est plein"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Lo spazio iCloud è pieno"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "iCloudストレージがいっぱいです"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "iCloud 저장 공간이 가득 찼습니다"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "O armazenamento do iCloud está cheio"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Хранилище iCloud заполнено"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "iCloud 储存空间已满"
           }
         }
       }
@@ -8431,6 +9189,70 @@
         }
       }
     },
+    "linked to %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "verbunden mit %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "linked to %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "relacionado con %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "lié à %@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "collegato a %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@とつながっている"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@와(과) 연결됨"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ligado a %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "связано с: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "与%@相关"
+          }
+        }
+      }
+    },
     "Long call with Mum about the trip." : {
       "localizations" : {
         "de" : {
@@ -8549,6 +9371,134 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "爱情"
+          }
+        }
+      }
+    },
+    "Lower at the end than at the start." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Am Ende niedriger als am Anfang."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lower at the end than at the start."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Más bajo al final que al principio."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus bas à la fin qu'au début."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Più basso alla fine che all'inizio."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "始めより終わりのほうが低い。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "처음보다 끝이 더 낮음."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mais baixo no fim do que no início."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "В конце ниже, чем в начале."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "结尾比开头更低。"
+          }
+        }
+      }
+    },
+    "Lowest: %@ on %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Am niedrigsten: %1$@ am %2$@."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lowest: %1$@ on %2$@."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lo más bajo: %1$@ el %2$@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le plus bas : %1$@ le %2$@."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il più basso: %1$@ il %2$@."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最も低いのは%2$@の%1$@。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "가장 낮은 기분: %2$@의 %1$@."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mais baixo: %1$@ em %2$@."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ниже всего: %1$@, %2$@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最低：%2$@的%1$@。"
           }
         }
       }
@@ -8925,6 +9875,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "薄荷绿"
+          }
+        }
+      }
+    },
+    "mixed days" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "gemischte Tage"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mixed days"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "días variados"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "des jours contrastés"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "giorni alterni"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日によってさまざま"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "날마다 다름"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "dias variados"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "разные дни"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "好坏参半的日子"
           }
         }
       }
@@ -9369,6 +10383,198 @@
         }
       }
     },
+    "Most often %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Am häufigsten: %@."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Most often %@."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lo más frecuente: %@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le plus souvent : %@."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Più spesso: %@."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最も多いのは%@。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "가장 많은 기분: %@."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mais frequente: %@."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Чаще всего: %@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最常见：%@。"
+          }
+        }
+      }
+    },
+    "mostly difficult days" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "überwiegend schwere Tage"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mostly difficult days"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "días mayormente difíciles"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "surtout des jours difficiles"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "giorni per lo più difficili"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "つらい日が多い"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "힘든 날이 대부분"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "dias quase sempre difíceis"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "в основном трудные дни"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "多为艰难的日子"
+          }
+        }
+      }
+    },
+    "mostly good days" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "überwiegend gute Tage"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mostly good days"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "días mayormente buenos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "surtout de bons jours"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "giorni per lo più buoni"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "良い日が多い"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "좋은 날이 대부분"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "dias quase sempre bons"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "в основном хорошие дни"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "多为好日子"
+          }
+        }
+      }
+    },
     "Moved to Recently Deleted" : {
       "comment" : "3.1.4 paid-plans notice, Undo, select mode, duplicate warning, retention. Model-translated; native review pending.",
       "localizations" : {
@@ -9748,6 +10954,70 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "没有匹配的条目"
+          }
+        }
+      }
+    },
+    "Node colour shows the average mood of the entries that mention the theme, from difficult to good" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Die Farbe eines Punkts zeigt die durchschnittliche Stimmung der Einträge, die das Thema erwähnen, von schwer bis gut"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Node colour shows the average mood of the entries that mention the theme, from difficult to good"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "El color de cada punto muestra el estado de ánimo medio de las entradas que mencionan el tema, de difícil a bien"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "La couleur de chaque point indique l'humeur moyenne des entrées qui mentionnent le thème, de difficile à bien"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Il colore di ogni punto mostra l'umore medio delle voci che citano il tema, da difficile a bene"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "点の色は、そのテーマに触れたエントリーの平均的な気分を、つらいから良いまでで示します"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "점의 색은 그 주제가 나오는 기록들의 평균 기분을 힘든 쪽부터 좋은 쪽까지 보여 줍니다"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "A cor de cada ponto mostra o humor médio das entradas que mencionam o tema, de difícil a bem"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Цвет точки показывает среднее настроение записей, где упоминается тема, от трудного до хорошего"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "圆点的颜色表示提到该主题的条目的平均心情，从艰难到良好"
           }
         }
       }
@@ -10700,6 +11970,72 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "付费方案将于 %@ 开始"
+          }
+        }
+      }
+    },
+    "Paid plans start on 15 November. Until then, everything is free. Your entries and history stay yours either way." : {
+      "comment" : "Settings > Subscription, under the Early Access card while every feature is free (before paid plans start on 15 November 2026).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Bezahlpläne starten am 15. November. Bis dahin ist alles kostenlos. Deine Einträge und dein Verlauf bleiben in jedem Fall dein Eigentum."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paid plans start on 15 November. Until then, everything is free. Your entries and history stay yours either way."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Los planes de pago empiezan el 15 de noviembre. Hasta entonces, todo es gratis. Tus entradas e historial seguirán siendo tuyos de todas formas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Les abonnements payants commencent le 15 novembre. D’ici là, tout est gratuit. Vos entrées et votre historique resteront les vôtres dans tous les cas."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "I piani a pagamento iniziano il 15 novembre. Fino ad allora è tutto gratuito. Le tue voci e la cronologia resteranno comunque tue."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "有料プランは11月15日に始まります。それまではすべて無料です。あなたのエントリーと履歴はどちらにしてもあなたのものです。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "유료 요금제는 11월 15일에 시작됩니다. 그때까지는 모든 기능이 무료입니다. 어떤 경우에도 당신의 항목과 기록은 당신의 것입니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Os planos pagos começam em 15 de novembro. Até lá, tudo é grátis. Suas entradas e seu histórico continuam sendo seus de qualquer forma."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Платные планы начнутся 15 ноября. До этого всё бесплатно. Ваши записи и история в любом случае останутся вашими."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "付费方案将于 11 月 15 日开始。在此之前，一切免费。无论如何，你的条目和历史记录始终属于你。"
           }
         }
       }
@@ -11835,6 +13171,70 @@
         }
       }
     },
+    "Related entries" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ähnliche Einträge"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Related entries"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Entradas relacionadas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Entrées liées"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Voci correlate"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "関連するエントリー"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "관련 기록"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Entradas relacionadas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Похожие записи"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "相关条目"
+          }
+        }
+      }
+    },
     "Remove the search model" : {
       "localizations" : {
         "de" : {
@@ -12601,6 +14001,72 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "搜索模型"
+          }
+        }
+      }
+    },
+    "SEARCH · NO LANGUAGE MODEL" : {
+      "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Engine value for an Ask answer no language model wrote: the app showed the sentence closest to the question.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "SUCHE · KEIN SPRACHMODELL"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SEARCH · NO LANGUAGE MODEL"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "BÚSQUEDA · SIN MODELO DE LENGUAJE"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "RECHERCHE · SANS MODÈLE DE LANGAGE"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "RICERCA · NESSUN MODELLO LINGUISTICO"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "検索・言語モデルなし"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "검색 · 언어 모델 없음"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "BUSCA · SEM MODELO DE LINGUAGEM"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ПОИСК · БЕЗ ЯЗЫКОВОЙ МОДЕЛИ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "搜索 · 未使用语言模型"
           }
         }
       }
@@ -13848,6 +15314,72 @@
         }
       }
     },
+    "Takes about a minute. If you leave, it carries on when you're back." : {
+      "comment" : "Insights: under the progress bar while the weekly digest is generated on device. Leaving the app pauses it; it continues when the app is opened again.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Dauert etwa eine Minute. Wenn du die App verlässt, geht es weiter, sobald du zurück bist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Takes about a minute. If you leave, it carries on when you're back."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tarda alrededor de un minuto. Si sales, continúa cuando vuelvas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Cela prend environ une minute. Si tu quittes l'app, ça reprend à ton retour."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ci vuole circa un minuto. Se esci, continua quando torni."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "1分ほどかかります。アプリを離れても、戻ったときに続きから再開します。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "1분 정도 걸려요. 앱을 나가도 돌아오면 이어서 진행돼요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Leva cerca de um minuto. Se você sair, continua quando voltar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Это займёт около минуты. Если выйдешь, продолжится, когда вернёшься."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "大约需要一分钟。如果你离开，回来后会继续。"
+          }
+        }
+      }
+    },
     "Tap the folder next to your tags to choose where an entry goes, or make a new collection there." : {
       "comment" : "3.1.4 paid-plans notice, Undo, select mode, duplicate warning, retention. Model-translated; native review pending.",
       "localizations" : {
@@ -14235,6 +15767,70 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "“You also wrote”之后的句子也是你写的，逐字摘录；是应用选的，不是模型。"
+          }
+        }
+      }
+    },
+    "Themes" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Themen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Themes"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thèmes"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temi"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "テーマ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "주제"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Темы"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主题"
           }
         }
       }
@@ -14927,6 +16523,64 @@
         }
       }
     },
+    "UPLINK STORAGE FULL" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "UPLINK-SPEICHER VOLL"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ALMACENAMIENTO DE ENLACE LLENO"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "STOCKAGE DE LIAISON PLEIN"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "SPAZIO DI COLLEGAMENTO PIENO"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "アップリンク容量不足"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "업링크 저장 공간 가득 참"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ARMAZENAMENTO DO LINK CHEIO"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ХРАНИЛИЩЕ КАНАЛА ЗАПОЛНЕНО"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "上行链路空间已满"
+          }
+        }
+      }
+    },
     "Waiting for approval. Your plan starts as soon as the purchase is approved." : {
       "localizations" : {
         "de" : {
@@ -15183,6 +16837,64 @@
         }
       }
     },
+    "What's made for you stays yours" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Was für dich entstanden ist, bleibt deins"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Lo que se creó para ti sigue siendo tuyo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ce qui a été créé pour vous reste à vous"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ciò che è stato creato per te resta tuo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "あなたのために作られたものは、ずっとあなたのもの"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "나를 위해 만들어진 것은 계속 내 것"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "O que foi feito para você continua seu"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Созданное для вас остаётся вашим"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "为你生成的内容始终属于你"
+          }
+        }
+      }
+    },
     "What's underneath “Finally quiet”?" : {
       "localizations" : {
         "de" : {
@@ -15423,6 +17135,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "要将已勾选的项目自动移到列表底部吗？你可以稍后在设置中更改。"
+          }
+        }
+      }
+    },
+    "Write About This" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Darüber schreiben"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Write About This"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escribir sobre esto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Écrire à ce sujet"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scrivi su questo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "これについて書く"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이것에 대해 쓰기"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escrever sobre isso"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Написать об этом"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "就此写一写"
           }
         }
       }
@@ -15810,6 +17586,238 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "现在无法保存你的日记，请重试。"
+          }
+        }
+      }
+    },
+    "Your latest changes are only on this device, and iCloud keeps refusing them, so waiting won't fix it. Update MirrorNotes, and if this stays, email hello@mirrornotes.org with the code %@. Don't turn off iCloud for MirrorNotes or sign out of iCloud before then: that erases this device's copy." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Deine letzten Änderungen sind nur auf diesem Gerät, und iCloud lehnt sie immer wieder ab. Warten hilft also nicht. Aktualisiere MirrorNotes, und wenn das bleibt, schreib an hello@mirrornotes.org mit dem Code %@. Schalte iCloud für MirrorNotes bis dahin nicht aus und melde dich nicht von iCloud ab: Das löscht die Kopie auf diesem Gerät."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tus últimos cambios solo están en este dispositivo e iCloud los sigue rechazando, así que esperar no lo arreglará. Actualiza MirrorNotes y, si sigue así, escribe a hello@mirrornotes.org con el código %@. No desactives iCloud para MirrorNotes ni cierres sesión en iCloud antes: eso borra la copia de este dispositivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Vos dernières modifications ne sont que sur cet appareil et iCloud continue de les refuser : attendre ne suffira pas. Mettez à jour MirrorNotes et, si cela persiste, écrivez à hello@mirrornotes.org avec le code %@. D'ici là, ne désactivez pas iCloud pour MirrorNotes et ne vous déconnectez pas d'iCloud : cela efface la copie de cet appareil."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Le tue ultime modifiche sono solo su questo dispositivo e iCloud continua a rifiutarle, quindi aspettare non basta. Aggiorna MirrorNotes e, se continua, scrivi a hello@mirrornotes.org con il codice %@. Fino ad allora non disattivare iCloud per MirrorNotes e non uscire da iCloud: cancellerebbe la copia su questo dispositivo."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "最新の変更はこのデバイスにしかなく、iCloudが受け付けない状態が続いているため、待っても解決しません。MirrorNotesをアップデートし、それでも続く場合はコード %@ を添えて hello@mirrornotes.org までご連絡ください。それまではMirrorNotesのiCloudをオフにしたり、iCloudからサインアウトしたりしないでください。このデバイスのコピーが消去されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "최근 변경 사항은 이 기기에만 있고 iCloud가 계속 거부하고 있어 기다려도 해결되지 않습니다. MirrorNotes를 업데이트하고, 계속되면 코드 %@와 함께 hello@mirrornotes.org로 이메일을 보내 주세요. 그 전에 MirrorNotes의 iCloud를 끄거나 iCloud에서 로그아웃하지 마세요. 이 기기의 사본이 지워집니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Suas últimas alterações estão só neste dispositivo e o iCloud continua recusando, então esperar não vai resolver. Atualize o MirrorNotes e, se continuar, envie um e-mail para hello@mirrornotes.org com o código %@. Até lá, não desative o iCloud para o MirrorNotes nem saia do iCloud: isso apaga a cópia deste dispositivo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Последние изменения есть только на этом устройстве, и iCloud продолжает их отклонять, так что ожидание не поможет. Обновите MirrorNotes, а если не пройдёт, напишите на hello@mirrornotes.org с кодом %@. До этого не отключайте iCloud для MirrorNotes и не выходите из iCloud: это сотрёт копию на этом устройстве."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "你最近的更改只保存在这台设备上，而 iCloud 一直拒绝接收，等待无法解决。请更新 MirrorNotes；如果问题仍在，请发邮件至 hello@mirrornotes.org 并附上代码 %@。在此之前，请不要为 MirrorNotes 关闭 iCloud 或退出 iCloud：这会删除这台设备上的副本。"
+          }
+        }
+      }
+    },
+    "Your latest changes are only on this device. Free up iCloud storage and they'll upload on their own. Don't turn off iCloud for MirrorNotes or sign out of iCloud before then: that erases this device's copy." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Deine letzten Änderungen sind nur auf diesem Gerät. Gib iCloud-Speicher frei, dann werden sie von selbst hochgeladen. Schalte iCloud für MirrorNotes bis dahin nicht aus und melde dich nicht von iCloud ab: Das löscht die Kopie auf diesem Gerät."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tus últimos cambios solo están en este dispositivo. Libera espacio en iCloud y se subirán solos. No desactives iCloud para MirrorNotes ni cierres sesión en iCloud antes: eso borra la copia de este dispositivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Vos dernières modifications ne sont que sur cet appareil. Libérez de l'espace iCloud et elles seront envoyées d'elles-mêmes. D'ici là, ne désactivez pas iCloud pour MirrorNotes et ne vous déconnectez pas d'iCloud : cela efface la copie de cet appareil."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Le tue ultime modifiche sono solo su questo dispositivo. Libera spazio su iCloud e verranno caricate da sole. Fino ad allora non disattivare iCloud per MirrorNotes e non uscire da iCloud: cancellerebbe la copia su questo dispositivo."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "最新の変更はこのデバイスにしかありません。iCloudストレージの空き容量を増やすと、自動でアップロードされます。それまではMirrorNotesのiCloudをオフにしたり、iCloudからサインアウトしたりしないでください。このデバイスのコピーが消去されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "최근 변경 사항은 이 기기에만 있습니다. iCloud 저장 공간을 확보하면 자동으로 업로드됩니다. 그 전에 MirrorNotes의 iCloud를 끄거나 iCloud에서 로그아웃하지 마세요. 이 기기의 사본이 지워집니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Suas últimas alterações estão só neste dispositivo. Libere espaço no iCloud e elas serão enviadas sozinhas. Até lá, não desative o iCloud para o MirrorNotes nem saia do iCloud: isso apaga a cópia deste dispositivo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Последние изменения есть только на этом устройстве. Освободите место в iCloud, и они выгрузятся сами. До этого не отключайте iCloud для MirrorNotes и не выходите из iCloud: это сотрёт копию на этом устройстве."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "你最近的更改只保存在这台设备上。释放 iCloud 储存空间后，它们会自动上传。在此之前，请不要为 MirrorNotes 关闭 iCloud 或退出 iCloud：这会删除这台设备上的副本。"
+          }
+        }
+      }
+    },
+    "Your latest changes are only on this Mac, and iCloud keeps refusing them, so waiting won't fix it. Update MirrorNotes, and if this stays, email hello@mirrornotes.org with the code %@. Don't turn off iCloud for MirrorNotes or sign out of iCloud before then: that erases this Mac's copy." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Deine letzten Änderungen sind nur auf diesem Mac, und iCloud lehnt sie immer wieder ab. Warten hilft also nicht. Aktualisiere MirrorNotes, und wenn das bleibt, schreib an hello@mirrornotes.org mit dem Code %@. Schalte iCloud für MirrorNotes bis dahin nicht aus und melde dich nicht von iCloud ab: Das löscht die Kopie auf diesem Mac."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tus últimos cambios solo están en este Mac e iCloud los sigue rechazando, así que esperar no lo arreglará. Actualiza MirrorNotes y, si sigue así, escribe a hello@mirrornotes.org con el código %@. No desactives iCloud para MirrorNotes ni cierres sesión en iCloud antes: eso borra la copia de este Mac."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Vos dernières modifications ne sont que sur ce Mac et iCloud continue de les refuser : attendre ne suffira pas. Mettez à jour MirrorNotes et, si cela persiste, écrivez à hello@mirrornotes.org avec le code %@. D'ici là, ne désactivez pas iCloud pour MirrorNotes et ne vous déconnectez pas d'iCloud : cela efface la copie de ce Mac."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Le tue ultime modifiche sono solo su questo Mac e iCloud continua a rifiutarle, quindi aspettare non basta. Aggiorna MirrorNotes e, se continua, scrivi a hello@mirrornotes.org con il codice %@. Fino ad allora non disattivare iCloud per MirrorNotes e non uscire da iCloud: cancellerebbe la copia su questo Mac."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "最新の変更はこのMacにしかなく、iCloudが受け付けない状態が続いているため、待っても解決しません。MirrorNotesをアップデートし、それでも続く場合はコード %@ を添えて hello@mirrornotes.org までご連絡ください。それまではMirrorNotesのiCloudをオフにしたり、iCloudからサインアウトしたりしないでください。このMacのコピーが消去されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "최근 변경 사항은 이 Mac에만 있고 iCloud가 계속 거부하고 있어 기다려도 해결되지 않습니다. MirrorNotes를 업데이트하고, 계속되면 코드 %@와 함께 hello@mirrornotes.org로 이메일을 보내 주세요. 그 전에 MirrorNotes의 iCloud를 끄거나 iCloud에서 로그아웃하지 마세요. 이 Mac의 사본이 지워집니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Suas últimas alterações estão só neste Mac e o iCloud continua recusando, então esperar não vai resolver. Atualize o MirrorNotes e, se continuar, envie um e-mail para hello@mirrornotes.org com o código %@. Até lá, não desative o iCloud para o MirrorNotes nem saia do iCloud: isso apaga a cópia deste Mac."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Последние изменения есть только на этом Mac, и iCloud продолжает их отклонять, так что ожидание не поможет. Обновите MirrorNotes, а если не пройдёт, напишите на hello@mirrornotes.org с кодом %@. До этого не отключайте iCloud для MirrorNotes и не выходите из iCloud: это сотрёт копию на этом Mac."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "你最近的更改只保存在这台 Mac 上，而 iCloud 一直拒绝接收，等待无法解决。请更新 MirrorNotes；如果问题仍在，请发邮件至 hello@mirrornotes.org 并附上代码 %@。在此之前，请不要为 MirrorNotes 关闭 iCloud 或退出 iCloud：这会删除这台 Mac 上的副本。"
+          }
+        }
+      }
+    },
+    "Your latest changes are only on this Mac. Free up iCloud storage and they'll upload on their own. Don't turn off iCloud for MirrorNotes or sign out of iCloud before then: that erases this Mac's copy." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Deine letzten Änderungen sind nur auf diesem Mac. Gib iCloud-Speicher frei, dann werden sie von selbst hochgeladen. Schalte iCloud für MirrorNotes bis dahin nicht aus und melde dich nicht von iCloud ab: Das löscht die Kopie auf diesem Mac."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tus últimos cambios solo están en este Mac. Libera espacio en iCloud y se subirán solos. No desactives iCloud para MirrorNotes ni cierres sesión en iCloud antes: eso borra la copia de este Mac."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Vos dernières modifications ne sont que sur ce Mac. Libérez de l'espace iCloud et elles seront envoyées d'elles-mêmes. D'ici là, ne désactivez pas iCloud pour MirrorNotes et ne vous déconnectez pas d'iCloud : cela efface la copie de ce Mac."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Le tue ultime modifiche sono solo su questo Mac. Libera spazio su iCloud e verranno caricate da sole. Fino ad allora non disattivare iCloud per MirrorNotes e non uscire da iCloud: cancellerebbe la copia su questo Mac."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "最新の変更はこのMacにしかありません。iCloudストレージの空き容量を増やすと、自動でアップロードされます。それまではMirrorNotesのiCloudをオフにしたり、iCloudからサインアウトしたりしないでください。このMacのコピーが消去されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "최근 변경 사항은 이 Mac에만 있습니다. iCloud 저장 공간을 확보하면 자동으로 업로드됩니다. 그 전에 MirrorNotes의 iCloud를 끄거나 iCloud에서 로그아웃하지 마세요. 이 Mac의 사본이 지워집니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Suas últimas alterações estão só neste Mac. Libere espaço no iCloud e elas serão enviadas sozinhas. Até lá, não desative o iCloud para o MirrorNotes nem saia do iCloud: isso apaga a cópia deste Mac."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Последние изменения есть только на этом Mac. Освободите место в iCloud, и они выгрузятся сами. До этого не отключайте iCloud для MirrorNotes и не выходите из iCloud: это сотрёт копию на этом Mac."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "你最近的更改只保存在这台 Mac 上。释放 iCloud 储存空间后，它们会自动上传。在此之前，请不要为 MirrorNotes 关闭 iCloud 或退出 iCloud：这会删除这台 Mac 上的副本。"
           }
         }
       }
@@ -44003,72 +46011,6 @@
         }
       }
     },
-    "Every feature is free while MirrorNotes is in early access" : {
-      "comment" : "A description of the benefits of using MirrorNotes while it is in early access.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alle Funktionen sind kostenlos, solange sich MirrorNotes im frühen Zugang befindet"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Every feature is free while MirrorNotes is in early access"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Todas las funciones son gratis mientras MirrorNotes esté en acceso anticipado"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Toutes les fonctionnalités sont gratuites tant que MirrorNotes est en accès anticipé"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tutte le funzionalità sono gratuite finché MirrorNotes è in accesso anticipato"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MirrorNotesがアーリーアクセス中はすべての機能が無料です"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MirrorNotes가 얼리 액세스 중인 동안 모든 기능이 무료입니다"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Todos os recursos são gratuitos enquanto o MirrorNotes estiver em acesso antecipado"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Все функции бесплатны, пока MirrorNotes находится в раннем доступе"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MirrorNotes 处于抢先体验阶段时，所有功能均可免费使用"
-          }
-        }
-      }
-    },
     "Every Sunday, mirror writes a short pattern summary from the week's entries — useful for spotting recurring themes you'd otherwise miss." : {
       "localizations" : {
         "de" : {
@@ -56513,72 +58455,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "MirrorNotes 导出（Markdown）"
-          }
-        }
-      }
-    },
-    "MirrorNotes is currently in early access. Pricing may return in a future update, but your entries and history stay yours either way." : {
-      "comment" : "A description of the current state of MirrorNotes.",
-      "isCommentAutoGenerated" : true,
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MirrorNotes befindet sich derzeit im frühen Zugang. Preise könnten in einem zukünftigen Update zurückkehren, aber deine Einträge und dein Verlauf bleiben in jedem Fall dein Eigentum."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MirrorNotes is currently in early access. Pricing may return in a future update, but your entries and history stay yours either way."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MirrorNotes está actualmente en acceso anticipado. Es posible que los precios vuelvan en una futura actualización, pero tus entradas e historial seguirán siendo tuyos de todas formas."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MirrorNotes est actuellement en accès anticipé. Les tarifs pourraient revenir dans une future mise à jour, mais vos entrées et votre historique resteront les vôtres dans tous les cas."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MirrorNotes è attualmente in accesso anticipato. I prezzi potrebbero tornare in un futuro aggiornamento, ma le tue voci e la cronologia resteranno comunque tue."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MirrorNotesは現在アーリーアクセス中です。今後のアップデートで料金プランが復活する可能性がありますが、あなたのエントリーと履歴はどちらにしてもあなたのものです。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MirrorNotes는 현재 얼리 액세스 중입니다. 향후 업데이트에서 요금제가 다시 도입될 수 있지만, 어떤 경우에도 당신의 항목과 기록은 당신의 것입니다."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "O MirrorNotes está atualmente em acesso antecipado. Os preços podem retornar em uma atualização futura, mas suas entradas e seu histórico continuam sendo seus de qualquer forma."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MirrorNotes сейчас находится в раннем доступе. В будущем обновлении может вернуться платная подписка, но ваши записи и история в любом случае останутся вашими."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MirrorNotes 目前处于抢先体验阶段。未来更新中可能会恢复付费定价，但无论如何，你的条目和历史记录始终属于你。"
           }
         }
       }

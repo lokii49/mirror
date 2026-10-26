@@ -43,15 +43,15 @@ struct AcknowledgmentsView: View {
     private func acknowledgmentCard(title: String, body: LocalizedStringKey, links: [(String, URL?)]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
-                .font(.system(size: 15, weight: .semibold))
+                .scaledFont(15, weight: .semibold)
             Text(body)
-                .font(.system(size: 14))
+                .scaledFont(14)
                 .foregroundStyle(MirrorTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             ForEach(links.indices, id: \.self) { index in
                 if let url = links[index].1 {
                     Link(links[index].0, destination: url)
-                        .font(.system(size: 13, weight: .medium))
+                        .scaledFont(13, weight: .medium)
                 }
             }
         }

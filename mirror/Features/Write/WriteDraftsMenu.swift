@@ -56,7 +56,7 @@ struct WriteDraftsMenu: View {
             // while a text item would stay in the top bar (as with the reader's Edit button).
             // Mail's Drafts symbol; the badge counts saved drafts.
             Image(systemName: "doc.text")
-                .font(.system(size: 18, weight: .semibold))
+                .scaledFont(18, weight: .semibold)
                 .foregroundStyle(.secondary)
                 .overlay(alignment: .topTrailing) {
                     if !drafts.isEmpty {
@@ -71,7 +71,7 @@ struct WriteDraftsMenu: View {
                 }
         case .macToolbar:
             Image(systemName: "doc.text")
-                .font(.system(size: 15))
+                .scaledFont(15)
                 .frame(width: 34, height: 30)
                 .contentShape(Rectangle())
         }

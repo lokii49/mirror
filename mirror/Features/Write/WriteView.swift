@@ -400,6 +400,7 @@ struct WriteView: View {
                         #if os(macOS)
                         macChipsRow
                         macPhotosRow
+                        macStatusLine
                         #endif
                     }
                     #if os(macOS)
@@ -430,7 +431,7 @@ struct WriteView: View {
 
             if showSaved {
                 Label(savedToastIsDraft ? "Saved to Drafts" : "Saved", systemImage: savedToastIsDraft ? "doc.text.fill" : "checkmark.circle.fill")
-                    .font(.system(size: 14, weight: .semibold))
+                    .scaledFont(14, weight: .semibold)
                     .foregroundStyle(MirrorTheme.green)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 10)
@@ -443,7 +444,7 @@ struct WriteView: View {
 
             if showMoodSuggestionFailed {
                 Label("Couldn't suggest a mood", systemImage: "sparkles")
-                    .font(.system(size: 14, weight: .semibold))
+                    .scaledFont(14, weight: .semibold)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 10)
@@ -460,7 +461,7 @@ struct WriteView: View {
                     ProgressView()
                         .tint(.secondary)
                     Text("Attaching photo…")
-                        .font(.system(size: 14, weight: .medium))
+                        .scaledFont(14, weight: .medium)
                         .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 18)
@@ -476,7 +477,7 @@ struct WriteView: View {
                     ProgressView()
                         .tint(.secondary)
                     Text("Recognizing text…")
-                        .font(.system(size: 14, weight: .medium))
+                        .scaledFont(14, weight: .medium)
                         .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 18)
@@ -490,10 +491,10 @@ struct WriteView: View {
             if pendingDelete {
                 HStack(spacing: 12) {
                     Image(systemName: "trash")
-                        .font(.system(size: 14, weight: .medium))
+                        .scaledFont(14, weight: .medium)
                         .foregroundStyle(.secondary)
                     Text("Entry will be deleted")
-                        .font(.system(size: 14, weight: .medium))
+                        .scaledFont(14, weight: .medium)
                     Spacer()
                     Text("\(deleteCountdown)s")
                         .font(.system(size: 13, weight: .medium).monospacedDigit())
@@ -503,7 +504,7 @@ struct WriteView: View {
                     Button("Undo") {
                         cancelPendingDelete()
                     }
-                    .font(.system(size: 14, weight: .semibold))
+                    .scaledFont(14, weight: .semibold)
                     .foregroundStyle(Color.accentColor)
                 }
                 .padding(.horizontal, 16)
@@ -568,7 +569,6 @@ struct WriteView: View {
         .navigationBarTitleDisplayMode(.inline)
         #if os(macOS)
         .safeAreaInset(edge: .top, spacing: 0) { macToolbar }
-        .safeAreaInset(edge: .bottom, spacing: 0) { macStatusBar }
         // Escape leaves the editor of an existing entry without saving (the design has no back button).
         .onExitCommand { if entry != nil { dismiss() } }
         #if DEBUG

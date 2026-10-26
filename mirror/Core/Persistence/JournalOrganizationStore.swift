@@ -50,6 +50,23 @@ enum JournalOrganizationStore {
         try save(context)
     }
 
+    /// A dragged entry list on the Mac: entry ids as one string, one per line.
+    static func dragPayload(for ids: [UUID]) -> String {
+        ids.map(\.uuidString).joined(separator: "\n")
+    }
+
+    /// Moves the entries named in dropped drag payloads. Returns how many moved; text that isn't
+    /// a list of entry ids moves nothing.
+    @discardableResult
+    static func moveDropped(_ payloads: [String], to collectionID: UUID?, in context: ModelContext) -> Int {
+        let ids = Set(payloads.flatMap { $0.split(separator: "\n") }.compactMap { UUID(uuidString: String($0)) })
+        guard !ids.isEmpty else { return 0 }
+        let entries = (try? context.fetch(FetchDescriptor<Entry>(predicate: #Predicate { ids.contains($0.id) }))) ?? []
+        guard !entries.isEmpty else { return 0 }
+        try? move(entries, to: collectionID, in: context)
+        return entries.count
+    }
+
     static func reorderCollections(_ ordered: [JournalCollection], in context: ModelContext) throws {
         for (index, collection) in ordered.enumerated() where collection.sortIndex != index {
             collection.sortIndex = index

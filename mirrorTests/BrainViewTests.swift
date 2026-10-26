@@ -412,3 +412,38 @@ struct BrainGraphBuilderTests {
         #expect((frequent?.radius ?? 0) > (rare?.radius ?? 0))
     }
 }
+
+// Brain View's 2D canvas draws every theme itself, so VoiceOver reads one synthetic element per
+// theme (UI pass 2026-10-24). Pure label text; no NLTagger involved.
+@Suite("Brain View VoiceOver labels")
+struct BrainAccessibilityTests {
+    private func node(_ id: String, count: Int, mood: Double?) -> BrainNode {
+        BrainNode(id: id, label: id.capitalized, type: .keyword, entryIDs: [], mentionCount: count, avgMoodScore: mood, radius: 10)
+    }
+
+    @Test func nameCountMoodAndStrongestLinksFirst() {
+        let work = node("work", count: 14, mood: 2.1)
+        let graph = BrainGraph(nodes: [work, node("sleep", count: 6, mood: nil), node("family", count: 5, mood: 4.4),
+                                       node("food", count: 4, mood: 3), node("travel", count: 3, mood: 3)],
+                               edges: [BrainEdge(id: "work-food", a: "work", b: "food", weight: 2),
+                                       BrainEdge(id: "sleep-work", a: "sleep", b: "work", weight: 5),
+                                       BrainEdge(id: "family-work", a: "family", b: "work", weight: 3),
+                                       BrainEdge(id: "travel-work", a: "travel", b: "work", weight: 1)])
+        let label = BrainAccessibility.label(for: work, in: graph)
+        #expect(label.hasPrefix("Work, 14 entries, mostly difficult days, linked to "))
+        #expect(label.hasSuffix(ListFormatter.localizedString(byJoining: ["Sleep", "Family", "Food"])))
+        #expect(!label.contains("Travel"))
+    }
+
+    @Test func oneEntry_noMood_noLinks() {
+        let solo = node("goals", count: 1, mood: nil)
+        #expect(BrainAccessibility.label(for: solo, in: BrainGraph(nodes: [solo], edges: [])) == "Goals, 1 entry")
+    }
+
+    @Test func moodBands() {
+        let good = node("walks", count: 2, mood: 4.2), mixed = node("food", count: 2, mood: 3.0)
+        let graph = BrainGraph(nodes: [good, mixed], edges: [])
+        #expect(BrainAccessibility.label(for: good, in: graph) == "Walks, 2 entries, mostly good days")
+        #expect(BrainAccessibility.label(for: mixed, in: graph) == "Food, 2 entries, mixed days")
+    }
+}

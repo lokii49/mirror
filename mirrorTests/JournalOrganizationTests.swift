@@ -203,4 +203,29 @@ struct JournalOrganizationTests {
         let manifest = try ArchivePackage.decoder.decode(ArchivePackage.Manifest.self, from: Data(json.utf8))
         #expect(manifest.savedViews == nil)
     }
+
+    // Dragging entries onto a collection chip on the Mac (UI pass 2026-10-24).
+    @Test func droppedPayloadMovesEveryNamedEntry() throws {
+        let context = try context()
+        let a = Entry(text: "Synthetic entry one."), b = Entry(text: "Synthetic entry two."), c = Entry(text: "Synthetic entry three.")
+        [a, b, c].forEach(context.insert)
+        try context.save()
+        let work = UUID()
+        let payload = JournalOrganizationStore.dragPayload(for: [a.id, b.id])
+        #expect(JournalOrganizationStore.moveDropped([payload], to: work, in: context) == 2)
+        #expect(a.collectionID == work && b.collectionID == work)
+        #expect(c.collectionID == nil)
+        // Dropping on Unfiled takes them out again.
+        #expect(JournalOrganizationStore.moveDropped([payload], to: nil, in: context) == 2)
+        #expect(a.collectionID == nil && b.collectionID == nil)
+    }
+
+    @Test func droppedTextThatIsNotEntryIDsMovesNothing() throws {
+        let context = try context()
+        let a = Entry(text: "Synthetic entry.")
+        context.insert(a)
+        try context.save()
+        #expect(JournalOrganizationStore.moveDropped(["Some dragged text", UUID().uuidString], to: UUID(), in: context) == 0)
+        #expect(a.collectionID == nil)
+    }
 }

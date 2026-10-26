@@ -698,6 +698,13 @@ enum MacSnapshot {
         NotificationCenter.default.post(name: .mirrorMacNewEntrySeeded, object: nil, userInfo: ["text": "Can you say more about \u{201C}Nothing went wrong and I still feel flat\u{201D}?\n"])
         try? await Task.sleep(for: .seconds(2))
         capture(mainWindow(), name: "4e-chip-write")
+        // The reader with the day's reflection and related entries (design review 2026-10-21):
+        // the newest entry is the one the seeded reflection is about, so open it now that it exists.
+        go("entries")
+        try? await Task.sleep(for: .seconds(1.5))
+        NotificationCenter.default.post(name: .mirrorMacDebugSelectFirstEntry, object: nil)
+        try? await Task.sleep(for: .seconds(3))
+        capture(mainWindow(), name: "3e-reader-reflection")
         go("today")
         NotificationCenter.default.post(name: .mirrorMacDebugToggleInspector, object: nil, userInfo: ["open": false])
         try? await Task.sleep(for: .seconds(1))

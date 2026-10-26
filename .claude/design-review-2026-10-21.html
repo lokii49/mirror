@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>MirrorNotes design review</title>
+<style>
+  :root {
+    --bg: #F2EEF8; --surface: #FFFFFF; --surface2: #F8F5FF; --surface3: #EDE8FC;
+    --accent: #6341CC; --accent-lt: #7C5CE4; --accent-btn: #6341CC; --accent-tint: rgba(99,65,204,0.10);
+    --ember: #E05470;
+    --text: #16112A; --text-2: #5B5170; --text-3: #6E6587;
+    --border: rgba(22,17,42,0.08); --border-2: rgba(22,17,42,0.14);
+    --shadow-card: 0 1px 2px rgba(40,24,90,0.05), 0 10px 28px rgba(40,24,90,0.07);
+    --serif: ui-serif, 'New York', 'Iowan Old Style', Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    --rounded: ui-rounded, -apple-system, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) { :root { --bg: #08060F; --surface: #110E1C; --surface2: #1C1830; --surface3: #241F3D; --accent: #8B6CF0; --accent-lt: #A78BFA; --accent-btn: #6E4FE0; --accent-tint: rgba(139,108,240,0.16); --ember: #F97B8B; --text: #EDE9F8; --text-2: #A39BC0; --text-3: #9087B0; --border: rgba(237,233,248,0.08); --border-2: rgba(237,233,248,0.16); --shadow-card: 0 1px 2px rgba(0,0,0,0.4), 0 10px 28px rgba(0,0,0,0.35); } }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); line-height: 1.55; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+  header.top { padding: 56px 0 24px; }
+  h1 { font-family: var(--serif); font-weight: 600; font-size: clamp(34px, 5vw, 56px); letter-spacing: -0.02em; line-height: 1.05; margin-bottom: 14px; }
+  h2 { font-family: var(--serif); font-weight: 600; font-size: clamp(26px, 3.4vw, 38px); letter-spacing: -0.015em; line-height: 1.1; margin: 0 0 14px; }
+  h3 { font-size: 18px; font-weight: 600; margin: 0 0 8px; }
+  p, li { color: var(--text-2); font-size: 16px; }
+  .lede { font-size: 18px; max-width: 42em; }
+  section { padding: 56px 0; border-top: 1px solid var(--border); }
+  .meta { font-size: 14px; color: var(--text-3); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+  .three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  @media (max-width: 900px) { .two, .three { grid-template-columns: 1fr; } }
+  .card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 22px; padding: 20px 22px; box-shadow: var(--shadow-card); }
+  .card.accent { border-color: color-mix(in srgb, var(--accent) 45%, transparent); box-shadow: 0 0 0 6px var(--accent-tint), var(--shadow-card); }
+  .verdict { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 100px; font-size: 13px; font-weight: 600; background: var(--surface3); color: var(--text); }
+  .verdict.keep::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: #1E9E4C; }
+  .verdict.change::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--ember); }
+  .verdict.ask::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: #FF9800; }
+  ul.plain { list-style: none; display: grid; gap: 10px; }
+  ul.plain li { padding-left: 18px; position: relative; }
+  ul.plain li::before { content: ''; position: absolute; left: 0; top: .6em; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); opacity: .6; }
+  .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 14px 0; }
+  .sw { border-radius: 14px; padding: 12px; min-height: 86px; display: flex; flex-direction: column; justify-content: flex-end; font-size: 12px; font-weight: 600; border: 1px solid var(--border); }
+  .sw small { font-weight: 500; opacity: .8; }
+  .moodrow { display: grid; grid-template-columns: 110px repeat(12, 1fr); gap: 6px; align-items: center; font-size: 12px; margin: 8px 0; }
+  .moodrow .lab { color: var(--text-3); font-weight: 600; }
+  .moodrow .d { aspect-ratio: 1; border-radius: 9px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 3px; font-size: 9px; color: rgba(0,0,0,.65); font-weight: 700; }
+  @media (max-width: 760px) { .moodrow { grid-template-columns: 70px repeat(12, 1fr); } .moodrow .d { font-size: 0; } }
+  .note { font-size: 14px; color: var(--text-3); margin-top: 8px; }
+
+  /* device frames */
+  .phone { width: 393px; height: 852px; transform-origin: top left; border-radius: 54px; background: var(--bg); border: 10px solid #1a1626; box-shadow: 0 30px 80px rgba(20,10,60,0.3); position: relative; overflow: hidden; margin: 0 auto; }
+  .phone .island { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); width: 120px; height: 34px; border-radius: 20px; background: #000; z-index: 3; }
+  .phone .screen { position: absolute; inset: 0; padding: 62px 16px 90px; overflow: hidden; }
+  .phone .tabbar { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); width: 320px; height: 62px; border-radius: 100px; background: rgba(255,255,255,0.78); backdrop-filter: blur(20px); border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(40,24,90,0.14); display: grid; grid-template-columns: repeat(3,1fr); padding: 5px; }
+  @media (prefers-color-scheme: dark) { .phone .tabbar { background: rgba(17,14,28,0.78); } }
+  .phone .tabbar span { display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 100px; font-size: 11px; font-weight: 600; gap: 3px; }
+  .phone .tabbar span.on { background: var(--surface3); color: var(--accent); }
+  .phone .tabbar i { width: 22px; height: 22px; border-radius: 6px; background: currentColor; opacity: .85; display: block; }
+  .ios-head { display: flex; align-items: center; justify-content: space-between; height: 44px; margin-bottom: 8px; }
+  .ios-head b { font-size: 18px; font-weight: 700; }
+  .round { width: 40px; height: 40px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.1), 0 6px 18px rgba(40,24,90,.08); display: inline-flex; align-items: center; justify-content: center; color: var(--accent); font-size: 16px; }
+  .sec { display: grid; grid-template-columns: 40px 1fr auto; gap: 12px; align-items: center; margin: 10px 0 10px; }
+  .sec .ico { width: 40px; height: 40px; border-radius: 12px; background: var(--accent-tint); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .sec h4 { font-size: 20px; font-weight: 700; line-height: 1.1; }
+  .sec small { color: var(--text-2); font-size: 13px; }
+  .streak { padding: 5px 10px; border-radius: 100px; background: rgba(249,123,139,0.18); color: #B8405B; font-size: 13px; font-weight: 700; }
+  .icard { background: var(--surface); border: 1.5px solid var(--border); border-radius: 24px; padding: 16px 18px; box-shadow: var(--shadow-card); margin-bottom: 14px; }
+  .icard.today { border-color: color-mix(in srgb, var(--accent) 45%, transparent); box-shadow: 0 0 0 5px var(--accent-tint), var(--shadow-card); }
+  .ihead { display: flex; align-items: center; justify-content: space-between; font-size: 13px; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+  .ihead .k { color: var(--accent); font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .ihead time, .ihead .t { color: var(--text-3); }
+  .refl { font-family: var(--serif); font-size: 18px; line-height: 1.45; }
+  .refl mark { background: var(--accent-tint); color: inherit; border-radius: 4px; padding: 0 3px; }
+  .chipbtn { display: inline-block; margin-top: 12px; padding: 9px 14px; border-radius: 100px; background: var(--accent-tint); color: var(--accent); font-weight: 600; font-size: 14px; }
+  .mini-chart { height: 110px; margin: 6px 0 2px; }
+  .collapsed { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-radius: 100px; background: var(--surface); border: 1px solid var(--border); font-weight: 600; font-size: 15px; margin-bottom: 14px; }
+  .collapsed span { color: var(--text-3); font-weight: 400; }
+  .digest-rows { display: grid; gap: 8px; }
+  .digest-rows .r { display: grid; grid-template-columns: 70px 1fr; gap: 10px; align-items: baseline; }
+  .digest-rows small { color: var(--text-3); font-weight: 600; font-size: 11px; }
+  .digest-rows p { font-family: var(--serif); font-size: 15px; color: var(--text); line-height: 1.4; }
+  .pill { display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; border-radius: 100px; background: var(--surface3); font-size: 13px; font-weight: 500; }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  /* entries */
+  .entry { position: relative; display: grid; grid-template-columns: 54px 1fr; gap: 12px; padding: 14px 14px 14px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 22px; box-shadow: var(--shadow-card); overflow: hidden; margin-bottom: 10px; }
+  .entry::before { content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; width: 4px; border-radius: 0 4px 4px 0; background: var(--rail); }
+  .entry .tile { width: 54px; height: 60px; border-radius: 14px; background: var(--tint); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .entry .tile b { font-size: 22px; font-weight: 700; line-height: 1; } .entry .tile span { font-size: 10px; font-weight: 700; letter-spacing: .08em; color: var(--text-2); font-family: var(--rounded); }
+  .entry .txt { font-size: 15px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .entry .meta { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 12px; color: var(--text-3); }
+  .month { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-3); padding: 10px 6px 6px; }
+  .month b { letter-spacing: .12em; text-transform: uppercase; font-family: var(--rounded); }
+  /* brain */
+  .brain { background: #141418; border: 6px solid var(--surface3); border-radius: 24px; height: 420px; position: relative; overflow: hidden; color: #EDE9F8; }
+  .brain .bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; font-size: 13px; font-weight: 600; }
+  .brain .seg { display: inline-flex; background: rgba(237,233,248,.12); border-radius: 100px; padding: 2px; }
+  .brain .seg span { padding: 3px 10px; border-radius: 100px; font-size: 12px; } .brain .seg .on { background: rgba(237,233,248,.9); color: #141418; }
+  .brain .legend { position: absolute; left: 14px; bottom: 12px; display: flex; gap: 12px; font-size: 11px; color: rgba(237,233,248,.75); }
+  .brain .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--surface); border-radius: 22px 22px 0 0; padding: 12px 16px 16px; color: var(--text); box-shadow: 0 -10px 40px rgba(0,0,0,.35); }
+  .sheet .grab { width: 36px; height: 5px; border-radius: 3px; background: var(--border-2); margin: 0 auto 10px; }
+  .sheet h5 { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .sheet .e { font-size: 13px; color: var(--text-2); padding: 7px 0; border-top: 1px solid var(--border); }
+  .sheet .e b { color: var(--text); font-weight: 600; margin-right: 6px; }
+  /* mac */
+  .mac { width: 100%; border-radius: 14px; overflow: hidden; border: 1px solid var(--border-2); box-shadow: 0 30px 80px rgba(20,10,60,0.22); background: var(--bg); display: grid; grid-template-columns: 220px minmax(0, 1fr); }
+  .mac > *, .mac .pane > *, .mac .row > div, .mac .detail > * { min-width: 0; }
+  .phone-wrap { width: 100%; max-width: 393px; margin: 0 auto; overflow: hidden; }
+  .two > *, .three > * { min-width: 0; }
+  @media (max-width: 900px) { .mac { grid-template-columns: 1fr; } .mac .side { display: none; } .mac .pane { grid-template-columns: 1fr; } .mac .list { border-right: 0; border-bottom: 1px solid var(--border); } .mac .wbar { flex-wrap: wrap; gap: 10px; } }
+  .mac .side { background: var(--surface2); border-right: 1px solid var(--border); padding: 14px 10px; }
+  .mac .lights { display: flex; gap: 7px; padding: 4px 6px 16px; } .mac .lights i { width: 12px; height: 12px; border-radius: 50%; display: block; } .mac .lights i:nth-child(1){background:#ff5f57} .mac .lights i:nth-child(2){background:#febc2e} .mac .lights i:nth-child(3){background:#28c840}
+  .mac .item { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-radius: 9px; font-size: 13px; }
+  .mac .item.on { background: var(--accent); color: #fff; }
+  .mac .grp { padding: 14px 12px 6px; font-size: 11px; font-weight: 700; color: var(--text-3); letter-spacing: .08em; }
+  .mac .pane { display: grid; grid-template-columns: 330px minmax(0, 1fr); align-items: start; }
+  .mac .list { border-right: 1px solid var(--border); padding: 14px 12px; }
+  .mac .ph { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 15px; margin-bottom: 10px; }
+  .mac .search { padding: 8px 10px; border-radius: 10px; background: var(--surface3); color: var(--text-3); font-size: 13px; margin-bottom: 10px; }
+  .mac .row { display: grid; grid-template-columns: 44px 1fr; gap: 10px; padding: 9px 10px 9px 14px; border-radius: 12px; position: relative; margin-bottom: 4px; }
+  .mac .row.sel { background: var(--accent-tint); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
+  .mac .row::before { content: ''; position: absolute; left: 4px; top: 10px; bottom: 10px; width: 3px; border-radius: 3px; background: var(--rail); }
+  .mac .row .tile { width: 44px; height: 48px; border-radius: 11px; background: var(--tint); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .mac .row .tile b { font-size: 17px; font-weight: 700; line-height: 1; } .mac .row .tile span { font-size: 9px; font-weight: 700; letter-spacing: .06em; color: var(--text-2); font-family: var(--rounded); }
+  .mac .row .l2 { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .mac .row .l3 { font-size: 12px; color: var(--text-2); display: flex; gap: 6px; align-items: center; }
+  .mac .detail { padding: 26px 30px; }
+  .mac .when { font-size: 11px; font-weight: 700; letter-spacing: .1em; color: var(--text-2); font-family: var(--rounded); text-transform: uppercase; margin-bottom: 10px; }
+  .mac .body { font-family: var(--serif); font-size: 19px; line-height: 1.55; max-width: 560px; margin: 10px 0 18px; }
+  .mac .related { margin-top: 18px; }
+  .mac .related h6 { font-size: 11px; font-weight: 700; letter-spacing: .1em; color: var(--text-3); margin-bottom: 8px; }
+  .mac .rel { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); margin-bottom: 6px; font-size: 13px; color: var(--text-2); }
+  .mac .rel b { color: var(--text); font-weight: 600; }
+  /* mac write */
+  .mac .wbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+  .mac .wbar .tools { display: inline-flex; gap: 6px; align-items: center; }
+  .mac .wbar .fmt { display: inline-flex; border: 1px solid var(--border-2); border-radius: 8px; overflow: hidden; }
+  .mac .wbar .fmt span { padding: 4px 10px; font-size: 13px; border-right: 1px solid var(--border-2); color: var(--text-2); } .mac .wbar .fmt span:last-child { border-right: 0; }
+  .mac .wbar .save { padding: 7px 14px; border-radius: 9px; background: var(--accent-btn); color: #fff; font-weight: 700; font-size: 13px; }
+  .mac .wbar .hint { font-size: 12px; color: var(--text-3); margin-right: 8px; }
+  .mac .wbody { padding: 30px 40px; }
+  .mac .wbody textarea { width: 100%; height: 220px; border: 0; background: transparent; resize: none; font-family: var(--serif); font-size: 20px; line-height: 1.55; color: var(--text); outline: none; }
+  /* locked */
+  .lock { display: flex; gap: 12px; align-items: center; }
+  .lock .ico { width: 36px; height: 36px; border-radius: 10px; background: var(--surface3); display: flex; align-items: center; justify-content: center; }
+  .decisions { display: grid; gap: 12px; }
+  .decisions .card { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center; }
+  .decisions b { color: var(--text); }
+  .plan { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .plan .step { display: grid; grid-template-columns: 34px 1fr auto; gap: 12px; align-items: baseline; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; font-size: 14px; }
+  .plan .step .n { font-family: var(--rounded); font-weight: 700; color: var(--accent); }
+  .plan .step code { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--text-3); }
+  footer { padding: 36px 0 60px; color: var(--text-3); font-size: 13px; border-top: 1px solid var(--border); }
+  @media (max-width: 900px) { .mac { grid-template-columns: 1fr !important; } .mac .side { display: none; } .mac .pane { grid-template-columns: 1fr !important; } .mac .list { border-right: 0; border-bottom: 1px solid var(--border); } .mac .detail { padding: 20px 18px; } .mac .wbar { flex-wrap: wrap; gap: 10px; } .mac .wbody { padding: 20px 18px; } .moodrow { grid-template-columns: 60px repeat(12, 1fr); gap: 3px; } .decisions .card { grid-template-columns: 1fr; } .plan .step { grid-template-columns: 30px 1fr; } .plan .step code { grid-column: 2; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <p class="meta">Design review · 21 October 2026 · for Lokesh · nothing here is built yet</p>
+    <h1>MirrorNotes, three surfaces, one system.</h1>
+    <p class="lede">What the colour and theme do to a reader, what they don't yet do, and the layout changes that take the iOS and Mac apps toward 10/10. Every mockup below uses the live website's components, which already mirror the app's tokens. Sample journal only.</p>
+  </header>
+
+  <section id="colour">
+    <h2>1. Colour and theme, read psychologically</h2>
+    <div class="two">
+      <div>
+        <h3>What the palette is doing right</h3>
+        <ul class="plain">
+          <li><b>Lavender paper + ink.</b> Low-saturation, slightly cool paper lowers arousal. Journaling needs a low-arousal state to be honest; a white or warm-cream page would feel like a form or a notebook you perform in. The tint says "evening, private, unhurried" before a word is read.</li>
+          <li><b>Violet as the only accent.</b> Violet sits between red (urgency) and blue (trust). It reads as introspective and slightly premium without being clinical. One accent means the eye always knows what is interactive.</li>
+          <li><b>Mood colours are the only loud colour.</b> Everything else is quiet, so the day tiles, rails and pills carry the emotional information. The hook: <i>colour on this screen means you.</i> It makes the week strip and the timeline readable in a glance, which is the daily reward loop.</li>
+          <li><b>New York serif for what the app says back.</b> A serif in a sea of sans marks a different speaker. The reflection reads as a voice, not a UI label. That is the trust mechanism behind "You wrote, …".</li>
+          <li><b>Ember, three uses.</b> Scarcity of warmth works: the paywall, the mood alert and the first reflection are the three moments that deserve a heartbeat.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Where it under-delivers</h3>
+        <ul class="plain">
+          <li><b>Lavender is the wellness category's colour.</b> Calm, Headspace-adjacent apps live here. The distinctiveness has to come from the components (tiles, rails, quotes), not the hue. That is why the website leans on those, and why the apps should too. Keep the hue.</li>
+          <li><b>Joy and anxiety are the same colour.</b> Joyful <span class="pill"><span class="dot" style="background:#FFD54F"></span>#FFD54F</span> and Anxious <span class="pill"><span class="dot" style="background:#FFC107"></span>#FFC107</span> are both yellow; Energized and Frustrated are both orange. In the week strip a good day and an anxious day look alike. Valence should be legible before the label is.</li>
+          <li><b>Dark mode has no depth.</b> Card #110E1C on page #08060F is a 1.3:1 step; cards float only by their border. Light mode gets paper-on-desk; dark gets ink-on-ink.</li>
+          <li><b>Insights mixes three card grammars.</b> Today, This Week's Mood and the Weekly Digest each have a different header, chip and button style. The reader re-learns the page every scroll.</li>
+          <li><b>Violet does too many jobs in the apps.</b> Accent text, tint backgrounds, selected states, CTAs. The website now separates "accent text" from "button fill" (a slightly deeper violet for buttons); the apps should too.</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3 style="margin-top:34px">Proposal A: encode valence in saturation</h3>
+    <p style="max-width:62em">Positive moods stay bright and saturated. Difficult moods become dusty versions of their family: same hue memory, lower chroma. The brain reads saturation as energy and warmth as pleasantness; a muted amber for Anxious says "uneasy", a bright yellow for Joyful says "light". The twelve stay distinct for the colour-blind reader because hue spacing is unchanged; only the difficult six lose chroma. Token-only change in <code>MirrorTheme.moodColor</code>, flows to widgets and the website.</p>
+    <div class="moodrow"><span class="lab">Current</span>
+      <span class="d" style="background:#FFD54F">Joy</span><span class="d" style="background:#66BB6A">Grat</span><span class="d" style="background:#81D4FA">Peace</span><span class="d" style="background:#4DB6AC">Cont</span><span class="d" style="background:#FF9800">Ener</span><span class="d" style="background:#9575CD">Hope</span>
+      <span class="d" style="background:#FFC107">Anx</span><span class="d" style="background:#EF5350">Overw</span><span class="d" style="background:#F57C00">Frus</span><span class="d" style="background:#9E9E9E">Drain</span><span class="d" style="background:#42A5F5">Sad</span><span class="d" style="background:#CFD8DC">Numb</span></div>
+    <div class="moodrow"><span class="lab">Proposed</span>
+      <span class="d" style="background:#FFD54F">Joy</span><span class="d" style="background:#66BB6A">Grat</span><span class="d" style="background:#81D4FA">Peace</span><span class="d" style="background:#4DB6AC">Cont</span><span class="d" style="background:#FF9800">Ener</span><span class="d" style="background:#9575CD">Hope</span>
+      <span class="d" style="background:#D4A84B">Anx</span><span class="d" style="background:#D96A63">Overw</span><span class="d" style="background:#D98A4F">Frus</span><span class="d" style="background:#9A96A3">Drain</span><span class="d" style="background:#6A9FD1">Sad</span><span class="d" style="background:#C3CBD1">Numb</span></div>
+    <div class="card" style="margin:14px 0 10px"><h3 style="margin:0 0 8px">What the palette validator measured</h3>
+      <p style="font-size:15px">Run on all 66 pairs of the twelve (dataviz validator, light surface). <b>Current:</b> worst normal-vision pair Anxious↔Joyful ΔE 4.9, worst colour-blind pair Drained↔Content ΔE 2.1 (deutan). <b>Proposal A:</b> worst normal-vision pair Anxious↔Energized ΔE 7.4, worst colour-blind pair Drained↔Content ΔE 2.9. Four further retunings did not move the colour-blind floor; the twelve-category limit is the cause, not the values.</p>
+      <p style="font-size:15px;margin-top:8px"><b>So the honest version of Proposal A is two parts.</b> (1) The dusted six, which fix the one confusion a sighted reader hits daily, joy against anxiety. (2) A second cue for valence wherever colour stands alone: in the week strip and the Mood Timeline a difficult day gets a thin ink ring on its tile or dot; pills and lists already carry the name. Colour-blind readers then read good/hard without the hue. Both land in step 1.</p></div>
+    <p class="note">Difficult six: Anxious #D4A84B, Overwhelmed #D96A63, Frustrated #D98A4F, Drained #9A96A3, Sad #6A9FD1, Numb #C3CBD1. The `moodOnColorText` dark-text set gets re-derived for the new values and likely grows to Sad, Drained and Frustrated (white on those lands near 2.8:1; current Sad and Drained already fail with white). `moodScoreColor`'s anchors are Overwhelmed, Frustrated and Numb, three of the six, so the aggregate ramp moves in the same commit. Sentinel mode's ember accent and HUD are untouched by this change. Validator results below.</p>
+
+    <h3 style="margin-top:30px">Proposal B: give dark mode a floor</h3>
+    <div class="swatches">
+      <div class="sw" style="background:#08060F;color:#EDE9F8">page<small>#08060F keep</small></div>
+      <div class="sw" style="background:#110E1C;color:#EDE9F8">card today<small>#110E1C</small></div>
+      <div class="sw" style="background:#15111F;color:#EDE9F8;border-color:rgba(237,233,248,.14)">card proposed<small>#15111F + 1px #2A2545 stroke</small></div>
+      <div class="sw" style="background:#1E1933;color:#EDE9F8">raised / chips<small>#1E1933</small></div>
+      <div class="sw" style="background:#6E4FE0;color:#fff">button fill<small>#6E4FE0 (white 5.4:1)</small></div>
+      <div class="sw" style="background:#08060F;color:#8B6CF0">accent text<small>#8B6CF0 keep</small></div>
+      <div class="sw" style="background:#F2EEF8;color:#6E6587">muted text, light<small>#6E6587 (4.7:1) — app has #A89FC0 at 2.2:1</small></div>
+      <div class="sw" style="background:#08060F;color:#9087B0">muted text, dark<small>#9087B0 (5.9:1) — app has #3F3860 under 2:1</small></div>
+    </div>
+    <p class="note">Two steps instead of one between page and card, a hairline stroke on cards, a deeper violet reserved for filled buttons so white text passes 4.5:1, and <b>muted text at 4.5:1</b>: the apps' <code>MirrorTheme.textTertiary</code> (dates, labels, timestamps, about 53 uses) sits at 2.2:1 in light and under 2:1 in dark, the same colour the website darkened today to reach its 100. The website's values become the app's, so the three surfaces agree again.</p>
+
+    <div class="three" style="margin-top:30px">
+      <div class="card"><span class="verdict keep">Keep</span><h3 style="margin-top:12px">Hue system</h3><p>Lavender / violet / ink, mood colours as the only chroma, serif as the app's voice, ember at three moments.</p></div>
+      <div class="card"><span class="verdict change">Change</span><h3 style="margin-top:12px">Valence in saturation</h3><p>Dust the six difficult moods. Same hues, lower chroma. Token-only.</p></div>
+      <div class="card"><span class="verdict change">Change</span><h3 style="margin-top:12px">Contrast + dark depth</h3><p>Muted text #6E6587 / #9087B0, card #15111F with hairline, raised #1E1933, buttons #6E4FE0.</p></div>
+    </div>
+  </section>
+
+  <section id="ios">
+    <h2>2. iOS: three layout changes</h2>
+    <p class="lede">The iOS app is the source of the system and already the strongest surface. These three changes remove the places where the design works against its own content.</p>
+    <div class="three" style="margin-top:28px; align-items:start">
+      <div>
+        <h3>2a. Insights, one card grammar</h3>
+        <p style="margin-bottom:14px">Every card: icon + name + time in the header, a hairline, serif body, one capsule action. Only Today wears the accent ring. The collapsed Past reflections row stays as it is. This Week's Mood keeps its dots in mood colour; nothing else is coloured. The two other Today states keep the same header row: the scheduled card ("Reflection generates at 7:00 PM") becomes serif body + a quiet moon glyph in the header's time slot; the digest's "write 3 entries this week for a fresh one" line moves into the digest card's header as its time text.</p>
+        <div class="phone-wrap"><div class="phone"><div class="island"></div><div class="screen">
+          <div class="ios-head"><span class="round">◉</span><b>Insights</b><span class="round">☺</span></div>
+          <div class="sec"><div class="ico">✦</div><div><h4>Today</h4><small>Wednesday, 21 October</small></div><span class="streak">🔥 18d</span></div>
+          <div class="icard today"><div class="ihead"><span class="k">✦ Daily Reflection</span><time>8:44</time></div>
+            <p class="refl">You wrote, <mark>“I was nervous this morning, but the kickoff went better than I expected.”</mark> You sound hopeful about what this project could become.</p>
+            <span class="chipbtn">Read full reflection</span></div>
+          <div class="collapsed">Past reflections <span>27 ›</span></div>
+          <div class="icard"><div class="ihead"><span class="k">〰 This Week's Mood</span><span class="t"><span class="pill"><span class="dot" style="background:#9575CD"></span>Mostly Hopeful</span></span></div>
+            <svg class="mini-chart" viewBox="0 0 320 110" width="100%"><path d="M20 55 C40 55 50 55 65 55 C85 55 95 95 110 95 C130 95 140 25 160 25 C180 25 190 25 205 25 C225 25 235 25 250 25 C270 25 280 60 300 60" fill="none" stroke="#6341CC" stroke-width="2.5"/><circle cx="20" cy="55" r="6" fill="#81D4FA" stroke="#fff" stroke-width="2"/><circle cx="65" cy="55" r="6" fill="#9575CD" stroke="#fff" stroke-width="2"/><circle cx="110" cy="95" r="6" fill="#D4A84B" stroke="#fff" stroke-width="2"/><circle cx="160" cy="25" r="6" fill="#4DB6AC" stroke="#fff" stroke-width="2"/><circle cx="205" cy="25" r="6" fill="#4DB6AC" stroke="#fff" stroke-width="2"/><circle cx="250" cy="25" r="6" fill="#81D4FA" stroke="#fff" stroke-width="2"/><circle cx="300" cy="60" r="6" fill="#9575CD" stroke="#fff" stroke-width="2"/></svg></div>
+          <div class="icard"><div class="ihead"><span class="k">▤ Weekly Digest</span><time>18 Oct</time></div>
+            <div class="digest-rows"><div class="r"><small>Theme</small><p>A new project, and learning to protect your evenings.</p></div><div class="r"><small>Mood</small><p>Highest after your morning run, lowest after the day of back-to-back meetings.</p></div></div>
+            <span class="chipbtn">Read full digest</span></div>
+          <div class="tabbar"><span><i></i>Entries</span><span><i></i>Write</span><span class="on"><i></i>Insights</span></div>
+        </div></div></div>
+      </div>
+      <div>
+        <h3>2b. Brain View, readable first</h3>
+        <p style="margin-bottom:14px">2D by default with the top themes labelled and a people / doing / places legend; 3D stays one tap away. Tapping a theme opens a sheet with the entries that mention it, so a node is a door, not a decoration. Sized by count, linked when two themes share an entry, as the website now does.</p>
+        <div class="phone-wrap"><div class="phone"><div class="island"></div><div class="screen">
+          <div class="ios-head"><span class="round">✕</span><b>Brain View</b><span class="round">⌕</span></div>
+          <div class="brain">
+            <div class="bar"><span>42 themes, 28 days</span><span class="seg"><span class="on">2D</span><span>3D</span></span></div>
+            <svg viewBox="0 0 360 300" width="100%" height="300" style="display:block">
+              <g stroke="rgba(237,233,248,.14)" stroke-width="1"><line x1="180" y1="150" x2="90" y2="80"/><line x1="180" y1="150" x2="270" y2="90"/><line x1="180" y1="150" x2="120" y2="230"/><line x1="180" y1="150" x2="250" y2="220"/><line x1="90" y1="80" x2="120" y2="230"/><line x1="270" y1="90" x2="250" y2="220"/><line x1="180" y1="150" x2="300" y2="160"/><line x1="180" y1="150" x2="60" y2="160"/><line x1="90" y1="80" x2="60" y2="160"/><line x1="270" y1="90" x2="300" y2="160"/><line x1="120" y1="230" x2="60" y2="160"/><line x1="250" y1="220" x2="300" y2="160"/></g>
+              <circle cx="180" cy="150" r="15" fill="#7C5CE4"/><text x="180" y="130" fill="#EDE9F8" font-size="11" text-anchor="middle" font-weight="600">You</text>
+              <circle cx="90" cy="80" r="11" fill="#D98A3C"/><text x="90" y="64" fill="#EDE9F8" font-size="10" text-anchor="middle">run · 5</text>
+              <circle cx="270" cy="90" r="10" fill="#C9B59A"/><text x="270" y="74" fill="#EDE9F8" font-size="10" text-anchor="middle">project · 4</text>
+              <circle cx="120" cy="230" r="8" fill="#5FB3A6"/><text x="120" y="250" fill="#EDE9F8" font-size="10" text-anchor="middle">Mum · 3</text>
+              <circle cx="250" cy="220" r="8" fill="#5FB3A6"/><text x="250" y="240" fill="#EDE9F8" font-size="10" text-anchor="middle">sister · 3</text>
+              <circle cx="300" cy="160" r="7" fill="#AEB8BE"/><circle cx="60" cy="160" r="7" fill="#7E9A62"/><circle cx="210" cy="60" r="5" fill="#AEB8BE"/><circle cx="140" cy="110" r="5" fill="#C9B59A"/><circle cx="230" cy="180" r="5" fill="#D98A3C"/><circle cx="160" cy="250" r="5" fill="#AEB8BE"/>
+            </svg>
+            <div class="legend"><span><i style="background:#5FB3A6"></i>people</span><span><i style="background:#D98A3C"></i>doing</span><span><i style="background:#AEB8BE"></i>places</span></div>
+          </div>
+          <div class="sheet"><div class="grab"></div><h5><span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#D98A3C"></span>run · 5 entries</h5>
+            <div class="e"><b>Wed 21</b>Ran 10k this morning without stopping.</div><div class="e"><b>Thu 15</b>Early run by the river before work.</div><div class="e"><b>Thu 9</b>Went running in the park with Noor…</div><div class="e"><b>Mon 5</b>First run after a week of bad sleep.</div></div>
+        </div></div></div>
+      </div>
+      <div>
+        <h3>2c. Entries, one voice</h3>
+        <p style="margin-bottom:14px">The list reads in one typeface; a per-entry font (serif, mono) shows inside the entry, not in its row. Day tile, rail and pill carry the identity. Month headers stay. Nothing else changes.</p>
+        <div class="phone-wrap"><div class="phone"><div class="island"></div><div class="screen">
+          <div class="ios-head"><span></span><b>Entries</b><span class="round">⌕</span></div>
+          <div style="display:flex;gap:8px;overflow:hidden;margin:0 0 10px"><span class="pill"><span class="dot" style="background:#9575CD"></span>Hopeful</span><span class="pill"><span class="dot" style="background:#66BB6A"></span>Grateful</span><span class="pill"><span class="dot" style="background:#D4A84B"></span>Anxious</span></div>
+          <div class="month"><b>October 2026</b><span>14 entries</span></div>
+          <div class="entry" style="--rail:#9575CD;--tint:#9575CD33"><div class="tile"><b>21</b><span>WED</span></div><div><p class="txt">First week leading the new project. I was nervous this morning, but the kickoff went better than I expected. Priya said my plan was the clearest she's seen.</p><div class="meta"><span>8:25 AM &nbsp; 28w</span><span class="pill"><span class="dot" style="background:#9575CD"></span>Hopeful</span></div></div></div>
+          <div class="entry" style="--rail:#66BB6A;--tint:#66BB6A33"><div class="tile"><b>20</b><span>TUE</span></div><div><p class="txt">Called my sister after dinner and we laughed about the summer we got lost in Lisbon. I want to visit her before the year ends.</p><div class="meta"><span>9:28 PM &nbsp; 25w</span><span class="pill"><span class="dot" style="background:#66BB6A"></span>Grateful</span></div></div></div>
+          <div class="entry" style="--rail:#D4A84B;--tint:#D4A84B33"><div class="tile"><b>19</b><span>MON</span></div><div><p class="txt">Couldn't switch off tonight. I keep going over tomorrow's presentation in my head. I wrote three versions of the opening and deleted them all.</p><div class="meta"><span>10:33 PM &nbsp; 24w</span><span class="pill"><span class="dot" style="background:#D4A84B"></span>Anxious</span></div></div></div>
+          <div class="entry" style="--rail:#FFD54F;--tint:#FFD54F33"><div class="tile"><b>18</b><span>SUN</span></div><div><p class="txt">Ran 10k this morning without stopping. My legs were heavy at the start, then everything felt easy. Made pancakes to celebrate.</p><div class="meta"><span>7:12 AM &nbsp; 21w</span><span class="pill"><span class="dot" style="background:#FFD54F"></span>Joyful</span></div></div></div>
+          <div class="tabbar"><span class="on"><i></i>Entries</span><span><i></i>Write</span><span><i></i>Insights</span></div>
+        </div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="mac">
+    <h2>3. Mac: bring the components across, fill the pane</h2>
+    <p class="lede">Today the Mac app is the iOS content in a stock sidebar. The two changes below make it the same product on a bigger screen.</p>
+    <h3 style="margin-top:28px">3a. Entries: day tile + rail in the rows, a detail pane that holds the entry's reflection and its neighbours</h3>
+    <div class="mac">
+      <div class="side"><div class="lights"><i></i><i></i><i></i></div>
+        <div class="item">✎ Write</div><div class="item on">▤ Entries</div>
+        <div class="grp">INSIGHTS</div><div class="item">☼ Today</div><div class="item">▤ Weekly digest</div><div class="item">▥ Monthly report</div><div class="item">〰 Mood timeline</div><div class="item">◌ Ask</div><div class="item">✧ Brain View</div></div>
+      <div class="pane">
+        <div class="list"><div class="ph">Entries <span class="meta">38</span></div><div class="search">⌕ Search entries</div>
+          <div class="month"><b>October 2026</b></div>
+          <div class="row sel" style="--rail:#9575CD;--tint:#9575CD33"><div class="tile"><b>21</b><span>WED</span></div><div><div class="l2">First week leading the new project. I was nervous this…</div><div class="l3"><span class="dot" style="width:7px;height:7px;border-radius:50%;background:#9575CD;display:inline-block"></span>Hopeful · #work · 28 words</div></div></div>
+          <div class="row" style="--rail:#66BB6A;--tint:#66BB6A33"><div class="tile"><b>20</b><span>TUE</span></div><div><div class="l2">Called my sister after dinner and we laughed about…</div><div class="l3"><span class="dot" style="width:7px;height:7px;border-radius:50%;background:#66BB6A;display:inline-block"></span>Grateful · #family · 25 words</div></div></div>
+          <div class="row" style="--rail:#D4A84B;--tint:#D4A84B33"><div class="tile"><b>19</b><span>MON</span></div><div><div class="l2">Couldn't switch off tonight. I keep going over…</div><div class="l3"><span class="dot" style="width:7px;height:7px;border-radius:50%;background:#D4A84B;display:inline-block"></span>Anxious · #work · 24 words</div></div></div>
+          <div class="row" style="--rail:#FFD54F;--tint:#FFD54F33"><div class="tile"><b>18</b><span>SUN</span></div><div><div class="l2">Ran 10k this morning without stopping. My legs…</div><div class="l3"><span class="dot" style="width:7px;height:7px;border-radius:50%;background:#FFD54F;display:inline-block"></span>Joyful · #running · 21 words</div></div></div>
+          <div class="row" style="--rail:#9A96A3;--tint:#9A96A333"><div class="tile"><b>17</b><span>SAT</span></div><div><div class="l2">Long day of back-to-back meetings. I said yes to…</div><div class="l3"><span class="dot" style="width:7px;height:7px;border-radius:50%;background:#9A96A3;display:inline-block"></span>Drained · #work · 26 words</div></div></div>
+        </div>
+        <div class="detail">
+          <div class="when">Wednesday · 21 October 2026 · 8:25 AM</div>
+          <div style="display:flex;gap:8px"><span class="pill"><span class="dot" style="background:#9575CD"></span>Hopeful</span><span class="pill">#work</span><span class="pill">#shipping</span></div>
+          <p class="body">First week leading the new project. I was nervous this morning, but the kickoff went better than I expected. Priya said my plan was the clearest she's seen.</p>
+          <div class="icard today" style="max-width:560px"><div class="ihead"><span class="k">✦ Daily Reflection</span><time>8:44</time></div><p class="refl">You wrote, <mark>“I was nervous this morning, but the kickoff went better than I expected.”</mark> You sound hopeful about what this project could become.</p><p class="refl" style="margin-top:8px;font-size:16px;color:var(--text-2)">You also wrote, “Priya said my plan was the clearest she's seen.”</p></div>
+          <div class="related"><h6>ALSO ABOUT THE PROJECT</h6>
+            <div class="rel"><b>Thu 15</b>Early run by the river before work. The air was cold and clear. I came back with a list of ideas for the project.</div>
+            <div class="rel"><b>Sat 10</b>Got the email: the project is mine. I'm excited and a little scared.</div></div>
+        </div>
+      </div>
+    </div>
+    <p class="note">The related list is the Ask retrieval the app already has (semantic index, 3.1.0, opt-in), pointed at the open entry. When the index is off, it falls back to shared tags and keyword overlap, so the pane is never empty. No new model work.</p>
+
+    <h3 style="margin-top:34px">3b. Write: one action bar</h3>
+    <div class="mac" style="min-height:420px">
+      <div class="side"><div class="lights"><i></i><i></i><i></i></div><div class="item on">✎ Write</div><div class="item">▤ Entries</div><div class="grp">INSIGHTS</div><div class="item">☼ Today</div><div class="item">▤ Weekly digest</div><div class="item">▥ Monthly report</div><div class="item">〰 Mood timeline</div><div class="item">◌ Ask</div><div class="item">✧ Brain View</div></div>
+      <div>
+        <div class="wbar"><div><b style="font-size:14px">New entry</b> <span class="meta">· Wednesday, 21 October</span></div>
+          <div class="tools"><span class="fmt"><span><b>B</b></span><span><i>I</i></span><span><u>U</u></span><span>Aa</span></span><span class="pill"><span class="dot" style="background:#81D4FA"></span>Peaceful</span><span class="pill">#home ×</span><span class="pill">+ tag</span><span class="hint">⌘↩</span><span class="save">Save entry</span></div></div>
+        <div class="wbody"><textarea readonly>Slow morning. I made coffee and sat on the balcony without my phone for the first hour, which I haven't done in weeks. The street was quiet except for a delivery van and someone watering plants two floors down.</textarea><p class="meta">47 words · draft saved · mood suggested from the entry, change it any time</p></div>
+      </div>
+    </div>
+    <p class="note">Formatting, mood, tags and Save live in one bar at the top; the bottom edge is free. The Mac paywall and sidebar locks (cosmetic today) take the same grammar when gating goes live on 15 November.</p>
+  </section>
+
+  <section id="nov">
+    <h2>4. The surfaces 15 November adds, in the same grammar</h2>
+    <div class="three">
+      <div class="icard" style="margin:0"><div class="ihead"><span class="k">▤ Weekly Digest</span><span class="t">Core</span></div><div class="lock"><div class="ico">🔒</div><p style="font-size:14px">New digests are part of Core. The ones already made for you stay readable below.</p></div><span class="chipbtn">See plans</span></div>
+      <div class="icard" style="margin:0"><div class="ihead"><span class="k">▤ Weekly Digest</span><time>Earlier · 11 Oct</time></div><div class="digest-rows"><div class="r"><small>Theme</small><p>Protecting your evenings while a project starts.</p></div></div></div>
+      <div class="icard" style="margin:0;border-color:color-mix(in srgb, var(--ember) 45%, transparent)"><div class="ihead"><span class="k" style="color:var(--ember)">✦ Your first reflection</span></div><p class="refl">You wrote, <mark>“The phone stayed in the other room.”</mark> That sounds like a quiet, good evening.</p><p class="note">The one place ember appears in Insights.</p></div>
+    </div>
+    <p class="note" style="margin-top:12px">Saved-or-lock rule from the 3.1.6 plan: a tier that can't generate a kind of insight sees the saved row or the lock, never "N more entries" or "available Sunday". The lock card and the "Earlier" card are the same component.</p>
+  </section>
+
+  <section id="plan">
+    <h2>5. Implementation and TestFlight</h2>
+    <div class="plan">
+      <div class="step"><span class="n">1</span><span>Mood colours: dust the six difficult moods; re-derive moodOnColorText and moodScoreColor anchors; widgets take the same values</span><code>MirrorTheme.swift · WidgetTheme.swift + WidgetThemeTokenTests · web COLOR map</code></div>
+      <div class="step"><span class="n">2</span><span>Tokens: textTertiary #6E6587 light / #9087B0 dark (4.5:1+ everywhere); dark inkMid #15111F + hairline, inkRaised #1E1933; a buttonFill token for filled CTAs</span><code>MirrorTheme.swift · WidgetTheme.swift</code></div>
+      <div class="step"><span class="n">3</span><span>Insights card grammar: one header row, one capsule action, accent ring only on Today, Past reflections collapsed</span><code>Features/Insights/InsightView*.swift</code></div>
+      <div class="step"><span class="n">4</span><span>Brain View: 2D default, top-N labels, legend, tap → entries sheet, 3D toggle</span><code>Features/Insights/BrainView*.swift · ThemeExtractionService</code></div>
+      <div class="step"><span class="n">5</span><span>Entries list: list rows in the system font; per-entry font only inside the entry</span><code>Features/Entries/EntryListView*.swift</code></div>
+      <div class="step"><span class="n">6</span><span>Mac Entries: tile + rail rows, month headers; detail pane with the reflection and related entries (Ask index)</span><code>Mac targets · EntriesSidebar / EntryDetail</code></div>
+      <div class="step"><span class="n">7</span><span>Mac Write: one action bar (format, mood, tags, Save ⌘↩)</span><code>Mac WriteView toolbar</code></div>
+      <div class="step"><span class="n">8</span><span>Build on the iPhone 14 Pro + Mac, full test suite green, screenshots in the default theme and in Sentinel; push → Xcode Cloud → TestFlight internal group, on your go</span><code>branch per decision below</code></div>
+    </div>
+    <p class="note" style="margin-top:12px">Order is by risk: 1–2 are tokens and ship first; 3–5 are iOS views; 6–7 are Mac. Each step is a commit I can show you on device before the next. Every view step ships both themes: Sentinel mode branches on <code>appDisplayMode</code> in each of these views, so each gets checked and screenshotted in Sentinel too.</p>
+  </section>
+
+  <section id="decisions">
+    <h2>6. Five decisions</h2>
+    <div class="decisions">
+      <div class="card"><div><b>Mood colours.</b> Dust the six difficult moods and add the valence ring (Proposal A, both parts), or keep the current twelve? Recommendation: both parts; the validator shows colour alone can't separate twelve moods either way, so the ring is what makes the week strip honest.</div><span class="verdict ask">Decide</span></div>
+      <div class="card"><div><b>Brain View default.</b> 2D with labels as the default and 3D one tap away, or keep 3D as the landing view? Recommendation: 2D default; 3D stays the showpiece one tap away.</div><span class="verdict ask">Decide</span></div>
+      <div class="card"><div><b>Mac detail pane.</b> Entry + its reflection + related entries (3a), or entry + reflection only? Recommendation: 3a; related entries are the one thing a big screen can do that the phone can't.</div><span class="verdict ask">Decide</span></div>
+      <div class="card"><div><b>Entries list typography.</b> Move the per-entry font (serif, mono, from the 3.1.3 Aa panel) out of the list row and into the entry only, so the list reads in one voice? Recommendation: yes; the font still shows where the writing is.</div><span class="verdict ask">Decide</span></div>
+      <div class="card"><div><b>Which build.</b> Tokens, Brain View, Entries and the Mac changes on <b>3.1.5</b> now (no gating, fast TestFlight), merged into 3.1.6 after. The Insights card grammar touches the same files 3.1.6 is rewriting for saved-or-lock, so it goes straight onto <b>3.1.6</b> to avoid a merge fight. Recommendation: exactly that split, so design and paywall don't land in the same week and nothing gets merged twice. Pushing 3.1.5 starts Xcode Cloud and the TestFlight group automatically; that push waits for your word.</div><span class="verdict ask">Decide</span></div>
+    </div>
+  </section>
+</div>
+<footer><div class="wrap">Mockups are HTML built from the website's components; the sample journal is StoreDemoSeed. Mood colours in the mockups already show Proposal A. Nothing in either app has been changed.</div></footer>
+<script>
+  function fit() { document.querySelectorAll('.phone-wrap').forEach(w => { const ph = w.firstElementChild; const s = Math.min(1, w.clientWidth / 393); ph.style.transform = `scale(${s})`; w.style.height = Math.round(852 * s) + 'px'; }); }
+  fit(); addEventListener('resize', fit);
+</script>
+</body>
+</html>

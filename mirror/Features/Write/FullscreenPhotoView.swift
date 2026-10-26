@@ -81,7 +81,7 @@ struct FullscreenPhotoView: View {
                         dismiss()
                     } label: {
                         if displayMode == .sentinel {
-                            Text("DONE").font(MirrorTheme.mono(15, weight: .medium))
+                            Text("DONE").scaledFont(15, weight: .medium, design: .monospaced)
                         } else {
                             Text("Done").fontWeight(.medium)
                         }

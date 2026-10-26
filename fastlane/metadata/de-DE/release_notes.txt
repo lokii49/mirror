@@ -1,9 +1,11 @@
-Zuletzt gelöscht, Entwürfe und Bezahlpläne ab 15. November
+Bezahlpläne ab 15. November
 
-• Ab 15. November gibt es Bezahlpläne. Dann brauchen die tägliche Reflexion, „Mirror fragen“, Wöchentliche Zusammenfassung, Monatsbericht, die Stimmungs-Zeitleiste und die Widgets Core oder Deep. Schreiben, Lesen, Suche und iCloud-Backup bleiben für immer kostenlos. Neue Abonnenten können 7 Tage kostenlos testen.
-• Zuletzt gelöscht: Gelöschte Einträge warten 30 Tage auf all deinen Geräten, und „Widerrufen“ holt einen sofort zurück. In den Einstellungen wählst du 7, 30 oder 90 Tage.
-• Entwürfe: Leg einen Eintrag beiseite, beginne einen neuen und schreib den ersten später in Schreiben weiter.
-• Wähle beim Schreiben eine Sammlung oder lege dort eine neue an.
-• Wähle mehrere Einträge aus, um sie in eine Sammlung zu verschieben oder zu löschen.
-• Duplikate findet doppelt gesicherte Einträge und führt sie zusammen. Wer denselben Text noch einmal sichert, wird jetzt vorher gefragt.
-• Behoben: Wer Schreiben direkt nach dem Tippen verließ, konnte die letzten Wörter verlieren.
+• Ab 15. November brauchen neue tägliche Reflexionen, „Mirror fragen“, neue Wöchentliche Zusammenfassungen und Monatsberichte, die Stimmungs-Zeitleiste und die Widgets Core oder Deep. Schreiben, Lesen, Suche und iCloud-Backup bleiben für immer kostenlos. Neue Abonnenten können 7 Tage kostenlos testen.
+• Alles, was schon für dich erstellt wurde, bleibt in jedem Plan lesbar: frühere Reflexionen, Zusammenfassungen und Berichte, in der App und in den Widgets.
+
+Außerdem in diesem Update
+
+• Der Text folgt in der ganzen App der von dir gewählten Textgröße, und Stimmungsverlauf und Denkkarte funktionieren mit VoiceOver.
+• Neue Steuerelemente „Neuer Eintrag“ und „Stimmung eintragen“ für das Kontrollzentrum, den Sperrbildschirm und die Aktionstaste.
+• Einträge öffnen sich mit einem Zoom aus der Liste. Die Stimmungsfarben sind ruhiger, und die Denkkarte öffnet flach mit einer Stimmungslegende.
+• Ein Absturz beim Verlassen der App, während eine Auswertung entstand, ist behoben, und ein seltener Absturz beim iCloud-Abgleich ist unwahrscheinlicher.

@@ -15,20 +15,20 @@ struct NoticeBanner<Actions: View>: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: systemImage)
-                .font(.system(size: 16, weight: .semibold))
+                .scaledFont(16, weight: .semibold)
                 .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.orange)
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: 4) {
                 if displayMode == .sentinel {
                     sentinelTitle
-                        .font(MirrorTheme.mono(12, weight: .bold))
+                        .scaledFont(12, weight: .bold, design: .monospaced)
                         .tracking(1)
                 } else {
                     title
-                        .font(.system(size: 15, weight: .semibold))
+                        .scaledFont(15, weight: .semibold)
                 }
                 message
-                    .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .regular) : .system(size: 13))
+                    .scaledFont(displayMode == .sentinel ? 11 : 13, design: displayMode == .sentinel ? .monospaced : .default)
                     .foregroundStyle(MirrorTheme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 actions()
@@ -40,7 +40,7 @@ struct NoticeBanner<Actions: View>: View {
                     withAnimation(.easeInOut(duration: 0.2)) { onDismiss() }
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 11, weight: .bold))
+                        .scaledFont(11, weight: .bold)
                         .foregroundStyle(.secondary)
                         .padding(4)
                 }

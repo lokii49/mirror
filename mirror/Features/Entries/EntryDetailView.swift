@@ -24,6 +24,10 @@ struct EntryDetailView: View {
     /// text, but editing it would write its unreadable fields back.
     @State private var contentUnreadable = false
     @State private var relatedInsight: Insight? = nil
+    #if os(macOS)
+    @State private var macReflection: Insight? = nil
+    @State private var macRelatedEntries: [Entry] = []
+    #endif
     @State private var displayedWordCount: Int = 0
     @State private var searchMatches: [ReaderMatches.Location] = []
     @State private var matchIndex = 0
@@ -106,24 +110,24 @@ struct EntryDetailView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         if displayMode == .sentinel {
                             Text(entry.createdAt.formatted(.dateTime.weekday(.wide).day().month(.wide).year()).uppercased())
-                                .font(MirrorTheme.mono(15, weight: .bold))
+                                .scaledFont(15, weight: .bold, design: .monospaced)
                                 .foregroundStyle(MirrorTheme.textPrimary)
                                 .kerning(0.4)
                         } else {
                             Text(entry.createdAt, format: .dateTime.weekday(.wide).month(.wide).day().year())
-                                .font(.system(size: 18, weight: .semibold))
+                                .scaledFont(18, weight: .semibold)
                                 .foregroundStyle(MirrorTheme.textPrimary)
                         }
 
                         HStack(spacing: 6) {
                             Text(entry.createdAt, format: .dateTime.hour().minute())
-                                .font(.system(size: 14, weight: .medium, design: .monospaced))
+                                .scaledFont(14, weight: .medium, design: .monospaced)
                                 .foregroundStyle(MirrorTheme.textTertiary)
                             if let label = moodLabel {
                                 Text("·")
                                     .foregroundStyle(MirrorTheme.textTertiary)
                                 Text(displayMode == .sentinel ? label.uppercased() : label)
-                                    .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .semibold) : .system(size: 13, weight: .medium))
+                                    .scaledFont(displayMode == .sentinel ? 11 : 13, weight: displayMode == .sentinel ? .semibold : .medium, design: displayMode == .sentinel ? .monospaced : .default)
                                     .kerning(displayMode == .sentinel ? 0.2 : 0)
                                     .foregroundStyle(MirrorTheme.textSecondary)
                                     .padding(.horizontal, 8)
@@ -141,7 +145,7 @@ struct EntryDetailView: View {
                             Text("·")
                                 .foregroundStyle(MirrorTheme.textTertiary)
                             Text(displayedWordCount == 1 ? "1 word" : "\(displayedWordCount) words")
-                                .font(.system(size: 14, weight: .medium, design: .monospaced))
+                                .scaledFont(14, weight: .medium, design: .monospaced)
                                 .foregroundStyle(MirrorTheme.textTertiary)
                         }
                     }
@@ -151,10 +155,10 @@ struct EntryDetailView: View {
                     if entry.textDecryptionFailed {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Encrypted entry unavailable")
-                                .font(.system(size: 17, weight: .semibold))
+                                .scaledFont(17, weight: .semibold)
                                 .foregroundStyle(MirrorTheme.textPrimary)
                             Text("This entry still exists, but this device does not have the encryption key needed to read its text.")
-                                .font(.system(size: 15))
+                                .scaledFont(15)
                                 .foregroundStyle(MirrorTheme.textSecondary)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -191,7 +195,7 @@ struct EntryDetailView: View {
                             HStack(spacing: 6) {
                                 ForEach(entry.tags, id: \.self) { tag in
                                     Text("#\(MirrorTheme.localizedTagName(for: tag))")
-                                        .font(displayMode == .sentinel ? MirrorTheme.mono(11.5, weight: .medium) : .system(size: 12, weight: .medium))
+                                        .scaledFont(displayMode == .sentinel ? 11.5 : 12, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)
                                         .foregroundStyle(MirrorTheme.textSecondary)
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 4)
@@ -216,7 +220,7 @@ struct EntryDetailView: View {
                 if let insight = relatedInsight {
                     VStack(alignment: .leading, spacing: 8) {
                         Label(displayMode == .sentinel ? "SIGNAL DETECTED" : "mirror noticed", systemImage: displayMode == .sentinel ? "waveform" : "sparkles")
-                            .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 11, weight: .bold))
+                            .scaledFont(11, weight: .bold, design: displayMode == .sentinel ? .monospaced : .default)
                             .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
                             .tracking(0.8)
                         Text(insight.content)
@@ -295,7 +299,7 @@ struct EntryDetailView: View {
                     Button("Delete Entry", systemImage: "trash", role: .destructive) { deleteToTrash() }
                 } label: {
                     Image(systemName: "ellipsis")
-                        .font(.system(size: 16, weight: .semibold))
+                        .scaledFont(16, weight: .semibold)
                         .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
                 }
                 .accessibilityLabel("More")
@@ -326,7 +330,7 @@ struct EntryDetailView: View {
         // An icon, not the word: a text button stays in a horizontal bar on iPhone Duo while More
         // moves to the vertical one, splitting the reader's two buttons (owner, 2026-10-11).
         Button("Edit", systemImage: "pencil") { showEditor = true }
-            .font(.system(size: 16, weight: .semibold))
+            .scaledFont(16, weight: .semibold)
             .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
             .disabled(entry.textDecryptionFailed || contentUnreadable)
     }
@@ -342,7 +346,7 @@ struct EntryDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(macDateLine)
-                        .font(.system(size: 11.5, weight: .semibold))
+                        .scaledFont(11.5, weight: .semibold)
                         .tracking(0.8)
                         .foregroundStyle(MacTokens.secondaryInk)
                         .padding(.bottom, 10)
@@ -353,10 +357,10 @@ struct EntryDetailView: View {
                     if entry.textDecryptionFailed {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Encrypted entry unavailable")
-                                .font(.system(size: 17, weight: .semibold))
+                                .scaledFont(17, weight: .semibold)
                                 .foregroundStyle(MirrorTheme.textPrimary)
                             Text("This entry still exists, but this device does not have the encryption key needed to read its text.")
-                                .font(.system(size: 15))
+                                .scaledFont(15)
                                 .foregroundStyle(MirrorTheme.textSecondary)
                         }
                     } else if !entry.photoDataArray.isEmpty || !allPhotoTokens(in: entry.text).isEmpty || !entry.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -387,20 +391,16 @@ struct EntryDetailView: View {
                         }
                         .padding(.top, 30)
                     }
-                    if let insight = relatedInsight {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Label("mirror noticed", systemImage: "sparkles")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(MirrorTheme.violetLight)
-                                .tracking(0.8)
-                            Text(insight.content)
-                                .readingFont(size: 15)
-                                .lineSpacing(5)
-                                .foregroundStyle(MirrorTheme.textPrimary)
-                                .italic()
+                    // The pane holds what the phone's reader can't fit beside the entry (design
+                    // review 2026-10-21): the day's reflection, then entries about the same things.
+                    if let reflection = macReflection {
+                        macReflectionCard(reflection)
+                            .padding(.top, 30)
+                    }
+                    if !macRelatedEntries.isEmpty {
+                        MacRelatedEntriesSection(entries: macRelatedEntries) { other in
+                            NotificationCenter.default.post(name: .mirrorMacOpenEntry, object: nil, userInfo: ["id": other.id])
                         }
-                        .padding(18)
-                        .themedCard(cornerRadius: 18, classicBase: .elevated)
                         .padding(.top, 30)
                     }
                     if !onThisDayEntries.isEmpty {
@@ -421,15 +421,10 @@ struct EntryDetailView: View {
         .task(id: MatchKey(entryID: entry.id, terms: searchHighlight.terms, text: entry.text)) { locateMatches() }
         .task(id: entry.id) {
             contentUnreadable = entry.contentDecryptionFailed
-            let text = entry.text
-            let prefix = text
-                .components(separatedBy: .whitespacesAndNewlines)
-                .prefix(6)
-                .joined(separator: " ")
-            relatedInsight = insights.first { insight in
-                insight.content.localizedCaseInsensitiveContains(prefix)
-            }
-            displayedWordCount = strippedWordCount(text)
+            displayedWordCount = strippedWordCount(entry.text)
+            macReflection = macFindReflection()
+            macRelatedEntries = []
+            await macLoadRelated()
         }
         #if DEBUG
         .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugOpenEditor)) { _ in showEditor = true }
@@ -440,6 +435,117 @@ struct EntryDetailView: View {
         #if DEBUG
         .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugConfirmDelete)) { _ in macDeleteEntry() }
         #endif
+    }
+
+    // MARK: Mac reader: the day's reflection and related entries
+
+    /// The daily reflection about this entry's day, newest first, through the same `reflectedDay`
+    /// the Today card and the Past list use. Replaces a six-word prefix match that found an
+    /// insight only when it happened to quote the entry's opening words. Fallback cards are
+    /// skipped. A reflection about day D is generated on D or within the fortnight after it (the
+    /// Past list's window), so only those rows are decrypted and checked.
+    private func macFindReflection() -> Insight? {
+        let day = Calendar.current.startOfDay(for: entry.createdAt)
+        let window = day...day.addingTimeInterval(14 * 86_400)
+        return insights
+            .filter { $0.type == .dailyNudge && window.contains($0.generatedAt) }
+            .sorted { $0.generatedAt > $1.generatedAt }
+            .first { insight in
+                !InsightService.isUngroundedFallback(insight.content)
+                    && !InsightService.isUnsupportedLanguageNotice(insight.content)
+                    && InsightService.reflectedDay(of: insight, entriesNewestFirst: allEntries) == day
+            }
+    }
+
+    /// How far back "Related entries" looks: the newest readable entries, not the whole journal.
+    /// Every candidate is decrypted on the main actor (the list's snapshot exists so scrolling
+    /// never does that), so a 3,000-entry journal must not pay 3,000 decrypts per row click.
+    private static let macRelatedCandidateLimit = 300
+
+    /// Entries about the same things as this one, for the pane's "Related entries" list: Ask's
+    /// retrieval pointed at this entry (EmbeddingGemma when its index is on, keyword overlap
+    /// otherwise), then entries sharing a tag, newest first. Up to three, never the entry itself.
+    /// On-device like Ask; nothing is logged. Waits a moment first so arrowing through the list
+    /// doesn't start a search per row.
+    private func macLoadRelated() async {
+        try? await Task.sleep(for: .milliseconds(350))
+        guard !Task.isCancelled else { return }
+        #if DEBUG
+        let started = Date()
+        #endif
+        var others: [Entry] = []
+        others.reserveCapacity(Self.macRelatedCandidateLimit)
+        for other in allEntries where other.id != entry.id && InsightService.hasReadableContext(other) {
+            others.append(other)
+            if others.count == Self.macRelatedCandidateLimit { break }
+        }
+        guard !others.isEmpty else { return }
+        #if DEBUG
+        defer { NSLog("EntryDetail related: %d candidates, %.0f ms", others.count, Date().timeIntervalSince(started) * 1000) }
+        #endif
+        let question = String(entry.insightContext.prefix(1_500))
+        var picked: [Entry] = []
+        if !question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            var semantic: [UUID]?
+            if await SemanticSearchService.shared.modelState == .installed {
+                let documents = others.map { SemanticSearchService.Document(id: $0.id, text: $0.insightContext) }
+                semantic = await SemanticSearchService.shared.search(question: question, in: documents, limit: 3)
+            }
+            if let semantic {
+                let byID = Dictionary(others.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+                picked = semantic.compactMap { byID[$0] }
+            } else {
+                let keyword = SearchService.search(query: question, in: others, limit: 3)
+                // SearchService hands back the newest entries when nothing matches; that isn't "related".
+                if keyword.map(\.id) != others.prefix(3).map(\.id) { picked = keyword }
+            }
+        }
+        if picked.count < 3 {
+            let tags = Set(entry.tags)
+            if !tags.isEmpty {
+                for other in others where !picked.contains(where: { $0.id == other.id }) && !tags.isDisjoint(with: other.tags) {
+                    picked.append(other)
+                    if picked.count == 3 { break }
+                }
+            }
+        }
+        guard !Task.isCancelled else { return }
+        macRelatedEntries = picked
+    }
+
+    /// The reflection in the Insights cards' grammar, with the entry's own sentence highlighted
+    /// as the Today board shows it. Display-time second quote and style, like everywhere else.
+    private func macReflectionCard(_ insight: Insight) -> some View {
+        let shown = InsightService.reflectionForDisplay(insight.content, entries: allEntries, generatedAt: insight.generatedAt, style: ReflectionStyle.current)
+        let parts = InsightService.isGrammarGrounded(insight.content) ? shown.parts : nil
+        return VStack(alignment: .leading, spacing: 14) {
+            InsightCardHeader("Daily Reflection", icon: "sparkles", trailing: {
+                InsightCardStamp(date: insight.generatedAt, format: .dateTime.day().month(.abbreviated).hour().minute())
+            })
+            Self.macReflectionText(shown.text, parts: parts)
+                .readingFont(size: 15)
+                .lineSpacing(5)
+                .foregroundStyle(MirrorTheme.textPrimary)
+        }
+        .padding(18)
+        .themedCard(cornerRadius: 18, classicBase: .elevated)
+        .contextMenu {
+            Button("Copy Reflection") { UIPasteboard.general.string = shown.text }
+        }
+    }
+
+    private static func macReflectionText(_ content: String, parts: InsightService.GroundedNudgeParts?) -> Text {
+        guard let parts, let range = content.range(of: parts.quote) else { return Text(content) }
+        let before = String(content[..<range.lowerBound])
+        let after = String(content[range.upperBound...])
+        guard before.hasSuffix(parts.open), after.hasPrefix(parts.close) else { return Text(content) }
+        let straight = parts.open == "\"" && parts.close == "\""
+        var text = AttributedString(String(before.dropLast(parts.open.count)))
+        var highlighted = AttributedString((straight ? "\u{201C}" : parts.open) + parts.quote + (straight ? "\u{201D}" : parts.close))
+        highlighted.backgroundColor = MacTokens.quoteHighlight
+        text += highlighted
+        text += AttributedString(String(after.dropFirst(parts.close.count)))
+        return Text(text)
     }
 
     /// Leave the reader first, then delete: SwiftUI must not render a deleted entry.
@@ -466,7 +572,7 @@ struct EntryDetailView: View {
                     Circle().fill(MirrorTheme.moodColor(for: mood)).frame(width: 7, height: 7)
                     Text(MirrorTheme.localizedMoodName(for: mood))
                 }
-                .font(.system(size: 12, weight: .semibold))
+                .scaledFont(12, weight: .semibold)
                 .foregroundStyle(MacTokens.selectedRowInk)
                 .padding(.horizontal, 11)
                 .frame(height: 24)
@@ -474,7 +580,7 @@ struct EntryDetailView: View {
             }
             ForEach(entry.tags, id: \.self) { tag in
                 Text("#\(MirrorTheme.localizedTagName(for: tag))")
-                    .font(.system(size: 12))
+                    .scaledFont(12)
                     .foregroundStyle(MacTokens.controlInk)
                     .padding(.horizontal, 11)
                     .frame(height: 24)
@@ -497,7 +603,7 @@ struct EntryDetailView: View {
             macToolbarButton("trash", label: "Delete entry") { macDeleteEntry() }
             Button { showEditor = true } label: {
                 Text("Edit")
-                    .font(.system(size: 12.5, weight: .semibold))
+                    .scaledFont(12.5, weight: .semibold)
                     .foregroundStyle(MacTokens.ink)
                     .padding(.horizontal, 14)
                     .frame(height: 28)
@@ -605,7 +711,7 @@ private struct OnThisDaySection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Label(displayMode == .sentinel ? "ON THIS DAY" : "On this day", systemImage: "calendar.badge.clock")
-                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .bold))
+                .scaledFont(displayMode == .sentinel ? 11 : 12, weight: .bold, design: displayMode == .sentinel ? .monospaced : .default)
                 .foregroundStyle(MirrorTheme.textTertiary)
                 .tracking(0.6)
                 .padding(.horizontal, 4)
@@ -614,7 +720,7 @@ private struct OnThisDaySection: View {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
                         Text(past.createdAt, format: .dateTime.year())
-                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                            .scaledFont(12, weight: .bold, design: .monospaced)
                             .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
                         if let mood = past.mood {
                             Text("·")
@@ -624,13 +730,13 @@ private struct OnThisDaySection: View {
                                     .fill(MirrorTheme.moodColor(for: mood))
                                     .frame(width: 6, height: 6)
                                 Text(MirrorTheme.localizedMoodName(for: mood))
-                                    .font(.system(size: 11, weight: .medium))
+                                    .scaledFont(11, weight: .medium)
                                     .foregroundStyle(MirrorTheme.textSecondary)
                             }
                         }
                         Spacer()
                         Text(past.createdAt, format: .dateTime.hour().minute())
-                            .font(.system(size: 11))
+                            .scaledFont(11)
                             .foregroundStyle(MirrorTheme.textTertiary)
                     }
                     let preview = past.text
@@ -652,6 +758,100 @@ private struct OnThisDaySection: View {
         }
     }
 }
+
+#if os(macOS)
+/// The Mac pane's related entries (design review 2026-10-21): the one thing the big screen can
+/// show beside an entry that the phone can't. Three at most; a click selects the entry in the
+/// list. Rows share the list row's day tile.
+private struct MacRelatedEntriesSection: View {
+    let entries: [Entry]
+    let open: (Entry) -> Void
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Related entries", systemImage: "link")
+                .scaledFont(12, weight: .bold)
+                .foregroundStyle(MirrorTheme.textTertiary)
+                .tracking(0.6)
+                .padding(.horizontal, 4)
+            ForEach(entries) { other in
+                Button { open(other) } label: {
+                    MacRelatedEntryRow(entry: other)
+                }
+                .buttonStyle(.plain)
+                .contextMenu {
+                    Button("Open") { open(other) }
+                    Button("Open in New Window") { openWindow(id: "entry", value: other.id) }
+                }
+            }
+        }
+    }
+}
+
+private struct MacRelatedEntryRow: View {
+    let entry: Entry
+    @State private var hovered = false
+
+    private var mood: String? { entry.mood.flatMap { $0.isEmpty ? nil : $0 } }
+    private var moodColor: Color { mood.map { MirrorTheme.moodColor(for: $0) } ?? MacTokens.accent }
+    private var firstLine: String {
+        entry.text
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .first { !$0.isEmpty } ?? ""
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(spacing: 2) {
+                Text(entry.createdAt, format: .dateTime.day())
+                    .scaledFont(15, weight: .bold, design: .rounded)
+                    .foregroundStyle(MacTokens.ink)
+                    .monospacedDigit()
+                Text(entry.createdAt, format: .dateTime.weekday(.abbreviated))
+                    .scaledFont(9, weight: .bold)
+                    .foregroundStyle(MacTokens.secondaryInk)
+                    .textCase(.uppercase)
+            }
+            .frame(width: 36)
+            .padding(.vertical, 7)
+            .background(moodColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 6) {
+                    Text(entry.createdAt, format: .dateTime.month(.abbreviated).year())
+                    if let mood {
+                        Text("·")
+                        Circle().fill(MirrorTheme.moodColor(for: mood)).frame(width: 6, height: 6)
+                        Text(MirrorTheme.localizedMoodName(for: mood))
+                    }
+                }
+                .scaledFont(12)
+                .foregroundStyle(MacTokens.secondaryInk)
+                .lineLimit(1)
+                if !firstLine.isEmpty {
+                    Text(firstLine)
+                        .scaledFont(14)
+                        .foregroundStyle(MirrorTheme.textSecondary)
+                        .lineLimit(2)
+                        .lineSpacing(3)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(12)
+        .themedCard(cornerRadius: 14)
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(hovered ? MacTokens.selectedRowBorder : Color.clear, lineWidth: 1)
+        }
+        .contentShape(Rectangle())
+        .onHover { hovered = $0 }
+        .accessibilityElement(children: .combine)
+    }
+}
+#endif
 
 /// The iPhone/iPad reader's entry text sizes at Dynamic Type `scale` (1 at the default text size,
 /// where they are the editor's: body 17, title 30, heading 22, monospaced 16). They were fixed, so
@@ -931,7 +1131,7 @@ private struct InlineEntryContent: View {
             let font = designedFont(size: bodySize, weight: .regular, design: writingFontUIDesign(at: index))
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text(style == .checklistChecked ? "✓" : "○")
-                    .font(.system(size: 24 * markerScale, weight: .regular))
+                    .scaledFont(24 * markerScale)
                     .foregroundStyle(style == .checklistChecked ? .tertiary : .secondary)
                     .frame(width: 24 * markerScale, alignment: .center)
                 Text(styledLine(line, lineIndex: index, paragraphStart: paragraphStart, baseFont: font, dropPrefixCount: dropCount))

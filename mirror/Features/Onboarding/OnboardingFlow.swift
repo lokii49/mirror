@@ -276,14 +276,14 @@ struct OnboardingFlow: View {
                             .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
                             .shadow(color: MirrorTheme.primary.opacity(0.28), radius: 14, x: 0, y: 6)
                         Text("MirrorNotes")
-                            .font(.system(size: 30, weight: .bold, design: .serif))
+                            .scaledFont(30, weight: .bold, design: .serif)
                             .foregroundStyle(MirrorTheme.textPrimary)
                             .tracking(-0.4)
                     }
                     .welcomeReveal(welcomeAppeared, delay: 0)
 
                     Text("Understand yourself\nthrough writing.")
-                        .font(.system(size: 22, weight: .regular, design: .serif))
+                        .scaledFont(22, design: .serif)
                         .italic()
                         .foregroundStyle(MirrorTheme.textSecondary)
                         .multilineTextAlignment(.center)
@@ -317,11 +317,11 @@ struct OnboardingFlow: View {
     private func welcomeFeatureItem(icon: String, text: LocalizedStringKey, color: Color) -> some View {
         HStack(spacing: 10) {
             Image(systemName: icon)
-                .font(.system(size: 14, weight: .semibold))
+                .scaledFont(14, weight: .semibold)
                 .foregroundStyle(color)
                 .frame(width: 20)
             Text(text)
-                .font(.system(size: 14, weight: .medium))
+                .scaledFont(14, weight: .medium)
                 .foregroundStyle(MirrorTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
@@ -333,12 +333,12 @@ struct OnboardingFlow: View {
     private func stepHeader(_ title: LocalizedStringKey, _ subtitle: LocalizedStringKey) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.system(size: 30, weight: .bold, design: .serif))
+                .scaledFont(30, weight: .bold, design: .serif)
                 .tracking(-0.3)
                 .foregroundStyle(MirrorTheme.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
             Text(subtitle)
-                .font(.system(size: 15))
+                .scaledFont(15)
                 .foregroundStyle(MirrorTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -407,16 +407,16 @@ struct OnboardingFlow: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
                     Text(verbatim: "MirrorNotes")
-                        .font(.system(size: 15, weight: .semibold))
+                        .scaledFont(15, weight: .semibold)
                         .foregroundStyle(MirrorTheme.textPrimary)
                     Spacer()
                     Text(nudgeTimeLabel)
-                        .font(.system(size: 13))
+                        .scaledFont(13)
                         .foregroundStyle(MirrorTheme.textSecondary)
                         .contentTransition(.numericText())
                 }
                 Text("What's on your mind? Take a moment to write.")
-                    .font(.system(size: 14))
+                    .scaledFont(14)
                     .foregroundStyle(MirrorTheme.textPrimary.opacity(0.85))
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -475,14 +475,14 @@ struct OnboardingFlow: View {
                 if firstEntryText.isEmpty {
                     Text(writePrompt)
                         .foregroundStyle(MirrorTheme.textTertiary)
-                        .font(.system(size: 16, weight: .regular, design: .serif))
+                        .scaledFont(16, design: .serif)
                         .padding(.horizontal, 18)
                         .padding(.top, 18)
                 }
 
                 TextEditor(text: $firstEntryText)
                     .focused($editorFocused)
-                    .font(.system(size: 16, weight: .regular, design: .serif))
+                    .scaledFont(16, design: .serif)
                     .scrollContentBackground(.hidden)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 12)
@@ -499,14 +499,14 @@ struct OnboardingFlow: View {
             HStack {
                 if firstEntryText.isEmpty {
                     Text("Even one line teaches MirrorNotes something.")
-                        .font(.system(size: 12.5, weight: .regular, design: .serif))
+                        .scaledFont(12.5, design: .serif)
                         .italic()
                         .foregroundStyle(MirrorTheme.textTertiary)
                 }
                 Spacer()
                 let wordCount = segmentedWordCount(firstEntryText)
                 Text(wordCount == 1 ? "1 word" : "\(wordCount) words")
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .scaledFont(12, weight: .medium, design: .monospaced)
                     .foregroundStyle(MirrorTheme.textTertiary)
             }
 
@@ -558,7 +558,7 @@ struct OnboardingFlow: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text(title)
-                        .font(.system(size: 16, weight: .semibold))
+                        .scaledFont(16, weight: .semibold)
                         .foregroundStyle(MirrorTheme.textPrimary)
                     Spacer()
                     Circle()
@@ -572,7 +572,7 @@ struct OnboardingFlow: View {
                         .transition(.scale.combined(with: .opacity))
                 }
                 Text(subtitle)
-                    .font(.system(size: 12.5))
+                    .scaledFont(12.5)
                     .foregroundStyle(MirrorTheme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -623,9 +623,9 @@ struct OnboardingFlow: View {
                     if mode == .sentinel {
                         HStack(spacing: 5) {
                             Image(systemName: "waveform")
-                                .font(.system(size: 9, weight: .semibold))
+                                .scaledFont(9, weight: .semibold)
                             Text("SIGNAL")
-                                .font(MirrorTheme.mono(9.5, weight: .semibold))
+                                .scaledFont(9.5, weight: .semibold, design: .monospaced)
                                 .kerning(0.3)
                         }
                         .foregroundStyle(accent)
@@ -637,7 +637,7 @@ struct OnboardingFlow: View {
                         HStack(spacing: 5) {
                             Circle().fill(accent).frame(width: 6, height: 6)
                             Text("Grateful")
-                                .font(.system(size: 11, weight: .semibold))
+                                .scaledFont(11, weight: .semibold)
                         }
                         .foregroundStyle(accent)
                         .padding(.horizontal, 10)
@@ -688,17 +688,17 @@ struct OnboardingFlow: View {
         } label: {
             HStack(spacing: 14) {
                 Image(systemName: reason.icon)
-                    .font(.system(size: 16, weight: .semibold))
+                    .scaledFont(16, weight: .semibold)
                     .foregroundStyle(color)
                     .frame(width: 40, height: 40)
                     .background(color.opacity(isSelected ? 0.18 : 0.10), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(reason.label)
-                        .font(.system(size: 16, weight: .semibold))
+                        .scaledFont(16, weight: .semibold)
                         .foregroundStyle(MirrorTheme.textPrimary)
                     Text(reason.hint)
-                        .font(.system(size: 13))
+                        .scaledFont(13)
                         .foregroundStyle(MirrorTheme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -744,7 +744,7 @@ struct OnboardingFlow: View {
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: preset.icon)
-                    .font(.system(size: 15, weight: .semibold))
+                    .scaledFont(15, weight: .semibold)
                     .foregroundStyle(isSelected ? MirrorTheme.violet : MirrorTheme.textSecondary)
                     .frame(width: 16)
 
@@ -755,7 +755,7 @@ struct OnboardingFlow: View {
                             .foregroundStyle(isSelected ? MirrorTheme.textPrimary : MirrorTheme.textSecondary)
                         if isRecommended {
                             Text("Suggested")
-                                .font(.system(size: 11, weight: .semibold))
+                                .scaledFont(11, weight: .semibold)
                                 .foregroundStyle(MirrorTheme.primary)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 3)
@@ -765,14 +765,14 @@ struct OnboardingFlow: View {
                     }
                     if preset != .custom {
                         Text(preset.timeLabel)
-                            .font(.system(size: 13))
+                            .scaledFont(13)
                             .foregroundStyle(isSelected ? AnyShapeStyle(MirrorTheme.primary.opacity(0.8)) : AnyShapeStyle(MirrorTheme.textSecondary))
                     }
                     if isRecommended && isSelected {
                         Text(preset == .morning
                              ? "Great for intention-setting before the day starts."
                              : "Best for capturing the full day before it fades.")
-                            .font(.system(size: 12))
+                            .scaledFont(12)
                             .foregroundStyle(MirrorTheme.primary.opacity(0.8))
                             .transition(.opacity.combined(with: .move(edge: .top)))
                     }
@@ -823,10 +823,10 @@ struct OnboardingFlow: View {
                 Group {
                     if isSentinelPreview {
                         Text(step == 4 ? "INITIATE" : "CONTINUE")
-                            .font(MirrorTheme.mono(15, weight: .bold))
+                            .scaledFont(15, weight: .bold, design: .monospaced)
                     } else {
                         Text(ctaTitle)
-                            .font(.system(size: 17, weight: .semibold))
+                            .scaledFont(17, weight: .semibold)
                     }
                 }
                 .foregroundStyle(.white)
@@ -1041,7 +1041,7 @@ private struct WelcomeReflectionDemo: View {
             thread
             reflectionCard
             Text("After a few entries, MirrorNotes reflects your own words back to you.")
-                .font(.system(size: 13))
+                .scaledFont(13)
                 .foregroundStyle(MirrorTheme.textSecondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
@@ -1060,7 +1060,7 @@ private struct WelcomeReflectionDemo: View {
                     .fill(Color.green)
                     .frame(width: 7, height: 7)
                 Text(Date.now, format: .dateTime.weekday(.wide))
-                    .font(.system(size: 12, weight: .semibold))
+                    .scaledFont(12, weight: .semibold)
                     .foregroundStyle(MirrorTheme.textSecondary)
             }
             ZStack(alignment: .topLeading) {
@@ -1068,7 +1068,7 @@ private struct WelcomeReflectionDemo: View {
                 Text(entry).hidden()
                 Text(typedEntry)
             }
-            .font(.system(size: 17, design: .serif))
+            .scaledFont(17, design: .serif)
             .lineSpacing(4)
             .foregroundStyle(MirrorTheme.textPrimary)
             // Grow to every line; inside a ScrollView the Mac otherwise truncates to one.
@@ -1110,10 +1110,10 @@ private struct WelcomeReflectionDemo: View {
     private var reflectionCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Daily Reflection", systemImage: "sparkles")
-                .font(.system(size: 12, weight: .semibold))
+                .scaledFont(12, weight: .semibold)
                 .foregroundStyle(MirrorTheme.violetLight)
             Text(reflectionText)
-                .font(.system(size: 15))
+                .scaledFont(15)
                 .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
         }

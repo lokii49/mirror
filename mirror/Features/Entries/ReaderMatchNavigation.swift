@@ -100,11 +100,11 @@ struct ReaderMatchBar: View {
         HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Match \(index + 1) of \(matches.count)")
-                    .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .semibold) : .system(size: 13, weight: .semibold))
+                    .scaledFont(displayMode == .sentinel ? 12 : 13, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                     .monospacedDigit()
                 if case .voiceNote(let note) = matches[index].place {
                     Text("In voice note \(note + 1)")
-                        .font(.system(size: 11, weight: .medium))
+                        .scaledFont(11, weight: .medium)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -125,7 +125,7 @@ struct ReaderMatchBar: View {
             .accessibilityIdentifier("reader.nextMatch")
         }
         .buttonStyle(.plain)
-        .font(.system(size: 15, weight: .semibold))
+        .scaledFont(15, weight: .semibold)
         .foregroundStyle(accent)
         .padding(.horizontal, 16)
         .padding(.vertical, 8)

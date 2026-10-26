@@ -86,14 +86,60 @@ extension SharedLLMState {
             }
         }
 
-        @Test func gemmaAnswerSurvivesThePipelineUnmodified() async throws {
-            let options = InsightService.groundedAskPlan(question: "How has my sleep been lately?", pool: pool(), languageCode: "en").quoteOptions
-            let reply = InsightService.groundedAskPrefix + options[0]
-            LocalLLMService.generateInterceptForTesting = { _, _, _, _ in (reply, .gemma) }
-            defer { LocalLLMService.generateInterceptForTesting = nil }
+        // English Ask on Gemma (2026-10-24, tools/llmrig/ask/RUBRIC.md): the closest sentence, no model run.
+        @Test func englishAskOnGemmaShowsTheClosestSentenceWithoutAModel() async throws {
+            var calls = 0
+            LocalLLMService.generateInterceptForTesting = { _, _, _, _ in calls += 1; return ("x", .gemma) }
+            LocalLLMService.forceGemmaForTesting = true
+            defer {
+                LocalLLMService.generateInterceptForTesting = nil
+                LocalLLMService.forceGemmaForTesting = false
+            }
             let (text, engine) = try await InsightService.ask(question: "How has my sleep been lately?", entries: pool())
-            #expect(text == reply)
-            #expect(engine == .gemma)
+            #expect(calls == 0)
+            #expect(engine == .search)
+            // Either sentence of the sleep entry: with Smart Search's model in the test host (AskPickRigDump
+            // leaves it in the simulator) the semantic score may pick its second one.
+            let sleepEntry = ["Barely slept, my stomach was bad all night.", "Woke at 10, way later than usual."]
+            #expect(sleepEntry.contains { text == InsightService.groundedAskPrefix + "On 27 Sep, you wrote, \"\($0)\"" }, "\(text)")
+            #expect(InsightService.isGrammarGrounded(text), "same shape as Gemma's grounded answers, so saved-insight passes leave it alone")
+        }
+
+        @Test func rankedAnswerKeepsTheMoodRouting() async throws {
+            let text = try #require(await InsightService.rankedAskAnswer(question: "What has been stressing me at work?", pool: pool()))
+            #expect(!text.contains("Walked by the lake"))
+            #expect(!text.contains("Usual gym"))
+        }
+
+        @Test func rankedAnswerIsOneVerbatimSentence() async throws {
+            let text = try #require(await InsightService.rankedAskAnswer(question: "Did I go to the gym?", pool: pool()))
+            let options = InsightService.groundedAskPlan(question: "Did I go to the gym?", pool: pool(), languageCode: "en").quoteOptions
+            #expect(try InsightService.validateGroundedAsk(text, quoteOptions: options) == text)
+            #expect(text.contains("Usual gym session"))
+            #expect(await InsightService.rankedAskAnswer(question: "Anything?", pool: [Entry(text: "Tired.", mood: "Drained")]) == nil)
+        }
+
+        // Round 2 (tools/llmrig/ask/RUBRIC.md): a second sentence only on Smart Search scores at or above the floor.
+        @Test func secondSentenceNeedsTheFloorAndTheSearchModel() async throws {
+            let question = "How has my sleep been lately?"
+            func scorer(second: Float) -> (String, [String]) async -> [Float]? {
+                { _, quotes in quotes.map { $0.hasPrefix("Barely slept") ? 0.7 : $0.hasPrefix("Woke at 10") ? second : 0.1 } }
+            }
+            let prefix = InsightService.groundedAskPrefix + #"On 27 Sep, you wrote, "Barely slept, my stomach was bad all night.""#
+            let two = try #require(await InsightService.rankedAskAnswer(question: question, pool: pool(), scorer: scorer(second: InsightService.askSecondQuoteFloor)))
+            #expect(two == prefix + #" On 27 Sep, you wrote, "Woke at 10, way later than usual.""#)
+            let options = InsightService.groundedAskPlan(question: question, pool: pool(), languageCode: "en").quoteOptions
+            #expect(try InsightService.validateGroundedAsk(two, quoteOptions: options) == two, "same two-quote shape Gemma's grammar allowed")
+            #expect(InsightService.isGrammarGrounded(two))
+            #expect(await InsightService.rankedAskAnswer(question: question, pool: pool(), scorer: scorer(second: 0.44)) == prefix)
+            let wordMatch = try #require(await InsightService.rankedAskAnswer(question: question, pool: pool(), scorer: { _, _ in nil }))
+            #expect(wordMatch.components(separatedBy: ", you wrote, ").count == 2, "word-match scores show one sentence")
+        }
+
+        @Test func howThisWasGeneratedSaysNoModelRan() {
+            let prompt = InsightService.systemPrompt(for: .askResponse, content: InsightService.groundedAskPrefix + "x", engine: LLMEngine.search.rawValue)
+            #expect(prompt.ref.hasSuffix("rankedAskAnswer"))
+            #expect(prompt.body.hasPrefix("No language model wrote or picked this answer."))
         }
 
         @Test func noQuotableEntriesOnGemmaOnlyDeviceSkipsTheModel() async throws {

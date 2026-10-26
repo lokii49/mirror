@@ -22,17 +22,17 @@ extension WriteView {
                 HStack(spacing: 5) {
                     if displayMode == .sentinel {
                         Text(noteDate.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)).uppercased())
-                            .font(MirrorTheme.mono(11.5, weight: .semibold))
+                            .scaledFont(11.5, weight: .semibold, design: .monospaced)
                             .foregroundStyle(MirrorTheme.textSecondary)
                             .kerning(0.4)
                     } else {
                         Text(noteDate, format: Self.headerDateFormat(for: noteDate))
-                            .font(.system(size: 14, weight: .medium))
+                            .scaledFont(14, weight: .medium)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 9, weight: .semibold))
+                        .scaledFont(9, weight: .semibold)
                         .foregroundStyle(MirrorTheme.textSecondary)
                 }
                 .padding(.horizontal, 10)
@@ -60,7 +60,7 @@ extension WriteView {
                         .frame(width: 6, height: 6)
                         .opacity(recPulse ? 1 : 0.35)
                     Text("REC")
-                        .font(MirrorTheme.mono(9.5, weight: .bold))
+                        .scaledFont(9.5, weight: .bold, design: .monospaced)
                         .foregroundStyle(MirrorTheme.ember)
                         .kerning(0.5)
                 }
@@ -91,16 +91,16 @@ extension WriteView {
                 if displayMode == .sentinel {
                     HStack(spacing: 3) {
                         Text("\(viewModel.wordCount)w")
-                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                            .scaledFont(12, weight: .medium, design: .monospaced)
                             .foregroundStyle(goalMet ? Color.green : Color(.tertiaryLabel))
                         if goalMet {
                             Image(systemName: "checkmark")
-                                .font(.system(size: 9, weight: .bold))
+                                .scaledFont(9, weight: .bold)
                                 .foregroundStyle(.green)
                                 .glyphPopIn()
                         } else if viewModel.wordCount >= 50 {
                             Text("/ \(dailyWordGoal)w")
-                                .font(.system(size: 12, weight: .regular, design: .monospaced))
+                                .scaledFont(12, design: .monospaced)
                                 .foregroundStyle(.quaternary)
                         }
                     }
@@ -114,7 +114,7 @@ extension WriteView {
                         if goalMet {
                             // Pops in the moment the goal is reached.
                             Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 11, weight: .semibold))
+                                .scaledFont(11, weight: .semibold)
                                 .foregroundStyle(MirrorTheme.green)
                                 .glyphPopIn()
                         } else if viewModel.wordCount >= 50 {
@@ -203,7 +203,7 @@ extension WriteView {
                             .frame(width: 8, height: 8)
                     } else if displayMode == .sentinel {
                         Image(systemName: "waveform")
-                            .font(.system(size: 10, weight: .semibold))
+                            .scaledFont(10, weight: .semibold)
                             .foregroundStyle(MirrorTheme.ember)
                     }
                     Group {
@@ -215,7 +215,7 @@ extension WriteView {
                             Text(displayMode == .sentinel ? "SIGNAL" : "Mood")
                         }
                     }
-                        .font(displayMode == .sentinel ? MirrorTheme.mono(11.5, weight: .semibold) : .system(size: 13, weight: .semibold))
+                        .scaledFont(displayMode == .sentinel ? 11.5 : 13, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                         .kerning(displayMode == .sentinel ? 0.4 : 0)
                         .lineLimit(1)
                         .foregroundStyle(
@@ -225,7 +225,7 @@ extension WriteView {
                         )
                 }
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 10, weight: .semibold))
+                    .scaledFont(10, weight: .semibold)
                     .foregroundStyle(MirrorTheme.textSecondary)
             }
             .padding(.horizontal, 11)
@@ -267,9 +267,9 @@ extension WriteView {
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "waveform")
-                        .font(.system(size: 12, weight: .semibold))
+                        .scaledFont(12, weight: .semibold)
                     Text(isDetectingMood ? "ANALYZING…" : "AUTO-DETECT")
-                        .font(MirrorTheme.mono(11.5, weight: .bold))
+                        .scaledFont(11.5, weight: .bold, design: .monospaced)
                         .kerning(0.4)
                     Spacer(minLength: 0)
                 }
@@ -303,7 +303,7 @@ extension WriteView {
                                 Spacer(minLength: 0)
                                 if isSelected {
                                     Image(systemName: "checkmark")
-                                        .font(.system(size: 11, weight: .bold))
+                                        .scaledFont(11, weight: .bold)
                                         .foregroundStyle(MirrorTheme.moodColor(for: mood))
                                 }
                             }
@@ -326,9 +326,9 @@ extension WriteView {
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "xmark")
-                            .font(.system(size: 11, weight: .semibold))
+                            .scaledFont(11, weight: .semibold)
                         Text("CLEAR SIGNAL")
-                            .font(MirrorTheme.mono(11, weight: .semibold))
+                            .scaledFont(11, weight: .semibold, design: .monospaced)
                             .kerning(0.4)
                         Spacer(minLength: 0)
                     }
@@ -365,7 +365,7 @@ extension WriteView {
                     startDeleteWithUndo()
                 } label: {
                     Image(systemName: "trash")
-                        .font(.system(size: 18, weight: .semibold))
+                        .scaledFont(18, weight: .semibold)
                         .foregroundStyle(pendingDelete ? (displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor)) : AnyShapeStyle(.secondary))
                         // The lid lifts as the entry goes to the undo countdown.
                         .glyphBounce(whenTurnsOn: pendingDelete, byLayer: true)
@@ -380,7 +380,7 @@ extension WriteView {
                     saveAndDismiss()
                 } label: {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 22, weight: .semibold))
+                        .scaledFont(22, weight: .semibold)
                         .symbolRenderingMode(.hierarchical)
                         .foregroundStyle(displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor))
                 }
@@ -400,7 +400,7 @@ extension WriteView {
                     startDeleteWithUndo()
                 } label: {
                     Image(systemName: "trash")
-                        .font(.system(size: 18, weight: .semibold))
+                        .scaledFont(18, weight: .semibold)
                         .foregroundStyle(
                             pendingDelete
                                 ? (displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor))
@@ -429,7 +429,7 @@ extension WriteView {
                     saveDraft()
                 } label: {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 22, weight: .semibold))
+                        .scaledFont(22, weight: .semibold)
                         .symbolRenderingMode(.hierarchical)
                         .foregroundStyle(
                             hasDraftContent
@@ -466,7 +466,7 @@ extension WriteView {
                 Image(systemName: focusMode
                       ? "arrow.down.right.and.arrow.up.left"
                       : "arrow.up.left.and.arrow.down.right")
-                    .font(.system(size: 17, weight: .medium))
+                    .scaledFont(17, weight: .medium)
                     .foregroundStyle(MirrorTheme.textSecondary)
                     .glyphReplaceTransition()
             }
@@ -495,7 +495,7 @@ extension WriteView {
     private func macToggle(_ systemImage: String, label: LocalizedStringKey, isOn: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemImage)
-                .font(.system(size: 14, weight: .semibold))
+                .scaledFont(14, weight: .semibold)
                 .foregroundStyle(isOn ? Color.accentColor : Color.primary)
                 .frame(width: 30, height: 28)
                 .background(isOn ? Color.accentColor.opacity(0.15) : Color.clear, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
@@ -518,7 +518,7 @@ extension WriteView {
                 Button("Quote") { applyTextCommand(.blockQuote) }
             } label: {
                 Text(macParagraphLabel(activeParagraphStyle))
-                    .font(.system(size: 13))
+                    .scaledFont(13)
                     .frame(minWidth: 84, alignment: .leading)
             }
             .menuStyle(.borderlessButton)
@@ -548,7 +548,7 @@ extension WriteView {
                 }
             } label: {
                 Image(systemName: "textformat")
-                    .font(.system(size: 14, weight: .semibold))
+                    .scaledFont(14, weight: .semibold)
                     .frame(width: 30, height: 28)
             }
             .menuStyle(.borderlessButton)
@@ -671,25 +671,26 @@ struct FollowUpChip: View {
         switch engine {
         case .gemma: return "GEMMA"
         case .foundationModels: return "FM"
+        case .search: return "SEARCH"
         }
     }
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "arrow.turn.down.right")
-                .font(.system(size: 12, weight: .semibold))
+                .scaledFont(12, weight: .semibold)
                 .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violet)
                 .padding(.top, 2)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(question)
-                    .font(.system(size: 13.5, weight: .regular, design: .serif))
+                    .scaledFont(13.5, design: .serif)
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 if let engineTag {
                     Text(engineTag)
-                        .font(MirrorTheme.mono(8.5, weight: .bold))
+                        .scaledFont(8.5, weight: .bold, design: .monospaced)
                         .tracking(0.6)
                         .foregroundStyle(MirrorTheme.textTertiary)
                 }
@@ -700,7 +701,7 @@ struct FollowUpChip: View {
             VStack(spacing: 10) {
                 Button(action: onUse) {
                     Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 20))
+                        .scaledFont(20)
                         .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violet)
                 }
                 .buttonStyle(.plain)
@@ -708,7 +709,7 @@ struct FollowUpChip: View {
 
                 Button(action: onDismiss) {
                     Image(systemName: "xmark")
-                        .font(.system(size: 10, weight: .bold))
+                        .scaledFont(10, weight: .bold)
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
@@ -765,16 +766,16 @@ struct WritingStarterChip: View {
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: "bubble.left.and.text.bubble.right")
-                    .font(.system(size: 14, weight: .semibold))
+                    .scaledFont(14, weight: .semibold)
                     .foregroundStyle(accent)
                 Text(isSentinel ? "NEED A STARTING POINT?" : "Need a starting point?")
-                    .font(isSentinel ? MirrorTheme.mono(11.5, weight: .semibold) : .system(size: 13, weight: .medium))
+                    .scaledFont(isSentinel ? 11.5 : 13, weight: isSentinel ? .semibold : .medium, design: isSentinel ? .monospaced : .default)
                     .foregroundStyle(MirrorTheme.textSecondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .semibold))
+                    .scaledFont(11, weight: .semibold)
                     .foregroundStyle(MirrorTheme.textTertiary)
             }
             .padding(.horizontal, 14)

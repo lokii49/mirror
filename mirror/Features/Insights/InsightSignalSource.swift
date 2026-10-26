@@ -66,6 +66,7 @@ struct InsightSignalSource: View {
         switch insight.generatedByEngine {
         case "foundationModels": return String(localized: "APPLE FOUNDATION MODELS · ON-DEVICE")
         case "gemma":            return String(localized: "GEMMA 3 1B · ON-DEVICE")
+        case "search":           return String(localized: "SEARCH · NO LANGUAGE MODEL")
         default:                 return String(localized: "ON-DEVICE MODEL")
         }
     }
@@ -234,8 +235,8 @@ struct InsightSignalSource: View {
 
         return VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 6) {
-                Image(systemName: "shield.lefthalf.filled").font(.system(size: 11, weight: .bold))
-                Text("SIGNAL SOURCE").font(MirrorTheme.mono(11, weight: .bold)).tracking(1.4)
+                Image(systemName: "shield.lefthalf.filled").scaledFont(11, weight: .bold)
+                Text("SIGNAL SOURCE").scaledFont(11, weight: .bold, design: .monospaced).tracking(1.4)
             }
             .foregroundStyle(MirrorTheme.ember)
 
@@ -247,7 +248,7 @@ struct InsightSignalSource: View {
 
             if let note = r.note {
                 Text(note)
-                    .font(MirrorTheme.mono(9.5, weight: .regular))
+                    .scaledFont(9.5, design: .monospaced)
                     .foregroundStyle(MirrorTheme.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -255,16 +256,16 @@ struct InsightSignalSource: View {
             if !r.reading.isEmpty {
                 VStack(alignment: .leading, spacing: 5) {
                     Text("READING")
-                        .font(MirrorTheme.mono(10, weight: .bold)).tracking(0.6)
+                        .scaledFont(10, weight: .bold, design: .monospaced).tracking(0.6)
                         .foregroundStyle(MirrorTheme.textSecondary)
                     ForEach(Array(r.reading.enumerated()), id: \.offset) { _, item in
                         HStack(alignment: .firstTextBaseline, spacing: 10) {
                             Text(item.day)
-                                .font(MirrorTheme.mono(10, weight: .medium))
+                                .scaledFont(10, weight: .medium, design: .monospaced)
                                 .foregroundStyle(MirrorTheme.textTertiary)
                                 .frame(width: 44, alignment: .leading)
                             Text(item.snippet)
-                                .font(MirrorTheme.mono(10.5, weight: .regular))
+                                .scaledFont(10.5, design: .monospaced)
                                 .foregroundStyle(MirrorTheme.textPrimary)
                                 .lineLimit(2).truncationMode(.tail)
                         }
@@ -276,11 +277,11 @@ struct InsightSignalSource: View {
 
             NavigationLink(value: insight.type) {
                 HStack(spacing: 6) {
-                    Image(systemName: "curlybraces").font(.system(size: 10, weight: .bold))
+                    Image(systemName: "curlybraces").scaledFont(10, weight: .bold)
                     Text("SYSTEM PROMPT · \(symbol)")
-                        .font(MirrorTheme.mono(10, weight: .bold)).tracking(0.4)
+                        .scaledFont(10, weight: .bold, design: .monospaced).tracking(0.4)
                     Spacer(minLength: 4)
-                    Image(systemName: "chevron.right").font(.system(size: 9, weight: .bold))
+                    Image(systemName: "chevron.right").scaledFont(9, weight: .bold)
                 }
                 .foregroundStyle(MirrorTheme.ember)
                 .contentShape(Rectangle())
@@ -288,15 +289,15 @@ struct InsightSignalSource: View {
             .buttonStyle(.plain)
 
             HStack(spacing: 6) {
-                Image(systemName: "lock.fill").font(.system(size: 10, weight: .bold))
+                Image(systemName: "lock.fill").scaledFont(10, weight: .bold)
                 Text("NO NETWORK · NEVER LEFT THIS DEVICE")
-                    .font(MirrorTheme.mono(10, weight: .bold)).tracking(0.8)
+                    .scaledFont(10, weight: .bold, design: .monospaced).tracking(0.8)
             }
             .foregroundStyle(MirrorTheme.violetLight)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
-        .background(Color(red: 0.043, green: 0.043, blue: 0.063),
+        .background(MirrorTheme.inkDeep,
                     in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -307,11 +308,11 @@ struct InsightSignalSource: View {
     private func row(_ label: String, _ value: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             Text(label)
-                .font(MirrorTheme.mono(10, weight: .bold)).tracking(0.6)
+                .scaledFont(10, weight: .bold, design: .monospaced).tracking(0.6)
                 .foregroundStyle(MirrorTheme.textSecondary)
                 .frame(width: 92, alignment: .leading)
             Text(value)
-                .font(MirrorTheme.mono(11, weight: .medium))
+                .scaledFont(11, weight: .medium, design: .monospaced)
                 .foregroundStyle(MirrorTheme.textPrimary)
                 .lineLimit(3).truncationMode(.tail)
                 .fixedSize(horizontal: false, vertical: true)
@@ -331,19 +332,19 @@ struct SystemPromptDetail: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 Text(p.ref)
-                    .font(MirrorTheme.mono(11, weight: .bold))
+                    .scaledFont(11, weight: .bold, design: .monospaced)
                     .foregroundStyle(MirrorTheme.ember)
                     .textSelection(.enabled)
                 Text("The exact instruction sent to the on-device model. It doesn't change per entry — the same text every time an insight of this kind is generated.")
-                    .font(.system(size: 13))
+                    .scaledFont(13)
                     .foregroundStyle(MirrorTheme.textSecondary)
                 Text(p.body)
-                    .font(MirrorTheme.mono(12, weight: .regular))
+                    .scaledFont(12, design: .monospaced)
                     .foregroundStyle(MirrorTheme.textPrimary)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(14)
-                    .background(Color(red: 0.043, green: 0.043, blue: 0.063),
+                    .background(MirrorTheme.inkDeep,
                                 in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: 8, style: .continuous)

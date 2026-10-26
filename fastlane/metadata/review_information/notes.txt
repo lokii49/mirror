@@ -1,1 +1,5 @@
+MirrorNotes runs all of its AI on the device. No account or login is needed: open the app and start writing.
 
+Paid plans: the four auto-renewable subscriptions (Core and Deep, monthly and yearly) are already approved. They start on 15 November 2026. Until that date every feature is free, as the app announces in its What's New card, so Settings > Subscription shows "Early Access" and no purchase button. From 15 November (by the device's date) free users see the plans in Settings > Subscription, with a 7-day free trial for new subscribers. To review the purchase flow now, set the device date to 15 November 2026 or later and bring the app to the front.
+
+On devices without Apple Intelligence, the AI features first download an on-device model (about 800 MB).

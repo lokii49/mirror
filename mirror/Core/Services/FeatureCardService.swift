@@ -403,6 +403,17 @@ enum FeatureCardRegistry {
             sinceVersion: "3.1.4",
             showInFeatureGuide: false
         ),
+        // 3.1.6: what Free keeps once paid plans start (owner, 2026-10-20).
+        .init(
+            id: "insights-stay-316",
+            title: "What's made for you stays yours",
+            body: "Every daily reflection, weekly digest and monthly report already made for you stays readable on every plan, in the app and in widgets, including after paid plans start on \(FeatureCardRegistry.paidPlansStartText). New ones need Core or Deep.",
+            symbolName: "lock.open",
+            accentColor: MirrorTheme.primary,
+            tier: .free,
+            sinceVersion: "3.1.6",
+            showInFeatureGuide: false
+        ),
         .init(
             id: "duplicates-314",
             title: "Find duplicates",
@@ -441,6 +452,7 @@ final class FeatureCardService {
     static let macFeatureRelease: [String: String] = [
         "1.1.0": "3.1.0",
         "1.1.4": "3.1.4",
+        "1.1.6": "3.1.6",
     ]
 
     /// The cards a Mac version shows: those of the newest iOS release whose Mac version is newer

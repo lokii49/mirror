@@ -25,10 +25,10 @@ struct EntrySelectionBar: View {
             Divider().overlay(MirrorTheme.inkBorder)
             HStack(spacing: 16) {
                 Button(allSelected ? "Deselect All" : "Select All", action: toggleAll)
-                    .font(.system(size: 15, weight: .medium))
+                    .scaledFont(15, weight: .medium)
                 Spacer(minLength: 4)
                 Text(count == 0 ? String(localized: "Select entries") : String(localized: "\(count) selected"))
-                    .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .semibold) : .system(size: 14, weight: .semibold))
+                    .scaledFont(displayMode == .sentinel ? 12 : 14, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
                 Spacer(minLength: 4)
@@ -44,7 +44,7 @@ struct EntrySelectionBar: View {
                     }
                 } label: {
                     Image(systemName: "folder")
-                        .font(.system(size: 18, weight: .semibold))
+                        .scaledFont(18, weight: .semibold)
                         .frame(width: 36, height: 36)
                         .contentShape(Rectangle())
                 }
@@ -52,14 +52,14 @@ struct EntrySelectionBar: View {
                 .accessibilityLabel("Move to")
                 Button(role: .destructive, action: delete) {
                     Image(systemName: "trash")
-                        .font(.system(size: 18, weight: .semibold))
+                        .scaledFont(18, weight: .semibold)
                         .frame(width: 36, height: 36)
                         .contentShape(Rectangle())
                 }
                 .disabled(count == 0)
                 .accessibilityLabel("Delete")
                 Button("Done", action: done)
-                    .font(.system(size: 15, weight: .semibold))
+                    .scaledFont(15, weight: .semibold)
             }
             .tint(accent)
             .buttonStyle(.plain)
@@ -100,7 +100,7 @@ struct EntrySelectionMark: View {
 
     var body: some View {
         Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-            .font(.system(size: 22))
+            .scaledFont(22)
             .foregroundStyle(selected ? AnyShapeStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor) : AnyShapeStyle(.tertiary))
             .contentTransition(.symbolEffect(.replace))
             .accessibilityHidden(true)

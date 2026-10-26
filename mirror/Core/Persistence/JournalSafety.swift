@@ -38,7 +38,11 @@ final class JournalSafety {
     private(set) var accountAvailable: Bool? = nil
     private(set) var lastLocalSave: Date? = UserDefaults.standard.object(forKey: JournalSafety.lastLocalSaveKey) as? Date
     private(set) var lastExportSucceededStart: Date? = UserDefaults.standard.object(forKey: JournalSafety.lastExportKey) as? Date
-    private(set) var lastExportFailed = false
+    /// The last upload's error while uploads keep failing; nil once one succeeds. Kept across
+    /// launches: it used to live in memory only, so after a relaunch a stuck upload read as
+    /// "not backed up yet" again and nobody could tell what was wrong (2026-10-20).
+    private(set) var exportError: ExportError? = JournalSafety.loadExportError()
+    var lastExportFailed: Bool { exportError != nil }
     /// Set the first time any CloudKit event arrives, ever. Until then the "not backed up"
     /// banner stays silent: if the event stream never fires under SwiftData, the banner
     /// must never show rather than always show.
@@ -50,6 +54,7 @@ final class JournalSafety {
     private static let lastLocalSaveKey = "mirror.journalSafety.lastLocalSave"
     private static let lastExportKey = "mirror.journalSafety.lastExportSucceededStart"
     private static let seenEventKey = "mirror.journalSafety.hasSeenCloudKitEvent"
+    private static let exportErrorKey = "mirror.journalSafety.exportError"
     /// Restore waits this long for a successful import before offering anyway (an import
     /// that never succeeds — offline, quota, schema — must not hide the offer forever).
     private static let importGrace: TimeInterval = 180
@@ -74,7 +79,10 @@ final class JournalSafety {
     /// in-flight upload. `now` comes from the view's TimelineView.
     func showsNotBackedUp(now: Date) -> Bool {
         guard hasSeenCloudKitEvent, accountAvailable == true, hasPendingChanges, let lastLocalSave else { return false }
-        return lastExportFailed || now.timeIntervalSince(lastLocalSave) > 120
+        // A network error kept from an earlier launch gets the normal wait: the next upload may
+        // well succeed.
+        let failing = exportError.map { !$0.isTransient } ?? false
+        return failing || now.timeIntervalSince(lastLocalSave) > 120
     }
 
     // MARK: - Lifecycle
@@ -86,13 +94,14 @@ final class JournalSafety {
         observers.append(center.addObserver(forName: NSPersistentCloudKitContainer.eventChangedNotification, object: nil, queue: .main) { [weak self] note in
             guard let event = note.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey] as? NSPersistentCloudKitContainer.Event else { return }
             let type = event.type, succeeded = event.succeeded, started = event.startDate, ended = event.endDate != nil
+            // Domain and code only — never record or entry content.
+            let failure = ExportError.Code(event.error)
             #if DEBUG
-            // Event metadata only — never record or entry content.
-            let code = (event.error as NSError?).map { " error \($0.domain) \($0.code)" } ?? ""
+            let code = failure.map { " error \($0.domain) \($0.code)" } ?? ""
             print("[JournalSafety] cloudkit \(type.rawValue) ended=\(ended) ok=\(succeeded)\(code)")
             #endif
             MainActor.assumeIsolated {
-                self?.handleEvent(type: type, succeeded: succeeded, startDate: started, ended: ended)
+                self?.handleEvent(type: type, succeeded: succeeded, startDate: started, ended: ended, failure: failure)
             }
         })
         // Rows the user deletes here are not a purge: noted before the save, while their ids are
@@ -179,7 +188,8 @@ final class JournalSafety {
         UserDefaults.standard.set(now, forKey: Self.lastLocalSaveKey)
     }
 
-    private func handleEvent(type: NSPersistentCloudKitContainer.EventType, succeeded: Bool, startDate: Date, ended: Bool) {
+    private func handleEvent(type: NSPersistentCloudKitContainer.EventType, succeeded: Bool, startDate: Date, ended: Bool,
+                             failure: ExportError.Code?) {
         if !hasSeenCloudKitEvent {
             hasSeenCloudKitEvent = true
             UserDefaults.standard.set(true, forKey: Self.seenEventKey)
@@ -188,13 +198,13 @@ final class JournalSafety {
         switch type {
         case .export:
             if succeeded {
-                lastExportFailed = false
+                setExportError(nil)
                 if startDate > (lastExportSucceededStart ?? .distantPast) {
                     lastExportSucceededStart = startDate
                     UserDefaults.standard.set(startDate, forKey: Self.lastExportKey)
                 }
             } else {
-                lastExportFailed = true
+                setExportError(ExportError.next(after: exportError, failure: failure ?? .unknown, now: Date()))
             }
         case .import:
             if succeeded {
@@ -205,6 +215,21 @@ final class JournalSafety {
         default:
             break
         }
+    }
+
+    private func setExportError(_ error: ExportError?) {
+        guard error != exportError else { return }
+        exportError = error
+        if let error, let data = try? JSONEncoder().encode(error) {
+            UserDefaults.standard.set(data, forKey: Self.exportErrorKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: Self.exportErrorKey)
+        }
+    }
+
+    private static func loadExportError() -> ExportError? {
+        guard let data = UserDefaults.standard.data(forKey: exportErrorKey) else { return nil }
+        return try? JSONDecoder().decode(ExportError.self, from: data)
     }
 
     // MARK: - Restore
@@ -489,3 +514,87 @@ private final class BackgroundTaskOnce: @unchecked Sendable {
     }
 }
 #endif
+
+/// Why uploads to iCloud are failing: the error's domain and code (no record or entry content)
+/// and when this same error first failed. Drives the banner's wording (`NotBackedUpBanner`).
+struct ExportError: Codable, Equatable {
+    struct Code: Codable, Equatable {
+        let domain: String
+        let code: Int
+
+        static let unknown = Code(domain: "unknown", code: 0)
+
+        /// The CloudKit error underneath, which says why (a schema rejection, a full iCloud).
+        /// Core Data can wrap it (`NSUnderlyingErrorKey`), and a partial failure's own code says
+        /// only "some records failed", so both are unwrapped, a few levels at most.
+        init?(_ error: Error?) {
+            guard var error = error as NSError? else { return nil }
+            for _ in 0..<4 {
+                if error.domain == CKError.errorDomain, error.code == CKError.Code.partialFailure.rawValue,
+                   let records = error.userInfo[CKPartialErrorsByItemIDKey] as? [AnyHashable: Error] {
+                    // A record that failed only because its batch did says nothing; prefer the cause.
+                    let errors = records.values.map { $0 as NSError }
+                    let sideEffects = [CKError.Code.batchRequestFailed, .serverRecordChanged].map(\.rawValue)
+                    guard let cause = errors.filter({ !sideEffects.contains($0.code) }).min(by: { $0.code < $1.code })
+                            ?? errors.min(by: { $0.code < $1.code }) else { break }
+                    error = cause
+                } else if error.domain != CKError.errorDomain,
+                          let underlying = error.userInfo[NSUnderlyingErrorKey] as? NSError {
+                    error = underlying
+                } else {
+                    break
+                }
+            }
+            self.init(domain: error.domain, code: error.code)
+        }
+
+        init(domain: String, code: Int) {
+            self.domain = domain
+            self.code = code
+        }
+    }
+
+    let failure: Code
+    let since: Date
+
+    /// Same error as last time keeps its start, so `isStuck` measures how long it has repeated.
+    static func next(after previous: ExportError?, failure: Code, now: Date) -> ExportError {
+        if let previous, previous.failure == failure { return previous }
+        return ExportError(failure: failure, since: now)
+    }
+
+    /// The same non-network error this long means waiting on Wi-Fi won't clear it.
+    static let stuckAfter: TimeInterval = 6 * 3600
+
+    var isQuotaExceeded: Bool {
+        failure.domain == CKError.errorDomain && failure.code == CKError.Code.quotaExceeded.rawValue
+    }
+
+    /// Offline, throttled, iCloud busy, or something NSPersistentCloudKitContainer repairs on
+    /// its own (a zone or change token it recreates): these clear without the user.
+    var isTransient: Bool {
+        if failure.domain == NSURLErrorDomain { return true }
+        guard failure.domain == CKError.errorDomain else { return false }
+        let transient: [CKError.Code] = [.networkUnavailable, .networkFailure, .serviceUnavailable,
+                                         .requestRateLimited, .zoneBusy, .serverResponseLost,
+                                         .operationCancelled, .accountTemporarilyUnavailable,
+                                         .zoneNotFound, .userDeletedZone, .changeTokenExpired]
+        return transient.map(\.rawValue).contains(failure.code)
+    }
+
+    func isStuck(now: Date) -> Bool {
+        !isTransient && !isQuotaExceeded && now.timeIntervalSince(since) >= Self.stuckAfter
+    }
+
+    /// Short and content-free, for the banner: "CKError 12", "CoreData 134400".
+    var label: String {
+        let domain: String
+        switch failure.domain {
+        case CKError.errorDomain: domain = "CKError"
+        case NSCocoaErrorDomain: domain = "CoreData"
+        case NSURLErrorDomain: domain = "URLError"
+        default: domain = failure.domain
+        }
+        return "\(domain) \(failure.code)"
+    }
+}

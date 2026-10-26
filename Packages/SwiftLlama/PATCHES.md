@@ -32,3 +32,13 @@ All marked `mirror patch` in the source.
    "Could not load model at <path>", thread count, cache/reprocessing decisions, `llama_decode`
    failure) go through `debugLog`, which prints only under `DEBUG`. None carried journal text;
    release builds now print nothing from this file.
+9. **`LlamaGPUGate`** (2026-10-25): every GPU decode (`Llama.gatedDecode`, `LlamaEmbedder.embed`) waits
+   while the app is inactive and throws `LlamaError.gpuUnavailable` once it is in the background, instead
+   of committing Metal work: llama.cpp b6750 calls `GGML_ABORT` on any failed command buffer
+   (`ggml_metal_synchronize`), and iOS fails the command buffers of a backgrounded app. TestFlight 3.1.6 (29)
+   crashed this way 4 times on an iPhone 13 (weekly digest, mood detection, generation, all after leaving
+   the app). The app sets the gate from its lifecycle (`LocalLLMService.installGPUGate`). A CPU-only
+   `Llama` context also sets `offload_kqv` and `op_offload` to false, so it never touches Metal.
+10. **CPU-only contexts use up to 4 threads** (2026-10-25). Background runs (the night job, a run moved off the
+    GPU by `LlamaGPUGate`) used one thread. On an iPhone 14 Pro a digest-sized generation took 14.1 s on 1 thread
+    and 9.3 s on 4, with identical output. GPU contexts keep 1 thread.

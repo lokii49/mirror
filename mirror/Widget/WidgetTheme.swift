@@ -20,8 +20,8 @@ enum WidgetTheme {
         )
     }
 
-    static let bgTop        = hex(0x1C1830)  // MirrorTheme.inkRaised (dark)
-    static let bgBottom      = hex(0x110E1C)  // MirrorTheme.inkMid (dark)
+    static let bgTop        = hex(0x1E1933)  // MirrorTheme.inkRaised (dark)
+    static let bgBottom      = hex(0x15111F)  // MirrorTheme.inkMid (dark)
     static let violet        = hex(0x7C5CE4)  // MirrorTheme.violet (dark)
     static let violetLight    = hex(0xA78BFA)  // MirrorTheme.violetLight (dark)
     static let ember          = hex(0xF97B8B)  // MirrorTheme.ember (dark)
@@ -29,6 +29,33 @@ enum WidgetTheme {
     /// Widget-only. No `MirrorTheme` counterpart — `inkBase` (dark) is #08060F,
     /// a near-black with a violet cast; Sentinel widgets want a flatter neutral.
     static let sentinelBg     = hex(0x0B0B0E)
+
+    /// `MirrorTheme.moodColor(for:)`, frozen: the twelve mood colours, with the six difficult
+    /// moods dusted (2026-10-21 design review). Until then the map widgets painted moods in
+    /// system colours (`.yellow`, `.indigo`, `.gray.opacity(0.5)`…) that never matched the
+    /// app. Mood colours are the same in both appearances, so no dark/light pair. nil for an
+    /// unknown mood, so each widget keeps its own fallback. Pinned by `WidgetThemeTokenTests`.
+    static func moodColor(for mood: String) -> Color? {
+        switch mood {
+        case "Joyful":      return hex(0xFFD54F)
+        case "Grateful":    return hex(0x66BB6A)
+        case "Peaceful":    return hex(0x81D4FA)
+        case "Content":     return hex(0x4DB6AC)
+        case "Energized":   return hex(0xFF9800)
+        case "Hopeful":     return hex(0x9575CD)
+        case "Anxious":     return hex(0xD4A84B)
+        case "Overwhelmed": return hex(0xD96A63)
+        case "Frustrated":  return hex(0xD98A4F)
+        case "Drained":     return hex(0x9A96A3)
+        case "Sad":         return hex(0x6A9FD1)
+        case "Numb":        return hex(0xC3CBD1)
+        default:            return nil
+        }
+    }
+
+    /// The moods `moodColor(for:)` knows, for tests and legends.
+    static let moods = ["Joyful", "Grateful", "Peaceful", "Content", "Energized", "Hopeful",
+                        "Anxious", "Overwhelmed", "Frustrated", "Drained", "Sad", "Numb"]
 }
 
 // App-group access shared across widgets. Kept as free functions with the exact

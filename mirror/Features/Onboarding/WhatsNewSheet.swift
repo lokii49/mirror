@@ -120,7 +120,7 @@ struct WhatsNewSheet: View {
                         .fill(Color.white.opacity(0.18))
                         .frame(width: 58, height: 58)
                     Image(systemName: "sparkles")
-                        .font(.system(size: 24, weight: .semibold))
+                        .scaledFont(24, weight: .semibold)
                         .foregroundStyle(.white)
                 }
                 .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 4)
@@ -131,18 +131,18 @@ struct WhatsNewSheet: View {
                             if displayMode == .sentinel {
                                 // One line, shrunk to fit: translations like ÄNDERUNGSPROTOKOLL are a single
                                 // word wider than the hero beside the version badge and broke mid-word.
-                                Text("CHANGELOG").font(MirrorTheme.mono(26, weight: .bold)).tracking(0.5)
+                                Text("CHANGELOG").scaledFont(26, weight: .bold, design: .monospaced).tracking(0.5)
                                     .lineLimit(1)
                                     .minimumScaleFactor(0.5)
                             } else {
-                                Text("What's New").font(.system(size: 30, weight: .bold, design: .rounded))
+                                Text("What's New").scaledFont(30, weight: .bold, design: .rounded)
                             }
                         }
                         .foregroundStyle(.white)
 
                         if let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
                             Text("v\(v)")
-                                .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 12, weight: .semibold))
+                                .scaledFont(12, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                                 .foregroundStyle(.white.opacity(0.9))
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 5)
@@ -154,9 +154,9 @@ struct WhatsNewSheet: View {
                     }
                     Group {
                         if displayMode == .sentinel {
-                            Text("LATEST SIGNAL UPDATES.").font(MirrorTheme.mono(12, weight: .medium))
+                            Text("LATEST SIGNAL UPDATES.").scaledFont(12, weight: .medium, design: .monospaced)
                         } else {
-                            Text("The latest additions to MirrorNotes.").font(.system(size: 14, weight: .medium))
+                            Text("The latest additions to MirrorNotes.").scaledFont(14, weight: .medium)
                         }
                     }
                     .foregroundStyle(.white.opacity(0.75))
@@ -226,14 +226,14 @@ struct WhatsNewSheet: View {
                             .fill(tier.color.opacity(0.12))
                             .frame(width: 28, height: 28)
                         Image(systemName: tier.sectionIcon)
-                            .font(.system(size: 12, weight: .semibold))
+                            .scaledFont(12, weight: .semibold)
                             .foregroundStyle(tier.color)
                     }
                     Group {
                         if displayMode == .sentinel {
-                            Text(tier.label).font(MirrorTheme.mono(12, weight: .semibold)).textCase(.uppercase)
+                            Text(tier.label).scaledFont(12, weight: .semibold, design: .monospaced).textCase(.uppercase)
                         } else {
-                            Text(tier.label).font(.system(size: 13, weight: .semibold))
+                            Text(tier.label).scaledFont(13, weight: .semibold)
                         }
                     }
                     .foregroundStyle(tier.color)
@@ -241,9 +241,9 @@ struct WhatsNewSheet: View {
                     if let price = tier.pricingLabel() {
                         Group {
                             if displayMode == .sentinel {
-                                Text(price).font(MirrorTheme.mono(11, weight: .semibold))
+                                Text(price).scaledFont(11, weight: .semibold, design: .monospaced)
                             } else {
-                                Text(price).font(.system(size: 12, weight: .semibold))
+                                Text(price).scaledFont(12, weight: .semibold)
                             }
                         }
                         .foregroundStyle(tier.color)
@@ -256,9 +256,9 @@ struct WhatsNewSheet: View {
                     } else {
                         Group {
                             if displayMode == .sentinel {
-                                Text("ALWAYS FREE").font(MirrorTheme.mono(10, weight: .medium))
+                                Text("ALWAYS FREE").scaledFont(10, weight: .medium, design: .monospaced)
                             } else {
-                                Text("Always free").font(.system(size: 11, weight: .medium))
+                                Text("Always free").scaledFont(11, weight: .medium)
                             }
                         }
                         .foregroundStyle(.secondary)
@@ -289,7 +289,7 @@ private struct FilterChip: View {
         Button(action: action) {
             HStack(spacing: 5) {
                 Image(systemName: icon)
-                    .font(.system(size: 11, weight: .semibold))
+                    .scaledFont(11, weight: .semibold)
                 Group {
                     if displayMode == .sentinel {
                         Text(label).font(MirrorTheme.mono(12, weight: isSelected ? .semibold : .medium)).textCase(.uppercase)
@@ -331,7 +331,7 @@ struct FeatureCardRow: View {
                     ))
                     .frame(width: 50, height: 50)
                 Image(systemName: card.symbolName)
-                    .font(.system(size: 21, weight: .semibold))
+                    .scaledFont(21, weight: .semibold)
                     .foregroundStyle(card.accentColor)
             }
 
@@ -339,18 +339,18 @@ struct FeatureCardRow: View {
                 HStack(spacing: 7) {
                     Group {
                         if displayMode == .sentinel {
-                            Text(card.title).font(MirrorTheme.mono(14, weight: .semibold))
+                            Text(card.title).scaledFont(14, weight: .semibold, design: .monospaced)
                         } else {
-                            Text(card.title).font(.system(size: 15, weight: .semibold))
+                            Text(card.title).scaledFont(15, weight: .semibold)
                         }
                     }
                     .foregroundStyle(.primary)
                     if showTierBadge && card.tier != .free {
                         Group {
                             if displayMode == .sentinel {
-                                Text(card.tier.label).font(MirrorTheme.mono(9, weight: .bold))
+                                Text(card.tier.label).scaledFont(9, weight: .bold, design: .monospaced)
                             } else {
-                                Text(card.tier.label).font(.system(size: 10, weight: .bold))
+                                Text(card.tier.label).scaledFont(10, weight: .bold)
                             }
                         }
                         .foregroundStyle(card.tier.color)
@@ -363,7 +363,7 @@ struct FeatureCardRow: View {
                     }
                 }
                 Text(card.body)
-                    .font(.system(size: 13))
+                    .scaledFont(13)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .lineSpacing(2)

@@ -57,8 +57,14 @@ enum CloudKitSchemaSeed {
         context.insert(entry)
         // 3.1.4: CD_TrashedEntry. A small row creates the scalar fields; a second with every Data
         // field over 1 MB (random bytes, not journal data) creates their `_ckAsset` companions.
+        // CloudKit learns a field only from a record that exports a value for it, so the small row
+        // fills every optional (`fillOptionals`). It used to copy the bare seed entry, so Production
+        // never got CD_encryptedMood, CD_fontChoice, the voice-note strings or the inline Data
+        // fields, and the first real delete of an entry with a mood failed every upload after it
+        // ("iCloud upload is failing", 2026-10-20).
         let smallTrashed = TrashedEntry(copying: entry)
         smallTrashed.entryID = seedTrashedEntryID
+        fillOptionals(smallTrashed)
         context.insert(smallTrashed)
         let largeTrashed = TrashedEntry(copying: entry)
         largeTrashed.entryID = seedTrashedEntryID
@@ -89,6 +95,32 @@ enum CloudKitSchemaSeed {
         }
         NSLog("CloudKitSchemaSeed: touched %d profiles for trashRetentionDays", profiles.count)
         NSLog("CloudKitSchemaSeed: inserted erase markers, a collection, a saved view, one seed entry and two Recently Deleted rows; keep the app open ~2 minutes so they export")
+    }
+
+    /// A small non-nil value in every optional stored property: short placeholder strings and
+    /// 16 random bytes, well under the asset threshold, so each lands as an inline field.
+    /// `CloudKitSchemaSeedTests` fails when `TrashedEntry` gains an optional this doesn't fill.
+    static func fillOptionals(_ row: TrashedEntry) {
+        let bytes = { Data((0..<16).map { _ in UInt8.random(in: 0...255) }) }
+        row.encryptedTextStyleData = bytes()
+        row.encryptedInlineStyleData = bytes()
+        row.encryptedMood = "seed"
+        row.encryptedPhotoData = bytes()
+        row.encryptedAdditionalPhotoDataStorage = bytes()
+        row.encryptedVoiceNoteData = bytes()
+        row.encryptedVoiceNoteTranscript = "seed"
+        row.encryptedVoiceNoteLanguageCode = "seed"
+        row.encryptedVoiceNoteLanguageName = "seed"
+        row.encryptedVoiceNoteEnglishTranslation = "seed"
+        row.encryptedAdditionalVoiceNoteDataStorage = bytes()
+        row.additionalVoiceNoteDurationsStorage = bytes()
+        row.encryptedAdditionalVoiceNoteTranscriptsStorage = bytes()
+        row.encryptedAdditionalVoiceNoteLanguageCodesStorage = bytes()
+        row.encryptedAdditionalVoiceNoteLanguageNamesStorage = bytes()
+        row.encryptedAdditionalVoiceNoteEnglishTranslationsStorage = bytes()
+        row.encryptedTagsStorage = bytes()
+        row.fontChoice = "seed"
+        if row.collectionID == nil { row.collectionID = UUID() }
     }
 }
 #endif

@@ -24,6 +24,8 @@ public final class LlamaEmbedder {
     private let model: OpaquePointer
     private let vocab: OpaquePointer
     private let context: OpaquePointer
+    /// mirror patch: GPU decodes go through `LlamaGPUGate` (a backgrounded app can't use Metal).
+    private let usesGPU: Bool
     /// Tokens per text, special tokens included. Longer text throws `tooLong`; callers truncate.
     public let maxTokens: Int
     public let dimension: Int
@@ -50,6 +52,7 @@ public final class LlamaEmbedder {
         self.model = model
         self.vocab = vocab
         self.context = context
+        self.usesGPU = modelParameters.n_gpu_layers != 0
         self.maxTokens = maxTokens
         self.dimension = Int(llama_model_n_embd(model))
     }
@@ -80,6 +83,8 @@ public final class LlamaEmbedder {
         }
         batch.n_tokens = Int32(tokens.count)
         llama_memory_clear(llama_get_memory(context), true)
+        if usesGPU { try LlamaGPUGate.shared.beginGPUWork() }
+        defer { if usesGPU { LlamaGPUGate.shared.endGPUWork() } }
         let status = llama_decode(context, batch)
         guard status == 0 else { throw EmbedderError.decode(status) }
         guard let pooled = llama_get_embeddings_seq(context, 0) else { throw EmbedderError.noPooledOutput }

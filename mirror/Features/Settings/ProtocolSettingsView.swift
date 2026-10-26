@@ -239,7 +239,7 @@ struct ProtocolSettingsView: View {
                     if showMoodCheckInPicker {
                         VStack(spacing: 12) {
                             Toggle("Remind me to check in once a day", isOn: $moodCheckInEnabled)
-                                .font(.system(size: 14))
+                                .scaledFont(14)
                                 .onChange(of: moodCheckInEnabled) { _, enabled in applyMoodCheckInEnabled(enabled) }
                             if moodCheckInEnabled {
                                 DatePicker(
@@ -277,7 +277,7 @@ struct ProtocolSettingsView: View {
                             .labelsHidden()
                         }
                         Text(ReflectionStyle(storedValue: reflectionStyleRaw).summary)
-                            .font(.system(size: 12.5))
+                            .scaledFont(12.5)
                             .foregroundStyle(MirrorTheme.textSecondary)
                             .padding(.leading, 44)
                             .padding(.top, -4)
@@ -295,7 +295,7 @@ struct ProtocolSettingsView: View {
                             Text("Only changes how today's reflection reads in the app. The quote is always your own words. The widget, notifications, past reflections and \u{201C}How this was generated\u{201D} stay as they are.")
                             #endif
                         }
-                            .font(.system(size: 12))
+                            .scaledFont(12)
                             .foregroundStyle(MirrorTheme.textSecondary)
                             .padding(.leading, 44)
                             .padding(.top, 6)
@@ -311,7 +311,7 @@ struct ProtocolSettingsView: View {
                             SettingsRowLabel(title: "Recently Deleted", systemImage: "trash.fill", iconColor: .orange)
                             Spacer()
                             Image(systemName: "chevron.right")
-                                .font(.system(size: 13, weight: .semibold))
+                                .scaledFont(13, weight: .semibold)
                                 .foregroundStyle(MirrorTheme.textSecondary)
                         }
                         .contentShape(Rectangle())
@@ -337,7 +337,7 @@ struct ProtocolSettingsView: View {
                         .disabled(profiles.isEmpty)
                     }
                     Text("Applies on all your devices. Entries older than this are removed from Recently Deleted for good.")
-                        .font(.system(size: 12.5))
+                        .scaledFont(12.5)
                         .foregroundStyle(MirrorTheme.textSecondary)
                         .padding(.leading, 44)
                         .padding(.top, 2)
@@ -356,7 +356,7 @@ struct ProtocolSettingsView: View {
                         }
                         .tint(MirrorTheme.primary)
                         Text("Checked items move to the bottom of their list.")
-                            .font(.system(size: 12.5))
+                            .scaledFont(12.5)
                             .foregroundStyle(MirrorTheme.textSecondary)
                             .padding(.leading, 44)
                             .padding(.top, -4)
@@ -385,7 +385,7 @@ struct ProtocolSettingsView: View {
                         // lowercase "mirror" this said before doesn't match the phrase Siri
                         // actually listens for.
                         Text("Say \u{201C}Add a journal entry in MirrorNotes\u{201D} to Siri \u{2014} it saves straight to your journal, no need to open the app.")
-                            .font(.system(size: 12.5))
+                            .scaledFont(12.5)
                             .foregroundStyle(MirrorTheme.textSecondary)
                             .padding(.leading, 44)
                             .padding(.top, -4)
@@ -423,7 +423,7 @@ struct ProtocolSettingsView: View {
                         Spacer()
                         if notificationPermission == .denied {
                             Text("Disabled in Settings")
-                                .font(.system(size: 12))
+                                .scaledFont(12)
                                 .foregroundStyle(MirrorTheme.textSecondary)
                         } else {
                             Toggle("", isOn: $notificationsEnabled)

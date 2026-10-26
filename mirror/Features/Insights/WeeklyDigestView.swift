@@ -5,6 +5,11 @@ struct WeeklyDigestView: View {
     let insight: Insight
     var isExpanded: Bool = true
     var showSourceButton: Bool = false
+    /// A line under the header, e.g. "Last week's digest — write 3 entries this week for a
+    /// fresh one." It used to sit above the card as a loose label; inside the header it is
+    /// part of the card's grammar. Sentinel gets `sentinelNote` instead.
+    var note: LocalizedStringKey? = nil
+    var sentinelNote: LocalizedStringKey? = nil
     var onToggleExpanded: (() -> Void)? = nil
 
     @Environment(\.appDisplayMode) private var displayMode
@@ -26,30 +31,18 @@ struct WeeklyDigestView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 8) {
-                Label("Weekly Digest", systemImage: "calendar.badge.clock")
-                    .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 11, weight: .bold))
-                    .textCase(isSentinel ? .uppercase : nil)
-                    .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
-                    .tracking(0.8)
-                Spacer()
+            InsightCardHeader("Weekly Digest", icon: "calendar.badge.clock") {
                 if showSourceButton { InsightSourceButton(insight: insight) }
-                Text(insight.generatedAt, format: .dateTime.month(.abbreviated).day())
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundStyle(MirrorTheme.textTertiary)
+                InsightCardStamp(date: insight.generatedAt, format: .dateTime.month(.abbreviated).day())
+            } subline: {
+                if let note {
+                    Label(isSentinel ? (sentinelNote ?? note) : note, systemImage: "arrow.triangle.2.circlepath")
+                        .scaledFont(isSentinel ? 11 : 12, weight: isSentinel ? .bold : .medium, design: isSentinel ? .monospaced : .default)
+                        .kerning(isSentinel ? 0.4 : 0)
+                        .foregroundStyle(isSentinel ? MirrorTheme.ember.opacity(0.85) : MirrorTheme.textSecondary)
+                }
             }
-            .padding(.bottom, 14)
-
-            Rectangle()
-                .fill(
-                    LinearGradient(
-                        colors: [MirrorTheme.violet.opacity(0.40), MirrorTheme.violet.opacity(0.06)],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .frame(height: 1)
-                .padding(.bottom, 16)
+            .padding(.bottom, 16)
 
             if isExpanded {
                 if sections.isEmpty {
@@ -69,24 +62,7 @@ struct WeeklyDigestView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 6) {
                         ForEach(Array(sections.prefix(3)), id: \.title) { section in
-                            Label(shortTitle(for: section.title), systemImage: iconName(for: section.title))
-                                .font(isSentinel ? MirrorTheme.mono(9.5, weight: .bold) : .system(size: 10, weight: .bold))
-                                .textCase(isSentinel ? .uppercase : nil)
-                                .foregroundStyle(color(for: section.title))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.75)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(
-                                    color(for: section.title).opacity(0.12),
-                                    in: isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
-                                )
-                                .overlay {
-                                    if isSentinel {
-                                        RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                            .stroke(color(for: section.title).opacity(0.3), lineWidth: 1)
-                                    }
-                                }
+                            InsightCardChip(title: shortTitle(for: section.title), systemImage: iconName(for: section.title))
                         }
                     }
 
@@ -100,31 +76,12 @@ struct WeeklyDigestView: View {
             }
 
             if let onToggleExpanded {
-                Button(action: onToggleExpanded) {
-                    HStack(spacing: 6) {
-                        Text(isSentinel
-                             ? (isExpanded ? "SHOW LESS" : "FULL DIGEST")
-                             : (isExpanded ? "Show Less" : "Read Full Digest"))
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 11, weight: .bold))
-                    }
-                    .font(isSentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 13, weight: .semibold))
-                    .kerning(isSentinel ? 0.4 : 0)
-                    .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 38)
-                    .background(
-                        isSentinel ? AnyShapeStyle(MirrorTheme.ember.opacity(0.12)) : AnyShapeStyle(MirrorTheme.violetDim),
-                        in: isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 6, style: .continuous)) : AnyShape(Capsule())
-                    )
-                    .overlay {
-                        if isSentinel {
-                            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .stroke(MirrorTheme.ember.opacity(0.35), lineWidth: 1)
-                        }
-                    }
-                }
-                .buttonStyle(.plain)
+                InsightCardAction(
+                    title: isExpanded ? "Show Less" : "Read Full Digest",
+                    sentinelTitle: isExpanded ? "SHOW LESS" : "FULL DIGEST",
+                    systemImage: isExpanded ? "chevron.up" : "chevron.down",
+                    action: onToggleExpanded
+                )
                 .padding(.top, 16)
             }
         }
@@ -257,9 +214,9 @@ struct DigestSectionView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 5) {
                 Image(systemName: sectionIcon)
-                    .font(.system(size: 10, weight: .bold))
+                    .scaledFont(10, weight: .bold)
                 Text(displayName)
-                    .font(isSentinel ? MirrorTheme.mono(10, weight: .bold) : .system(size: 10, weight: .bold))
+                    .scaledFont(10, weight: .bold, design: isSentinel ? .monospaced : .default)
                     .textCase(isSentinel ? .uppercase : nil)
                     .tracking(0.6)
             }

@@ -14,7 +14,7 @@ struct SettingsGroup<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
-                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: embedded ? 11 : 12, weight: .semibold))
+                .scaledFont(displayMode == .sentinel ? 11 : embedded ? 11 : 12, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                 .foregroundStyle(MirrorTheme.textTertiary)
                 .textCase(.uppercase)
                 .tracking(displayMode == .sentinel ? 0.6 : 1.0)
@@ -40,7 +40,7 @@ struct SettingsRowLabel: View {
                     .fill(iconColor.opacity(0.12))
                     .frame(width: embedded ? 26 : 32, height: embedded ? 26 : 32)
                 Image(systemName: systemImage)
-                    .font(.system(size: embedded ? 12 : 14, weight: .medium))
+                    .scaledFont(embedded ? 12 : 14, weight: .medium)
                     .foregroundStyle(iconColor)
             }
             .overlay {
@@ -50,7 +50,7 @@ struct SettingsRowLabel: View {
                 }
             }
             Text(title)
-                .font(.system(size: embedded ? 13 : 15))
+                .scaledFont(embedded ? 13 : 15)
                 .foregroundStyle(MirrorTheme.textPrimary)
             Spacer(minLength: 0)
         }
@@ -68,7 +68,7 @@ struct SettingsValueText: View {
 
     var body: some View {
         Text(text)
-            .font(displayMode == .sentinel ? MirrorTheme.mono(12.5) : .system(size: 13))
+            .scaledFont(displayMode == .sentinel ? 12.5 : 13, weight: displayMode == .sentinel ? .semibold : .regular, design: displayMode == .sentinel ? .monospaced : .default)
             .foregroundStyle(MirrorTheme.textSecondary)
     }
 }
@@ -76,7 +76,7 @@ struct SettingsValueText: View {
 struct SettingsChevron: View {
     var body: some View {
         Image(systemName: "chevron.right")
-            .font(.system(size: 13, weight: .semibold))
+            .scaledFont(13, weight: .semibold)
             .foregroundStyle(MirrorTheme.textTertiary)
     }
 }
@@ -95,7 +95,7 @@ struct SettingsTierBadge: View {
 
     var body: some View {
         Label(tier, systemImage: "lock.fill")
-            .font(displayMode == .sentinel ? MirrorTheme.mono(10.5, weight: .bold) : .system(size: 12, weight: .semibold))
+            .scaledFont(displayMode == .sentinel ? 10.5 : 12, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
             .textCase(displayMode == .sentinel ? .uppercase : nil)
             .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
             .padding(.horizontal, 9)
@@ -129,16 +129,16 @@ struct SettingsCategoryRow: View {
                     .fill(iconColor.opacity(0.14))
                     .frame(width: 40, height: 40)
                 Image(systemName: systemImage)
-                    .font(.system(size: 17, weight: .semibold))
+                    .scaledFont(17, weight: .semibold)
                     .foregroundStyle(iconColor)
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(displayMode == .sentinel ? MirrorTheme.mono(14, weight: .bold) : .system(size: 15, weight: .semibold))
+                    .scaledFont(displayMode == .sentinel ? 14 : 15, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                     .kerning(displayMode == .sentinel ? 0.3 : 0)
                     .foregroundStyle(MirrorTheme.textPrimary)
                 Text(subtitle)
-                    .font(.system(size: 12.5))
+                    .scaledFont(12.5)
                     .foregroundStyle(MirrorTheme.textSecondary)
             }
             Spacer(minLength: 0)

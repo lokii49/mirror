@@ -68,7 +68,7 @@ struct SubscriptionView: View {
                         ToolbarItem(placement: .topBarTrailing) {
                             Button("Done") { dismiss() }
                         .cancelActionOnMac()
-                                .font(.system(size: 16, weight: .medium))
+                                .scaledFont(16, weight: .medium)
                         }
                     }
                 }
@@ -87,21 +87,21 @@ struct SubscriptionView: View {
     private var statusCard: some View {
         HStack(spacing: 14) {
             Image(systemName: SubscriptionService.allFeaturesFree ? "sparkles" : (subscriptionService.isSubscribed ? "checkmark.seal.fill" : "seal"))
-                .font(.system(size: 28, weight: .semibold))
+                .scaledFont(28, weight: .semibold)
                 .foregroundStyle(SubscriptionService.allFeaturesFree ? MirrorTheme.primary : subscriptionService.isDeep ? MirrorTheme.violet : subscriptionService.isSubscribed ? Color.accentColor : .secondary)
             VStack(alignment: .leading, spacing: 4) {
                 Group {
                     if displayMode == .sentinel {
-                        Text(tierName).font(MirrorTheme.mono(16, weight: .bold)).textCase(.uppercase)
+                        Text(tierName).scaledFont(16, weight: .bold, design: .monospaced).textCase(.uppercase)
                     } else {
-                        Text(tierName).font(.system(size: 17, weight: .semibold))
+                        Text(tierName).scaledFont(17, weight: .semibold)
                     }
                 }
                 Group {
                     if displayMode == .sentinel {
-                        Text(tierDescription).font(MirrorTheme.mono(11, weight: .medium))
+                        Text(tierDescription).scaledFont(11, weight: .medium, design: .monospaced)
                     } else {
-                        Text(tierDescription).font(.system(size: 14))
+                        Text(tierDescription).scaledFont(14)
                     }
                 }
                 .foregroundStyle(.secondary)
@@ -122,7 +122,7 @@ struct SubscriptionView: View {
     }
 
     private var tierDescription: LocalizedStringKey {
-        if SubscriptionService.allFeaturesFree { return "Every feature is free while MirrorNotes is in early access" }
+        if SubscriptionService.allFeaturesFree { return "Every feature is free until 15 November" }
         switch subscriptionService.tier {
         case .free:
             return "Unlimited writing, full history, iCloud sync"
@@ -141,22 +141,22 @@ struct SubscriptionView: View {
                         .fill(MirrorTheme.primary.opacity(0.12))
                         .frame(width: 36, height: 36)
                     Image(systemName: "sparkles")
-                        .font(.system(size: 16, weight: .semibold))
+                        .scaledFont(16, weight: .semibold)
                         .foregroundStyle(MirrorTheme.primary)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Group {
                         if displayMode == .sentinel {
-                            Text("ALL SYSTEMS UNLOCKED").font(MirrorTheme.mono(14, weight: .semibold))
+                            Text("ALL SYSTEMS UNLOCKED").scaledFont(14, weight: .semibold, design: .monospaced)
                         } else {
-                            Text("Everything's unlocked").font(.system(size: 16, weight: .semibold))
+                            Text("Everything's unlocked").scaledFont(16, weight: .semibold)
                         }
                     }
                     Group {
                         if displayMode == .sentinel {
-                            Text("NO SUBSCRIPTION, NO PAYMENT, NOTHING TO MANAGE.").font(MirrorTheme.mono(10.5, weight: .medium))
+                            Text("NO SUBSCRIPTION, NO PAYMENT, NOTHING TO MANAGE.").scaledFont(10.5, weight: .medium, design: .monospaced)
                         } else {
-                            Text("No subscription, no payment, nothing to manage.").font(.system(size: 13))
+                            Text("No subscription, no payment, nothing to manage.").scaledFont(13)
                         }
                     }
                     .foregroundStyle(.secondary)
@@ -166,8 +166,8 @@ struct SubscriptionView: View {
             .padding(16)
             .subscriptionCard(cornerRadius: 16)
 
-            Text("MirrorNotes is currently in early access. Pricing may return in a future update, but your entries and history stay yours either way.")
-                .font(.system(size: 13))
+            Text("Paid plans start on 15 November. Until then, everything is free. Your entries and history stay yours either way.")
+                .scaledFont(13)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
         }
@@ -177,9 +177,9 @@ struct SubscriptionView: View {
         VStack(spacing: 16) {
             Group {
                 if displayMode == .sentinel {
-                    Text("SELECT CLEARANCE LEVEL").font(MirrorTheme.mono(18, weight: .bold)).tracking(0.5)
+                    Text("SELECT CLEARANCE LEVEL").scaledFont(18, weight: .bold, design: .monospaced).tracking(0.5)
                 } else {
-                    Text("Upgrade your plan").font(.system(size: 20, weight: .bold, design: .rounded))
+                    Text("Upgrade your plan").scaledFont(20, weight: .bold, design: .rounded)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -219,9 +219,9 @@ struct SubscriptionView: View {
                 }
             } label: {
                 if displayMode == .sentinel {
-                    Text("RESTORE PURCHASES").font(MirrorTheme.mono(12, weight: .medium))
+                    Text("RESTORE PURCHASES").scaledFont(12, weight: .medium, design: .monospaced)
                 } else {
-                    Text("Restore Purchases").font(.system(size: 14, weight: .medium))
+                    Text("Restore Purchases").scaledFont(14, weight: .medium)
                 }
             }
             .foregroundStyle(.secondary)
@@ -235,7 +235,7 @@ struct SubscriptionView: View {
                     Link("Terms of Use", destination: termsURL)
                 }
             }
-            .font(.system(size: 12))
+            .scaledFont(12)
             .foregroundStyle(.secondary)
 
             if isLoading {
@@ -252,12 +252,12 @@ struct SubscriptionView: View {
                         .fill(iconColor.opacity(0.12))
                         .frame(width: 36, height: 36)
                     Image(systemName: icon)
-                        .font(.system(size: 16, weight: .semibold))
+                        .scaledFont(16, weight: .semibold)
                         .foregroundStyle(iconColor)
                 }
                 Group {
                     if displayMode == .sentinel {
-                        Text(title).textCase(.uppercase).font(MirrorTheme.mono(15, weight: .bold))
+                        Text(title).textCase(.uppercase).scaledFont(15, weight: .bold, design: .monospaced)
                     } else {
                         (Text("MirrorNotes ") + Text(title)).font(.system(size: 16, weight: .bold))
                     }
@@ -267,7 +267,7 @@ struct SubscriptionView: View {
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(Array(bullets.enumerated()), id: \.offset) { _, bullet in
                     Label(bullet, systemImage: "checkmark")
-                        .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .medium) : .system(size: 13))
+                        .scaledFont(displayMode == .sentinel ? 12 : 13, weight: displayMode == .sentinel ? .medium : .regular, design: displayMode == .sentinel ? .monospaced : .default)
                         .foregroundStyle(.secondary)
                         .labelStyle(.titleAndIcon)
                 }
@@ -278,9 +278,9 @@ struct SubscriptionView: View {
                     ProgressView().scaleEffect(0.8)
                     Group {
                         if displayMode == .sentinel {
-                            Text("LOADING…").font(MirrorTheme.mono(12, weight: .medium))
+                            Text("LOADING…").scaledFont(12, weight: .medium, design: .monospaced)
                         } else {
-                            Text("Loading…").font(.system(size: 13))
+                            Text("Loading…").scaledFont(13)
                         }
                     }
                     .foregroundStyle(.secondary)
@@ -299,17 +299,17 @@ struct SubscriptionView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Group {
                                         if displayMode == .sentinel {
-                                            Text(packageLabel(package)).font(MirrorTheme.mono(14, weight: .semibold)).textCase(.uppercase)
+                                            Text(packageLabel(package)).scaledFont(14, weight: .semibold, design: .monospaced).textCase(.uppercase)
                                         } else {
-                                            Text(packageLabel(package)).font(.system(size: 15, weight: .semibold))
+                                            Text(packageLabel(package)).scaledFont(15, weight: .semibold)
                                         }
                                     }
                                     if let subtitle = packageSubtitle(package, in: packages) {
                                         Group {
                                             if displayMode == .sentinel {
-                                                Text(subtitle).font(MirrorTheme.mono(10.5, weight: .medium))
+                                                Text(subtitle).scaledFont(10.5, weight: .medium, design: .monospaced)
                                             } else {
-                                                Text(subtitle).font(.system(size: 12))
+                                                Text(subtitle).scaledFont(12)
                                             }
                                         }
                                         .foregroundStyle(.secondary)
@@ -317,7 +317,7 @@ struct SubscriptionView: View {
                                 }
                                 Spacer()
                                 Text(package.storeProduct.localizedPriceString)
-                                    .font(displayMode == .sentinel ? MirrorTheme.mono(15, weight: .bold) : .system(size: 15, weight: .bold))
+                                    .scaledFont(15, weight: .bold, design: displayMode == .sentinel ? .monospaced : .default)
                             }
                             .padding(14)
                             .background(
@@ -381,23 +381,23 @@ struct SubscriptionView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Group {
                                 if displayMode == .sentinel {
-                                    Text("UPGRADE TO DEEP").font(MirrorTheme.mono(14, weight: .semibold))
+                                    Text("UPGRADE TO DEEP").scaledFont(14, weight: .semibold, design: .monospaced)
                                 } else {
-                                    Text("Upgrade to Deep").font(.system(size: 16, weight: .semibold))
+                                    Text("Upgrade to Deep").scaledFont(16, weight: .semibold)
                                 }
                             }
                             Group {
                                 if displayMode == .sentinel {
-                                    Text("UNLIMITED ASK, MONTHLY DEBRIEF, VITALS").font(MirrorTheme.mono(10.5, weight: .medium))
+                                    Text("UNLIMITED ASK, MONTHLY DEBRIEF, VITALS").scaledFont(10.5, weight: .medium, design: .monospaced)
                                 } else {
-                                    Text("Unlimited Ask, monthly report, mood timeline").font(.system(size: 13))
+                                    Text("Unlimited Ask, monthly report, mood timeline").scaledFont(13)
                                 }
                             }
                             .foregroundStyle(.secondary)
                         }
                         Spacer()
                         Image(systemName: "flame.fill")
-                            .font(.system(size: 15))
+                            .scaledFont(15)
                             .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
                     }
                     .padding(16)
@@ -414,14 +414,14 @@ struct SubscriptionView: View {
                 HStack {
                     Group {
                         if displayMode == .sentinel {
-                            Text("MANAGE SUBSCRIPTION").font(MirrorTheme.mono(14, weight: .medium))
+                            Text("MANAGE SUBSCRIPTION").scaledFont(14, weight: .medium, design: .monospaced)
                         } else {
-                            Text("Manage Subscription").font(.system(size: 16, weight: .medium))
+                            Text("Manage Subscription").scaledFont(16, weight: .medium)
                         }
                     }
                     Spacer()
                     Image(systemName: "arrow.up.right")
-                        .font(.system(size: 14))
+                        .scaledFont(14)
                         .foregroundStyle(.secondary)
                 }
                 .padding(16)
@@ -430,7 +430,7 @@ struct SubscriptionView: View {
             .buttonStyle(.plain)
 
             Text("Manage or cancel your subscription in the App Store.")
-                .font(.system(size: 13))
+                .scaledFont(13)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
         }

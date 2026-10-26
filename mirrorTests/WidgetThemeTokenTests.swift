@@ -38,6 +38,20 @@ struct WidgetThemeTokenTests {
     @Test func violetLight_matchesVioletLight() { expectSameColor(WidgetTheme.violetLight, MirrorTheme.violetLight, "violetLight") }
     @Test func ember_matchesEmber() { expectSameColor(WidgetTheme.ember, MirrorTheme.ember, "ember") }
 
+    /// The map widgets' twelve mood colours are the app's (2026-10-21: they had been system
+    /// colours). Every mood the app knows must be known here too, and match.
+    @Test func moodColors_matchTheApp() {
+        #expect(Set(WidgetTheme.moods) == Set(MirrorTheme.moodOptions), "mood lists differ")
+        for mood in MirrorTheme.moodOptions {
+            guard let widget = WidgetTheme.moodColor(for: mood) else {
+                Issue.record("widget has no colour for \(mood)")
+                continue
+            }
+            expectSameColor(widget, MirrorTheme.moodColor(for: mood), mood)
+        }
+        #expect(WidgetTheme.moodColor(for: "Not a mood") == nil)
+    }
+
     @Test func sentinelBg_isTheFrozenWidgetOnlyValue() {
         // No MirrorTheme counterpart — lock the literal so it's a deliberate change if touched.
         let c = rgb(WidgetTheme.sentinelBg, dark)

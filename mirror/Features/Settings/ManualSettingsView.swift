@@ -30,7 +30,7 @@ struct ManualSettingsView: View {
                                 Spacer()
                                 if let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
                                     Text("v\(v)")
-                                        .font(.system(size: 12, weight: .medium))
+                                        .scaledFont(12, weight: .medium)
                                         .foregroundStyle(MirrorTheme.violetLight)
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 3)
@@ -196,14 +196,14 @@ struct ManualSettingsView: View {
                     .fill(color.opacity(0.12))
                     .frame(width: 44, height: 44)
                 Image(systemName: icon)
-                    .font(.system(size: 18, weight: .semibold))
+                    .scaledFont(18, weight: .semibold)
                     .foregroundStyle(color)
             }
             VStack(alignment: .leading, spacing: 6) {
                 Text(title)
-                    .font(.system(size: 15, weight: .semibold))
+                    .scaledFont(15, weight: .semibold)
                 Text(body)
-                    .font(.system(size: 14))
+                    .scaledFont(14)
                     .foregroundStyle(MirrorTheme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }

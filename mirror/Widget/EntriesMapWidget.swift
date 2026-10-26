@@ -105,22 +105,9 @@ struct EntriesMapWidgetView: View {
         return moodColor(mood)
     }
 
+    /// The app's own mood palette (`WidgetTheme.moodColor`), not system colours.
     private func moodColor(_ mood: String) -> Color {
-        switch mood {
-        case "Joyful":      return .yellow
-        case "Grateful":    return .green
-        case "Peaceful":    return .teal
-        case "Content":     return .cyan
-        case "Energized":   return .orange
-        case "Hopeful":     return .indigo
-        case "Anxious":     return .yellow.opacity(0.7)
-        case "Overwhelmed": return .red
-        case "Frustrated":  return .orange.opacity(0.8)
-        case "Drained":     return .gray.opacity(0.5)
-        case "Sad":         return .blue
-        case "Numb":        return .gray.opacity(0.3)
-        default:            return Color.accentColor.opacity(0.6)
-        }
+        WidgetTheme.moodColor(for: mood) ?? Color.accentColor.opacity(0.6)
     }
 
     private let sentinel = widgetIsSentinel()

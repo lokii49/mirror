@@ -71,6 +71,11 @@ extension SharedLLMState {
             let invented = Self.invented
             LocalLLMService.generateInterceptForTesting = { _, _, _, _ in calls += 1; return (invented, .foundationModels) }
             defer { LocalLLMService.generateInterceptForTesting = nil }
+            // Regeneration needs a paid tier; set it rather than rely on everything being free
+            // (or on the simulator's sandbox account).
+            let tierBefore = SubscriptionService.shared.tier
+            SubscriptionService.shared.debugSetTier(.deep)
+            defer { SubscriptionService.shared.debugSetTier(tierBefore) }
 
             await DateHelpers.$nowForTesting.withValue(now) {
                 await mirrorApp.runWeeklyDigestIfNeeded(context: context)
@@ -105,6 +110,11 @@ extension SharedLLMState {
             let invented = Self.invented
             LocalLLMService.generateInterceptForTesting = { _, _, _, _ in calls += 1; return (invented, .foundationModels) }
             defer { LocalLLMService.generateInterceptForTesting = nil }
+            // Regeneration needs a paid tier; set it rather than rely on everything being free
+            // (or on the simulator's sandbox account).
+            let tierBefore = SubscriptionService.shared.tier
+            SubscriptionService.shared.debugSetTier(.deep)
+            defer { SubscriptionService.shared.debugSetTier(tierBefore) }
 
             let viewModel = InsightViewModel()
             let entries = try context.fetch(FetchDescriptor<Entry>())
@@ -179,6 +189,11 @@ extension SharedLLMState {
             let invented = Self.inventedMonthly
             LocalLLMService.generateInterceptForTesting = { _, _, _, _ in calls += 1; return (invented, .foundationModels) }
             defer { LocalLLMService.generateInterceptForTesting = nil }
+            // Regeneration needs a paid tier; set it rather than rely on everything being free
+            // (or on the simulator's sandbox account).
+            let tierBefore = SubscriptionService.shared.tier
+            SubscriptionService.shared.debugSetTier(.deep)
+            defer { SubscriptionService.shared.debugSetTier(tierBefore) }
 
             let viewModel = InsightViewModel()
             await DateHelpers.$nowForTesting.withValue(now) {

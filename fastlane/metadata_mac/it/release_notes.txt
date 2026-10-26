@@ -1,9 +1,12 @@
-Eliminati di recente, Bozze e piani a pagamento dal 15 novembre
+Piani a pagamento dal 15 novembre
 
-• I piani a pagamento iniziano il 15 novembre. Da allora, la riflessione quotidiana, Chiedi a Mirror, Riepilogo settimanale, Report mensile, la linea dell’umore e i widget richiedono Core o Deep. Scrivere, leggere, cercare e il backup su iCloud restano gratis, per sempre. I nuovi abbonati hanno 7 giorni di prova gratuita.
-• Eliminati di recente: le voci eliminate restano 30 giorni su tutti i tuoi dispositivi, e Annulla ne riporta subito una. Scegli 7, 30 o 90 giorni in Impostazioni.
-• Bozze: metti da parte una voce, iniziane un’altra e riprendila più tardi da Scrivi.
-• Scegli una raccolta mentre scrivi, o creane una nuova lì.
-• Seleziona più voci per spostarle in una raccolta o eliminarle.
-• Duplicati trova le voci salvate due volte e le unisce. Salvare di nuovo lo stesso testo ora chiede prima conferma.
-• Corretto: uscire da Scrivi subito dopo aver digitato poteva far perdere le ultime parole.
+• Dal 15 novembre, le nuove riflessioni quotidiane, Chiedi a Mirror, i nuovi riepiloghi settimanali e report mensili, la cronologia dell’umore e i widget richiedono Core o Deep. Scrivere, leggere, cercare e il backup su iCloud restano gratuiti, per sempre. I nuovi abbonati hanno 7 giorni di prova gratuita.
+• Tutto ciò che è già stato creato per te resta leggibile con qualsiasi piano: riflessioni, riepiloghi e report passati, nell’app e nei widget.
+
+Inoltre in questo aggiornamento
+
+• Le finestre si riaprono sulla pagina e sulla voce dove eri, anche dopo aver chiuso l’app.
+• Trascina le voci su una raccolta per spostarle, e fai clic destro sulla riflessione del giorno e sulle voci correlate.
+• L’elenco delle voci è come su iPhone, e il lettore mostra accanto alla voce la riflessione del giorno e le voci correlate.
+• La Cronologia dell’umore e la Mappa mentale funzionano con VoiceOver, e i temi della Mappa mentale rispondono al puntatore.
+• I colori dell’umore sono più tenui e la Mappa mentale si apre in piano con una legenda.

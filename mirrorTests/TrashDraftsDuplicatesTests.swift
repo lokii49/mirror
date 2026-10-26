@@ -32,6 +32,37 @@ struct TrashDraftsDuplicatesTests {
         #expect(trashFields.subtracting(entryFields) == ["entryID", "deletedAt"])
     }
 
+    /// CloudKit learns a field only from a record that exports a value for it, so the schema
+    /// seed's small row must fill every optional. Production lacked CD_encryptedMood and the
+    /// other optionals, and every upload failed after the first real delete (2026-10-20).
+    @Test func schemaSeedFillsEveryTrashedEntryOptional() throws {
+        let context = try makeContext()
+        let row = TrashedEntry(copying: Entry(text: "Synthetic seed text."))
+        context.insert(row)
+        CloudKitSchemaSeed.fillOptionals(row)
+        // PropertyMetadata's name and keypath aren't public API; read them by reflection.
+        let properties = TrashedEntry.schemaMetadata.compactMap { metadata -> (String, AnyKeyPath)? in
+            let fields = Dictionary(Mirror(reflecting: metadata).children.compactMap { child in
+                child.label.map { ($0, child.value) }
+            }, uniquingKeysWith: { first, _ in first })
+            guard let name = fields["name"] as? String, let keyPath = fields["keypath"] as? AnyKeyPath else { return nil }
+            return (name, keyPath)
+        }
+        // `row[keyPath:]` wraps the property's own Optional in another one; unwrap them all.
+        func isNil(_ value: Any) -> Bool {
+            let mirror = Mirror(reflecting: value)
+            guard mirror.displayStyle == .optional else { return false }
+            guard let wrapped = mirror.children.first?.value else { return true }
+            return isNil(wrapped)
+        }
+        let empty = properties.compactMap { name, keyPath in
+            isNil(row[keyPath: keyPath] as Any) ? name : nil
+        }
+        #expect(properties.count == TrashedEntry.schemaMetadata.count)
+        #expect(properties.count > 20)
+        #expect(empty.isEmpty, "seed leaves nil: \(empty)")
+    }
+
     @Test func deleteMovesToTrashAndRestoreBringsBackTheSameEntry() throws {
         let context = try makeContext()
         let entry = Entry(text: "A synthetic morning by the window.", mood: "Calm")

@@ -82,6 +82,9 @@ enum LocalLLMTask {
 enum LLMEngine: String {
     case foundationModels
     case gemma
+    /// No language model ran: English Ask on a Gemma device shows the sentence closest to the
+    /// question (`InsightService.rankedAskAnswer`). Older versions show it as "ON-DEVICE MODEL".
+    case search
 }
 
 actor LocalLLMService {
@@ -134,6 +137,31 @@ actor LocalLLMService {
         #endif
         return FoundationModelEngine.isAvailable
     }
+
+    #if os(iOS)
+    /// Moves `LlamaGPUGate` with the app's lifecycle, so no Gemma or EmbeddingGemma decode commits Metal
+    /// work once the app is in the background: llama.cpp aborts the whole app when iOS fails it
+    /// (TestFlight 3.1.6 (29), 4 crashes on an iPhone 13, 2026-10-24/25). Inactive pauses GPU decodes
+    /// between steps, background makes them throw `LlamaError.gpuUnavailable` (`generate` then reruns on
+    /// the CPU). Called once from `mirrorApp.init`.
+    @MainActor static func installGPUGate() {
+        let gate = LlamaGPUGate.shared
+        switch UIApplication.shared.applicationState {
+        case .active: gate.set(.open)
+        case .background: gate.set(.closed)
+        default: gate.set(.paused)
+        }
+        let center = NotificationCenter.default
+        center.addObserver(forName: UIApplication.willResignActiveNotification, object: nil, queue: .main) { _ in gate.set(.paused) }
+        center.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in gate.set(.open) }
+        center.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { _ in gate.set(.paused) }
+        center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in
+            gate.set(.closed)
+            // A decode that started before the app resigned active finishes its committed GPU work first.
+            gate.waitUntilIdle(timeout: 0.5)
+        }
+    }
+    #endif
 
     func resetContext() async {
         #if DEBUG
@@ -199,7 +227,19 @@ actor LocalLLMService {
 
         await resetContext()
         let isBackground = await MainActor.run { UIApplication.shared.applicationState == .background }
-        let svc = try llamaService(useGPU: !isBackground)
+        do {
+            return try await runGemma(messages: messages, grammarConfig: grammarConfig, task: task, useGPU: !isBackground)
+        } catch LlamaError.gpuUnavailable {
+            // The app went to the background mid-run (LlamaGPUGate): iOS lets it keep the CPU, not the GPU.
+            // A cancelled caller (the app-active pre-generation is cancelled on background) doesn't rerun.
+            try Task.checkCancellation()
+            await resetContext()
+            return try await runGemma(messages: messages, grammarConfig: grammarConfig, task: task, useGPU: false)
+        }
+    }
+
+    private func runGemma(messages: [LlamaChatMessage], grammarConfig: LlamaGrammarConfig?, task: LocalLLMTask, useGPU: Bool) async throws -> (text: String, engine: LLMEngine) {
+        let svc = try llamaService(useGPU: useGPU)
         defer {
             service = nil
         }

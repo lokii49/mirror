@@ -75,7 +75,7 @@ struct InsightView: View {
         HStack(spacing: 6) {
             Circle().fill(Color.green).frame(width: 6, height: 6)
             Text("SENTINEL — ONLINE")
-                .font(MirrorTheme.mono(9.5, weight: .bold))
+                .scaledFont(9.5, weight: .bold, design: .monospaced)
                 .foregroundStyle(Color.green)
                 .kerning(0.6)
         }
@@ -147,8 +147,27 @@ struct InsightView: View {
             .sheet(isPresented: $showPaywall) { PaywallView().environment(\.appDisplayMode, displayMode) }
             .sheet(isPresented: $showPaywallAfterFirstNudge) { PaywallView().environment(\.appDisplayMode, displayMode) }
             .sheet(isPresented: $showSettings) { SettingsView().environment(\.appDisplayMode, displayMode) }
+            #if DEBUG
+            // `--openBrainView`: device/simulator screenshots land on Brain View without a tap
+            // (devicectl can launch but not tap; same idea as ContentView's `--initialTab=`).
+            .navigationDestination(isPresented: $debugOpenBrainView) { BrainView(viewModel: viewModel) }
+            .navigationDestination(isPresented: $debugOpenMonthlyReport) { MonthlyReportView(viewModel: viewModel) }
+            .navigationDestination(isPresented: $debugOpenMoodTimeline) { MoodTimelineView() }
+            .navigationDestination(isPresented: $debugOpenAsk) { AskView(viewModel: viewModel) }
+            .onAppear {
+                if ProcessInfo.processInfo.arguments.contains("--openSettings") { showSettings = true }
+                if ProcessInfo.processInfo.arguments.contains("--openPaywall") { showPaywall = true }
+            }
+            #endif
         }
     }
+
+    #if DEBUG
+    @State private var debugOpenBrainView = ProcessInfo.processInfo.arguments.contains("--openBrainView")
+    @State private var debugOpenMonthlyReport = ProcessInfo.processInfo.arguments.contains("--openMonthlyReport")
+    @State private var debugOpenMoodTimeline = ProcessInfo.processInfo.arguments.contains("--openMoodTimeline")
+    @State private var debugOpenAsk = ProcessInfo.processInfo.arguments.contains("--openAsk")
+    #endif
 
     @ViewBuilder
     private var platformContent: some View {
@@ -243,8 +262,8 @@ struct InsightView: View {
     /// Everything but what the Today card shows: the card's own row (which can be yesterday's
     /// reflection, see InsightViewModel.resolvedNudgeState) and today's newest real row, the
     /// card's default, so it doesn't flash in the list before the card resolves.
+    /// Shown to every tier: Free keeps reading reflections already made (owner, 2026-10-20).
     private var pastNudges: [Insight] {
-        guard SubscriptionService.shared.isSubscribed else { return [] }
         let today = DateHelpers.dayIdentifier(for: Date())
         var onCard = Set<PersistentIdentifier>()
         if case .loaded(let insight) = viewModel.nudgeState { onCard.insert(insight.persistentModelID) }
@@ -292,8 +311,8 @@ struct InsightView: View {
     /// `periodIdentifier`, not position 0: `loadWeeklyDigest`'s `.previousWeek` pick can be a
     /// fallback row, which `cachedPastDigests` (via `newestPerPeriod`) already excludes — so
     /// `dropFirst()` would remove the wrong (next-newest, real) row instead of a no-op.
+    /// Shown to every tier: Free keeps reading digests already made (owner, 2026-10-20).
     private var pastDigests: [Insight] {
-        guard SubscriptionService.shared.isSubscribed else { return [] }
         if case .previousWeek(let hero, _) = viewModel.digestState {
             return cachedPastDigests.filter { $0.periodIdentifier != hero.periodIdentifier }
         }
@@ -403,7 +422,7 @@ struct InsightView: View {
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "clock.arrow.circlepath")
-                        .font(.system(size: 12, weight: .semibold))
+                        .scaledFont(12, weight: .semibold)
                         .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.75) : MirrorTheme.textSecondary)
                     Text(pastNudgesExpanded
                          // "LOG" would collide with the Sentinel tab bar's own "Log" (entries
@@ -411,12 +430,12 @@ struct InsightView: View {
                          // .claude/2.1.0-design-plan.md.
                          ? (displayMode == .sentinel ? "HIDE PRIOR BRIEFINGS" : "Hide past reflections")
                          : (displayMode == .sentinel ? "PRIOR BRIEFINGS (\(pastNudges.count))" : "Past reflections (\(pastNudges.count))"))
-                        .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 13, weight: .semibold))
+                        .scaledFont(displayMode == .sentinel ? 12 : 13, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                         .kerning(displayMode == .sentinel ? 0.5 : 0)
                         .foregroundStyle(displayMode == .sentinel ? MirrorTheme.textPrimary : MirrorTheme.textSecondary)
                     Spacer()
                     Image(systemName: pastNudgesExpanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 11, weight: .bold))
+                        .scaledFont(11, weight: .bold)
                         .foregroundStyle(MirrorTheme.textTertiary)
                 }
                 .padding(.horizontal, 16)
@@ -449,17 +468,17 @@ struct InsightView: View {
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "clock.arrow.circlepath")
-                        .font(.system(size: 12, weight: .semibold))
+                        .scaledFont(12, weight: .semibold)
                         .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.75) : MirrorTheme.textSecondary)
                     Text(pastDigestsExpanded
                          ? (displayMode == .sentinel ? "HIDE PRIOR DIGESTS" : "Hide past digests")
                          : (displayMode == .sentinel ? "PRIOR DIGESTS (\(pastDigests.count))" : "Past digests (\(pastDigests.count))"))
-                        .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 13, weight: .semibold))
+                        .scaledFont(displayMode == .sentinel ? 12 : 13, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                         .kerning(displayMode == .sentinel ? 0.5 : 0)
                         .foregroundStyle(displayMode == .sentinel ? MirrorTheme.textPrimary : MirrorTheme.textSecondary)
                     Spacer()
                     Image(systemName: pastDigestsExpanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 11, weight: .bold))
+                        .scaledFont(11, weight: .bold)
                         .foregroundStyle(MirrorTheme.textTertiary)
                 }
                 .padding(.horizontal, 16)
@@ -494,7 +513,7 @@ struct InsightView: View {
                 showSettings = true
             } label: {
                 Image(systemName: "person.circle")
-                    .font(.system(size: 17, weight: .semibold))
+                    .scaledFont(17, weight: .semibold)
             }
             .accessibilityLabel("Settings")
         }
@@ -507,7 +526,7 @@ struct InsightView: View {
                 MoodCheckInPresenter.shared.pending = true
             } label: {
                 Image(systemName: displayMode == .sentinel ? "waveform.path.ecg" : "face.smiling")
-                    .font(.system(size: 15, weight: .semibold))
+                    .scaledFont(15, weight: .semibold)
                     .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
             }
             .accessibilityLabel(displayMode == .sentinel ? "Log signal" : "Log mood")
@@ -552,6 +571,7 @@ struct InsightView: View {
 
     private var nightlyPendingDigestCard: some View {
         NightlyPendingCard(
+            title: "Weekly Digest",
             label: "Available Sunday mornings",
             sublabel: "Generates overnight while your phone charges.",
             icon: "calendar.badge.clock",
@@ -578,10 +598,10 @@ struct InsightView: View {
                 if currentStreak > 0 {
                     HStack(spacing: 4) {
                         Image(systemName: "flame.fill")
-                            .font(.system(size: 11, weight: .bold))
+                            .scaledFont(11, weight: .bold)
                             .foregroundStyle(.orange)
                         Text(displayMode == .sentinel ? "\(currentStreak)D" : "\(currentStreak)d")
-                            .font(displayMode == .sentinel ? MirrorTheme.mono(11.5, weight: .bold) : .system(size: 12, weight: .bold, design: .rounded))
+                            .scaledFont(displayMode == .sentinel ? 11.5 : 12, weight: .bold, design: displayMode == .sentinel ? .monospaced : .rounded)
                             .foregroundStyle(.orange)
                     }
                     .padding(.horizontal, 9)
@@ -771,7 +791,10 @@ struct InsightView: View {
         case .idle:
             EmptyView()
         case .loading:
-            LoadingInsightCard(label: "Preparing weekly digest", sublabel: "Analysing your week…", icon: "calendar.badge.clock")
+            // Leaving no longer stops it for good (3.1.6 (30): the run moves to the CPU, pauses when iOS
+            // suspends the app and carries on when it's back), so the card says so (owner, 2026-10-25).
+            LoadingInsightCard(label: "Preparing weekly digest", sublabel: "Analysing your week…", icon: "calendar.badge.clock",
+                               note: "Takes about a minute. If you leave, it carries on when you're back.")
         case .loaded(let insight):
             WeeklyDigestView(
                 insight: insight,
@@ -783,30 +806,21 @@ struct InsightView: View {
                     }
                 }
             )
-                .glowShadow(color: .indigo, radius: 28)
         case .previousWeek(let insight, _):
-            VStack(alignment: .leading, spacing: 10) {
-                Label(
-                    displayMode == .sentinel
-                        ? "LAST WEEK'S BRIEFING — 3 SIGNALS THIS WEEK FOR A NEW ONE"
-                        : "Last week's digest — write 3 entries this week for a fresh one.",
-                    systemImage: "arrow.triangle.2.circlepath"
-                )
-                .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .medium))
-                .kerning(displayMode == .sentinel ? 0.4 : 0)
-                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.85) : .secondary)
-                WeeklyDigestView(
-                    insight: insight,
-                    isExpanded: digestExpanded,
-                    showSourceButton: displayMode == .sentinel,
-                    onToggleExpanded: {
-                        withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
-                            digestExpanded.toggle()
-                        }
+            // The "last week's digest" note lives inside the card's header now (one card grammar);
+            // no glow: the accent ring and glow belong to Today's card only.
+            WeeklyDigestView(
+                insight: insight,
+                isExpanded: digestExpanded,
+                showSourceButton: displayMode == .sentinel,
+                note: "Last week's digest — write 3 entries this week for a fresh one.",
+                sentinelNote: "LAST WEEK'S BRIEFING — 3 SIGNALS THIS WEEK FOR A NEW ONE",
+                onToggleExpanded: {
+                    withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+                        digestExpanded.toggle()
                     }
-                )
-                    .glowShadow(color: .indigo, radius: 28)
-            }
+                }
+            )
         case .notEnoughEntries(let remaining):
             NeedsMoreEntriesCard(
                 remaining: remaining,
@@ -902,12 +916,12 @@ private struct PastNudgeCard: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(insight.generatedAt, format: .dateTime.weekday(.abbreviated).month(.abbreviated).day())
-                    .font(.system(size: 12, weight: .semibold))
+                    .scaledFont(12, weight: .semibold)
                     .foregroundStyle(MirrorTheme.textSecondary)
                 Spacer()
                 if displayMode == .sentinel { InsightSourceButton(insight: insight) }
                 Image(systemName: "sparkles")
-                    .font(.system(size: 11, weight: .semibold))
+                    .scaledFont(11, weight: .semibold)
                     .foregroundStyle(MirrorTheme.primary.opacity(0.5))
             }
             if let aboutDay, aboutDay < Calendar.current.startOfDay(for: insight.generatedAt) {
@@ -927,7 +941,7 @@ private struct PastNudgeCard: View {
                     }
                 } label: {
                     Text(isExpanded ? "Show less" : "Read more")
-                        .font(.system(size: 12, weight: .semibold))
+                        .scaledFont(12, weight: .semibold)
                         .foregroundStyle(MirrorTheme.primary)
                 }
                 .buttonStyle(.plain)
@@ -994,7 +1008,7 @@ private struct SectionHeader<Trailing: View>: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: icon)
-                .font(.system(size: 13, weight: .bold))
+                .scaledFont(13, weight: .bold)
                 .foregroundStyle(isSentinel ? MirrorTheme.ember : color)
                 .frame(width: 30, height: 30)
                 .background(
@@ -1004,17 +1018,17 @@ private struct SectionHeader<Trailing: View>: View {
             VStack(alignment: .leading, spacing: 1) {
                 if isSentinel {
                     Text(displayTitle)
-                        .font(MirrorTheme.mono(13, weight: .bold))
+                        .scaledFont(13, weight: .bold, design: .monospaced)
                         .foregroundStyle(MirrorTheme.textPrimary)
                         .textCase(.uppercase)
                         .kerning(0.5)
                 } else {
                     Text(displayTitle)
-                        .font(.system(size: 19, weight: .bold, design: .rounded))
+                        .scaledFont(19, weight: .bold, design: .rounded)
                         .foregroundStyle(MirrorTheme.textPrimary)
                 }
                 displaySubtitle
-                    .font(.system(size: 12, weight: .medium))
+                    .scaledFont(12, weight: .medium)
                     .foregroundStyle(MirrorTheme.textSecondary)
                     .lineLimit(2)
             }
@@ -1041,11 +1055,11 @@ private struct BrainEntryCard: View {
     @Environment(\.appDisplayMode) private var displayMode
     private var isSentinel: Bool { displayMode == .sentinel }
 
-    private static let bg = Color(red: 0.09, green: 0.09, blue: 0.10)
-    private static let hubColor = Color(red: 0.62, green: 0.5, blue: 1.0)
+    private static let bg = MirrorTheme.brainCanvas
+    private static let hubColor = MirrorTheme.brainHub
     // Ends at 0.86 of the width so the chevron has clear space (at 0.94 it sat on a dot).
     private static let dots: [(x: CGFloat, y: CGFloat, r: CGFloat, color: Color)] = [
-        (0.62, 0.24, 5, Color(red: 0.62, green: 0.5, blue: 1.0)),
+        (0.62, 0.24, 5, MirrorTheme.brainHub),
         (0.78, 0.36, 4, .teal),
         (0.70, 0.6, 6, .orange),
         (0.86, 0.5, 3, .red),
@@ -1058,11 +1072,11 @@ private struct BrainEntryCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(isSentinel ? "Constellation" : "Brain View")
-                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .scaledFont(17, weight: .bold, design: .rounded)
                         .foregroundStyle(.white)
                     if !isDeep {
                         Text(isSentinel ? "DEEP" : "Deep")
-                            .font(isSentinel ? MirrorTheme.mono(8.5, weight: .bold) : .system(size: 9, weight: .bold))
+                            .scaledFont(isSentinel ? 8.5 : 9, weight: .bold, design: isSentinel ? .monospaced : .default)
                             .foregroundStyle(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
@@ -1073,7 +1087,7 @@ private struct BrainEntryCard: View {
                     }
                 }
                 Text("A living map of your people & themes")
-                    .font(.system(size: 13, weight: .medium))
+                    .scaledFont(13, weight: .medium)
                     .foregroundStyle(.white.opacity(0.6))
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -1081,7 +1095,7 @@ private struct BrainEntryCard: View {
             // subtitle ran across the dots.
             Spacer(minLength: 112)
             Image(systemName: "chevron.right")
-                .font(.system(size: 13, weight: .bold))
+                .scaledFont(13, weight: .bold)
                 .foregroundStyle(.white.opacity(0.4))
         }
         .padding(16)
@@ -1135,7 +1149,7 @@ private struct ExplorationTile: View {
                     textBlock(titleSize: 17, subtitleSize: 13)
                     Spacer(minLength: 8)
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 13, weight: .bold))
+                        .scaledFont(13, weight: .bold)
                         .foregroundStyle(MirrorTheme.textTertiary)
                 }
                 .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
@@ -1145,7 +1159,7 @@ private struct ExplorationTile: View {
                         tileIcon(size: 38, iconSize: 18)
                         Spacer()
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 12, weight: .bold))
+                            .scaledFont(12, weight: .bold)
                             .foregroundStyle(MirrorTheme.textTertiary)
                     }
 
@@ -1167,7 +1181,7 @@ private struct ExplorationTile: View {
     private func tileIcon(size: CGFloat, iconSize: CGFloat) -> some View {
         let tint = isSentinel ? MirrorTheme.ember : color
         return Image(systemName: icon)
-            .font(.system(size: iconSize, weight: .semibold))
+            .scaledFont(iconSize, weight: .semibold)
             .foregroundStyle(tint)
             .frame(width: size, height: size)
             .background(
@@ -1180,13 +1194,13 @@ private struct ExplorationTile: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 Text(title)
-                    .font(.system(size: titleSize, weight: .semibold))
+                    .scaledFont(titleSize, weight: .semibold)
                     .foregroundStyle(MirrorTheme.textPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
                 if let badge {
                     Text(badge)
-                        .font(isSentinel ? MirrorTheme.mono(8.5, weight: .bold) : .system(size: 9, weight: .bold))
+                        .scaledFont(isSentinel ? 8.5 : 9, weight: .bold, design: isSentinel ? .monospaced : .default)
                         .textCase(isSentinel ? .uppercase : nil)
                         .foregroundStyle(.white)
                         .padding(.horizontal, 6)
@@ -1195,7 +1209,7 @@ private struct ExplorationTile: View {
                 }
             }
             Text(subtitle)
-                .font(.system(size: subtitleSize, weight: .medium))
+                .scaledFont(subtitleSize, weight: .medium)
                 .foregroundStyle(MirrorTheme.textSecondary)
                 .lineLimit(2)
         }
@@ -1203,58 +1217,49 @@ private struct ExplorationTile: View {
 }
 
 // Used by MonthlyReportView — must stay internal (not private).
+/// The card shown while a reflection or digest is scheduled rather than ready. Same grammar as
+/// the card it stands in for: the card's name in the header, the moon glyph where the
+/// timestamp would be, the message in the reading face underneath (2026-10-21).
 struct NightlyPendingCard: View {
+    /// The card's name in the header: "Daily Reflection" or "Weekly Digest".
+    var title: LocalizedStringKey = "Daily Reflection"
     let label: LocalizedStringKey
     let sublabel: LocalizedStringKey
     let icon: String
     var iconColor: Color = MirrorTheme.primary
     @Environment(\.appDisplayMode) private var displayMode
+    private var isSentinel: Bool { displayMode == .sentinel }
 
     var body: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                if displayMode == .sentinel {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(MirrorTheme.ember.opacity(0.10))
-                        .frame(width: 40, height: 40)
-                    Image(systemName: icon)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(MirrorTheme.ember)
+        VStack(alignment: .leading, spacing: 14) {
+            // Slot labels are spelled out on every header with one closure: Swift's trailing-closure
+            // rule binds a lone closure to the *last* defaulted slot (subline), not the first.
+            InsightCardHeader(title, icon: icon, trailing: {
+                Image(systemName: "moon.zzz.fill")
+                    .scaledFont(13, weight: .medium)
+                    .foregroundStyle(MirrorTheme.textTertiary)
+            })
+            Group {
+                if isSentinel {
+                    Text(label).scaledFont(13, weight: .semibold, design: .monospaced).textCase(.uppercase)
                 } else {
-                    Circle()
-                        .fill(iconColor.opacity(0.10))
-                        .frame(width: 40, height: 40)
-                    Image(systemName: icon)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(iconColor)
+                    Text(label).readingFont(size: 17)
                 }
             }
-            VStack(alignment: .leading, spacing: 4) {
-                Group {
-                    if displayMode == .sentinel {
-                        Text(label).font(MirrorTheme.mono(12, weight: .semibold)).textCase(.uppercase)
-                    } else {
-                        Text(label).font(.system(size: 15, weight: .medium))
-                    }
+            .foregroundStyle(MirrorTheme.textPrimary)
+            .lineLimit(3)
+            .minimumScaleFactor(0.8)
+            Group {
+                if isSentinel {
+                    Text(sublabel).scaledFont(11, weight: .medium, design: .monospaced)
+                } else {
+                    Text(sublabel).scaledFont(13)
                 }
-                .lineLimit(2)
-                .minimumScaleFactor(0.75)
-                Group {
-                    if displayMode == .sentinel {
-                        Text(sublabel).font(MirrorTheme.mono(11, weight: .medium))
-                    } else {
-                        Text(sublabel).font(.system(size: 13))
-                    }
-                }
-                .foregroundStyle(MirrorTheme.textSecondary)
             }
-            Spacer()
-            Image(systemName: "moon.zzz.fill")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle((displayMode == .sentinel ? MirrorTheme.ember : iconColor).opacity(0.35))
+            .foregroundStyle(MirrorTheme.textSecondary)
         }
-        .padding(20)
-        .themedCard(cornerRadius: 22)
+        .padding(22)
+        .themedCard(cornerRadius: 26, classicBase: .elevated)
     }
 }
 
@@ -1264,6 +1269,8 @@ struct LoadingInsightCard: View {
     let label: LocalizedStringKey
     let sublabel: LocalizedStringKey
     let icon: String
+    /// A line under the progress bar, for what happens if the person leaves while it runs.
+    var note: LocalizedStringKey? = nil
     @Environment(\.appDisplayMode) private var displayMode
     private var accent: Color { displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary }
 
@@ -1275,16 +1282,16 @@ struct LoadingInsightCard: View {
                         .fill(accent.opacity(0.10))
                         .frame(width: 40, height: 40)
                     Image(systemName: icon)
-                        .font(.system(size: 18, weight: .semibold))
+                        .scaledFont(18, weight: .semibold)
                         .foregroundStyle(accent)
                         .symbolEffect(.variableColor.iterative, isActive: true)
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(label)
-                        .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .semibold) : .system(size: 15, weight: .medium))
+                        .scaledFont(displayMode == .sentinel ? 13 : 15, weight: displayMode == .sentinel ? .semibold : .medium, design: displayMode == .sentinel ? .monospaced : .default)
                         .textCase(displayMode == .sentinel ? .uppercase : nil)
                     Text(sublabel)
-                        .font(.system(size: 13))
+                        .scaledFont(13)
                         .foregroundStyle(MirrorTheme.textSecondary)
                 }
                 Spacer()
@@ -1298,6 +1305,12 @@ struct LoadingInsightCard: View {
             // renders a static empty bar. A custom sliding highlight, driven by explicit
             // `@State`, is guaranteed to actually move.
             IndeterminateProgressBar(color: accent)
+            if let note {
+                Text(note)
+                    .scaledFont(12)
+                    .foregroundStyle(MirrorTheme.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(20)
         .themedCard(cornerRadius: 22)
@@ -1350,21 +1363,21 @@ struct NeedsMoreEntriesCard: View {
                         .fill((displayMode == .sentinel ? MirrorTheme.ember : iconColor).opacity(0.10))
                         .frame(width: 40, height: 40)
                     Image(systemName: icon)
-                        .font(.system(size: 18, weight: .semibold))
+                        .scaledFont(18, weight: .semibold)
                         .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : iconColor)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     if displayMode == .sentinel {
                         Text("CALIBRATING · \(done)/\(total) SIGNALS")
-                            .font(MirrorTheme.mono(13, weight: .bold))
+                            .scaledFont(13, weight: .bold, design: .monospaced)
                             .foregroundStyle(MirrorTheme.ember)
                             .kerning(0.4)
                     } else {
                         Text(remaining == 1 ? "1 more entry to go" : "\(remaining) more entries to go")
-                            .font(.system(size: 16, weight: .semibold))
+                            .scaledFont(16, weight: .semibold)
                     }
                     Text(displayMode == .sentinel ? "Reading signal patterns." : "Mirror learns from your writing patterns.")
-                        .font(.system(size: 13))
+                        .scaledFont(13)
                         .foregroundStyle(MirrorTheme.textSecondary)
                 }
             }
@@ -1380,7 +1393,7 @@ struct NeedsMoreEntriesCard: View {
             }
             .frame(height: 6)
             Text(unlockLabel)
-                .font(.system(size: 12, weight: .medium))
+                .scaledFont(12, weight: .medium)
                 .foregroundStyle(MirrorTheme.textTertiary)
         }
         .padding(20)
@@ -1403,21 +1416,21 @@ struct UpgradePromptCard: View {
                         .fill(accent.opacity(0.12))
                         .frame(width: 40, height: 40)
                     Image(systemName: "sparkles")
-                        .font(.system(size: 18, weight: .semibold))
+                        .scaledFont(18, weight: .semibold)
                         .foregroundStyle(accent)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .bold) : .system(size: 16, weight: .semibold))
+                        .scaledFont(displayMode == .sentinel ? 13 : 16, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                         .textCase(displayMode == .sentinel ? .uppercase : nil)
                     Text(subtitle)
-                        .font(.system(size: 14))
+                        .scaledFont(14)
                         .foregroundStyle(MirrorTheme.textSecondary)
                 }
             }
             Button(action: onUpgrade) {
                 Text("View Plans")
-                    .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .bold) : .system(size: 15, weight: .semibold))
+                    .scaledFont(displayMode == .sentinel ? 13 : 15, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                     .textCase(displayMode == .sentinel ? .uppercase : nil)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -1460,7 +1473,7 @@ struct GroundingFallbackCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label(title, systemImage: "text.magnifyingglass")
-                .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .semibold) : .system(size: 15, weight: .semibold))
+                .scaledFont(displayMode == .sentinel ? 13 : 15, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                 .textCase(displayMode == .sentinel ? .uppercase : nil)
                 .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
             Text(message)
@@ -1468,7 +1481,7 @@ struct GroundingFallbackCard: View {
                 .foregroundStyle(MirrorTheme.textSecondary)
             if let onRetry {
                 Button("Try Again", action: onRetry)
-                    .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .semibold) : .system(size: 14, weight: .semibold))
+                    .scaledFont(displayMode == .sentinel ? 12 : 14, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                     .textCase(displayMode == .sentinel ? .uppercase : nil)
                     .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
             }
@@ -1486,14 +1499,14 @@ struct ErrorCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Couldn't load", systemImage: "exclamationmark.triangle")
-                .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .semibold) : .system(size: 15, weight: .semibold))
+                .scaledFont(displayMode == .sentinel ? 13 : 15, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                 .textCase(displayMode == .sentinel ? .uppercase : nil)
                 .foregroundStyle(.orange)
             Text(message)
                 .font(.subheadline)
                 .foregroundStyle(MirrorTheme.textSecondary)
             Button("Try Again", action: onRetry)
-                .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .semibold) : .system(size: 14, weight: .semibold))
+                .scaledFont(displayMode == .sentinel ? 12 : 14, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                 .textCase(displayMode == .sentinel ? .uppercase : nil)
                 .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
         }
@@ -1510,7 +1523,7 @@ struct ModelNotInstalledCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Label(isSentinel ? "AI MODEL NEEDED" : "AI model needed", systemImage: isSentinel ? "waveform.path.ecg" : "brain.head.profile")
-                .font(isSentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 15, weight: .semibold))
+                .scaledFont(isSentinel ? 12 : 15, weight: isSentinel ? .bold : .semibold, design: isSentinel ? .monospaced : .default)
                 .kerning(isSentinel ? 0.4 : 0)
                 .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
             Text("MirrorNotes uses Gemma 3 1B, a small AI that runs entirely on your device — nothing you write is ever sent anywhere. It's a one-time ~800MB download so the app itself stays small.")
@@ -1547,7 +1560,7 @@ struct ModelDownloadStateControl: View {
             VStack(spacing: 10) {
                 if manager.modelWasUpgraded {
                     Text("Mirror's on-device AI got an upgrade — download it again to keep using Ask, Nudge, and Digest.")
-                        .font(.system(size: 13))
+                        .scaledFont(13)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
@@ -1568,13 +1581,13 @@ struct ModelDownloadStateControl: View {
 
         case .installed:
             Label(isSentinel ? "MODEL ONLINE — REOPEN TO GENERATE" : "Model installed — reopen this screen to generate", systemImage: "checkmark.circle.fill")
-                .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 14, weight: .medium))
+                .scaledFont(isSentinel ? 11 : 14, weight: isSentinel ? .bold : .medium, design: isSentinel ? .monospaced : .default)
                 .foregroundStyle(.green)
 
         case .failed(let message):
             VStack(spacing: 10) {
                 Text(message)
-                    .font(isSentinel ? MirrorTheme.mono(12, weight: .medium) : .system(size: 13))
+                    .scaledFont(isSentinel ? 12 : 13, weight: isSentinel ? .medium : .regular, design: isSentinel ? .monospaced : .default)
                     .foregroundStyle(.red)
                     .multilineTextAlignment(.center)
                 ModelDownloadButton(title: isSentinel ? "TRY AGAIN" : "Try Again", systemImage: "arrow.clockwise") {
@@ -1613,30 +1626,14 @@ private struct InsightTextView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .center, spacing: 8) {
-                Label(label, systemImage: icon)
-                    .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 11, weight: .bold))
-                    .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
-                    .tracking(0.8)
-                Spacer()
+            InsightCardHeader(label, icon: icon) {
                 if showSourceButton { InsightSourceButton(insight: insight) }
-                Text(insight.generatedAt, format: stampFormat)
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundStyle(MirrorTheme.textTertiary)
+                InsightCardStamp(date: insight.generatedAt, format: stampFormat)
+            } subline: {
+                if let aboutDay {
+                    ReflectedDayLabel(day: aboutDay, isSentinel: isSentinel)
+                }
             }
-            if let aboutDay {
-                ReflectedDayLabel(day: aboutDay, isSentinel: isSentinel)
-                    .padding(.top, -8)
-            }
-            Rectangle()
-                .fill(
-                    LinearGradient(
-                        colors: [MirrorTheme.violet.opacity(0.40), MirrorTheme.violet.opacity(0.06)],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .frame(height: 1)
             Text(displayText ?? insight.content)
                 .readingFont(size: 18)
                 .lineSpacing(8)
@@ -1646,31 +1643,12 @@ private struct InsightTextView: View {
 
             // Only when there's more to read: most reflections fit in the collapsed lines.
             if let onToggleExpanded, overflows {
-                Button(action: onToggleExpanded) {
-                    HStack(spacing: 6) {
-                        Text(isSentinel
-                             ? (isExpanded ? "SHOW LESS" : "FULL BRIEFING")
-                             : (isExpanded ? "Show Less" : "Read Full Reflection"))
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 11, weight: .bold))
-                    }
-                    .font(isSentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 13, weight: .semibold))
-                    .kerning(isSentinel ? 0.4 : 0)
-                    .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 40)
-                    .background(
-                        isSentinel ? AnyShapeStyle(MirrorTheme.ember.opacity(0.12)) : AnyShapeStyle(MirrorTheme.violetDim),
-                        in: isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 6, style: .continuous)) : AnyShape(Capsule())
-                    )
-                    .overlay {
-                        if isSentinel {
-                            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .stroke(MirrorTheme.ember.opacity(0.35), lineWidth: 1)
-                        }
-                    }
-                }
-                .buttonStyle(.plain)
+                InsightCardAction(
+                    title: isExpanded ? "Show Less" : "Read Full Reflection",
+                    sentinelTitle: isExpanded ? "SHOW LESS" : "FULL BRIEFING",
+                    systemImage: isExpanded ? "chevron.up" : "chevron.down",
+                    action: onToggleExpanded
+                )
             }
         }
         .padding(22)
@@ -1687,7 +1665,7 @@ private struct InsightTextView: View {
         }
         .overlay(alignment: .topTrailing) {
             Text("\u{201C}")
-                .font(.system(size: 80, weight: .bold, design: .serif))
+                .scaledFont(80, weight: .bold, design: .serif)
                 .foregroundStyle(MirrorTheme.violetLight.opacity(0.13))
                 // Below the header row: higher up, it sat on top of the timestamp.
                 .offset(x: -18, y: 40)
@@ -1762,7 +1740,7 @@ private struct MoodWeekChartView: View {
                 .fill(MirrorTheme.moodColor(for: mood))
                 .frame(width: 7, height: 7)
             label
-                .font(isSentinel ? MirrorTheme.mono(10, weight: .semibold) : .system(size: 11, weight: .medium))
+                .scaledFont(isSentinel ? 10 : 11, weight: isSentinel ? .semibold : .medium, design: isSentinel ? .monospaced : .default)
                 .kerning(isSentinel ? 0.2 : 0)
                 .foregroundStyle(MirrorTheme.textSecondary)
         }
@@ -1788,30 +1766,29 @@ private struct MoodWeekChartView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                if let selected {
-                    // While a dot is held, the header names it; same height, so the chart stays put.
-                    Text(selected.date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute())
-                        .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .semibold))
-                        .textCase(isSentinel ? .uppercase : nil)
-                        .foregroundStyle(MirrorTheme.textPrimary)
-                    Spacer()
-                    moodChip(selected.mood, label: Text(isSentinel
-                        ? MirrorTheme.localizedMoodName(for: selected.mood).uppercased()
-                        : MirrorTheme.localizedMoodName(for: selected.mood)))
-                } else {
-                    Label("This Week's Mood", systemImage: "chart.line.uptrend.xyaxis")
-                        .font(isSentinel ? MirrorTheme.mono(11, weight: .bold) : .system(size: 12, weight: .semibold))
-                        .kerning(isSentinel ? 0.3 : 0)
-                        .textCase(isSentinel ? .uppercase : nil)
-                        .foregroundStyle(MirrorTheme.textSecondary)
-                    Spacer()
+            // Same header as every other Insights card. While a dot is held the header names
+            // it instead; same height, so the chart stays put.
+            if let selected {
+                // The mood chip sits on the title row (the proposal's header), so the slot is
+                // spelled out: a lone trailing closure would bind to the last defaulted slot,
+                // the subline, and the chip dropped under the title on device (owner, 2026-10-21).
+                InsightCardHeader(
+                    text: Text(selected.date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute()),
+                    icon: "chart.line.uptrend.xyaxis",
+                    trailing: {
+                        moodChip(selected.mood, label: Text(isSentinel
+                            ? MirrorTheme.localizedMoodName(for: selected.mood).uppercased()
+                            : MirrorTheme.localizedMoodName(for: selected.mood)))
+                    }
+                )
+            } else {
+                InsightCardHeader("This Week's Mood", icon: "chart.line.uptrend.xyaxis", trailing: {
                     if let mood = dominantMood {
                         moodChip(mood, label: Text(isSentinel
                             ? "MOSTLY \(MirrorTheme.localizedMoodName(for: mood).uppercased())"
                             : "Mostly \(MirrorTheme.localizedMoodName(for: mood))"))
                     }
-                }
+                })
             }
 
             Chart {
@@ -1838,6 +1815,16 @@ private struct MoodWeekChartView: View {
                 }
 
                 ForEach(points) { point in
+                    // Ring under difficult-mood dots: valence stays readable without the hue.
+                    if let ring = MirrorTheme.moodRing(for: point.mood) {
+                        PointMark(
+                            x: .value("Day", point.date, unit: .day),
+                            y: .value("Mood", point.score)
+                        )
+                        .foregroundStyle(ring)
+                        .symbolSize((point.id == selected?.id ? 240 : 120) * 1.7)
+                        .opacity(selected == nil || point.id == selected?.id ? 1 : 0.35)
+                    }
                     PointMark(
                         x: .value("Day", point.date, unit: .day),
                         y: .value("Mood", point.score)
@@ -1858,7 +1845,7 @@ private struct MoodWeekChartView: View {
                     AxisValueLabel {
                         if let v = value.as(Int.self) {
                             Text(v == 1 ? LocalizedStringKey("Low") : v == 3 ? LocalizedStringKey("Mid") : LocalizedStringKey("High"))
-                                .font(isSentinel ? MirrorTheme.mono(9.5) : .system(size: 10))
+                                .scaledFont(isSentinel ? 9.5 : 10, weight: isSentinel ? .semibold : .regular, design: isSentinel ? .monospaced : .default)
                                 .foregroundStyle(MirrorTheme.textSecondary)
                         }
                     }
@@ -1901,7 +1888,7 @@ private struct ReflectedDayLabel: View {
 
     var body: some View {
         Text("From what you wrote on \(day.formatted(.dateTime.day().month(.abbreviated)))")
-            .font(isSentinel ? MirrorTheme.mono(10, weight: .medium) : .system(size: 12, weight: .medium))
+            .scaledFont(isSentinel ? 10 : 12, weight: .medium, design: isSentinel ? .monospaced : .default)
             .textCase(isSentinel ? .uppercase : nil)
             .tracking(isSentinel ? 0.6 : 0)
             .foregroundStyle(MirrorTheme.textTertiary)
@@ -2032,7 +2019,7 @@ extension InsightView {
             if let today = macToday, case .loaded(let insight) = viewModel.nudgeState {
                 if let day = todayCardAboutDay(insight) {
                     Text("From what you wrote on \(Self.macDayName(day))")
-                        .font(.system(size: 11.5, weight: .semibold))
+                        .scaledFont(11.5, weight: .semibold)
                         .textCase(.uppercase)
                         .tracking(0.8)
                         .foregroundStyle(MacTokens.secondaryInk)
@@ -2045,9 +2032,9 @@ extension InsightView {
                 nudgeStatusContent
             }
 
-            if !macPastRows.isEmpty, SubscriptionService.shared.isSubscribed {
+            if !macPastRows.isEmpty {
                 Text("PAST REFLECTIONS")
-                    .font(.system(size: 11.5, weight: .semibold))
+                    .scaledFont(11.5, weight: .semibold)
                     .tracking(0.8)
                     .foregroundStyle(MacTokens.secondaryInk)
                     .padding(.top, 36)
@@ -2056,7 +2043,7 @@ extension InsightView {
                     ForEach(Array(macPastRows.enumerated()), id: \.element.id) { index, row in
                         VStack(alignment: .leading, spacing: 3) {
                             Text(macPastLabel(row))
-                                .font(.system(size: 12))
+                                .scaledFont(12)
                                 .foregroundStyle(MacTokens.secondaryInk)
                             Text(Self.macCurlyQuotes(row.text))
                                 .readingFont(size: 15)
@@ -2112,7 +2099,7 @@ extension InsightView {
     private func macTodayCard(_ today: MacTodayContent) -> some View {
         VStack(alignment: .leading, spacing: 22) {
             macReflectionText(today)
-                .font(.system(size: 21, design: .serif))
+                .scaledFont(21, design: .serif)
                 .lineSpacing(8)
                 .foregroundStyle(MacTokens.ink)
                 .textSelection(.enabled)
@@ -2122,7 +2109,7 @@ extension InsightView {
                     NotificationCenter.default.post(name: .mirrorMacNewEntrySeeded, object: nil, userInfo: ["text": question + "\n"])
                 } label: {
                     Text(question)
-                        .font(.system(size: 13, weight: .semibold))
+                        .scaledFont(13, weight: .semibold)
                         .foregroundStyle(MacTokens.accentInk)
                         .padding(.horizontal, 14)
                         .frame(height: 32)
@@ -2140,13 +2127,13 @@ extension InsightView {
                         withAnimation(.easeInOut(duration: 0.18)) { macInspectorOpen = true }
                     } label: {
                         Text("How this was generated")
-                            .font(.system(size: 12.5, weight: .semibold))
+                            .scaledFont(12.5, weight: .semibold)
                             .foregroundStyle(MacTokens.accentInk)
                             .underline()
                     }
                     .buttonStyle(.plain)
                     Text("Made at \(today.generatedAt.formatted(.dateTime.hour().minute()))")
-                        .font(.system(size: 12))
+                        .scaledFont(12)
                         .foregroundStyle(MacTokens.secondaryInk)
                     Spacer(minLength: 0)
                 }
@@ -2158,6 +2145,18 @@ extension InsightView {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(MacTokens.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay { RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(MacTokens.divider, lineWidth: 1) }
+        .contextMenu {
+            Button("Copy Reflection") { UIPasteboard.general.string = today.content }
+            Button("How this was generated") {
+                withAnimation(.easeInOut(duration: 0.18)) { macInspectorOpen = true }
+            }
+            if let question = today.followUp {
+                Divider()
+                Button("Write About This") {
+                    NotificationCenter.default.post(name: .mirrorMacNewEntrySeeded, object: nil, userInfo: ["text": question + "\n"])
+                }
+            }
+        }
     }
 
     /// The reflection with the user's own sentence highlighted. A reflection that isn't a
@@ -2254,7 +2253,7 @@ private struct MacInsightInspector: View {
         VStack(spacing: 0) {
             HStack {
                 Text("How this was generated")
-                    .font(.system(size: 14, weight: .semibold))
+                    .scaledFont(14, weight: .semibold)
                     .foregroundStyle(MacTokens.ink)
                 Spacer()
                 if let onClose {
@@ -2320,12 +2319,12 @@ private struct MacInsightInspector: View {
                             HStack(spacing: 10) {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(basedOn.label)
-                                        .font(.system(size: 13, weight: .semibold))
+                                        .scaledFont(13, weight: .semibold)
                                         .foregroundStyle(MacTokens.ink)
                                     Text(basedOn.entryCount == 1
                                          ? String(localized: "1 entry · \(basedOn.wordCount) words")
                                          : String(localized: "\(basedOn.entryCount) entries · \(basedOn.wordCount) words"))
-                                        .font(.system(size: 12))
+                                        .scaledFont(12)
                                         .foregroundStyle(MacTokens.secondaryInk)
                                 }
                                 Spacer(minLength: 8)
@@ -2334,7 +2333,7 @@ private struct MacInsightInspector: View {
                                         NotificationCenter.default.post(name: .mirrorMacOpenEntry, object: nil, userInfo: ["id": id])
                                     } label: {
                                         Text("Open")
-                                            .font(.system(size: 12, weight: .semibold))
+                                            .scaledFont(12, weight: .semibold)
                                             .foregroundStyle(MacTokens.accentInk)
                                             .padding(.horizontal, 12)
                                             .frame(height: 26)
@@ -2353,7 +2352,7 @@ private struct MacInsightInspector: View {
                     HStack(alignment: .top, spacing: 8) {
                         MacIcon(name: "lock", size: 14).padding(.top, 2)
                         Text("This ran on your Mac. Your entry text did not leave it.")
-                            .font(.system(size: 12))
+                            .scaledFont(12)
                             .lineSpacing(2)
                     }
                     .foregroundStyle(MacTokens.secondaryInk)
@@ -2371,7 +2370,7 @@ private struct MacInsightInspector: View {
     private func block<Content: View>(title: LocalizedStringKey, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.system(size: 11, weight: .semibold))
+                .scaledFont(11, weight: .semibold)
                 .tracking(0.66)
                 .foregroundStyle(MacTokens.secondaryInk)
             content()
@@ -2380,7 +2379,7 @@ private struct MacInsightInspector: View {
 
     private func card(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 13))
+            .scaledFont(13)
             .lineSpacing(2)
             .foregroundStyle(MacTokens.ink)
             .padding(.horizontal, 14).padding(.vertical, 12)
@@ -2391,7 +2390,7 @@ private struct MacInsightInspector: View {
 
     private func caption(_ text: LocalizedStringKey) -> some View {
         Text(text)
-            .font(.system(size: 12.5))
+            .scaledFont(12.5)
             .lineSpacing(2)
             .foregroundStyle(MacTokens.controlInk)
     }

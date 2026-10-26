@@ -32,6 +32,7 @@ struct CalendarHeatmap: View {
     @AppStorage("heatmapMode") private var mode: HeatmapMode = .month
     @State private var viewDate: Date = Date()
     @Environment(\.appDisplayMode) private var displayMode
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     // MARK: - Cache
 
@@ -211,12 +212,24 @@ struct CalendarHeatmap: View {
         let rank = SentinelRank(level: level)
         let intoLevel = GamificationEngine.xpIntoLevel(xp)
         let forNext = GamificationEngine.xpForNextLevel()
-        return HStack(spacing: 8) {
-            Text("\(rank.rawValue.uppercased()) · LV\(level)")
-                .font(MirrorTheme.mono(9.5, weight: .bold))
-                .foregroundStyle(MirrorTheme.ember)
-                .padding(.horizontal, 8).padding(.vertical, 4)
-                .background(MirrorTheme.ember.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
+        let badge = Text("\(rank.rawValue.uppercased()) · LV\(level)")
+            .scaledFont(9.5, weight: .bold, design: .monospaced)
+            .foregroundStyle(MirrorTheme.ember)
+            .padding(.horizontal, 8).padding(.vertical, 4)
+            .background(MirrorTheme.ember.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
+        // At accessibility text sizes the badge takes its own line; beside the bar it broke mid-word.
+        return VStack(alignment: .leading, spacing: 6) {
+            if typeSize.isAccessibilitySize { badge }
+            HStack(spacing: 8) {
+                if !typeSize.isAccessibilitySize { badge }
+                xpBar(intoLevel: intoLevel, forNext: forNext)
+            }
+        }
+        .padding(.horizontal, 16)
+    }
+
+    private func xpBar(intoLevel: Int, forNext: Int) -> some View {
+        HStack(spacing: 8) {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     Capsule().fill(MirrorTheme.inkBorder)
@@ -227,35 +240,54 @@ struct CalendarHeatmap: View {
             }
             .frame(height: 5)
             Text("\(intoLevel)/\(forNext)")
-                .font(MirrorTheme.mono(9.5))
+                .scaledFont(9.5, weight: .semibold, design: .monospaced)
                 .foregroundStyle(MirrorTheme.textTertiary)
         }
-        .padding(.horizontal, 16)
     }
 
     // MARK: - Summary Row
 
     private var summaryRow: some View {
-        HStack(spacing: 0) {
-            statChip(
-                value: "\(entries.count)",
-                label: entries.count == 1 ? "entry" : "entries",
-                icon: "book.pages",
-                color: MirrorTheme.primary
-            )
-            Spacer()
-            modeMenu
-            if cachedStreak > 0 {
-                Spacer().frame(width: 12)
-                statChip(
-                    value: "\(cachedStreak)",
-                    label: "Day streak",
-                    icon: "flame.fill",
-                    color: .orange
-                )
+        Group {
+            // At accessibility text sizes the three parts stack; in one row each broke mid-word.
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 8) {
+                    entryCountChip
+                    if cachedStreak > 0 { streakChip }
+                    modeMenu
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                HStack(spacing: 0) {
+                    entryCountChip
+                    Spacer()
+                    modeMenu
+                    if cachedStreak > 0 {
+                        Spacer().frame(width: 12)
+                        streakChip
+                    }
+                }
             }
         }
         .padding(.horizontal, 16)
+    }
+
+    private var entryCountChip: some View {
+        statChip(
+            value: "\(entries.count)",
+            label: entries.count == 1 ? "entry" : "entries",
+            icon: "book.pages",
+            color: MirrorTheme.primary
+        )
+    }
+
+    private var streakChip: some View {
+        statChip(
+            value: "\(cachedStreak)",
+            label: "Day streak",
+            icon: "flame.fill",
+            color: .orange
+        )
     }
 
     private var modeMenu: some View {
@@ -275,10 +307,10 @@ struct CalendarHeatmap: View {
             HStack(spacing: 4) {
                 Text(mode.localizedName)
                     .textCase(displayMode == .sentinel ? .uppercase : nil)
-                    .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .semibold) : .system(size: 12, weight: .semibold))
+                    .scaledFont(displayMode == .sentinel ? 11 : 12, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                     .kerning(displayMode == .sentinel ? 0.3 : 0)
                 Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 9, weight: .semibold))
+                    .scaledFont(9, weight: .semibold)
             }
             .foregroundStyle(.secondary)
             .padding(.horizontal, 9)
@@ -301,13 +333,13 @@ struct CalendarHeatmap: View {
     private func statChip(value: String, label: LocalizedStringKey, icon: String, color: Color) -> some View {
         HStack(spacing: 5) {
             Image(systemName: icon)
-                .font(.system(size: 11, weight: .semibold))
+                .scaledFont(11, weight: .semibold)
                 .foregroundStyle(color)
             Text(value)
-                .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: .bold) : .system(size: 13, weight: .bold, design: .rounded))
+                .scaledFont(13, weight: .bold, design: displayMode == .sentinel ? .monospaced : .rounded)
                 .foregroundStyle(.primary)
             Text(label)
-                .font(displayMode == .sentinel ? MirrorTheme.mono(10.5, weight: .semibold) : .system(size: 12))
+                .scaledFont(displayMode == .sentinel ? 10.5 : 12, weight: displayMode == .sentinel ? .semibold : .regular, design: displayMode == .sentinel ? .monospaced : .default)
                 .kerning(displayMode == .sentinel ? 0.2 : 0)
                 .textCase(displayMode == .sentinel ? .uppercase : nil)
                 .foregroundStyle(.secondary)
@@ -327,7 +359,7 @@ struct CalendarHeatmap: View {
         HStack {
             Button(action: onBack) {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 13, weight: .semibold))
+                    .scaledFont(13, weight: .semibold)
                     .foregroundStyle(canGoBack ? AnyShapeStyle(Color.secondary) : AnyShapeStyle(MirrorTheme.textSecondary.opacity(0.5)))
             }
             .accessibilityLabel("Back")
@@ -338,11 +370,11 @@ struct CalendarHeatmap: View {
 
             VStack(spacing: 1) {
                 Text(title)
-                    .font(.system(size: 13, weight: .semibold))
+                    .scaledFont(13, weight: .semibold)
                     .foregroundStyle(.primary)
                 if let subtitle {
                     Text(subtitle)
-                        .font(.system(size: 11))
+                        .scaledFont(11)
                         .foregroundStyle(.tertiary)
                 }
             }
@@ -351,7 +383,7 @@ struct CalendarHeatmap: View {
 
             Button(action: onForward) {
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
+                    .scaledFont(13, weight: .semibold)
                     .foregroundStyle(canGoForward ? AnyShapeStyle(Color.secondary) : AnyShapeStyle(MirrorTheme.textSecondary.opacity(0.5)))
             }
             .accessibilityLabel("Next")
@@ -432,7 +464,7 @@ struct CalendarHeatmap: View {
 
         return VStack(spacing: 4) {
             Text(date.formatted(.dateTime.weekday(.narrow)))
-                .font(.system(size: 10, weight: .medium))
+                .scaledFont(10, weight: .medium)
                 .foregroundStyle(isFuture ? .quaternary : .tertiary)
                 .opacity(isWeekend ? 0.55 : 1)
 
@@ -443,8 +475,11 @@ struct CalendarHeatmap: View {
                         RoundedRectangle(cornerRadius: 4, style: .continuous)
                             .stroke(color(for: startOfDay), lineWidth: 1.5)
                     } else if displayMode != .sentinel {
+                        // Difficult moods get an ink ring: the second cue for valence, since twelve
+                        // mood hues can't be told apart by colour-blind readers (MirrorTheme.moodRing).
+                        let ring = isFuture ? nil : dayCache[startOfDay]?.mood.flatMap(MirrorTheme.moodRing(for:))
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .strokeBorder(MirrorTheme.inkBorder, style: StrokeStyle(lineWidth: 1, dash: isFuture ? [3, 3] : []))
+                            .strokeBorder(ring ?? MirrorTheme.inkBorder, style: StrokeStyle(lineWidth: ring == nil ? 1 : 1.5, dash: isFuture ? [3, 3] : []))
                     }
                 }
                 .frame(height: 46)
@@ -455,7 +490,7 @@ struct CalendarHeatmap: View {
                             .foregroundStyle(isFuture ? .quaternary : .primary)
                         if count > 0 {
                             Text("\(count)")
-                                .font(displayMode == .sentinel ? MirrorTheme.mono(10, weight: .medium) : .system(size: 10, weight: .medium))
+                                .scaledFont(10, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)
                                 .foregroundStyle(displayMode == .sentinel ? color(for: startOfDay) : .white.opacity(0.8))
                         }
                     }
@@ -582,7 +617,7 @@ struct CalendarHeatmap: View {
 
         return VStack(spacing: 4) {
             Text("\(count)")
-                .font(.system(size: 9, weight: .semibold, design: .rounded))
+                .scaledFont(9, weight: .semibold, design: .rounded)
                 .foregroundStyle(count > 0 ? .secondary : .tertiary)
                 .frame(minWidth: 14, minHeight: 12)
                 .padding(.horizontal, 3)
@@ -606,7 +641,7 @@ struct CalendarHeatmap: View {
 
         return VStack(spacing: 4) {
             Text(date.formatted(.dateTime.weekday(.narrow)))
-                .font(.system(size: 9, weight: .medium))
+                .scaledFont(9, weight: .medium)
                 .foregroundStyle(isFuture ? .quaternary : .tertiary)
                 .opacity(isWeekend ? 0.55 : 1)
 
@@ -617,8 +652,9 @@ struct CalendarHeatmap: View {
                         RoundedRectangle(cornerRadius: 4, style: .continuous)
                             .stroke(color(for: startOfDay), lineWidth: 1.5)
                     } else if displayMode != .sentinel {
+                        let ring = isFuture ? nil : dayCache[startOfDay]?.mood.flatMap(MirrorTheme.moodRing(for:))
                         RoundedRectangle(cornerRadius: 7, style: .continuous)
-                            .strokeBorder(MirrorTheme.inkBorder, style: StrokeStyle(lineWidth: 1, dash: isFuture ? [3, 3] : []))
+                            .strokeBorder(ring ?? MirrorTheme.inkBorder, style: StrokeStyle(lineWidth: ring == nil ? 1 : 1.5, dash: isFuture ? [3, 3] : []))
                     }
                 }
                 .frame(width: 36, height: 44)
@@ -629,7 +665,7 @@ struct CalendarHeatmap: View {
                             .foregroundStyle(isFuture ? .quaternary : .primary)
                         if count > 0 {
                             Text("\(count)")
-                                .font(displayMode == .sentinel ? MirrorTheme.mono(9, weight: .medium) : .system(size: 9, weight: .medium))
+                                .scaledFont(9, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)
                                 .foregroundStyle(displayMode == .sentinel ? color(for: startOfDay) : .white.opacity(0.8))
                         }
                     }
@@ -704,7 +740,7 @@ struct CalendarHeatmap: View {
                     default: Color.clear
                     }
                 }
-                .font(.system(size: 8, weight: .medium))
+                .scaledFont(8, weight: .medium)
                 .foregroundStyle(.tertiary)
                 .frame(width: 12, height: cellSize, alignment: .trailing)
             }
@@ -728,7 +764,7 @@ struct CalendarHeatmap: View {
                     }
                 } label: {
                     Text(label)
-                        .font(.system(size: 8, weight: .semibold))
+                        .scaledFont(8, weight: .semibold)
                         .foregroundStyle(.tertiary)
                         .frame(height: 14, alignment: .bottomLeading)
                         .lineLimit(1)

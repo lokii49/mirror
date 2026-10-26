@@ -119,11 +119,11 @@ struct EntriesSplitView: View {
             // The Log's empty-state look (EntriesTabView.emptyState): viewfinder, mono capitals.
             VStack(spacing: 16) {
                 Image(systemName: "viewfinder")
-                    .font(.system(size: 48, weight: .light))
+                    .scaledFont(48, weight: .light)
                     .foregroundStyle(.quaternary)
                 Text("Select an entry")
                     .textCase(.uppercase)
-                    .font(MirrorTheme.mono(14, weight: .semibold))
+                    .scaledFont(14, weight: .semibold, design: .monospaced)
                     .tracking(1)
                     .foregroundStyle(.secondary)
             }

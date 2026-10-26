@@ -84,7 +84,7 @@ struct MoodDotScrubOverlay: View {
 
     private var callout: some View {
         Text(calloutText)
-            .font(isSentinel ? MirrorTheme.mono(11.5, weight: .medium) : .system(size: 13, weight: .medium))
+            .scaledFont(isSentinel ? 11.5 : 13, weight: .medium, design: isSentinel ? .monospaced : .default)
             .foregroundStyle(MirrorTheme.textPrimary)
             .lineLimit(3)
             .frame(maxWidth: .infinity, alignment: .leading)

@@ -1,9 +1,11 @@
-Supprimés récemment, Brouillons et abonnements payants dès le 15 novembre
+Abonnements payants dès le 15 novembre
 
-• Les abonnements payants commencent le 15 novembre. Dès lors, la réflexion du jour, Demander à Mirror, le Résumé hebdomadaire, le Rapport mensuel, la frise des humeurs et les widgets nécessitent Core ou Deep. Écrire, lire, rechercher et la sauvegarde iCloud restent gratuits, pour toujours. Les nouveaux abonnés ont 7 jours d’essai gratuit.
-• Supprimés récemment : les entrées supprimées attendent 30 jours sur tous vos appareils, et Annuler en ramène une aussitôt. Choisissez 7, 30 ou 90 jours dans Réglages.
-• Brouillons : mettez une entrée de côté, commencez-en une autre et reprenez-la plus tard depuis Écrire.
-• Choisissez une collection pendant l’écriture, ou créez-en une sur place.
-• Sélectionnez plusieurs entrées pour les déplacer dans une collection ou les supprimer.
-• Doublons repère les entrées enregistrées deux fois et les fusionne. Enregistrer le même texte une seconde fois demande désormais confirmation.
-• Corrigé : quitter Écrire juste après avoir tapé pouvait faire perdre les derniers mots.
+• Dès le 15 novembre, les nouvelles réflexions du jour, Demander à Mirror, les nouveaux résumés hebdomadaires et rapports mensuels, la frise des humeurs et les widgets nécessitent Core ou Deep. Écrire, lire, rechercher et la sauvegarde iCloud restent gratuits, pour toujours. Les nouveaux abonnés ont 7 jours d’essai gratuit.
+• Tout ce qui a déjà été créé pour vous reste lisible avec tous les abonnements : réflexions, résumés et rapports passés, dans l’app et dans les widgets.
+
+Également dans cette mise à jour
+
+• Le texte suit la taille de texte que vous avez choisie dans toute l’app, et la Chronologie de l’humeur et la Carte mentale fonctionnent avec VoiceOver.
+• Nouvelles commandes « Nouvelle entrée » et « Noter l’humeur » pour le Centre de contrôle, l’écran verrouillé et le bouton Action.
+• Une entrée s’ouvre avec un zoom depuis la liste. Les couleurs d’humeur sont plus apaisées, et la Carte mentale s’ouvre à plat avec une légende des humeurs.
+• Correction d’un plantage quand vous quittiez l’app pendant l’écriture d’une analyse ; un plantage rare pendant la synchronisation iCloud est désormais moins probable.

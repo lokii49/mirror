@@ -120,6 +120,10 @@ case "template":
         LlamaChatMessage(role: .system, content: sys),
         LlamaChatMessage(role: .user, content: user),
     ]), terminator: "")
+case "templateuser":
+    // templateuser <userFile> -> a user turn only, as LocalLLMService sends a .grammarConstrained plan
+    let user = try! String(contentsOfFile: args[2], encoding: .utf8)
+    print(model.applyChatTemplate(to: [LlamaChatMessage(role: .user, content: user)]), terminator: "")
 default:
     fatalError("unknown mode")
 }

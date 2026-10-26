@@ -14,7 +14,9 @@ struct BrainView: View {
     @State private var showPaywall = false
     @State private var selectedNode: BrainNode?
     @State private var askPrefill: AskPrefill?
-    @State private var is3D = true
+    /// 2D is the landing view (2026-10-21 design review): labelled, readable at a glance; 3D is
+    /// one tap away and remembered per device.
+    @AppStorage("brainViewIs3D") private var is3D = false
 
     var body: some View {
         Group {
@@ -60,7 +62,7 @@ struct BrainView: View {
                     dismiss()
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 15, weight: .semibold))
+                        .scaledFont(15, weight: .semibold)
                         .foregroundStyle(.white)
                         .frame(width: 32, height: 32)
                         .background(.thinMaterial, in: Circle())
@@ -99,6 +101,10 @@ struct BrainView: View {
                 AskView(viewModel: viewModel, initialQuestion: prefill.question, onClose: { askPrefill = nil })
             }
             .environment(\.appDisplayMode, displayMode)
+            #if os(iOS)
+            // Shows the sheet can be swiped down: Ask has no close button on iPhone (owner, 2026-10-24).
+            .presentationDragIndicator(.visible)
+            #endif
             #if os(macOS)
             .frame(minWidth: 640, idealWidth: 720, minHeight: 560, idealHeight: 640)
             #endif
@@ -123,9 +129,9 @@ struct BrainView: View {
         Button(action: action) {
             Group {
                 if displayMode == .sentinel {
-                    Text(title).font(MirrorTheme.mono(12, weight: .semibold))
+                    Text(title).scaledFont(12, weight: .semibold, design: .monospaced)
                 } else {
-                    Text(title).font(.system(size: 13, weight: .semibold))
+                    Text(title).scaledFont(13, weight: .semibold)
                 }
             }
             .foregroundStyle(isSelected ? (displayMode == .sentinel ? MirrorTheme.ember : .white) : .white.opacity(0.55))
@@ -159,9 +165,9 @@ struct BrainView: View {
                 ProgressView()
                 Group {
                     if displayMode == .sentinel {
-                        Text("MAPPING SIGNAL NETWORK…").font(MirrorTheme.mono(12, weight: .medium))
+                        Text("MAPPING SIGNAL NETWORK…").scaledFont(12, weight: .medium, design: .monospaced)
                     } else {
-                        Text("Mapping your mind…").font(.system(size: 14))
+                        Text("Mapping your mind…").scaledFont(14)
                     }
                 }
                 .foregroundStyle(MirrorTheme.textSecondary)
@@ -228,18 +234,18 @@ struct BrainView: View {
                     .fill(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.12) : MirrorTheme.violetDim)
                     .frame(width: 72, height: 72)
                 Image(systemName: "brain.head.profile")
-                    .font(.system(size: 28, weight: .semibold))
+                    .scaledFont(28, weight: .semibold)
                     .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
             }
             Group {
                 if displayMode == .sentinel {
-                    Text("NO RECURRING SIGNALS YET").font(MirrorTheme.mono(16, weight: .bold)).tracking(0.5)
+                    Text("NO RECURRING SIGNALS YET").scaledFont(16, weight: .bold, design: .monospaced).tracking(0.5)
                 } else {
-                    Text("No recurring themes yet").font(.system(size: 18, weight: .bold, design: .rounded))
+                    Text("No recurring themes yet").scaledFont(18, weight: .bold, design: .rounded)
                 }
             }
             Text("Mirror builds this map from names and topics\nthat repeat across your entries.")
-                .font(.system(size: 14))
+                .scaledFont(14)
                 .foregroundStyle(MirrorTheme.textSecondary)
                 .multilineTextAlignment(.center)
         }
@@ -258,20 +264,20 @@ struct BrainView: View {
                     .fill(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.12) : MirrorTheme.violetDim)
                     .frame(width: 72, height: 72)
                 Image(systemName: "lock.fill")
-                    .font(.system(size: 28, weight: .semibold))
+                    .scaledFont(28, weight: .semibold)
                     .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
             }
             Group {
                 if displayMode == .sentinel {
-                    Text("SIGNALS NOT READABLE YET").font(MirrorTheme.mono(16, weight: .bold)).tracking(0.5)
+                    Text("SIGNALS NOT READABLE YET").scaledFont(16, weight: .bold, design: .monospaced).tracking(0.5)
                 } else {
-                    Text("Entries not readable yet").font(.system(size: 18, weight: .bold, design: .rounded))
+                    Text("Entries not readable yet").scaledFont(18, weight: .bold, design: .rounded)
                 }
             }
             Text(displayMode == .sentinel
                  ? "Couldn't decrypt some signals just now.\nReopen Constellation in a moment."
                  : "Mirror couldn't decrypt some entries just now.\nReopen Brain View in a moment.")
-                .font(.system(size: 14))
+                .scaledFont(14)
                 .foregroundStyle(MirrorTheme.textSecondary)
                 .multilineTextAlignment(.center)
         }
@@ -293,29 +299,29 @@ struct BrainView: View {
                         .fill(Color.white.opacity(0.12))
                         .frame(width: 72, height: 72)
                     Image(systemName: "brain.head.profile")
-                        .font(.system(size: 28, weight: .semibold))
-                        .foregroundStyle(Color(red: 0.68, green: 0.56, blue: 1.0))
+                        .scaledFont(28, weight: .semibold)
+                        .foregroundStyle(MirrorTheme.brainIcon)
                 }
                 VStack(spacing: 8) {
                     Group {
                         if displayMode == .sentinel {
-                            Text("CONSTELLATION").font(MirrorTheme.mono(20, weight: .bold)).tracking(1)
+                            Text("CONSTELLATION").scaledFont(20, weight: .bold, design: .monospaced).tracking(1)
                         } else {
-                            Text("Brain View").font(.system(size: 22, weight: .bold, design: .rounded))
+                            Text("Brain View").scaledFont(22, weight: .bold, design: .rounded)
                         }
                     }
                     .foregroundStyle(.white)
                     Text("A living map of your people, places,\nand themes is part of Deep.")
-                        .font(.system(size: 14))
+                        .scaledFont(14)
                         .foregroundStyle(.white.opacity(0.7))
                         .multilineTextAlignment(.center)
                 }
                 Button { showPaywall = true } label: {
                     Group {
                         if displayMode == .sentinel {
-                            Text("UNLOCK WITH DEEP").font(MirrorTheme.mono(14, weight: .bold))
+                            Text("UNLOCK WITH DEEP").scaledFont(14, weight: .bold, design: .monospaced)
                         } else {
-                            Text("Unlock with Deep").font(.system(size: 16, weight: .semibold))
+                            Text("Unlock with Deep").scaledFont(16, weight: .semibold)
                         }
                     }
                     .foregroundStyle(.white)
@@ -335,7 +341,7 @@ struct BrainView: View {
             .shadow(color: .black.opacity(0.3), radius: 24, x: 0, y: 8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(red: 0.09, green: 0.09, blue: 0.10))
+        .background(MirrorTheme.brainCanvas)
     }
 
     /// Static mock graph rendered behind the lock card — no real data.
@@ -358,7 +364,7 @@ struct BrainView: View {
                     path.addLine(to: p)
                     context.stroke(path, with: .color(.white.opacity(0.18)), lineWidth: 0.7)
                 }
-                let hubColor = displayMode == .sentinel ? MirrorTheme.ember : Color(red: 0.62, green: 0.5, blue: 1.0)
+                let hubColor = displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.brainHub
                 let hubRect = CGRect(x: center.x - 15, y: center.y - 15, width: 30, height: 30)
                 context.fill(Circle().path(in: hubRect), with: .color(hubColor))
                 for node in mock {
@@ -368,7 +374,7 @@ struct BrainView: View {
                     context.fill(Circle().path(in: rect), with: .color(color))
                 }
             }
-            .background(Color(red: 0.09, green: 0.09, blue: 0.10))
+            .background(MirrorTheme.brainCanvas)
         }
     }
 }
@@ -436,29 +442,29 @@ private struct BrainNodeDetailSheet: View {
                     .fill(nodeColor.opacity(0.18))
                     .frame(width: 52, height: 52)
                 Image(systemName: typeIcon)
-                    .font(.system(size: 22, weight: .semibold))
+                    .scaledFont(22, weight: .semibold)
                     .foregroundStyle(nodeColor)
             }
             VStack(alignment: .leading, spacing: 4) {
                 Group {
                     if displayMode == .sentinel {
-                        Text(node.label.uppercased()).font(MirrorTheme.mono(19, weight: .bold)).tracking(0.5)
+                        Text(node.label.uppercased()).scaledFont(19, weight: .bold, design: .monospaced).tracking(0.5)
                     } else {
-                        Text(node.label).font(.system(size: 22, weight: .bold, design: .rounded))
+                        Text(node.label).scaledFont(22, weight: .bold, design: .rounded)
                     }
                 }
                 Group {
                     if displayMode == .sentinel {
-                        Text(node.mentionCount == 1 ? "1 SIGNAL" : "\(node.mentionCount) SIGNALS").font(MirrorTheme.mono(11, weight: .medium))
+                        Text(node.mentionCount == 1 ? "1 SIGNAL" : "\(node.mentionCount) SIGNALS").scaledFont(11, weight: .medium, design: .monospaced)
                     } else {
-                        Text(node.mentionCount == 1 ? "1 entry" : "\(node.mentionCount) entries").font(.system(size: 13, weight: .medium))
+                        Text(node.mentionCount == 1 ? "1 entry" : "\(node.mentionCount) entries").scaledFont(13, weight: .medium)
                     }
                 }
                 .foregroundStyle(MirrorTheme.textSecondary)
                 // A topic lists the words it gathered, most mentioned first.
                 if !node.members.isEmpty {
                     Text(node.members.prefix(6).joined(separator: " · "))
-                        .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .medium) : .system(size: 13))
+                        .scaledFont(displayMode == .sentinel ? 11 : 13, weight: displayMode == .sentinel ? .medium : .regular, design: displayMode == .sentinel ? .monospaced : .default)
                         .foregroundStyle(MirrorTheme.textSecondary)
                         .lineLimit(2)
                         .accessibilityLabel(Text("Includes \(node.members.prefix(6).joined(separator: ", "))"))
@@ -467,7 +473,7 @@ private struct BrainNodeDetailSheet: View {
             Spacer()
             if let score = node.avgMoodScore {
                 Text(String(format: "%.1f/5", score))
-                    .font(displayMode == .sentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 12, weight: .bold))
+                    .scaledFont(12, weight: .bold, design: displayMode == .sentinel ? .monospaced : .default)
                     .foregroundStyle(.white)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
@@ -489,12 +495,12 @@ private struct BrainNodeDetailSheet: View {
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: displayMode == .sentinel ? "waveform.badge.magnifyingglass" : "bubble.left.and.text.bubble.right.fill")
-                    .font(.system(size: 14, weight: .semibold))
+                    .scaledFont(14, weight: .semibold)
                 Group {
                     if displayMode == .sentinel {
-                        Text("QUERY SIGNAL: \(node.label.uppercased())").font(MirrorTheme.mono(13, weight: .semibold))
+                        Text("QUERY SIGNAL: \(node.label.uppercased())").scaledFont(13, weight: .semibold, design: .monospaced)
                     } else {
-                        Text("Ask Mirror about \(node.label)").font(.system(size: 15, weight: .semibold))
+                        Text("Ask Mirror about \(node.label)").scaledFont(15, weight: .semibold)
                     }
                 }
                 .lineLimit(1)
@@ -523,15 +529,15 @@ private struct BrainNodeDetailSheet: View {
                         Group {
                             if displayMode == .sentinel {
                                 Text(entry.createdAt.formatted(date: .abbreviated, time: .omitted).uppercased())
-                                    .font(MirrorTheme.mono(11, weight: .semibold))
+                                    .scaledFont(11, weight: .semibold, design: .monospaced)
                             } else {
                                 Text(entry.createdAt.formatted(date: .abbreviated, time: .omitted))
-                                    .font(.system(size: 12, weight: .semibold))
+                                    .scaledFont(12, weight: .semibold)
                             }
                         }
                         .foregroundStyle(MirrorTheme.textSecondary)
                         Text(String(entry.insightContext.prefix(120)))
-                            .font(.system(size: 14))
+                            .scaledFont(14)
                             .foregroundStyle(MirrorTheme.textPrimary)
                             .lineLimit(2)
                     }

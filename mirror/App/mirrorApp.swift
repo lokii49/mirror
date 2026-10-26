@@ -17,8 +17,9 @@ struct mirrorApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     #endif
 
-    // Foreground proactive generation task — cancelled immediately when app backgrounds
-    // so GPU inference stops at the next Task.checkCancellation() in LocalLLMService.
+    // Foreground proactive generation task — cancelled immediately when app backgrounds. GPU decodes
+    // stop at LlamaGPUGate (LocalLLMService.installGPUGate), not at this cancellation: prompt
+    // processing and the token stream never check it (3.1.6 (29) crashed on that).
     nonisolated(unsafe) static var activeGenerationTask: Task<Void, Never>?
 
     /// Starts `work` once a cancelled `previous` pass has finished. Coming back to the app cancels
@@ -57,9 +58,15 @@ struct mirrorApp: App {
         UNUserNotificationCenter.current().delegate = MirrorNotificationDelegate.shared
         NotificationService.registerCategories()
         registerNightlyInsightsTask()
+        #if os(iOS)
+        LocalLLMService.installGPUGate()
+        #endif
         configureNavigationBarAppearance()
         if MirrorModelContainer.isStoreAvailable {
             JournalSafety.shared.start(container: sharedModelContainer)
+            #if os(iOS)
+            CloudSyncBackgroundTime.shared.start()
+            #endif
             WidgetSaveRefresher.shared.start(container: sharedModelContainer)
         }
         // Re-attach to a search-model download still running in its background session, so it
@@ -259,6 +266,9 @@ struct mirrorApp: App {
                     StoreUnavailableView()
                 }
             }
+            #if DEBUG && os(iOS)
+            .modifier(DebugDynamicTypeSize())
+            #endif
             #if os(macOS)
             // An open main window takes widget and notification links (mirror://...) itself.
             // Without this, macOS opened another main window for every widget click (2026-10-09).
@@ -336,6 +346,7 @@ struct mirrorApp: App {
                 // iCloud status, restore-from-device offer, and cleanup of restored copies
                 // whose originals CloudKit has since delivered.
                 PerfSignpost.interval("active.journalSafety") { JournalSafety.shared.appDidBecomeActive() }
+                SubscriptionService.shared.appDidBecomeActive()
                 // One-time: re-clean daily reflections cached before the
                 // announce-line / "friend" vocative strip landed (076b9f5).
                 Task { @MainActor in
@@ -464,6 +475,7 @@ struct mirrorApp: App {
                 processingTask.setTaskCompleted(success: false)
                 return
             }
+            NightlyRunLog.recordStart()
             let work = Task { @MainActor in
                 await mirrorApp.runNightlyInsights(container: self.sharedModelContainer)
             }
@@ -472,12 +484,18 @@ struct mirrorApp: App {
             let completion = RunOnce()
             processingTask.expirationHandler = {
                 work.cancel()
-                completion.run { processingTask.setTaskCompleted(success: false) }
+                completion.run {
+                    NightlyRunLog.recordEnd(.expired)
+                    processingTask.setTaskCompleted(success: false)
+                }
             }
             Task {
                 _ = await work.result
                 scheduleNightlyInsights()  // always re-schedule, even if expired
-                completion.run { processingTask.setTaskCompleted(success: true) }
+                completion.run {
+                    NightlyRunLog.recordEnd(.finished)
+                    processingTask.setTaskCompleted(success: true)
+                }
             }
         }
         #elseif os(macOS)
@@ -498,7 +516,9 @@ struct mirrorApp: App {
             }
             Task { @MainActor in
                 UserDefaults.standard.set(Date(), forKey: Self.macNightlyLastRunKey)
+                NightlyRunLog.recordStart()
                 await mirrorApp.runNightlyInsights(container: container)
+                NightlyRunLog.recordEnd(.finished)
                 completion(.finished)
             }
         }
@@ -1431,3 +1451,25 @@ struct mirrorApp: App {
 private final class BackgroundTaskReference: @unchecked Sendable {
     var id: UIBackgroundTaskIdentifier = .invalid
 }
+
+#if DEBUG && os(iOS)
+/// `--dynamicTypeSize=accessibility3` (or any `DynamicTypeSize` case name): device captures at a
+/// set text size. The phone ignores `-UIPreferredContentSizeCategoryName`, and SwiftUI's
+/// `.dynamicTypeSize` doesn't reach sheets, so this overrides the window scene's trait instead.
+private struct DebugDynamicTypeSize: ViewModifier {
+    private let size: DynamicTypeSize? = {
+        let prefix = "--dynamicTypeSize="
+        guard let arg = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix(prefix) }) else { return nil }
+        return DynamicTypeSize.allCases.first { "\($0)" == arg.dropFirst(prefix.count) }
+    }()
+
+    func body(content: Content) -> some View {
+        content.onAppear {
+            guard let size else { return }
+            for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
+                scene.traitOverrides.preferredContentSizeCategory = UIContentSizeCategory(size)
+            }
+        }
+    }
+}
+#endif

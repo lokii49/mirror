@@ -21,6 +21,8 @@ final actor Llama {
     var processedTokens: [llama_token] = []
     /// mirror patch: see UTF8StreamDecoder — keeps characters that span tokens intact.
     private var utf8Decoder = UTF8StreamDecoder()
+    /// mirror patch: GPU decodes go through `LlamaGPUGate`; CPU-only contexts don't.
+    private let usesGPU: Bool
 
     init(modelPath: String, config: LlamaConfig) throws {
         self.config = config
@@ -35,6 +37,7 @@ final actor Llama {
                 model_params.n_gpu_layers = 0
                 debugLog("Running on simulator, force use n_gpu_layers = 0")
         #endif
+        let usesGPU = model_params.n_gpu_layers != 0
 
         let model = LlamaModel(path: modelPath, parameters: model_params)
         guard let model else {
@@ -49,9 +52,22 @@ final actor Llama {
         contextParam.n_ctx = config.maxTokenCount
         contextParam.n_threads       = 1 // UInt32(n_threads) its actually faster if less threads are doing work
         contextParam.n_threads_batch = 1 // UInt32(n_threads)
+        // mirror patch: a CPU-only context (background runs: the night job, a run moved off the GPU) uses
+        // up to 4 threads. Measured on an iPhone 14 Pro, one digest-sized generation: 1 thread 14.1 s,
+        // 2 threads 8.9 s, 4 threads 9.3 s, 6 threads 8.2 s, same output at every count (2026-10-25).
+        // The single thread above stays for GPU contexts, where the CPU only feeds the GPU.
+        if !usesGPU {
+            let cpuThreads = Int32(max(1, min(4, ProcessInfo.processInfo.activeProcessorCount - 1)))
+            contextParam.n_threads = cpuThreads
+            contextParam.n_threads_batch = cpuThreads
+        }
         contextParam.n_batch = config.batchSize
         contextParam.n_ubatch = config.batchSize
-        contextParam.offload_kqv = true
+        // mirror patch: a CPU-only context keeps every op off the GPU. With n_gpu_layers = 0 alone,
+        // the KV cache (offload_kqv) and large prompt batches (op_offload) still ran on Metal, which
+        // a backgrounded app may not use (`LlamaGPUGate`).
+        contextParam.offload_kqv = usesGPU
+        contextParam.op_offload = usesGPU
 
         let context = LlamaContext(model: model, parameters: contextParam)
         guard let context else {
@@ -60,6 +76,7 @@ final actor Llama {
         }
 
 
+        self.usesGPU = usesGPU
         self.maxTokenCount = min(UInt32(model.trainedContextSize()), config.maxTokenCount)
         self.model = context.model
         self.context = context
@@ -187,7 +204,7 @@ final actor Llama {
         processedTokens.append(newTokenId)
 
         currentTokenPosition += 1
-        try context.decode(batch: batch)
+        try gatedDecode()
 
         return .token(utf8Decoder.append(model.pieceBytes(from: newTokenId)))
     }
@@ -204,11 +221,22 @@ final actor Llama {
 
     private func processBatch() throws {
         do {
-            try context.decode(batch: batch)
+            try gatedDecode()
+        } catch LlamaError.gpuUnavailable {
+            throw LlamaError.gpuUnavailable
         } catch {
             debugLog("llama_decode() failed")
             throw LlamaError.decodingError
         }
+    }
+
+    /// mirror patch: a GPU decode waits while the app is inactive and throws `LlamaError.gpuUnavailable`
+    /// once it is in the background, instead of committing Metal work that would abort the app.
+    private func gatedDecode() throws {
+        guard usesGPU else { return try context.decode(batch: batch) }
+        try LlamaGPUGate.shared.beginGPUWork()
+        defer { LlamaGPUGate.shared.endGPUWork() }
+        try context.decode(batch: batch)
     }
 
     private func processPrompt(tokens: [llama_token], startIndex: Int) throws {

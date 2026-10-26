@@ -1,0 +1,27 @@
+qid	class	lang	gold	query
+hspp	paraphrase	en	hsp1,hsp2,hsp3,hsp4	Am I learning a new language?
+hsps	short	en	hsp1,hsp2,hsp3,hsp4	Spanish?
+hcyp	paraphrase	en	hcy1,hcy2,hcy3	Have I been biking to work?
+hcys	short	en	hcy1,hcy2,hcy3	Cycling
+hbkp	paraphrase	en	hbk1,hbk2,hbk3	Has my back been hurting?
+hbks	short	en	hbk1,hbk2,hbk3	Back pain?
+hnip	paraphrase	en	hni1,hni2,hni3	How was looking after my niece?
+hnis	short	en	hni1,hni2,hni3	Babysitting
+hflp	paraphrase	en	hfl1,hfl2,hfl3	Have I found a new place to live?
+hfls	short	en	hfl1,hfl2,hfl3	Flat hunting
+hchp	paraphrase	en	hch1,hch2,hch3	How is singing going?
+hchs	short	en	hch1,hch2,hch3	Choir
+hcsp	paraphrase	en	hcs1,hcs2,hcs3	Am I getting better at chess?
+hcss	short	en	hcs1,hcs2,hcs3	Chess
+hphp	paraphrase	en	hph1,hph2,hph3	What pictures have I taken?
+hphs	short	en	hph1,hph2,hph3	Photography
+hmdp	paraphrase	en	hmd1,hmd2,hmd3	Have I been meditating?
+hmds	short	en	hmd1,hmd2,hmd3	Meditation
+hbrp	paraphrase	en	hbr1,hbr2,hbr3	How was my brother's visit?
+hbrs	short	en	hbr1,hbr2,hbr3	Brother
+hshp	paraphrase	en	hsh1,hsh2,hsh3	How is volunteering going?
+hshs	short	en	hsh1,hsh2,hsh3	Animal shelter
+halp	paraphrase	en	hal1,hal2,hal3	How are my allergies?
+hals	short	en	hal1,hal2,hal3	Hay fever
+hdrp	paraphrase	en	hdr1,hdr2,hdr3	How is learning to drive going?
+hdrs	short	en	hdr1,hdr2,hdr3	Driving

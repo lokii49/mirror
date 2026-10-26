@@ -345,7 +345,7 @@ struct VoiceRecorderSheet: View {
                 }
             } label: {
                 Image(systemName: "ellipsis")
-                    .font(.system(size: 18, weight: .semibold))
+                    .scaledFont(18, weight: .semibold)
                     .foregroundStyle(Color.primary)
                     .frame(width: 48, height: 48)
                     .recorderCircle(isSentinel: isSentinel, fill: nil)
@@ -359,7 +359,7 @@ struct VoiceRecorderSheet: View {
                 save()
             } label: {
                 Image(systemName: "checkmark")
-                    .font(.system(size: 20, weight: .semibold))
+                    .scaledFont(20, weight: .semibold)
                     .foregroundStyle(recorder.hasAudio ? Color.white : Color.secondary)
                     .frame(width: 48, height: 48)
                     .recorderCircle(isSentinel: isSentinel, fill: recorder.hasAudio ? accent : nil)
@@ -375,16 +375,16 @@ struct VoiceRecorderSheet: View {
         VStack(spacing: 4) {
             Group {
                 if isSentinel {
-                    Text("New Recording").font(MirrorTheme.mono(20, weight: .bold)).textCase(.uppercase)
+                    Text("New Recording").scaledFont(20, weight: .bold, design: .monospaced).textCase(.uppercase)
                 } else {
-                    Text("New Recording").font(.system(size: 26, weight: .bold))
+                    Text("New Recording").scaledFont(26, weight: .bold)
                 }
             }
             HStack(spacing: 10) {
                 Text(Self.dayAndTime(startedAt))
                 Text(formatDuration(recorder.elapsed)).monospacedDigit()
             }
-            .font(.system(size: 17, weight: .semibold))
+            .scaledFont(17, weight: .semibold)
             .foregroundStyle(.secondary)
         }
     }
@@ -440,17 +440,17 @@ struct VoiceRecorderSheet: View {
         let enabled = recorder.state == .paused && !recorder.isMerging
         return HStack(spacing: 56) {
             Button { recorder.skip(by: -15) } label: {
-                Image(systemName: "gobackward.15").font(.system(size: 32))
+                Image(systemName: "gobackward.15").scaledFont(32)
             }
             .accessibilityLabel("Skip back 15 seconds")
             Button { recorder.togglePlayback() } label: {
-                Image(systemName: recorder.isPlaying ? "pause.fill" : "play.fill").font(.system(size: 44))
+                Image(systemName: recorder.isPlaying ? "pause.fill" : "play.fill").scaledFont(44)
                     .frame(width: 48)
             }
             .accessibilityLabel(recorder.isPlaying ? "Pause" : "Play")
             .accessibilityIdentifier("recorderPlay")
             Button { recorder.skip(by: 15) } label: {
-                Image(systemName: "goforward.15").font(.system(size: 32))
+                Image(systemName: "goforward.15").scaledFont(32)
             }
             .accessibilityLabel("Skip forward 15 seconds")
         }

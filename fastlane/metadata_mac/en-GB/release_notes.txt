@@ -1,9 +1,12 @@
-Recently Deleted, Drafts, and paid plans from 15 November
+Paid plans from 15 November
 
-• Paid plans start on 15 November. From then, the daily reflection, Ask Mirror, Weekly Digest, Monthly Report, the mood timeline and widgets need Core or Deep. Writing, reading, search and iCloud backup stay free, forever. New subscribers get a 7-day free trial.
-• Recently Deleted: deleted entries wait 30 days on all your devices, and Undo brings one back straight away. Choose 7, 30 or 90 days in Settings.
-• Drafts: put an entry aside and start another, then pick it up later from Write.
-• Choose a collection while you write, or make a new one there.
-• Select several entries to move them to a collection or delete them.
-• Duplicates finds entries saved twice and merges them. Saving the same text again now asks first.
-• Fixed: leaving Write right after typing could lose the last few words.
+• From 15 November, new daily reflections, Ask, new weekly digests and monthly reports, the mood timeline and widgets need Core or Deep. Writing, reading, search and iCloud backup stay free, forever. New subscribers get a 7-day free trial.
+• Everything already made for you stays readable on every plan: past reflections, digests and reports, in the app and in widgets.
+
+Also in this update
+
+• Windows reopen on the page and entry you were on, even after quitting.
+• Drag entries onto a collection to move them, and right-click the day's reflection and related entries.
+• The entry list matches iPhone, and the reader shows the day's reflection and related entries beside the entry.
+• The mood timeline and Brain View work with VoiceOver, and Brain View's themes respond to the pointer.
+• Mood colours are calmer, and Brain View opens flat with a mood legend.

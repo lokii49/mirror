@@ -322,27 +322,28 @@ struct VoiceNoteAttachmentView: View {
                                 .frame(width: 38, height: 38)
                         }
                         Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                            .font(.system(size: 13, weight: .bold))
+                            .scaledFont(13, weight: .bold)
                             .foregroundStyle(.white)
                             .offset(x: player.isPlaying ? 0 : 1)
                     }
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(player.isPlaying ? Text("Pause") : Text("Play"))
 
                 VStack(alignment: .leading, spacing: 5) {
                     waveformBars
                         .frame(height: 22)
                     HStack(spacing: 5) {
                         Text(formatDuration(duration))
-                            .font(displayMode == .sentinel ? MirrorTheme.mono(11, weight: .semibold) : .system(size: 11, weight: .semibold, design: .monospaced))
+                            .scaledFont(11, weight: .semibold, design: .monospaced)
                             .foregroundStyle(.secondary)
                         if let languageName, !languageName.isEmpty {
                             Text("·").foregroundStyle(.quaternary)
                             Group {
                                 if displayMode == .sentinel {
-                                    Text(languageName.uppercased()).font(MirrorTheme.mono(10, weight: .medium))
+                                    Text(languageName.uppercased()).scaledFont(10, weight: .medium, design: .monospaced)
                                 } else {
-                                    Text(languageName).font(.system(size: 11, weight: .medium))
+                                    Text(languageName).scaledFont(11, weight: .medium)
                                 }
                             }
                             .foregroundStyle(.secondary)
@@ -351,9 +352,9 @@ struct VoiceNoteAttachmentView: View {
                             Text("·").foregroundStyle(.quaternary)
                             Group {
                                 if displayMode == .sentinel {
-                                    Text("DECODING…").font(MirrorTheme.mono(10, weight: .medium))
+                                    Text("DECODING…").scaledFont(10, weight: .medium, design: .monospaced)
                                 } else {
-                                    Text("Transcribing...").font(.system(size: 11, weight: .medium))
+                                    Text("Transcribing...").scaledFont(11, weight: .medium)
                                 }
                             }
                             .foregroundStyle(.secondary)
@@ -368,7 +369,7 @@ struct VoiceNoteAttachmentView: View {
                         onDelete()
                     } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 10, weight: .bold))
+                            .scaledFont(10, weight: .bold)
                             .foregroundStyle(.secondary)
                             .frame(width: 24, height: 24)
                             .background(
@@ -386,7 +387,7 @@ struct VoiceNoteAttachmentView: View {
             if let transcript, !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Divider().padding(.horizontal, 14)
                 Text(markedTranscript(transcript))
-                    .font(.system(size: 13))
+                    .scaledFont(13)
                     .foregroundStyle(.secondary)
                     .lineLimit(hasMatch(in: transcript) ? nil : 4)
                     .padding(.horizontal, 14)
@@ -395,13 +396,13 @@ struct VoiceNoteAttachmentView: View {
                 Divider().padding(.horizontal, 14)
                 HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 12, weight: .medium))
+                        .scaledFont(12, weight: .medium)
                         .foregroundStyle(.orange)
                     Group {
                         if displayMode == .sentinel {
-                            Text(failureLine.uppercased()).font(MirrorTheme.mono(10.5, weight: .medium))
+                            Text(failureLine.uppercased()).scaledFont(10.5, weight: .medium, design: .monospaced)
                         } else {
-                            Text(failureLine).font(.system(size: 12))
+                            Text(failureLine).scaledFont(12)
                         }
                     }
                     .foregroundStyle(.secondary)
@@ -410,9 +411,9 @@ struct VoiceNoteAttachmentView: View {
                     if let onRetryTranscription {
                         Button(action: onRetryTranscription) {
                             if displayMode == .sentinel {
-                                Text("RETRY").font(MirrorTheme.mono(11, weight: .semibold))
+                                Text("RETRY").scaledFont(11, weight: .semibold, design: .monospaced)
                             } else {
-                                Text("Retry").font(.system(size: 12, weight: .semibold))
+                                Text("Retry").scaledFont(12, weight: .semibold)
                             }
                         }
                         .foregroundStyle(accent)
@@ -463,7 +464,7 @@ struct InlineRecordingRow: View {
         HStack(spacing: 12) {
             Button(action: onCancel) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .bold))
+                    .scaledFont(11, weight: .bold)
                     .foregroundStyle(.secondary)
                     .frame(width: 32, height: 32)
                     .background(
@@ -490,7 +491,7 @@ struct InlineRecordingRow: View {
             .accessibilityHidden(true)
 
             Text(formatDuration(elapsed))
-                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .scaledFont(12, weight: .semibold, design: .monospaced)
                 .monospacedDigit()
                 .foregroundStyle(.red)
 
@@ -525,16 +526,16 @@ struct MicPermissionNotice: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "mic.slash")
-                .font(.system(size: 12, weight: .medium))
+                .scaledFont(12, weight: .medium)
                 .foregroundStyle(.orange)
             Text("Microphone access is off — turn it on in Settings › Privacy › Microphone.")
-                .font(.system(size: 12))
+                .scaledFont(12)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
             Button(action: onDismiss) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .bold))
+                    .scaledFont(10, weight: .bold)
                     .foregroundStyle(.secondary)
                     .frame(width: 22, height: 22)
             }

@@ -911,3 +911,45 @@ dentist at 9, standup, then the whole afternoon lost to the migration bug.").
   ask_a1.jsonl, ask_quotes.jsonl, the dumps and gates.py), so later guard changes can be replayed on them.
 Not measured: `groundedNudgeQuoteCandidates` no longer splitting after a title (the app's own quote picker; round 26's
 rule, applied there in 28f30e7).
+
+## Round 28: Ask evidence quotes ranked by the app instead of a second FM call (plan fixed BEFORE running, 2026-10-24)
+Today (round 21): under a free-prose `ASK_SYSTEM` answer, a second structured FM call (`ASK_QUOTES_FM_SYSTEM`) picks
+1–2 sentences, kept when found in the shown entries (`locateSentence`). Coverage 74% (10/82 were refusals of the
+quote call), 96% of shown quotes backed the answer.
+**Variants** (same answers for all): **Q0** shipped quote call; **R1** no model: the one sentence of the shown
+entries closest to the *answer* by EmbeddingGemma (query prefix + answer vs document prefix + sentence), as
+`SemanticSearchService.sentenceScores` scores; **R1L** the same with the most shared content-word stems (for FM
+devices without Smart Search); **R1Q** closest to the *question* (Gemma's ranked answer), reported only.
+**Inputs:** round 27's dumps (`mirror-rig-outputs/round27/dump`, still byte-identical to the app: `ASK_SYSTEM`,
+`buildAskMessage` and `SearchService` unchanged since 2026-10-16), round 20's 20 questions. Fresh A0 answers:
+`fmrig free`, N = 5, temperature 0.45. Q0: `fmrig ask_quotes` once per answer, then `locateSentence` (the app's
+matcher). Candidate sentences for R*: every quotable sentence (`FMDigestGuard.quotableSentences`) of every entry
+the Ask prompt shows (retrieved + older excerpts, with their dates, as `askSources` parses them).
+Answers that are the no-answer phrase or errors get no quotes in any variant and are excluded from coverage.
+**Scoring:** per shown quote SUPPORTS (it backs what the answer says, or is the entry the answer is about), blind:
+Q0/R1/R1L/R1Q quotes shuffled together with only question, answer and quote shown; one scorer. DATE is by
+construction. COVERAGE = answered responses with at least one quote.
+**Ship bar:** R1 replaces the quote call if SUPPORTS ≥ Q0's − 5 points and COVERAGE ≥ Q0's + 10 points. R1L is the
+fallback for FM devices without the search model under the same bar against Q0; if it misses, those devices keep Q0.
+Miss → owner.
+
+### Round 28 result (2026-10-24, 20 questions x 5 = 100 answers, 81 answered, one blind scorer): R1 and R1L MISS; Q0 stays
+100 fresh A0 answers: 17 the exact no-answer phrase (all on the unanswerable questions), 2 refused, 81 answered.
+
+| | coverage | quotes shown | SUPPORTS | SUPPORTS, real answers only |
+|---|---|---|---|---|
+| Q0 shipped quote call | 61/81 (75%; 11 refusals) | 95 | 95% | 95% |
+| R1 EmbeddingGemma vs answer | 81/81 (100%) | 81 | **86%** | 93% |
+| R1L shared stems with answer | 81/81 (100%) | 81 | **89%** | 96% |
+| R1Q EmbeddingGemma vs question | 81/81 (100%) | 81 | 79% | 85% |
+
+- Bar: SUPPORTS ≥ Q0 − 5 = 90%. R1 86% and R1L 89% miss; coverage +25 points passes. Q0 reproduces round 21 (74%, 10 refusals).
+- The gap is the answers containing "haven't written about": 8 are FM's own no-answer in other words, "You haven't
+  written about exercise yet." (5, on "Did I exercise?": correct, the pool's nearest is an early beach walk with the dog) and "...your new car yet." (3, the
+  unanswerable question), which the app treats as answers because they aren't the exact phrase; 1 is a real answer
+  ("You haven't written about managing anxiety..."). R* always shows a sentence under them, and under the 8 none can
+  back "you haven't written"; Q0 showed one under 1 of the 9.
+- Post-hoc, not a ship result: with no quote under an answer containing "haven't written about" (all 9), R1 would be 93% and
+  R1L 96% against Q0's 95%, at 90% coverage. A rule chosen after seeing the data, so it goes to the owner, and a
+  held-out round would test it.
+- Outputs in `mirror-rig-outputs/round28/` (answers, quote calls, scores, the blind sheet and labels; synthetic only).

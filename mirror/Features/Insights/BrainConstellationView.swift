@@ -13,6 +13,9 @@ struct BrainConstellationView: View {
     @State private var steadyScale: CGFloat = 1
     @State private var steadyOffset: CGSize = .zero
     @State private var selectedNodeID: String?
+    /// The theme under the pointer on the Mac: its outline brightens and its name shows, so a
+    /// node reads before it's clicked (UI pass 2026-10-24).
+    @State private var hoveredNodeID: String?
     /// True once the user has actually pinched/panned — until then, every
     /// appear/resize keeps re-fitting instead of locking in on the first
     /// call. onAppear vs onChange(size) firing order isn't guaranteed, and
@@ -26,14 +29,16 @@ struct BrainConstellationView: View {
     private let maxScale: CGFloat = 5.0
     /// Screen-space radius (pt) a node must reach before its label appears.
     private let labelRevealRadius: CGFloat = 13
-    /// Always-visible baseline so the overview isn't completely unlabeled.
-    private let alwaysLabeledCount = 3
+    /// Always-visible baseline so the overview isn't completely unlabeled. Six, since 2D is the
+    /// landing view (2026-10-21): the biggest themes read without a tap; the rest appear as you
+    /// zoom or select.
+    private let alwaysLabeledCount = 6
 
-    private static let background = Color(red: 0.09, green: 0.09, blue: 0.10)
+    private static let background = MirrorTheme.brainCanvas
     private static let linkColor = Color.white.opacity(0.16)
     private static let linkColorNearHub = Color.white.opacity(0.32)
     private static let linkColorHighlighted = Color.white.opacity(0.9)
-    private static let violetHubColor = Color(red: 0.62, green: 0.5, blue: 1.0)
+    private static let violetHubColor = MirrorTheme.brainHub
 
     var body: some View {
         GeometryReader { geo in
@@ -81,9 +86,13 @@ struct BrainConstellationView: View {
                 let hubRect = CGRect(x: hubCenter.x - hubRadius, y: hubCenter.y - hubRadius, width: hubRadius * 2, height: hubRadius * 2)
                 context.fill(Circle().path(in: hubRect), with: .color(hubColor))
                 context.stroke(Circle().path(in: hubRect), with: .color(.white.opacity(0.4)), lineWidth: 1 / steadyScale)
-                drawLabel(&context, text: String(localized: "You"), at: CGPoint(x: hubCenter.x, y: hubCenter.y + hubRadius + 12), bold: true)
 
-                // Nodes + progressively revealed labels.
+                // Nodes first, then every label: a node drawn later used to paint over an earlier
+                // node's label ("Work" under the Outdoors node on the 2D opening view). Each label
+                // goes below its node unless that spot sits on another node, then above it.
+                var labels: [(text: String, at: CGPoint, bold: Bool)] = [
+                    (String(localized: "You"), labelPoint(center: hubCenter, radius: hubRadius, text: "You", in: graph), true)
+                ]
                 for (index, node) in graph.nodes.enumerated() {
                     let color = nodeColor(node)
                     let rect = CGRect(
@@ -93,17 +102,35 @@ struct BrainConstellationView: View {
                     context.fill(Circle().path(in: rect), with: .color(color))
                     context.stroke(
                         Circle().path(in: rect),
-                        with: .color(.white.opacity(node.id == selectedNodeID ? 0.9 : 0.25)),
-                        lineWidth: (node.id == selectedNodeID ? 2 : 1) / steadyScale
+                        with: .color(.white.opacity(node.id == selectedNodeID ? 0.9 : node.id == hoveredNodeID ? 0.65 : 0.25)),
+                        lineWidth: (node.id == selectedNodeID || node.id == hoveredNodeID ? 2 : 1) / steadyScale
                     )
 
                     let onScreenRadius = node.radius * steadyScale
-                    let alwaysShow = index < alwaysLabeledCount || node.id == selectedNodeID
+                    let alwaysShow = index < alwaysLabeledCount || node.id == selectedNodeID || node.id == hoveredNodeID
                     guard alwaysShow || onScreenRadius >= labelRevealRadius else { continue }
-                    drawLabel(&context, text: node.label, at: CGPoint(x: node.position.x, y: node.position.y + node.radius + 12))
+                    labels.append((node.label, labelPoint(center: node.position, radius: node.radius, text: node.label, in: graph, excluding: node.id), false))
+                }
+                for label in labels {
+                    drawLabel(&context, text: label.text, at: label.at, bold: label.bold)
                 }
             }
             .background(Self.background)
+            // The canvas draws the themes itself, so VoiceOver gets one element per theme,
+            // biggest first, each opening the same sheet a tap does.
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Themes")
+            .accessibilityChildren {
+                ForEach(graph.nodes) { node in
+                    Color.clear
+                        .accessibilityLabel(BrainAccessibility.label(for: node, in: graph))
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityAction {
+                            selectedNodeID = node.id
+                            onNodeTap(node)
+                        }
+                }
+            }
             .onAppear { fitToContent(size: size, center: center) }
             .onChange(of: size) { _, newSize in fitToContent(size: newSize, center: CGPoint(x: newSize.width / 2, y: newSize.height / 2)) }
 
@@ -130,26 +157,99 @@ struct BrainConstellationView: View {
                     steadyScale = newScale
                 },
                 onTap: { location in
-                    let p = inverseTransform(location, center: center)
-                    var best: BrainNode?
-                    var bestDist: CGFloat = .greatestFiniteMagnitude
-                    for node in graph.nodes {
-                        let dx = node.position.x - p.x
-                        let dy = node.position.y - p.y
-                        let dist = (dx * dx + dy * dy).squareRoot()
-                        guard dist <= node.radius + 22 / steadyScale, dist < bestDist else { continue }
-                        best = node
-                        bestDist = dist
-                    }
-                    if let best {
+                    if let best = node(at: location, center: center, slack: 22) {
                         selectedNodeID = best.id
                         onNodeTap(best)
                     }
                 }
             )
+            #if os(macOS)
+            .onContinuousHover { phase in
+                switch phase {
+                case .active(let location):
+                    let id = node(at: location, center: center, slack: 4)?.id
+                    if id != hoveredNodeID {
+                        hoveredNodeID = id
+                        if id != nil { NSCursor.pointingHand.set() } else { NSCursor.arrow.set() }
+                    }
+                case .ended:
+                    hoveredNodeID = nil
+                    NSCursor.arrow.set()
+                }
+            }
+            #endif
 
             zoomControls
+            moodLegend
         }
+    }
+
+    /// The theme nearest a screen point, within its radius plus `slack` screen points.
+    private func node(at location: CGPoint, center: CGPoint, slack: CGFloat) -> BrainNode? {
+        let p = inverseTransform(location, center: center)
+        var best: BrainNode?
+        var bestDist: CGFloat = .greatestFiniteMagnitude
+        for node in graph.nodes {
+            let dx = node.position.x - p.x
+            let dy = node.position.y - p.y
+            let dist = (dx * dx + dy * dy).squareRoot()
+            guard dist <= node.radius + slack / steadyScale, dist < bestDist else { continue }
+            best = node
+            bestDist = dist
+        }
+        return best
+    }
+
+    /// What the node colours mean: the average mood of the entries that mention a theme, on the
+    /// same difficult→good ramp as the Mood Timeline. The canvas is dark in both themes, so this
+    /// is fixed light-on-dark like the labels.
+    private var moodLegend: some View {
+        HStack(spacing: 8) {
+            Text("Difficult")
+            LinearGradient(
+                colors: [1.0, 2.0, 3.0, 4.0, 5.0].map { MirrorTheme.moodScoreColor($0) },
+                startPoint: .leading, endPoint: .trailing
+            )
+            .frame(width: 72, height: 6)
+            .clipShape(Capsule())
+            Text("Good")
+        }
+        .scaledFont(displayMode == .sentinel ? 10 : 11, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)
+        .foregroundStyle(.white.opacity(0.75))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(.white.opacity(0.08), in: Capsule())
+        .padding(14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+        .allowsHitTesting(false)
+        .accessibilityLabel("Node colour shows the average mood of the entries that mention the theme, from difficult to good")
+    }
+
+    /// Where a label goes: 12 pt under its node on screen (the gap is in screen points, so it
+    /// doesn't grow when zoomed out), or 12 pt above when the spot under it lands on another
+    /// node or the hub. The label's size is estimated from its text; when both spots are
+    /// taken it stays below and the outline keeps it readable.
+    private func labelPoint(center: CGPoint, radius: CGFloat, text: String, in graph: BrainGraph, excluding id: String? = nil) -> CGPoint {
+        let gap = 12 / steadyScale
+        let height = 14 / steadyScale
+        let width = CGFloat(max(text.count, 2)) * 6.6 / steadyScale
+        let below = CGPoint(x: center.x, y: center.y + radius + gap)
+        let above = CGPoint(x: center.x, y: center.y - radius - gap)
+        func clear(_ point: CGPoint) -> Bool {
+            let rect = CGRect(x: point.x - width / 2, y: point.y - height / 2, width: width, height: height)
+            if id != nil, Self.hits(rect, center: graph.hubPosition, radius: 15) { return false }
+            return !graph.nodes.contains { $0.id != id && Self.hits(rect, center: $0.position, radius: $0.radius) }
+        }
+        if clear(below) { return below }
+        return clear(above) ? above : below
+    }
+
+    /// Whether a label's rect overlaps a node's circle: the rect's nearest point to the centre
+    /// is inside the circle.
+    private static func hits(_ rect: CGRect, center: CGPoint, radius: CGFloat) -> Bool {
+        let dx = max(rect.minX - center.x, 0, center.x - rect.maxX)
+        let dy = max(rect.minY - center.y, 0, center.y - rect.maxY)
+        return dx * dx + dy * dy < radius * radius
     }
 
     private func drawLabel(_ context: inout GraphicsContext, text: String, at point: CGPoint, bold: Bool = false) {
@@ -224,7 +324,7 @@ struct BrainConstellationView: View {
             withAnimation(.easeOut(duration: 0.2)) { action() }
         } label: {
             Image(systemName: systemName)
-                .font(.system(size: 15, weight: .bold))
+                .scaledFont(15, weight: .bold)
                 .foregroundStyle(.white)
                 .frame(width: 38, height: 38)
                 .background(.white.opacity(0.12), in: Circle())
