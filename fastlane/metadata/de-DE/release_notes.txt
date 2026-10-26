@@ -5,7 +5,5 @@ Bezahlpläne ab 15. November
 
 Außerdem in diesem Update
 
-• Der Text folgt in der ganzen App der von dir gewählten Textgröße, und Stimmungsverlauf und Denkkarte funktionieren mit VoiceOver.
-• Neue Steuerelemente „Neuer Eintrag“ und „Stimmung eintragen“ für das Kontrollzentrum, den Sperrbildschirm und die Aktionstaste.
-• Einträge öffnen sich mit einem Zoom aus der Liste. Die Stimmungsfarben sind ruhiger, und die Denkkarte öffnet flach mit einer Stimmungslegende.
-• Ein Absturz beim Verlassen der App, während eine Auswertung entstand, ist behoben, und ein seltener Absturz beim iCloud-Abgleich ist unwahrscheinlicher.
+• Deutlich kleinerer Download: wieder unter 30 MB statt über 300 MB.
+• Was du spät nachts schreibst, gehört zum Abend davor. Einträge vor 4 Uhr morgens werden mit dem Vortag reflektiert, und was du später am Tag schreibst, bekommt eine eigene tägliche Reflexion.

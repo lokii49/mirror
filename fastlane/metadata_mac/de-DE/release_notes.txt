@@ -5,8 +5,5 @@ Bezahlpläne ab 15. November
 
 Außerdem in diesem Update
 
-• Fenster öffnen sich auf der Seite und dem Eintrag, wo du warst, auch nach dem Beenden.
-• Ziehe Einträge auf eine Sammlung, um sie zu verschieben, und klicke mit der rechten Maustaste auf die Tagesreflexion und verwandte Einträge.
-• Die Eintragsliste sieht aus wie auf dem iPhone, und der Leser zeigt neben dem Eintrag die Reflexion des Tages und verwandte Einträge.
-• Stimmungsverlauf und Denkkarte funktionieren mit VoiceOver, und die Themen der Denkkarte reagieren auf den Mauszeiger.
-• Die Stimmungsfarben sind ruhiger, und die Denkkarte öffnet flach mit einer Stimmungslegende.
+• Deutlich kleinerer Download: wieder unter 30 MB statt über 300 MB.
+• Was du spät nachts schreibst, gehört zum Abend davor. Einträge vor 4 Uhr morgens werden mit dem Vortag reflektiert, und was du später am Tag schreibst, bekommt eine eigene tägliche Reflexion.

@@ -5,7 +5,5 @@ Abonnements payants dès le 15 novembre
 
 Également dans cette mise à jour
 
-• Le texte suit la taille de texte que vous avez choisie dans toute l’app, et la Chronologie de l’humeur et la Carte mentale fonctionnent avec VoiceOver.
-• Nouvelles commandes « Nouvelle entrée » et « Noter l’humeur » pour le Centre de contrôle, l’écran verrouillé et le bouton Action.
-• Une entrée s’ouvre avec un zoom depuis la liste. Les couleurs d’humeur sont plus apaisées, et la Carte mentale s’ouvre à plat avec une légende des humeurs.
-• Correction d’un plantage quand vous quittiez l’app pendant l’écriture d’une analyse ; un plantage rare pendant la synchronisation iCloud est désormais moins probable.
+• Un téléchargement bien plus léger : de nouveau moins de 30 Mo, au lieu de plus de 300 Mo.
+• Ce que vous écrivez tard dans la nuit compte pour la veille. Les entrées écrites avant 4 h du matin sont reprises avec la veille, et ce que vous écrivez plus tard dans la journée a sa propre réflexion du jour.

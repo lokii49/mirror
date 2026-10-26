@@ -5,7 +5,5 @@ Planes de pago desde el 15 de noviembre
 
 Además en esta actualización
 
-• El texto sigue el tamaño de texto que elijas en toda la app, y la Cronología del estado de ánimo y el Mapa mental funcionan con VoiceOver.
-• Nuevos controles «Nueva entrada» y «Registrar ánimo» para el Centro de control, la pantalla de bloqueo y el botón de acción.
-• Las entradas se abren con un zoom desde la lista. Los colores del estado de ánimo son más tranquilos y el Mapa mental se abre en plano con una leyenda de estados de ánimo.
-• Se corrigió un cierre inesperado al salir de la app mientras se escribía un análisis, y un cierre poco frecuente durante la sincronización con iCloud es ahora menos probable.
+• Una descarga mucho más pequeña: de nuevo menos de 30 MB, en vez de más de 300 MB.
+• Lo que escribes de madrugada cuenta como parte de la noche anterior. Las entradas escritas antes de las 4 de la mañana se reflejan con el día anterior, y lo que escribas más tarde ese día tiene su propia reflexión diaria.

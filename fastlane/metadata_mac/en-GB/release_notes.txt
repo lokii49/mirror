@@ -5,8 +5,5 @@ Paid plans from 15 November
 
 Also in this update
 
-• Windows reopen on the page and entry you were on, even after quitting.
-• Drag entries onto a collection to move them, and right-click the day's reflection and related entries.
-• The entry list matches iPhone, and the reader shows the day's reflection and related entries beside the entry.
-• The mood timeline and Brain View work with VoiceOver, and Brain View's themes respond to the pointer.
-• Mood colours are calmer, and Brain View opens flat with a mood legend.
+• A much smaller download: under 30 MB again, down from over 300 MB.
+• Writing late at night counts as that evening's. Entries written before 4 AM are reflected with the day before, and what you write later in the day gets its own daily reflection.

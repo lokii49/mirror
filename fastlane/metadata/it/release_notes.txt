@@ -5,7 +5,5 @@ Piani a pagamento dal 15 novembre
 
 Inoltre in questo aggiornamento
 
-• Il testo segue la dimensione che hai scelto in tutta l’app, e la Cronologia dell’umore e la Mappa mentale funzionano con VoiceOver.
-• Nuovi controlli «Nuova voce» e «Registra umore» per il Centro di Controllo, la schermata di blocco e il tasto Azione.
-• Le voci si aprono con uno zoom dall’elenco. I colori dell’umore sono più tenui e la Mappa mentale si apre in piano con una legenda degli umori.
-• Corretto un arresto anomalo quando uscivi dall’app mentre veniva scritta un’analisi; un raro arresto durante la sincronizzazione iCloud è ora meno probabile.
+• Un download molto più leggero: di nuovo meno di 30 MB, invece di oltre 300 MB.
+• Quello che scrivi a notte fonda conta come parte della sera prima. Le voci scritte prima delle 4 del mattino vengono riflesse con il giorno precedente, e ciò che scrivi più tardi nella giornata ha la sua riflessione quotidiana.
