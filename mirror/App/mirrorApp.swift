@@ -661,10 +661,11 @@ struct mirrorApp: App {
 
     /// Today's real reflection allows one more (InsightService.allowsAnotherReflectionToday),
     /// judged from today's readable entries and the last failed extra attempt. Only today's
-    /// entries are fetched (and decrypted).
+    /// entries are fetched (and decrypted). "Today" is the journal day (from 4 AM): writing just
+    /// after midnight belongs to the night before, so it doesn't use up today's second reflection.
     @MainActor
     static func anotherReflectionAllowed(after newestToday: Insight, context: ModelContext) -> Bool {
-        let startOfToday = Calendar.current.startOfDay(for: Date())
+        let startOfToday = DateHelpers.journalDayStart(for: Date())
         let todayEntries = (try? context.fetch(FetchDescriptor<Entry>(predicate: #Predicate { $0.createdAt >= startOfToday }))) ?? []
         return InsightService.allowsAnotherReflectionToday(
             todaysReflectionAt: newestToday.generatedAt,
@@ -887,7 +888,7 @@ struct mirrorApp: App {
                 wDefaults?.set(today, forKey: "widget.nudge.date")
                 // The day it's about (the newest readable entry's), so the widget can keep an
                 // evening-before reflection next morning without resurfacing older ones.
-                wDefaults?.set(entries.first.map { DateHelpers.dayIdentifier(for: $0.createdAt) }, forKey: "widget.nudge.aboutDate")
+                wDefaults?.set(entries.first.map { DateHelpers.dayIdentifier(for: DateHelpers.journalDay(of: $0.createdAt)) }, forKey: "widget.nudge.aboutDate")
                 if let todaysMood = entries.first(where: { DateHelpers.dayIdentifier(for: $0.createdAt) == today })?.mood {
                     wDefaults?.set(todaysMood, forKey: "widget.nudge.mood")
                 } else {

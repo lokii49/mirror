@@ -445,7 +445,7 @@ struct EntryDetailView: View {
     /// skipped. A reflection about day D is generated on D or within the fortnight after it (the
     /// Past list's window), so only those rows are decrypted and checked.
     private func macFindReflection() -> Insight? {
-        let day = Calendar.current.startOfDay(for: entry.createdAt)
+        let day = DateHelpers.journalDay(of: entry.createdAt)
         let window = day...day.addingTimeInterval(14 * 86_400)
         return insights
             .filter { $0.type == .dailyNudge && window.contains($0.generatedAt) }

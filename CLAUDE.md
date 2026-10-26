@@ -182,6 +182,7 @@ The one exception is the daily reflection (2026-09-28). If today's reflection us
 How the Today card behaves around this:
 - **Next morning.** It keeps showing the latest reflection from yesterday or today while nothing new has been written.
 - **Label.** It says "From what you wrote on <day>" when the reflection is about an earlier day (`InsightService.reflectedDay`).
+- **Day boundary: 4 AM (since 3.1.7, owner 2026-10-26).** For reflections only, writing before 4 AM belongs to the day before (`DateHelpers.journalDay` / `journalDayStart`). It decides which entries are quoted together (`groundedNudgeSourceEntries`, the second quote), the day a reflection is about, the label, and the "today's writing" check for the second reflection. A 12:30 AM entry is that night's writing, so it no longer uses up the next day's reflection. `periodIdentifier` stays the calendar day the reflection was made (synced; older versions read it that way). The entry list, heatmap, digests and mood alerts keep calendar days.
 - **Past reflections.** The list keeps one row per (day it was made, day it's about).
 
 ---

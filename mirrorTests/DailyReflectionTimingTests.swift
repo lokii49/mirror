@@ -15,6 +15,10 @@ extension SharedLLMState {
     struct DailyReflectionTimingTests {
 
         private let startOfToday = Calendar.current.startOfDay(for: Date())
+        /// Today's writing for the second-reflection gate starts at 4 AM (DateHelpers.journalDay):
+        /// an entry just after midnight is still the night before. Like the rest of this suite's
+        /// clock offsets, the cases using it assume they run after 4 AM.
+        private let journalStart = DateHelpers.journalDayStart(for: Date())
 
         private func makeContext() throws -> ModelContext {
             let config = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
@@ -89,7 +93,7 @@ extension SharedLLMState {
             let reflection = Insight(type: .dailyNudge, content: "x", periodIdentifier: "p")
             reflection.generatedAt = startOfToday.addingTimeInterval(18 * 3_600)
             let day = InsightService.reflectedDay(of: reflection, entriesNewestFirst: [laterToday, yesterdayEvening])
-            #expect(day == Calendar.current.startOfDay(for: yesterdayEvening.createdAt))
+            #expect(day == DateHelpers.journalDay(of: yesterdayEvening.createdAt))
         }
 
         // MARK: Past reflections grouping
@@ -97,11 +101,11 @@ extension SharedLLMState {
         @Test func pastList_keepsBothReflectionsOfADay_butCollapsesSameDayDuplicates() throws {
             let context = try makeContext()
             let yesterday = addEntry("Repotted the basil and the mint on the windowsill, then called it a night.", at: startOfToday.addingTimeInterval(-3_600), to: context)
-            let today = addEntry("The whole afternoon went to the new project plan and it finally makes sense.", at: startOfToday.addingTimeInterval(3 * 3_600), to: context)
+            let today = addEntry("The whole afternoon went to the new project plan and it finally makes sense.", at: journalStart.addingTimeInterval(3 * 3_600), to: context)
             let aboutYesterday = addReflection("real one", at: startOfToday.addingTimeInterval(2 * 3_600), to: context)
-            let aboutToday = addReflection("real two", at: startOfToday.addingTimeInterval(4 * 3_600), to: context)
-            let duplicateAboutToday = addReflection("real two, other device", at: startOfToday.addingTimeInterval(4 * 3_600 + 30), to: context)
-            let fallback = addReflection(InsightService.dailyNudgeUngroundedFallback, at: startOfToday.addingTimeInterval(5 * 3_600), to: context)
+            let aboutToday = addReflection("real two", at: journalStart.addingTimeInterval(4 * 3_600), to: context)
+            let duplicateAboutToday = addReflection("real two, other device", at: journalStart.addingTimeInterval(4 * 3_600 + 30), to: context)
+            let fallback = addReflection(InsightService.dailyNudgeUngroundedFallback, at: journalStart.addingTimeInterval(5 * 3_600), to: context)
             try context.save()
 
             let past = InsightView.pastDailyReflections(
@@ -109,7 +113,7 @@ extension SharedLLMState {
                 entriesNewestFirst: [today, yesterday]
             )
             #expect(past.rows.map(\.content) == ["real two, other device", "real one"])
-            #expect(past.reflectedDays[aboutYesterday.persistentModelID] == Calendar.current.startOfDay(for: yesterday.createdAt))
+            #expect(past.reflectedDays[aboutYesterday.persistentModelID] == DateHelpers.journalDay(of: yesterday.createdAt))
         }
 
         // MARK: Next-morning card
@@ -186,17 +190,34 @@ extension SharedLLMState {
             try seedYesterdayAndMorningReflection(context)
             #expect(!mirrorApp.dailyReflectionMayBeDue(context: context), "today's reflection, nothing written today")
 
-            addEntry("The whole afternoon went to the new project plan and it finally makes sense now.", at: startOfToday.addingTimeInterval(2), to: context)
+            addEntry("The whole afternoon went to the new project plan and it finally makes sense now.", at: journalStart.addingTimeInterval(2), to: context)
             try context.save()
             #expect(mirrorApp.dailyReflectionMayBeDue(context: context), "wrote today after a reflection about yesterday")
 
-            addReflection(#"You wrote, "The whole afternoon went to the new project plan and it finally makes sense now." That sounds good."#, at: startOfToday.addingTimeInterval(3), to: context)
+            addReflection(#"You wrote, "The whole afternoon went to the new project plan and it finally makes sense now." That sounds good."#, at: journalStart.addingTimeInterval(3), to: context)
             try context.save()
             #expect(!mirrorApp.dailyReflectionMayBeDue(context: context), "today's writing is reflected")
 
-            addReflection(InsightService.dailyNudgeUngroundedFallback, at: startOfToday.addingTimeInterval(4), to: context)
+            addReflection(InsightService.dailyNudgeUngroundedFallback, at: journalStart.addingTimeInterval(4), to: context)
             try context.save()
             #expect(mirrorApp.dailyReflectionMayBeDue(context: context), "newest is the fallback: retry, as before")
+        }
+
+        /// 3.1.7: an entry at 12:30 AM reflected by the night pass is last night's writing. Before
+        /// the 4 AM day boundary it counted as today's, so the day's own writing got no reflection.
+        @Test func catchUp_isDue_afterAReflectionOfWritingJustAfterMidnight() throws {
+            clearMarker(); defer { clearMarker() }
+            let context = try makeContext()
+            addEntry("Long walk around the lake with Bruno after work, the light was gold on the water.", at: startOfToday.addingTimeInterval(-5 * 3_600), to: context)
+            addEntry("Finally fixed the dashboard bug with Omar, it was in the date parsing all along.", at: startOfToday.addingTimeInterval(-2 * 3_600), to: context)
+            addEntry("Still awake after midnight, thinking about the call with Anu and smiling.", at: startOfToday.addingTimeInterval(30 * 60), to: context)
+            addReflection(#"You wrote, "Still awake after midnight, thinking about the call with Anu and smiling." That sounds warm."#, at: startOfToday.addingTimeInterval(3 * 3_600), to: context)
+            try context.save()
+            #expect(!mirrorApp.dailyReflectionMayBeDue(context: context), "nothing written today yet")
+
+            addEntry("The whole afternoon went to the new project plan and it finally makes sense now.", at: journalStart.addingTimeInterval(2), to: context)
+            try context.save()
+            #expect(mirrorApp.dailyReflectionMayBeDue(context: context), "today's writing after a reflection about last night")
         }
 
         // MARK: Through runDailyNudgeIfNeeded
@@ -206,7 +227,7 @@ extension SharedLLMState {
             clearMarker(); defer { clearMarker() }
             let context = try makeContext()
             try seedYesterdayAndMorningReflection(context)
-            addEntry("The whole afternoon went to the new project plan and it finally makes sense now.", at: startOfToday.addingTimeInterval(2), to: context)
+            addEntry("The whole afternoon went to the new project plan and it finally makes sense now.", at: journalStart.addingTimeInterval(2), to: context)
             try context.save()
             var calls = 0
             LocalLLMService.generateInterceptForTesting = { _, _, _, plan in
@@ -228,7 +249,7 @@ extension SharedLLMState {
             clearMarker(); defer { clearMarker() }
             let context = try makeContext()
             try seedYesterdayAndMorningReflection(context)
-            addEntry("The whole afternoon went to the new project plan and it finally makes sense now.", at: startOfToday.addingTimeInterval(2), to: context)
+            addEntry("The whole afternoon went to the new project plan and it finally makes sense now.", at: journalStart.addingTimeInterval(2), to: context)
             try context.save()
             var calls = 0
             var grounded = false
@@ -304,7 +325,7 @@ extension SharedLLMState {
             clearMarker(); defer { clearMarker() }
             let context = try makeContext()
             try seedYesterdayAndMorningReflection(context)
-            addEntry("The whole afternoon went to the new project plan and it finally makes sense now.", at: startOfToday.addingTimeInterval(2), to: context)
+            addEntry("The whole afternoon went to the new project plan and it finally makes sense now.", at: journalStart.addingTimeInterval(2), to: context)
             try context.save()
             var calls = 0
             // Not one of the offered quotes, so the grammar validator rejects every attempt and
@@ -328,9 +349,9 @@ extension SharedLLMState {
             for (i, text) in ["Long walk around the lake with Bruno after work, gold light on the water.", "Fixed the dashboard bug with Omar, it was the date parsing all along."].enumerated() {
                 addEntry(text, at: startOfToday.addingTimeInterval(Double(-4 + i) * 3_600), to: context)
             }
-            addEntry("Early start today, coffee on the balcony before anyone else was up.", at: startOfToday.addingTimeInterval(1), to: context)
-            addReflection(#"You wrote, "Early start today, coffee on the balcony before anyone else was up." That sounds calm."#, at: startOfToday.addingTimeInterval(2), to: context)
-            addEntry("Afternoon was meetings back to back and I am tired now.", at: startOfToday.addingTimeInterval(3), to: context)
+            addEntry("Early start today, coffee on the balcony before anyone else was up.", at: journalStart.addingTimeInterval(1), to: context)
+            addReflection(#"You wrote, "Early start today, coffee on the balcony before anyone else was up." That sounds calm."#, at: journalStart.addingTimeInterval(2), to: context)
+            addEntry("Afternoon was meetings back to back and I am tired now.", at: journalStart.addingTimeInterval(3), to: context)
             try context.save()
             var calls = 0
             LocalLLMService.generateInterceptForTesting = { _, _, _, plan in calls += 1; return (Self.groundedReply(for: plan), .gemma) }
@@ -346,9 +367,9 @@ extension SharedLLMState {
             clearMarker(); defer { clearMarker() }
             let context = try makeContext()
             try seedYesterdayAndMorningReflection(context)
-            addEntry("The whole afternoon went to the new project plan and it finally makes sense now.", at: startOfToday.addingTimeInterval(2), to: context)
-            addReflection(#"You wrote, "The whole afternoon went to the new project plan and it finally makes sense now." That sounds good."#, at: startOfToday.addingTimeInterval(3), to: context)
-            addEntry("Evening now, and the plan still holds up after a second look at it.", at: startOfToday.addingTimeInterval(4), to: context)
+            addEntry("The whole afternoon went to the new project plan and it finally makes sense now.", at: journalStart.addingTimeInterval(2), to: context)
+            addReflection(#"You wrote, "The whole afternoon went to the new project plan and it finally makes sense now." That sounds good."#, at: journalStart.addingTimeInterval(3), to: context)
+            addEntry("Evening now, and the plan still holds up after a second look at it.", at: journalStart.addingTimeInterval(4), to: context)
             try context.save()
             var calls = 0
             LocalLLMService.generateInterceptForTesting = { _, _, _, plan in calls += 1; return (Self.groundedReply(for: plan), .gemma) }

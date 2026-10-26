@@ -58,6 +58,24 @@ enum DateHelpers {
         return String(format: "%04d-%02d-%02d", components.year ?? 0, components.month ?? 0, components.day ?? 0)
     }
 
+    /// Daily reflections' day boundary: writing before 4 AM belongs to the day before (owner,
+    /// 2026-10-26). With midnight as the boundary, an entry at 12:30 AM was "today's": the
+    /// reflection about it went unlabelled and used up the day's second reflection, so the
+    /// writing done later that day waited until the next one. Reflections only: the entry list,
+    /// heatmap, digests and mood alerts keep calendar days.
+    static let journalDayStartHour = 4
+
+    /// The day (its calendar start of day) whose journal day `date` falls in.
+    static func journalDay(of date: Date, calendar: Calendar = .current) -> Date {
+        calendar.startOfDay(for: calendar.date(byAdding: .hour, value: -journalDayStartHour, to: date) ?? date)
+    }
+
+    /// When the journal day containing `date` began: 4 AM on its day.
+    static func journalDayStart(for date: Date, calendar: Calendar = .current) -> Date {
+        let day = journalDay(of: date, calendar: calendar)
+        return calendar.date(bySettingHour: journalDayStartHour, minute: 0, second: 0, of: day) ?? day
+    }
+
     static func monthIdentifier(for date: Date) -> String {
         let components = Calendar.current.dateComponents([.year, .month], from: date)
         return String(format: "%04d-%02d", components.year ?? 0, components.month ?? 0)
