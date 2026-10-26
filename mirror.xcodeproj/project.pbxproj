@@ -102,6 +102,7 @@
 			membershipExceptions = (
 				Core/Services/MirrorNotifications.swift,
 				Info.plist,
+				"LocalModels/embeddinggemma-300M-Q8_0.gguf",
 				"LocalModels/gemma-3-1b-it-Q4_K_M.gguf",
 				Widget/EntriesMapWidget.swift,
 				Widget/MonthlyReportWidget.swift,
