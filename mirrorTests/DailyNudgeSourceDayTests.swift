@@ -59,6 +59,19 @@ struct DailyNudgeSourceDayTests {
         #expect(InsightService.reflectedDay(of: reflection, entriesNewestFirst: [afterMidnight, lateEvening]) == yesterday)
     }
 
+    /// The widget's mood follows the same day: at 9 AM a 12:30 AM entry's mood is last night's.
+    @Test func widgetMood_comesFromTodaysJournalDay() {
+        let midnight = Calendar.current.startOfDay(for: Date())
+        let afterMidnight = Entry(text: "Still awake after the concert, my ears are ringing.", mood: "Anxious")
+        afterMidnight.createdAt = midnight.addingTimeInterval(30 * 60)
+        let morning = Entry(text: "Coffee on the balcony before work, slow and quiet.", mood: "Calm")
+        morning.createdAt = midnight.addingTimeInterval(7 * 3_600)
+        let nineAM = midnight.addingTimeInterval(9 * 3_600)
+        #expect(mirrorApp.journalDayMood(entriesNewestFirst: [afterMidnight], now: nineAM) == nil)
+        #expect(mirrorApp.journalDayMood(entriesNewestFirst: [morning, afterMidnight], now: nineAM) == "Calm")
+        #expect(mirrorApp.journalDayMood(entriesNewestFirst: [afterMidnight], now: midnight.addingTimeInterval(3_600)) == "Anxious")
+    }
+
     /// Writing from the previous journal day is not "Today's journal entry" in the prompt.
     @Test func promptHeading_callsLastNightsEntryMostRecent() {
         let lastNight = Entry(text: "Still awake after the concert, my ears are ringing and I am happy.", mood: "Content")

@@ -674,6 +674,13 @@ struct mirrorApp: App {
         )
     }
 
+    /// The widget's mood: the newest entry's in today's journal day (from 4 AM, like the
+    /// reflection), so a 12:30 AM entry's mood stays with the night before.
+    static func journalDayMood(entriesNewestFirst: [Entry], now: Date = Date()) -> String? {
+        let today = DateHelpers.journalDay(of: now)
+        return entriesNewestFirst.first(where: { DateHelpers.journalDay(of: $0.createdAt) == today })?.mood
+    }
+
     /// Whether today's rows leave room for a reflection now, by the same first check
     /// runDailyNudgeIfNeeded makes: none yet, the newest is the fallback, or one more is allowed.
     /// The background catch-up used `!hasDailyNudgeForToday`, which skipped the same-day second
@@ -889,7 +896,7 @@ struct mirrorApp: App {
                 // The day it's about (the newest readable entry's), so the widget can keep an
                 // evening-before reflection next morning without resurfacing older ones.
                 wDefaults?.set(entries.first.map { DateHelpers.dayIdentifier(for: DateHelpers.journalDay(of: $0.createdAt)) }, forKey: "widget.nudge.aboutDate")
-                if let todaysMood = entries.first(where: { DateHelpers.dayIdentifier(for: $0.createdAt) == today })?.mood {
+                if let todaysMood = journalDayMood(entriesNewestFirst: entries) {
                     wDefaults?.set(todaysMood, forKey: "widget.nudge.mood")
                 } else {
                     wDefaults?.removeObject(forKey: "widget.nudge.mood")
@@ -1349,7 +1356,7 @@ struct mirrorApp: App {
         let entryDescriptor = FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
         let todaysEntries = (try? context.fetch(entryDescriptor)) ?? []
         defaults?.set(InsightService.reflectedDay(of: nudge, entriesNewestFirst: todaysEntries).map { DateHelpers.dayIdentifier(for: $0) }, forKey: "widget.nudge.aboutDate")
-        if let todaysMood = todaysEntries.first(where: { DateHelpers.dayIdentifier(for: $0.createdAt) == today })?.mood {
+        if let todaysMood = journalDayMood(entriesNewestFirst: todaysEntries) {
             defaults?.set(todaysMood, forKey: "widget.nudge.mood")
         } else {
             defaults?.removeObject(forKey: "widget.nudge.mood")
