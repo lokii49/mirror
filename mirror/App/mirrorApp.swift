@@ -661,16 +661,24 @@ struct mirrorApp: App {
 
     /// Today's real reflection allows one more (InsightService.allowsAnotherReflectionToday),
     /// judged from today's readable entries and the last failed extra attempt. Only today's
-    /// entries are fetched (and decrypted).
+    /// entries are fetched (and decrypted). "Today" is the journal day (from 4 AM): writing just
+    /// after midnight belongs to the night before, so it doesn't use up today's second reflection.
     @MainActor
     static func anotherReflectionAllowed(after newestToday: Insight, context: ModelContext) -> Bool {
-        let startOfToday = Calendar.current.startOfDay(for: Date())
+        let startOfToday = DateHelpers.journalDayStart(for: Date())
         let todayEntries = (try? context.fetch(FetchDescriptor<Entry>(predicate: #Predicate { $0.createdAt >= startOfToday }))) ?? []
         return InsightService.allowsAnotherReflectionToday(
             todaysReflectionAt: newestToday.generatedAt,
             todayEntryDates: todayEntries.filter(InsightService.hasReadableContext).map(\.createdAt),
             lastFailedExtraAttempt: UserDefaults.standard.object(forKey: extraReflectionFailedAttemptKey) as? Date
         )
+    }
+
+    /// The widget's mood: the newest entry's in today's journal day (from 4 AM, like the
+    /// reflection), so a 12:30 AM entry's mood stays with the night before.
+    static func journalDayMood(entriesNewestFirst: [Entry], now: Date = Date()) -> String? {
+        let today = DateHelpers.journalDay(of: now)
+        return entriesNewestFirst.first(where: { DateHelpers.journalDay(of: $0.createdAt) == today })?.mood
     }
 
     /// Whether today's rows leave room for a reflection now, by the same first check
@@ -887,8 +895,8 @@ struct mirrorApp: App {
                 wDefaults?.set(today, forKey: "widget.nudge.date")
                 // The day it's about (the newest readable entry's), so the widget can keep an
                 // evening-before reflection next morning without resurfacing older ones.
-                wDefaults?.set(entries.first.map { DateHelpers.dayIdentifier(for: $0.createdAt) }, forKey: "widget.nudge.aboutDate")
-                if let todaysMood = entries.first(where: { DateHelpers.dayIdentifier(for: $0.createdAt) == today })?.mood {
+                wDefaults?.set(entries.first.map { DateHelpers.dayIdentifier(for: DateHelpers.journalDay(of: $0.createdAt)) }, forKey: "widget.nudge.aboutDate")
+                if let todaysMood = journalDayMood(entriesNewestFirst: entries) {
                     wDefaults?.set(todaysMood, forKey: "widget.nudge.mood")
                 } else {
                     wDefaults?.removeObject(forKey: "widget.nudge.mood")
@@ -1348,7 +1356,7 @@ struct mirrorApp: App {
         let entryDescriptor = FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
         let todaysEntries = (try? context.fetch(entryDescriptor)) ?? []
         defaults?.set(InsightService.reflectedDay(of: nudge, entriesNewestFirst: todaysEntries).map { DateHelpers.dayIdentifier(for: $0) }, forKey: "widget.nudge.aboutDate")
-        if let todaysMood = todaysEntries.first(where: { DateHelpers.dayIdentifier(for: $0.createdAt) == today })?.mood {
+        if let todaysMood = journalDayMood(entriesNewestFirst: todaysEntries) {
             defaults?.set(todaysMood, forKey: "widget.nudge.mood")
         } else {
             defaults?.removeObject(forKey: "widget.nudge.mood")

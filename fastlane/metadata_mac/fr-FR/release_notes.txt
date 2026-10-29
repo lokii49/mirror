@@ -5,8 +5,5 @@ Abonnements payants dès le 15 novembre
 
 Également dans cette mise à jour
 
-• Les fenêtres se rouvrent sur la page et l’entrée où vous étiez, même après avoir quitté l’app.
-• Faites glisser des entrées sur une collection pour les déplacer, et faites un clic droit sur la réflexion du jour et les entrées liées.
-• La liste des entrées ressemble à celle de l’iPhone, et le lecteur affiche la réflexion du jour et les entrées liées à côté de l’entrée.
-• La Chronologie de l’humeur et la Carte mentale fonctionnent avec VoiceOver, et les thèmes de la Carte mentale réagissent au pointeur.
-• Les couleurs d’humeur sont plus apaisées, et la Carte mentale s’ouvre à plat avec une légende.
+• Un téléchargement bien plus léger : de nouveau moins de 30 Mo, au lieu de plus de 300 Mo.
+• Ce que vous écrivez tard dans la nuit compte pour la veille. Les entrées écrites avant 4 h du matin sont reprises avec la veille, et ce que vous écrivez plus tard dans la journée a sa propre réflexion du jour.

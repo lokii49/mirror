@@ -605,8 +605,9 @@ enum SampleData {
     static func todayReflectionSampleDate(hoursAgo: Double, now: Date = Date(), calendar: Calendar = .current) -> Date {
         let offset = now.addingTimeInterval(-3600 * hoursAgo)
         guard hoursAgo < 24 else { return offset }
-        let startOfToday = calendar.startOfDay(for: now)
-        let earlierToday = min(startOfToday.addingTimeInterval(8 * 3600), now.addingTimeInterval(-300))
+        // The reflection's day starts at 4 AM (DateHelpers.journalDay), not midnight.
+        let startOfToday = DateHelpers.journalDayStart(for: now, calendar: calendar)
+        let earlierToday = min(startOfToday.addingTimeInterval(4 * 3600), now.addingTimeInterval(-300))
         return max(earlierToday, startOfToday.addingTimeInterval(1))
     }
 

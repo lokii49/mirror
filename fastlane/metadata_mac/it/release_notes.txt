@@ -5,8 +5,5 @@ Piani a pagamento dal 15 novembre
 
 Inoltre in questo aggiornamento
 
-• Le finestre si riaprono sulla pagina e sulla voce dove eri, anche dopo aver chiuso l’app.
-• Trascina le voci su una raccolta per spostarle, e fai clic destro sulla riflessione del giorno e sulle voci correlate.
-• L’elenco delle voci è come su iPhone, e il lettore mostra accanto alla voce la riflessione del giorno e le voci correlate.
-• La Cronologia dell’umore e la Mappa mentale funzionano con VoiceOver, e i temi della Mappa mentale rispondono al puntatore.
-• I colori dell’umore sono più tenui e la Mappa mentale si apre in piano con una legenda.
+• Un download molto più leggero: di nuovo meno di 30 MB, invece di oltre 300 MB.
+• Quello che scrivi a notte fonda conta come parte della sera prima. Le voci scritte prima delle 4 del mattino vengono riflesse con il giorno precedente, e ciò che scrivi più tardi nella giornata ha la sua riflessione quotidiana.

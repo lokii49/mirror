@@ -701,15 +701,16 @@ enum InsightService {
         return min(scaled, 4, max(nudgeWordCount, 2))
     }
 
-    /// The calendar day a daily reflection is about: the day of the newest readable entry at or
-    /// before it was generated. That is the only day the grounded Gemma nudge quotes
+    /// The day a daily reflection is about: the journal day (`DateHelpers.journalDay`, before
+    /// 4 AM counts as the day before) of the newest readable entry at or before it was generated.
+    /// That is the only day the grounded Gemma nudge quotes
     /// (`groundedNudgeSourceEntries` over `dailyNudgeContext`) and the newest of the entries the
     /// free-prose prompt reads, so the card label, the Past list grouping and the "How this was
     /// generated" sheet all agree. Stops at the first match, so it decrypts about one entry.
     static func reflectedDay(of insight: Insight, entriesNewestFirst: [Entry]) -> Date? {
         entriesNewestFirst
             .first { $0.createdAt <= insight.generatedAt && hasReadableContext($0) }
-            .map { Calendar.current.startOfDay(for: $0.createdAt) }
+            .map { DateHelpers.journalDay(of: $0.createdAt) }
     }
 
     /// One more daily reflection today (owner-approved 2026-09-28, relaxing "never regenerate
@@ -3493,16 +3494,17 @@ extension InsightService {
         return (.grammarConstrained(userMessage: groundedNudgeUserMessage(source, opener: opener), grammar: groundedNudgeGrammar(quotes: options, opener: opener)), options)
     }
 
-    /// The most recent entry plus any others written the same day. Only these are quoted: with
-    /// earlier entries in view, Gemma blended yesterday into today ("working from home" pulled
-    /// from the previous entry).
+    /// The most recent entry plus any others written the same journal day (before 4 AM counts
+    /// as the night before). Only these are quoted: with earlier entries in view, Gemma blended
+    /// yesterday into today ("working from home" pulled from the previous entry).
     static func groundedNudgeSourceEntries(_ recent: [Entry]) -> [Entry] {
         guard let newest = recent.first else { return [] }
-        return recent.filter { Calendar.current.isDate($0.createdAt, inSameDayAs: newest.createdAt) }
+        let day = DateHelpers.journalDay(of: newest.createdAt)
+        return recent.filter { DateHelpers.journalDay(of: $0.createdAt) == day }
     }
 
     static func groundedNudgeUserMessage(_ source: [Entry], opener: String = groundedNudgePrefix) -> String {
-        let isToday = source.first.map { Calendar.current.isDateInToday($0.createdAt) } ?? true
+        let isToday = source.first.map { DateHelpers.journalDay(of: $0.createdAt) == DateHelpers.journalDay(of: Date()) } ?? true
         let heading: String
         switch (isToday, source.count) {
         case (true, 1): heading = "Today's journal entry:"

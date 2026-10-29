@@ -5,8 +5,5 @@ Planes de pago desde el 15 de noviembre
 
 Además en esta actualización
 
-• Las ventanas se reabren en la página y la entrada donde estabas, incluso después de salir.
-• Arrastra entradas a una colección para moverlas, y haz clic secundario en la reflexión del día y en las entradas relacionadas.
-• La lista de entradas coincide con la del iPhone, y el lector muestra la reflexión del día y las entradas relacionadas junto a la entrada.
-• La Cronología del estado de ánimo y el Mapa mental funcionan con VoiceOver, y los temas del Mapa mental responden al puntero.
-• Los colores del estado de ánimo son más tranquilos y el Mapa mental se abre en plano con una leyenda.
+• Una descarga mucho más pequeña: de nuevo menos de 30 MB, en vez de más de 300 MB.
+• Lo que escribes de madrugada cuenta como parte de la noche anterior. Las entradas escritas antes de las 4 de la mañana se reflejan con el día anterior, y lo que escribas más tarde ese día tiene su propia reflexión diaria.

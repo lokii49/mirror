@@ -540,13 +540,14 @@ struct InsightView: View {
         await viewModel.loadWeeklyDigest(entries: entries, insights: insights, context: modelContext)
     }
 
-    /// Labelled only when the Today card is about an earlier day's writing.
+    /// Labelled only when the Today card is about an earlier journal day's writing (before 4 AM
+    /// is still the night before, `DateHelpers.journalDay`).
     private func todayCardAboutDay(_ insight: Insight) -> Date? {
         // From the Past-list cache when it has the row (no decrypting in `body`); a reflection
         // that just landed may not be cached yet.
         guard let day = cachedReflectedDays[insight.persistentModelID]
                 ?? InsightService.reflectedDay(of: insight, entriesNewestFirst: entries),
-              day < Calendar.current.startOfDay(for: Date()) else { return nil }
+              day < DateHelpers.journalDay(of: Date()) else { return nil }
         return day
     }
 

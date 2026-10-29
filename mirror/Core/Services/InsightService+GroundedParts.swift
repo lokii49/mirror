@@ -32,7 +32,8 @@ extension InsightService {
         let earliest = generatedAt.addingTimeInterval(-14 * 86_400)
         let window = entries.filter { $0.createdAt <= generatedAt && $0.createdAt >= earliest }
         guard let source = entryQuoting(parts.quote, in: window) else { return (content, parts) }
-        let sameDay = window.filter { Calendar.current.isDate($0.createdAt, inSameDayAs: source.createdAt) }
+        let sourceDay = DateHelpers.journalDay(of: source.createdAt)
+        let sameDay = window.filter { DateHelpers.journalDay(of: $0.createdAt) == sourceDay }
         guard let also = secondGroundedQuote(excluding: parts.quote, source: sameDay) else { return (content, parts) }
         parts.alsoQuote = also
         let line = "You also wrote, \"" + also + "\""
