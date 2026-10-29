@@ -1,9 +1,10 @@
-Bezahlpläne ab 15. November
+Core und Deep sind da
 
-• Ab 15. November brauchen neue tägliche Reflexionen, „Mirror fragen“, neue Wöchentliche Zusammenfassungen und Monatsberichte, die Stimmungs-Zeitleiste und die Widgets Core oder Deep. Schreiben, Lesen, Suche und iCloud-Backup bleiben für immer kostenlos. Neue Abonnenten können 7 Tage kostenlos testen.
+• Neue tägliche Reflexionen, „Mirror fragen“, neue Wöchentliche Zusammenfassungen und Monatsberichte, die Stimmungs-Zeitleiste und die Widgets brauchen jetzt Core oder Deep. Schreiben, Lesen, Suche und iCloud-Backup bleiben für immer kostenlos. Neue Abonnenten können 7 Tage kostenlos testen.
 • Alles, was schon für dich erstellt wurde, bleibt in jedem Plan lesbar: frühere Reflexionen, Zusammenfassungen und Berichte, in der App und in den Widgets.
 
 Außerdem in diesem Update
 
-• Deutlich kleinerer Download: wieder unter 30 MB statt über 300 MB.
-• Was du spät nachts schreibst, gehört zum Abend davor. Einträge vor 4 Uhr morgens werden mit dem Vortag reflektiert, und was du später am Tag schreibst, bekommt eine eigene tägliche Reflexion.
+• Du hast einen App Store-Angebotscode? Tippe in Einstellungen › Abonnement oder auf dem Planbildschirm auf „Code einlösen“.
+• Die Einstellungen haben jetzt eine „Fertig“-Taste und einen Griff, damit klar ist, wie man sie schließt.
+• Wenn die Pläne nicht laden, bietet „Abonnement“ „Erneut versuchen“, statt endlos zu laden.

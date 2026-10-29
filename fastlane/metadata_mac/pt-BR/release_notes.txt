@@ -1,9 +1,8 @@
-Planos pagos a partir de 15 de novembro
+Core e Deep chegaram
 
-• A partir de 15 de novembro, novas reflexões diárias, Pergunte ao Mirror, novos resumos semanais e relatórios mensais, a linha do tempo de humor e os widgets precisam de Core ou Deep. Escrever, ler, buscar e o backup no iCloud continuam grátis, para sempre. Novos assinantes têm 7 dias de teste grátis.
+• Novas reflexões diárias, Pergunte ao Mirror, novos resumos semanais e relatórios mensais, a linha do tempo de humor e os widgets agora precisam de Core ou Deep. Escrever, ler, buscar e o backup no iCloud continuam grátis, para sempre. Novos assinantes têm 7 dias de teste grátis.
 • Tudo o que já foi feito para você continua disponível para leitura em qualquer plano: reflexões, resumos e relatórios anteriores, no app e nos widgets.
 
 Também nesta atualização
 
-• Um download bem menor: de novo menos de 30 MB, em vez de mais de 300 MB.
-• O que você escreve de madrugada conta como parte da noite anterior. Registros feitos antes das 4 da manhã entram na reflexão do dia anterior, e o que você escrever mais tarde no dia ganha a sua própria reflexão diária.
+• Se os planos não carregarem, Assinatura oferece Tentar novamente em vez de ficar carregando.

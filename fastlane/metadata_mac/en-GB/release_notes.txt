@@ -1,9 +1,8 @@
-Paid plans from 15 November
+Core and Deep are here
 
-• From 15 November, new daily reflections, Ask, new weekly digests and monthly reports, the mood timeline and widgets need Core or Deep. Writing, reading, search and iCloud backup stay free, forever. New subscribers get a 7-day free trial.
+• New daily reflections, Ask, new weekly digests and monthly reports, the mood timeline and widgets now need Core or Deep. Writing, reading, search and iCloud backup stay free, forever. New subscribers get a 7-day free trial.
 • Everything already made for you stays readable on every plan: past reflections, digests and reports, in the app and in widgets.
 
 Also in this update
 
-• A much smaller download: under 30 MB again, down from over 300 MB.
-• Writing late at night counts as that evening's. Entries written before 4 AM are reflected with the day before, and what you write later in the day gets its own daily reflection.
+• If plans can't load, Subscription offers Try Again instead of loading forever.

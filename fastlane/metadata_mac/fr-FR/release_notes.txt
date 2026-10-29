@@ -1,9 +1,8 @@
-Abonnements payants dès le 15 novembre
+Core et Deep sont là
 
-• Dès le 15 novembre, les nouvelles réflexions du jour, Demander à Mirror, les nouveaux résumés hebdomadaires et rapports mensuels, la frise des humeurs et les widgets nécessitent Core ou Deep. Écrire, lire, rechercher et la sauvegarde iCloud restent gratuits, pour toujours. Les nouveaux abonnés ont 7 jours d’essai gratuit.
+• Les nouvelles réflexions du jour, Demander à Mirror, les nouveaux résumés hebdomadaires et rapports mensuels, la frise des humeurs et les widgets nécessitent désormais Core ou Deep. Écrire, lire, rechercher et la sauvegarde iCloud restent gratuits, pour toujours. Les nouveaux abonnés ont 7 jours d’essai gratuit.
 • Tout ce qui a déjà été créé pour vous reste lisible avec tous les abonnements : réflexions, résumés et rapports passés, dans l’app et dans les widgets.
 
 Également dans cette mise à jour
 
-• Un téléchargement bien plus léger : de nouveau moins de 30 Mo, au lieu de plus de 300 Mo.
-• Ce que vous écrivez tard dans la nuit compte pour la veille. Les entrées écrites avant 4 h du matin sont reprises avec la veille, et ce que vous écrivez plus tard dans la journée a sa propre réflexion du jour.
+• Si les formules ne se chargent pas, Abonnement propose Réessayer au lieu de charger sans fin.
