@@ -82,6 +82,11 @@ struct SubscriptionView: View {
             PaywallView(initialTier: subscriptionService.tier == .core ? .deep : .core)
                 .environment(\.appDisplayMode, displayMode)
         }
+        #if os(iOS)
+        .offerCodeRedemption(isPresented: $showRedeemCode) { _ in
+            Task { await subscriptionService.offerCodeSheetClosed() }
+        }
+        #endif
     }
 
     private var statusCard: some View {
@@ -185,23 +190,7 @@ struct SubscriptionView: View {
             .foregroundStyle(.secondary)
             .padding(.top, 4)
 
-            #if os(iOS)
-            // Apple's offer-code sheet. Hidden for the iPhone app on a Mac, where RevenueCat found the
-            // older StoreKit 1 version of this sheet crashes.
-            if !ProcessInfo.processInfo.isiOSAppOnMac {
-                Button { showRedeemCode = true } label: {
-                    if displayMode == .sentinel {
-                        Text("REDEEM CODE").scaledFont(12, weight: .medium, design: .monospaced)
-                    } else {
-                        Text("Redeem Code").scaledFont(14, weight: .medium)
-                    }
-                }
-                .foregroundStyle(.secondary)
-                .offerCodeRedemption(isPresented: $showRedeemCode) { _ in
-                    Task { await subscriptionService.offerCodeSheetClosed() }
-                }
-            }
-            #endif
+            redeemCodeButton
 
             HStack(spacing: 16) {
                 if let privacyURL = AppConstants.privacyPolicyURL {
@@ -411,6 +400,29 @@ struct SubscriptionView: View {
                 .scaledFont(13)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
+
+            // Subscribers too: an offer code can be for existing subscribers, and the What's New
+            // card sends everyone here.
+            redeemCodeButton
+                .padding(.top, 4)
         }
+    }
+
+    /// Apple's offer-code sheet (`offerCodeRedemption` on the body). Hidden for the iPhone app on
+    /// a Mac, where RevenueCat found the older StoreKit 1 version of this sheet crashes.
+    @ViewBuilder
+    private var redeemCodeButton: some View {
+        #if os(iOS)
+        if !ProcessInfo.processInfo.isiOSAppOnMac {
+            Button { showRedeemCode = true } label: {
+                if displayMode == .sentinel {
+                    Text("REDEEM CODE").scaledFont(12, weight: .medium, design: .monospaced)
+                } else {
+                    Text("Redeem Code").scaledFont(14, weight: .medium)
+                }
+            }
+            .foregroundStyle(.secondary)
+        }
+        #endif
     }
 }
