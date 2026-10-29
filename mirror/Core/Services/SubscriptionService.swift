@@ -227,6 +227,13 @@ final class SubscriptionService {
         }
     }
 
+    /// After Apple's offer-code sheet closes: a redeemed code is a new transaction, so pass it to
+    /// RevenueCat the same quiet way as launch (never `restorePurchases`, which can ask for a password).
+    func offerCodeSheetClosed() async {
+        await syncPurchasesSilently()
+        await refresh()
+    }
+
     /// Launch-time sync: no password prompt, and a failure stays quiet (no `purchaseError`),
     /// since the user didn't ask for anything. `refresh()` runs right after either way.
     private func syncPurchasesSilently() async {

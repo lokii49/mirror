@@ -1,5 +1,6 @@
 import SwiftUI
 import RevenueCat
+import StoreKit
 import SwiftData
 
 struct PaywallView: View {
@@ -9,6 +10,7 @@ struct PaywallView: View {
     @State private var subscriptionService = SubscriptionService.shared
     @State private var selectedTier: PaywallTier
     @State private var selectedProductID = ""
+    @State private var showRedeemCode = false
 
     init(initialTier: PaywallTier = .core) {
         _selectedTier = State(initialValue: initialTier)
@@ -158,6 +160,12 @@ struct PaywallView: View {
             }
             .onChange(of: subscriptionService.corePackages) { _, _ in selectDefaultIfNeeded() }
             .onChange(of: subscriptionService.deepPackages) { _, _ in selectDefaultIfNeeded() }
+            #if os(iOS)
+            // A redeemed code raises the tier, and the tier change above closes the paywall.
+            .offerCodeRedemption(isPresented: $showRedeemCode) { _ in
+                Task { await subscriptionService.offerCodeSheetClosed() }
+            }
+            #endif
         }
     }
 
@@ -549,12 +557,23 @@ struct PaywallView: View {
                 .foregroundStyle(MirrorTheme.textTertiary)
                 .multilineTextAlignment(.center)
 
-            // One line when it fits; at large text sizes the three links stack instead of
-            // truncating ("Restore P… · Privacy…").
+            // One line when it fits, else purchase links over legal links; at large text sizes
+            // every link gets its own line instead of truncating ("Restore P… · Privacy…").
             ViewThatFits(in: .horizontal) {
-                HStack(spacing: 6) { footerLinks(separated: true) }
-                    .lineLimit(1)
-                VStack(spacing: 8) { footerLinks(separated: false) }
+                HStack(spacing: 6) {
+                    purchaseLinks(separated: true)
+                    legalLinks(separated: true, followsOthers: true)
+                }
+                .lineLimit(1)
+                VStack(spacing: 6) {
+                    HStack(spacing: 6) { purchaseLinks(separated: true) }
+                    HStack(spacing: 6) { legalLinks(separated: true, followsOthers: false) }
+                }
+                .lineLimit(1)
+                VStack(spacing: 8) {
+                    purchaseLinks(separated: false)
+                    legalLinks(separated: false, followsOthers: false)
+                }
             }
             .scaledFont(isSentinel ? 11 : 12, weight: .medium, design: isSentinel ? .monospaced : .default)
             .textCase(isSentinel ? .uppercase : nil)
@@ -569,18 +588,37 @@ struct PaywallView: View {
 }
 
 extension PaywallView {
+    /// Apple's offer-code sheet. Hidden for the iPhone app on a Mac, where RevenueCat found the older
+    /// StoreKit 1 version of this sheet crashes.
+    fileprivate var offersRedeemCode: Bool {
+        #if os(iOS)
+        !ProcessInfo.processInfo.isiOSAppOnMac
+        #else
+        false
+        #endif
+    }
+
     @ViewBuilder
-    fileprivate func footerLinks(separated: Bool) -> some View {
+    fileprivate func purchaseLinks(separated: Bool) -> some View {
         Button("Restore Purchases") {
             Task { await subscriptionService.restorePurchases() }
         }
         .buttonStyle(.plain)
-        if let privacyURL = AppConstants.privacyPolicyURL {
+        if offersRedeemCode {
             if separated { Text(verbatim: "·") }
+            Button("Redeem Code") { showRedeemCode = true }
+                .buttonStyle(.plain)
+        }
+    }
+
+    @ViewBuilder
+    fileprivate func legalLinks(separated: Bool, followsOthers: Bool) -> some View {
+        if let privacyURL = AppConstants.privacyPolicyURL {
+            if separated && followsOthers { Text(verbatim: "·") }
             Link("Privacy Policy", destination: privacyURL)
         }
         if let termsURL = AppConstants.termsOfUseURL {
-            if separated { Text(verbatim: "·") }
+            if separated && (followsOthers || AppConstants.privacyPolicyURL != nil) { Text(verbatim: "·") }
             Link("Terms of Use", destination: termsURL)
         }
     }

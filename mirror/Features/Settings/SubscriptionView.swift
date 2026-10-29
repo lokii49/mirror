@@ -1,5 +1,6 @@
 import SwiftUI
 import RevenueCat
+import StoreKit
 
 // futureSurface has a distinct two-shadow signature from themedCard's .surface
 // base (inkSurface), so swapping to themedCard would shift Classic's look.
@@ -35,6 +36,7 @@ struct SubscriptionView: View {
     @State private var subscriptionService = SubscriptionService.shared
     @State private var isLoading = false
     @State private var showPaywall = false
+    @State private var showRedeemCode = false
     /// Shown as a tab of the Mac Settings window: no navigation bar or Done, and no own scroll view.
     var embedded = false
 
@@ -226,6 +228,24 @@ struct SubscriptionView: View {
             }
             .foregroundStyle(.secondary)
             .padding(.top, 4)
+
+            #if os(iOS)
+            // Apple's offer-code sheet. Hidden for the iPhone app on a Mac, where RevenueCat found the
+            // older StoreKit 1 version of this sheet crashes.
+            if !ProcessInfo.processInfo.isiOSAppOnMac {
+                Button { showRedeemCode = true } label: {
+                    if displayMode == .sentinel {
+                        Text("REDEEM CODE").scaledFont(12, weight: .medium, design: .monospaced)
+                    } else {
+                        Text("Redeem Code").scaledFont(14, weight: .medium)
+                    }
+                }
+                .foregroundStyle(.secondary)
+                .offerCodeRedemption(isPresented: $showRedeemCode) { _ in
+                    Task { await subscriptionService.offerCodeSheetClosed() }
+                }
+            }
+            #endif
 
             HStack(spacing: 16) {
                 if let privacyURL = AppConstants.privacyPolicyURL {
