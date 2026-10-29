@@ -423,6 +423,30 @@ enum FeatureCardRegistry {
             tier: .free,
             sinceVersion: "3.1.4"
         ),
+        // 3.1.8: the free period is over (15 November 2026). No date in the text: people update
+        // weeks later.
+        .init(
+            id: "paid-plans-318",
+            title: "Core and Deep are here",
+            body: "The daily reflection, Ask, the weekly digest, the monthly report, the mood timeline and widgets now need Core or Deep. Writing, reading, search and iCloud backup stay free, forever, and everything already made for you stays readable. New subscribers get a 7-day free trial.",
+            symbolName: "checkmark.seal",
+            accentColor: MirrorTheme.primary,
+            tier: .free,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false
+        ),
+        // Offer codes are redeemed through StoreKit's sheet, which the Mac app doesn't offer.
+        .init(
+            id: "redeem-code-318",
+            title: "Have a code?",
+            body: "Tap Redeem Code in Settings › Subscription, or at the bottom of the plans screen, to use an App Store offer code.",
+            symbolName: "ticket",
+            accentColor: .orange,
+            tier: .free,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false,
+            iOSOnly: true
+        ),
     ]
 
     /// 15 November 2026, the paid-plans cutover, in the reader's own date format.
@@ -453,6 +477,7 @@ final class FeatureCardService {
         "1.1.0": "3.1.0",
         "1.1.4": "3.1.4",
         "1.1.6": "3.1.6",
+        "1.1.8": "3.1.8",
     ]
 
     /// The cards a Mac version shows: those of the newest iOS release whose Mac version is newer

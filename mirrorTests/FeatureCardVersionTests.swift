@@ -49,6 +49,14 @@ struct FeatureCardVersionTests {
         #expect(ids == release310)
     }
 
+    /// 3.1.8: the paid-plans card everywhere; Redeem Code only on iPhone and iPad.
+    @Test func release318ShowsPaidPlansAndRedeemCode() {
+        #expect(FeatureCardService.iOSWhatsNewCards(lastSeen: "3.1.7", current: "3.1.8").map(\.id) == ["paid-plans-318", "redeem-code-318"])
+        #expect(FeatureCardService.iOSWhatsNewCards(lastSeen: "3.1.5", current: "3.1.8").map(\.id) == ["paid-plans-318", "redeem-code-318"])
+        #expect(FeatureCardService.macHasUnseenCards(lastSeen: "1.1.7", current: "1.1.8"))
+        #expect(FeatureCardService.macWhatsNewCards(lastSeen: "1.1.7", current: "1.1.8").map(\.id) == ["paid-plans-318"])
+    }
+
     @Test func noCardsMeansNoPages() {
         #expect(FeatureCardService.iOSWhatsNewCards(lastSeen: "3.1.0", current: "3.1.1").isEmpty)
     }

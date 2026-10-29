@@ -3822,6 +3822,70 @@
         }
       }
     },
+    "Core and Deep are here" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Core und Deep sind da"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Core and Deep are here"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ya están Core y Deep"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Core et Deep sont là"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Core e Deep sono arrivati"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CoreとDeepが始まりました"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Core와 Deep이 시작되었습니다"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Core e Deep chegaram"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Core и Deep уже здесь"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Core 和 Deep 已上线"
+          }
+        }
+      }
+    },
     "Core · %@/mo" : {
       "localizations" : {
         "de" : {
@@ -7939,6 +8003,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "绿色"
+          }
+        }
+      }
+    },
+    "Have a code?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hast du einen Code?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Have a code?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Tienes un código?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous avez un code ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hai un codice?"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "コードをお持ちですか？"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "코드가 있나요?"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tem um código?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Есть код?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有兑换代码吗？"
           }
         }
       }
@@ -15508,6 +15636,70 @@
         }
       }
     },
+    "Tap Redeem Code in Settings › Subscription, or at the bottom of the plans screen, to use an App Store offer code." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tippe in Einstellungen › Abonnement oder unten auf dem Planbildschirm auf „Code einlösen“, um einen App Store-Angebotscode zu nutzen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap Redeem Code in Settings › Subscription, or at the bottom of the plans screen, to use an App Store offer code."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toca Canjear código en Ajustes › Suscripción o al final de la pantalla de planes para usar un código de oferta del App Store."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Touchez « Utiliser un code » dans Réglages › Abonnement, ou en bas de l’écran des formules, pour utiliser un code d’offre de l’App Store."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tocca Riscatta codice in Impostazioni › Abbonamento, o in fondo alla schermata dei piani, per usare un codice offerta dell’App Store."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App Storeのオファーコードは、設定 › サブスクリプション、またはプラン画面の下にある「コードを使う」から使えます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App Store 오퍼 코드는 설정 › 구독 또는 요금제 화면 아래의 '코드 사용'에서 사용할 수 있습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toque em Resgatar código em Ajustes › Assinatura, ou no fim da tela de planos, para usar um código de oferta da App Store."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Чтобы использовать код предложения App Store, нажмите «Погасить код» в разделе Настройки › Подписка или внизу экрана тарифов."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要使用 App Store 优惠代码，请在 设置 › 订阅 或方案页面底部轻点「兑换代码」。"
+          }
+        }
+      }
+    },
     "Tap the folder next to your tags to choose where an entry goes, or make a new collection there." : {
       "comment" : "3.1.4 paid-plans notice, Undo, select mode, duplicate warning, retention. Model-translated; native review pending.",
       "localizations" : {
@@ -15633,6 +15825,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "光标会停在你上次停下的位置，草稿会保留日期、字体和标签。输入 #工作，或用逗号分隔多个标签。"
+          }
+        }
+      }
+    },
+    "The daily reflection, Ask, the weekly digest, the monthly report, the mood timeline and widgets now need Core or Deep. Writing, reading, search and iCloud backup stay free, forever, and everything already made for you stays readable. New subscribers get a 7-day free trial." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die tägliche Reflexion, Fragen, der Wochenrückblick, der Monatsbericht, die Stimmungs-Zeitleiste und die Widgets brauchen jetzt Core oder Deep. Schreiben, Lesen, Suche und iCloud-Backup bleiben für immer kostenlos, und alles, was schon für dich erstellt wurde, bleibt lesbar. Neue Abonnenten können 7 Tage kostenlos testen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The daily reflection, Ask, the weekly digest, the monthly report, the mood timeline and widgets now need Core or Deep. Writing, reading, search and iCloud backup stay free, forever, and everything already made for you stays readable. New subscribers get a 7-day free trial."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La reflexión diaria, Preguntar, el resumen semanal, el informe mensual, la línea de ánimo y los widgets ahora necesitan Core o Deep. Escribir, leer, buscar y la copia en iCloud siguen siendo gratis, para siempre, y todo lo que ya se creó para ti se puede seguir leyendo. Los nuevos suscriptores tienen 7 días de prueba gratis."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La réflexion du jour, Demander, le résumé hebdomadaire, le rapport mensuel, la frise des humeurs et les widgets nécessitent désormais Core ou Deep. Écrire, lire, rechercher et la sauvegarde iCloud restent gratuits, pour toujours, et tout ce qui a déjà été créé pour vous reste lisible. Les nouveaux abonnés ont 7 jours d’essai gratuit."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La riflessione quotidiana, Chiedi, il riepilogo settimanale, il report mensile, la linea dell’umore e i widget ora richiedono Core o Deep. Scrivere, leggere, cercare e il backup su iCloud restano gratis, per sempre, e tutto ciò che è già stato creato per te resta leggibile. I nuovi abbonati hanno 7 giorni di prova gratuita."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "毎日の振り返り・質問・週間ダイジェスト・月間レポート・気分のタイムライン・ウィジェットには、CoreまたはDeepが必要になりました。書く・読む・検索・iCloudバックアップはずっと無料で、これまでに作られたものもすべて読めます。新規登録の方は7日間無料でお試しいただけます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "매일의 회고, 질문, 주간 요약, 월간 리포트, 기분 타임라인, 위젯에는 이제 Core 또는 Deep이 필요합니다. 쓰기, 읽기, 검색, iCloud 백업은 앞으로도 계속 무료이며, 이미 만들어진 내용은 계속 볼 수 있습니다. 새 구독자는 7일 무료 체험을 받을 수 있습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A reflexão diária, Perguntar, o resumo semanal, o relatório mensal, a linha do humor e os widgets agora precisam do Core ou do Deep. Escrever, ler, buscar e o backup no iCloud continuam grátis, para sempre, e tudo o que já foi feito para você continua disponível para leitura. Novos assinantes ganham 7 dias de teste grátis."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ежедневное размышление, вопросы, недельная сводка, месячный отчёт, лента настроения и виджеты теперь доступны в Core или Deep. Писать, читать, искать и хранить копию в iCloud можно бесплатно — всегда, а всё, что уже создано для вас, остаётся доступным для чтения. Новым подписчикам — 7 дней бесплатно."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每日回顾、提问、每周摘要、月度报告、心情时间线和小组件现在需要 Core 或 Deep。写作、阅读、搜索和 iCloud 备份永久免费，已为你生成的内容也都仍可阅读。新订阅者可免费试用 7 天。"
           }
         }
       }
