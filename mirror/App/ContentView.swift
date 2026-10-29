@@ -48,7 +48,6 @@ struct ContentView: View {
     @State private var entriesNavResetID = UUID()
     @State private var showWhatsNew = false
     /// The paid-plans notice on its own, for installs that never get it in What's New.
-    @State private var showPaidPlansNotice = false
     @State private var showRatePrompt = false
     @State private var reviewPromptCoordinator = ReviewPromptCoordinator.shared
     @State private var showMoodCheckIn = false
@@ -171,7 +170,7 @@ struct ContentView: View {
         ReviewRequestManager.canPresentPrompt(
             pending: reviewPromptCoordinator.isPending,
             alreadyShown: ReviewRequestManager.hasShownEntryMilestonePrompt,
-            rootSheetUp: showPaywall || showWhatsNew || showPaidPlansNotice || showRatePrompt || showMoodCheckIn,
+            rootSheetUp: showPaywall || showWhatsNew || showRatePrompt || showMoodCheckIn,
             childSheetUp: moodCheckInPresenter.blockedByOtherSheet,
             onboardingComplete: onboardingComplete
         )
@@ -182,7 +181,7 @@ struct ContentView: View {
     /// in this session, `pending` simply carries to the next launch/tap.
     private var canPresentMoodCheckIn: Bool {
         moodCheckInPresenter.pending
-            && !showPaywall && !showWhatsNew && !showPaidPlansNotice && !showRatePrompt && !showMoodCheckIn
+            && !showPaywall && !showWhatsNew && !showRatePrompt && !showMoodCheckIn
             && !moodCheckInPresenter.blockedByOtherSheet
             && onboardingComplete
     }
@@ -300,14 +299,10 @@ struct ContentView: View {
             WhatsNewSheet(mode: .whatsNew)
                 .environment(\.appDisplayMode, displayMode)
         }
-        .sheet(isPresented: $showPaidPlansNotice) {
-            PaidPlansNoticeSheet()
-                .environment(\.appDisplayMode, displayMode)
-        }
         #if os(iOS)
         // Write focuses its editor on launch, and these sheets open over it a moment later: put the
         // keyboard away so it doesn't sit on top of the sheet (2026-10-09).
-        .onChange(of: showWhatsNew || showPaidPlansNotice || showMoodCheckIn || showRatePrompt || showPaywall) { _, covered in
+        .onChange(of: showWhatsNew || showMoodCheckIn || showRatePrompt || showPaywall) { _, covered in
             if covered {
                 UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
             }
@@ -381,8 +376,6 @@ struct ContentView: View {
                     try? await Task.sleep(nanoseconds: 800_000_000)
                     if featureCardService.shouldShowWhatsNew {
                         showWhatsNew = true
-                    } else if !isUITesting && PaidPlansNotice.shouldShow() {
-                        showPaidPlansNotice = true
                     }
                 }
             }
@@ -410,12 +403,6 @@ struct ContentView: View {
                 Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 500_000_000)
                     showWhatsNew = true
-                }
-            } else if onboardingComplete && !isUITesting && PaidPlansNotice.shouldShow() {
-                // Installed fresh (onboarding marked What's New seen) or What's New had no notice.
-                Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 500_000_000)
-                    showPaidPlansNotice = true
                 }
             }
         }
@@ -458,14 +445,7 @@ struct ContentView: View {
                 selectedTab = 2
                 selectedSidebarItem = .insights
             case "upgrade":
-                // A widget can still link here from a locked view drawn before the tier key was
-                // written. Nothing is for sale while every feature is free.
-                if SubscriptionService.allFeaturesFree {
-                    selectedTab = 2
-                    selectedSidebarItem = .insights
-                } else {
-                    showPaywall = true
-                }
+                showPaywall = true
             case "entry":
                 if let idString = url.pathComponents.dropFirst().first,
                    let uuid = UUID(uuidString: idString) {

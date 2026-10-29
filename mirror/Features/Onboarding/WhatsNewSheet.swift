@@ -38,7 +38,6 @@ struct WhatsNewSheet: View {
             }
             .onAppear {
                 service.markWhatsNewSeen()
-                if whatsNewCards.contains(where: { $0.id == PaidPlansNotice.cardID }) { PaidPlansNotice.markSeen() }
             }
         } else {
             listBody
@@ -82,7 +81,6 @@ struct WhatsNewSheet: View {
         .onAppear {
             if mode == .whatsNew {
                 service.markWhatsNewSeen()
-                if whatsNewCards.contains(where: { $0.id == PaidPlansNotice.cardID }) { PaidPlansNotice.markSeen() }
             }
         }
     }

@@ -21,9 +21,7 @@ extension SettingsView {
                             withAnimation(.easeInOut(duration: 0.2)) { showsRevenueCatID.toggle() }
                         }
 
-                    if SubscriptionService.allFeaturesFree {
-                        planChip("Early Access", systemImage: "sparkles", color: displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
-                    } else if subscriptionService.isSubscribed {
+                    if subscriptionService.isSubscribed {
                         let tierLabel: LocalizedStringKey = subscriptionService.isDeep ? "Deep" : "Core"
                         let tierColor = displayMode == .sentinel ? MirrorTheme.ember : (subscriptionService.isDeep ? MirrorTheme.violet : MirrorTheme.primary)
                         planChip(tierLabel, systemImage: "checkmark.seal.fill", color: tierColor)
@@ -36,11 +34,7 @@ extension SettingsView {
 
                 Spacer()
 
-                if SubscriptionService.allFeaturesFree {
-                    Image(systemName: "sparkles")
-                        .scaledFont(22)
-                        .foregroundStyle(MirrorTheme.primary)
-                } else if subscriptionService.isSubscribed {
+                if subscriptionService.isSubscribed {
                     let tierColor = subscriptionService.isDeep ? MirrorTheme.violet : MirrorTheme.primary
                     Image(systemName: "checkmark.seal.fill")
                         .scaledFont(22)
@@ -52,7 +46,7 @@ extension SettingsView {
                 revenueCatIDRow
             }
 
-            if !SubscriptionService.allFeaturesFree && !subscriptionService.isSubscribed {
+            if !subscriptionService.isSubscribed {
                 Divider()
                     .overlay(MirrorTheme.inkBorder)
                     .padding(.top, 16)
@@ -242,11 +236,11 @@ extension SettingsView {
                 HStack {
                     SettingsRowLabel(
                         title: "Subscription",
-                        systemImage: SubscriptionService.allFeaturesFree ? "sparkles" : (subscriptionService.isSubscribed ? "checkmark.seal.fill" : "seal"),
-                        iconColor: SubscriptionService.allFeaturesFree ? MirrorTheme.primary : (subscriptionService.isSubscribed ? MirrorTheme.primary : .secondary)
+                        systemImage: subscriptionService.isSubscribed ? "checkmark.seal.fill" : "seal",
+                        iconColor: subscriptionService.isSubscribed ? MirrorTheme.primary : .secondary
                     )
                     Spacer()
-                    Text(SubscriptionService.allFeaturesFree ? "Early Access" : (subscriptionService.isDeep ? "Deep" : subscriptionService.isSubscribed ? "Core" : "Free"))
+                    Text(subscriptionService.isDeep ? "Deep" : subscriptionService.isSubscribed ? "Core" : "Free")
                         .scaledFont(13)
                         .foregroundStyle(MirrorTheme.textSecondary)
                     SettingsChevron()

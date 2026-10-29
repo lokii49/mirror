@@ -335,7 +335,7 @@ struct PaywallView: View {
     /// "Current plan" for the subscriber's own tier, otherwise the tier's tagline.
     @ViewBuilder
     private func tierCaption(_ tier: PaywallTier, isSelected: Bool) -> some View {
-        let caption: LocalizedStringKey = subscriptionService.tier == tier.subscriptionTier && !SubscriptionService.allFeaturesFree
+        let caption: LocalizedStringKey = subscriptionService.tier == tier.subscriptionTier
             ? "Current plan"
             : (tier == .core ? "Most popular" : "More AI")
         Text(caption)
@@ -506,7 +506,7 @@ struct PaywallView: View {
 
     private var ctaTitle: LocalizedStringKey {
         if selectedIsCurrentPlan { return "Current plan" }
-        if subscriptionService.tier == .core && selectedTier == .deep && !SubscriptionService.allFeaturesFree {
+        if subscriptionService.tier == .core && selectedTier == .deep {
             return "Upgrade to Deep"
         }
         return showsTrial ? "Start Free Trial" : "Subscribe"

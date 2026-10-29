@@ -12,28 +12,27 @@ enum SubscriptionTier: String {
 final class SubscriptionService {
     static let shared = SubscriptionService()
 
-    /// Every tier for every user, no purchase required, until paid plans start on 15 November
-    /// 2026 (`FeatureCardRegistry.paidPlansStart`, the date the notice gives). By date, not a
-    /// flag: the paid build is approved and installed before then, and must not gate anyone
-    /// early (3.1.6, 2026-10-20).
-    static var allFeaturesFree: Bool {
+    /// A plan fixed for this run instead of RevenueCat's answer: Debug only, nil in Release. The
+    /// free period that made everyone Deep ended on 15 November 2026 (3.1.8). Unit tests that
+    /// generate insights still assume a paid tier (the gating tests set theirs with
+    /// `debugSetTier`), and UI tests and screenshots (`--uitesting`) shouldn't follow whichever
+    /// sandbox account the device has, so both run as Deep. `--forceTier=free|core|deep` picks
+    /// another plan.
+    static var pinnedTier: SubscriptionTier? {
         #if DEBUG
-        // Unit tests that generate insights assume a paid tier, and the gating tests set theirs
-        // with `debugSetTier`; without this, they'd turn Free on 15 November, or follow
-        // whichever sandbox account the simulator has.
-        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil { return true }
+        let arguments = ProcessInfo.processInfo.arguments
+        if let arg = arguments.first(where: { $0.hasPrefix("--forceTier=") }) {
+            return SubscriptionTier(rawValue: String(arg.dropFirst("--forceTier=".count)))
+        }
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            || arguments.contains("--uitesting") {
+            return .deep
+        }
         #endif
-        return allFeaturesFree(now: Date())
+        return nil
     }
 
-    static func allFeaturesFree(now: Date) -> Bool {
-        now < FeatureCardRegistry.paidPlansStart
-    }
-
-    private(set) var tier: SubscriptionTier = allFeaturesFree ? .deep : .free
-    /// The tier came from the free period, not from RevenueCat; checked again on app-active so an
-    /// app left running into 15 November doesn't stay Deep until it's relaunched.
-    private var tierFromFreePeriod = SubscriptionService.allFeaturesFree
+    private(set) var tier: SubscriptionTier = pinnedTier ?? .free
     private(set) var corePackages: [Package] = []
     private(set) var deepPackages: [Package] = []
     private(set) var isPurchasing = false
@@ -78,14 +77,15 @@ final class SubscriptionService {
     }
 
     private init() {
-        // Widgets read the tier from the app group and treat a missing key as "free". With
-        // everything free the answer is known now, so write it before RevenueCat replies (or
-        // fails, offline): otherwise the widgets show a locked view with a price.
-        if Self.allFeaturesFree { Self.publishTierToWidgets(.deep) }
-        // Paid tiers: start from RevenueCat's cached customer info so a cold launch (a background
-        // refresh, the nightly task) doesn't treat a subscriber as Free until the network answers
-        // and skip their digest, report or mood alert. Purchases is configured before this runs.
+        // Widgets read the tier from the app group and treat a missing key as "free".
+        if let pinned = Self.pinnedTier { Self.publishTierToWidgets(pinned) }
+        // Start from RevenueCat's cached customer info so a cold launch (a background refresh,
+        // the nightly task) doesn't treat a subscriber as Free until the network answers and skip
+        // their digest, report or mood alert. Purchases is configured before this runs.
         else if let cached = Purchases.shared.cachedCustomerInfo { updateTier(from: cached) }
+        // Nothing cached: Free until RevenueCat answers. The app group may still say "deep" from
+        // the free period, and the widgets would keep generating views for it until then.
+        else { Self.publishTierToWidgets(.free) }
         Task {
             // First, so the sync and refresh below already run as the iCloud account's customer
             // (where any granted entitlement lives) rather than this install's anonymous one.
@@ -94,14 +94,13 @@ final class SubscriptionService {
             // RevenueCat: restorePurchases "may force your users to enter the App Store password
             // so should only be performed on request of the user" (5.89.0 docs), so launch uses
             // the silent syncPurchases instead (owner, 2026-10-11); the Restore buttons keep
-            // restorePurchases. While every feature is free the result is thrown away anyway
-            // (`updateTier`), so launch skips it.
-            if !Self.allFeaturesFree { await syncPurchasesSilently() }
+            // restorePurchases. A pinned plan throws the result away (`updateTier`), so it skips it.
+            if Self.pinnedTier == nil { await syncPurchasesSilently() }
             await refresh()
             // Warm the paywall: RevenueCat caches offerings, so the first open shows plans, not
-            // "Loading plans…". Also while everything is free: the What's New tier chips and the
-            // widgets' locked states take their price from these products (`localizedMonthlyPrice`),
-            // and the storefront's own figure is the only honest one to show.
+            // "Loading plans…". The What's New tier chips and the widgets' locked states take their
+            // price from these products too (`localizedMonthlyPrice`): the storefront's own figure
+            // is the only honest one to show.
             await loadProducts()
         }
         // Follow every customer info change while the app runs: RevenueCat refreshes it on
@@ -210,23 +209,6 @@ final class SubscriptionService {
         }
     }
 
-    /// App-active: once paid plans have started, a tier still left from the free period is
-    /// replaced by the real one.
-    func appDidBecomeActive() {
-        guard tierFromFreePeriod, !Self.allFeaturesFree else { return }
-        tierFromFreePeriod = false
-        if let cached = Purchases.shared.cachedCustomerInfo {
-            updateTier(from: cached)
-        } else {
-            tier = .free
-            Self.publishTierToWidgets(.free)
-        }
-        Task {
-            await syncPurchasesSilently()
-            await refresh()
-        }
-    }
-
     /// After Apple's offer-code sheet closes: a redeemed code is a new transaction, so pass it to
     /// RevenueCat the same quiet way as launch (never `restorePurchases`, which can ask for a password).
     func offerCodeSheetClosed() async {
@@ -267,13 +249,11 @@ final class SubscriptionService {
     private func updateTier(from customerInfo: CustomerInfo) {
         refreshAppUserID()
         activeProductIDs = customerInfo.activeSubscriptions
-        guard !Self.allFeaturesFree else {
-            tier = .deep
-            tierFromFreePeriod = true
+        if let pinned = Self.pinnedTier {
+            tier = pinned
             Self.publishTierToWidgets(tier)
             return
         }
-        tierFromFreePeriod = false
         if customerInfo.entitlements["deep"]?.isActive == true {
             tier = .deep
         } else if customerInfo.entitlements["core"]?.isActive == true {

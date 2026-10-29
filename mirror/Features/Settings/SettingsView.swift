@@ -95,7 +95,7 @@ struct SettingsView: View {
                         }
                         .buttonStyle(.plain)
 
-                        if subscriptionService.isSubscribed || SubscriptionService.allFeaturesFree {
+                        if subscriptionService.isSubscribed {
                             NavigationLink {
                                 SmartSearchSettingsView()
                             } label: {

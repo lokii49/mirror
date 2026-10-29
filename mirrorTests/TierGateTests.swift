@@ -3,8 +3,8 @@ import SwiftData
 import Foundation
 @testable import mirror
 
-/// Paid-tier gates (CLAUDE.md tiers), checked with DEBUG `debugSetTier` (every feature is free
-/// until 15 November 2026, `SubscriptionService.allFeaturesFree(now:)`). Serialized with the other suites that read the shared tier.
+/// Paid-tier gates (CLAUDE.md tiers), checked with DEBUG `debugSetTier` (the test host otherwise
+/// runs as Deep, `SubscriptionService.pinnedTier`). Serialized with the other suites that read the shared tier.
 extension SharedLLMState {
     @Suite(.serialized)
     @MainActor
@@ -30,15 +30,10 @@ extension SharedLLMState {
             }
         }
 
-        /// Free until paid plans start on 15 November, local time; gated from then on. The paid
-        /// build is installed before that date and must not gate anyone early.
-        @Test func everythingIsFreeUntilFifteenNovember() {
-            let cal = Calendar.current
-            let lastFreeMinute = cal.date(from: DateComponents(year: 2026, month: 11, day: 14, hour: 23, minute: 59))!
-            let cutover = cal.date(from: DateComponents(year: 2026, month: 11, day: 15))!
-            #expect(SubscriptionService.allFeaturesFree(now: lastFreeMinute))
-            #expect(!SubscriptionService.allFeaturesFree(now: cutover))
-            #expect(!SubscriptionService.allFeaturesFree(now: cutover.addingTimeInterval(30 * 86_400)))
+        /// The free period is over (3.1.8): only Debug runs pin a plan, and the test host runs as
+        /// Deep so tests that generate insights don't follow the simulator's sandbox account.
+        @Test func testHostRunsAsDeep() {
+            #expect(SubscriptionService.pinnedTier == .deep)
         }
 
         @Test func askLimitsPerTier() {

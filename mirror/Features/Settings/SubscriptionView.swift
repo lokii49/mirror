@@ -44,9 +44,7 @@ struct SubscriptionView: View {
         VStack(spacing: 24) {
             statusCard
 
-            if SubscriptionService.allFeaturesFree {
-                earlyAccessSection
-            } else if !subscriptionService.isSubscribed {
+            if !subscriptionService.isSubscribed {
                 upgradeSection
             } else {
                 manageSection
@@ -88,9 +86,9 @@ struct SubscriptionView: View {
 
     private var statusCard: some View {
         HStack(spacing: 14) {
-            Image(systemName: SubscriptionService.allFeaturesFree ? "sparkles" : (subscriptionService.isSubscribed ? "checkmark.seal.fill" : "seal"))
+            Image(systemName: subscriptionService.isSubscribed ? "checkmark.seal.fill" : "seal")
                 .scaledFont(28, weight: .semibold)
-                .foregroundStyle(SubscriptionService.allFeaturesFree ? MirrorTheme.primary : subscriptionService.isDeep ? MirrorTheme.violet : subscriptionService.isSubscribed ? Color.accentColor : .secondary)
+                .foregroundStyle(subscriptionService.isDeep ? MirrorTheme.violet : subscriptionService.isSubscribed ? Color.accentColor : .secondary)
             VStack(alignment: .leading, spacing: 4) {
                 Group {
                     if displayMode == .sentinel {
@@ -115,7 +113,6 @@ struct SubscriptionView: View {
     }
 
     private var tierName: LocalizedStringKey {
-        if SubscriptionService.allFeaturesFree { return "Early Access" }
         switch subscriptionService.tier {
         case .free: return "Free Plan"
         case .core: return "MirrorNotes Core"
@@ -124,7 +121,6 @@ struct SubscriptionView: View {
     }
 
     private var tierDescription: LocalizedStringKey {
-        if SubscriptionService.allFeaturesFree { return "Every feature is free until 15 November" }
         switch subscriptionService.tier {
         case .free:
             return "Unlimited writing, full history, iCloud sync"
@@ -132,46 +128,6 @@ struct SubscriptionView: View {
             return "Daily nudges, weekly digest, 15 Ask questions/month"
         case .deep:
             return "Everything in Core + unlimited Ask, monthly report, mood timeline"
-        }
-    }
-
-    private var earlyAccessSection: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 10) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(MirrorTheme.primary.opacity(0.12))
-                        .frame(width: 36, height: 36)
-                    Image(systemName: "sparkles")
-                        .scaledFont(16, weight: .semibold)
-                        .foregroundStyle(MirrorTheme.primary)
-                }
-                VStack(alignment: .leading, spacing: 2) {
-                    Group {
-                        if displayMode == .sentinel {
-                            Text("ALL SYSTEMS UNLOCKED").scaledFont(14, weight: .semibold, design: .monospaced)
-                        } else {
-                            Text("Everything's unlocked").scaledFont(16, weight: .semibold)
-                        }
-                    }
-                    Group {
-                        if displayMode == .sentinel {
-                            Text("NO SUBSCRIPTION, NO PAYMENT, NOTHING TO MANAGE.").scaledFont(10.5, weight: .medium, design: .monospaced)
-                        } else {
-                            Text("No subscription, no payment, nothing to manage.").scaledFont(13)
-                        }
-                    }
-                    .foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
-            .padding(16)
-            .subscriptionCard(cornerRadius: 16)
-
-            Text("Paid plans start on 15 November. Until then, everything is free. Your entries and history stay yours either way.")
-                .scaledFont(13)
-                .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.center)
         }
     }
 
@@ -355,6 +311,8 @@ struct SubscriptionView: View {
                 }
             }
         }
+        // Full width while plans load too, not only once a price row's Spacer stretches it.
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
         .subscriptionCard(cornerRadius: 18)
     }

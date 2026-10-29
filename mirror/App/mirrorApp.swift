@@ -346,7 +346,6 @@ struct mirrorApp: App {
                 // iCloud status, restore-from-device offer, and cleanup of restored copies
                 // whose originals CloudKit has since delivered.
                 PerfSignpost.interval("active.journalSafety") { JournalSafety.shared.appDidBecomeActive() }
-                SubscriptionService.shared.appDidBecomeActive()
                 // One-time: re-clean daily reflections cached before the
                 // announce-line / "friend" vocative strip landed (076b9f5).
                 Task { @MainActor in

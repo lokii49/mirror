@@ -530,22 +530,3 @@ final class FeatureCardService {
         UserDefaults.standard.string(forKey: lastSeenVersionKey) ?? "0.0.0"
     }
 }
-
-/// The paid-plans notice for everyone before the cutover, not only people updating: onboarding
-/// marks the current version's What's New as seen, so a fresh 3.1.4 install never got it from
-/// What's New. Shown once per device, from What's New (an update) or on its own (a new install).
-enum PaidPlansNotice {
-    static let cardID = "paid-plans-314"
-    static let seenKey = "mirror.paidPlansNotice.seen"
-
-    static var card: FeatureCard? { FeatureCardRegistry.all.first { $0.id == cardID } }
-
-    static func shouldShow(now: Date = Date(), defaults: UserDefaults = .standard,
-                           allFeaturesFree: Bool = SubscriptionService.allFeaturesFree) -> Bool {
-        allFeaturesFree && now < FeatureCardRegistry.paidPlansStart && !defaults.bool(forKey: seenKey)
-    }
-
-    static func markSeen(defaults: UserDefaults = .standard) {
-        defaults.set(true, forKey: seenKey)
-    }
-}
