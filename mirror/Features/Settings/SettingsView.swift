@@ -38,6 +38,7 @@ struct SettingsView: View {
     @Query var profiles: [UserProfile]
     @Environment(\.modelContext) var modelContext
     @Environment(\.appDisplayMode) var displayMode
+    @Environment(\.dismiss) var dismiss
 
     var displayModeBinding: Binding<DisplayMode> {
         Binding(
@@ -153,6 +154,14 @@ struct SettingsView: View {
             .scrollDismissesKeyboard(.interactively)
             .background(MirrorTheme.bgBase)
             .navigationTitle(displayMode == .sentinel ? "Config" : "Settings")
+            .toolbar {
+                // A way out besides swiping down.
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                        .cancelActionOnMac()
+                        .scaledFont(16, weight: .medium)
+                }
+            }
             .alert("Something went wrong", isPresented: .constant(error != nil)) {
                 Button("OK") { error = nil }
             } message: {

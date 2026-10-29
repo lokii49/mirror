@@ -146,7 +146,12 @@ struct InsightView: View {
             #endif
             .sheet(isPresented: $showPaywall) { PaywallView().environment(\.appDisplayMode, displayMode) }
             .sheet(isPresented: $showPaywallAfterFirstNudge) { PaywallView().environment(\.appDisplayMode, displayMode) }
-            .sheet(isPresented: $showSettings) { SettingsView().environment(\.appDisplayMode, displayMode) }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
+                    .environment(\.appDisplayMode, displayMode)
+                    // Shows the sheet can be swiped down; Settings' Done button closes it too.
+                    .presentationDragIndicator(.visible)
+            }
             #if DEBUG
             // `--openBrainView`: device/simulator screenshots land on Brain View without a tap
             // (devicectl can launch but not tap; same idea as ContentView's `--initialTab=`).
