@@ -238,7 +238,23 @@ struct SubscriptionView: View {
                 }
             }
 
-            if packages.isEmpty {
+            if packages.isEmpty && subscriptionService.productsLoadFailed {
+                // As on the paywall: a failed load offers a retry instead of spinning forever.
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Couldn't load plans. Check your connection.")
+                        .scaledFont(displayMode == .sentinel ? 12 : 13, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)
+                        .foregroundStyle(.secondary)
+                    Button {
+                        Task { await subscriptionService.loadProducts() }
+                    } label: {
+                        Text("Try Again")
+                            .scaledFont(displayMode == .sentinel ? 13 : 14, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
+                            .textCase(displayMode == .sentinel ? .uppercase : nil)
+                            .foregroundStyle(iconColor)
+                    }
+                    .buttonStyle(.plain)
+                }
+            } else if packages.isEmpty {
                 HStack(spacing: 8) {
                     ProgressView().scaleEffect(0.8)
                     Group {
