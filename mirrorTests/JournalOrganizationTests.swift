@@ -14,6 +14,8 @@ struct JournalOrganizationTests {
         let config = ModelConfiguration(schema: MirrorModelContainer.schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: MirrorModelContainer.schema, configurations: [config])
         containers.all.append(container)
+        // Test containers are freed when the test ends; mainContext's own save timer firing after that traps in SwiftData.
+        container.mainContext.autosaveEnabled = false
         return container.mainContext
     }
 

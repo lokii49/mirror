@@ -17,6 +17,8 @@ struct LargeJournalPerformanceTests {
         let config = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: Entry.self, configurations: config)
         containers.all.append(container)
+        // Test containers are freed when the test ends; mainContext's own save timer firing after that traps in SwiftData.
+        container.mainContext.autosaveEnabled = false
         return container.mainContext
     }
 

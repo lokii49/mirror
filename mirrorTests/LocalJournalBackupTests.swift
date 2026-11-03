@@ -108,6 +108,7 @@ struct LocalJournalBackupTests {
 
         let encoded: Data = try {
             let container = try ModelContainer(for: MirrorModelContainer.schema, configurations: [config])
+            container.mainContext.autosaveEnabled = false
             let entry = Entry(text: "")
             container.mainContext.insert(entry)
             try container.mainContext.save()
@@ -166,6 +167,7 @@ struct LocalJournalBackupTests {
         let config = ModelConfiguration(schema: MirrorModelContainer.schema, url: url, cloudKitDatabase: .none)
         let container = try ModelContainer(for: MirrorModelContainer.schema, configurations: [config])
         let context = container.mainContext
+        context.autosaveEnabled = false
         for _ in 0..<entries {
             let entry = Entry(text: "")
             entry.encryptedText = "synthetic"
@@ -178,6 +180,7 @@ struct LocalJournalBackupTests {
     private func deleteAllEntries(at url: URL) throws {
         let config = ModelConfiguration(schema: MirrorModelContainer.schema, url: url, cloudKitDatabase: .none)
         let container = try ModelContainer(for: MirrorModelContainer.schema, configurations: [config])
+        container.mainContext.autosaveEnabled = false
         try container.mainContext.delete(model: Entry.self)
         try container.mainContext.save()
     }

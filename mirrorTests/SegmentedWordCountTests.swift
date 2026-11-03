@@ -69,6 +69,7 @@ struct CJKWordCountRecountTests {
         let config = ModelConfiguration(schema: MirrorModelContainer.schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: MirrorModelContainer.schema, configurations: [config])
         let context = container.mainContext
+        context.autosaveEnabled = false
         let ja = Entry(text: "今日は天気がいいので散歩に行きました")
         ja.wordCount = 1   // as stored by the old whitespace count
         let en = Entry(text: "a plain english entry")
@@ -95,6 +96,7 @@ struct CJKWordCountRecountTests {
         }
         let config = ModelConfiguration(schema: MirrorModelContainer.schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: MirrorModelContainer.schema, configurations: [config])
+        container.mainContext.autosaveEnabled = false
         let ja = Entry(text: "今日は天気がいいので散歩に行きました")
         ja.wordCount = 1
         container.mainContext.insert(ja)
