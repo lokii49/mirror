@@ -590,19 +590,25 @@ struct CalendarHeatmap: View {
                     .padding(.vertical, 2)
                 }
                 .horizontalEdgeFade()
-                .onAppear {
-                    if let todayInMonth = monthDays.first(where: { cal.isDateInToday($0) }) {
-                        proxy.scrollTo(todayInMonth, anchor: .center)
-                    }
-                }
-                .onChange(of: viewDate) { _, _ in
-                    if let todayInMonth = monthDays.first(where: { cal.isDateInToday($0) }) {
-                        proxy.scrollTo(todayInMonth, anchor: .center)
-                    } else if let first = monthDays.first {
-                        proxy.scrollTo(first, anchor: .leading)
-                    }
+                .onAppear { scrollMonthStrip(proxy) }
+                // Only a new month moves the strip. Tapping a day sets viewDate to that day, and
+                // re-centring on today then scrolled the tapped day out of sight (2026-11-03).
+                .onChange(of: viewDate) { old, new in
+                    guard !cal.isDate(old, equalTo: new, toGranularity: .month) else { return }
+                    scrollMonthStrip(proxy)
                 }
             }
+        }
+    }
+
+    /// The selected day if it's in this month, else today, else the month's first day.
+    private func scrollMonthStrip(_ proxy: ScrollViewProxy) {
+        if let selectedDate, let day = monthDays.first(where: { cal.isDate($0, inSameDayAs: selectedDate) }) {
+            proxy.scrollTo(day, anchor: .center)
+        } else if let todayInMonth = monthDays.first(where: { cal.isDateInToday($0) }) {
+            proxy.scrollTo(todayInMonth, anchor: .center)
+        } else if let first = monthDays.first {
+            proxy.scrollTo(first, anchor: .leading)
         }
     }
 
