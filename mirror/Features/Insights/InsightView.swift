@@ -20,12 +20,17 @@ struct InsightView: View {
     @State private var digestExpanded = false
     @State private var pastNudgesExpanded = false
     @State private var pastDigestsExpanded = false
+    /// Past lists show the newest `pastListPreviewCount` until "Show all" (2026-11-03): the header
+    /// counts every one, and the rest had no way to be read.
+    @State private var pastNudgesShowAll = false
+    @State private var pastDigestsShowAll = false
     #if os(macOS)
     /// Which of the two pages this view backs on Mac (the iOS Insights tab shows both).
     var macPage: MacInsightPage = .today
     @State private var macInspectorOpen = false
     @State private var macToday: MacTodayContent? = nil
     @State private var macPastRows: [MacPastRow] = []
+    @State private var macPastShowAll = false
     #endif
 
     private var reflectionStyle: ReflectionStyle { ReflectionStyle(storedValue: reflectionStyleRaw) }
@@ -454,9 +459,13 @@ struct InsightView: View {
             .buttonStyle(.plain)
 
             if pastNudgesExpanded {
-                VStack(spacing: 10) {
-                    ForEach(pastNudges.prefix(14)) { insight in
+                // Lazy: "Show all" can be hundreds of cards.
+                LazyVStack(spacing: 10) {
+                    ForEach(pastNudgesShowAll ? pastNudges[...] : pastNudges.prefix(pastListPreviewCount)) { insight in
                         PastNudgeCard(insight: insight, aboutDay: cachedReflectedDays[insight.persistentModelID])
+                    }
+                    if !pastNudgesShowAll && pastNudges.count > pastListPreviewCount {
+                        ShowAllPastButton(count: pastNudges.count) { pastNudgesShowAll = true }
                     }
                 }
                 .transition(.move(edge: .top).combined(with: .opacity))
@@ -493,9 +502,12 @@ struct InsightView: View {
             .buttonStyle(.plain)
 
             if pastDigestsExpanded {
-                VStack(spacing: 10) {
-                    ForEach(pastDigests.prefix(14)) { insight in
+                LazyVStack(spacing: 10) {
+                    ForEach(pastDigestsShowAll ? pastDigests[...] : pastDigests.prefix(pastListPreviewCount)) { insight in
                         PastDigestCard(insight: insight)
+                    }
+                    if !pastDigestsShowAll && pastDigests.count > pastListPreviewCount {
+                        ShowAllPastButton(count: pastDigests.count) { pastDigestsShowAll = true }
                     }
                 }
                 .transition(.move(edge: .top).combined(with: .opacity))
@@ -907,6 +919,30 @@ private struct PastDigestCard: View {
                 withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) { expanded.toggle() }
             }
         )
+    }
+}
+
+/// How many past reflections/digests show before "Show all".
+private let pastListPreviewCount = 14
+
+/// Under a past list cut at `pastListPreviewCount`: reveals the rest.
+private struct ShowAllPastButton: View {
+    let count: Int
+    let action: () -> Void
+    @Environment(\.appDisplayMode) private var displayMode
+
+    var body: some View {
+        Button(action: action) {
+            Text("Show all (\(count))")
+                .textCase(displayMode == .sentinel ? .uppercase : nil)
+                .scaledFont(displayMode == .sentinel ? 12 : 13, weight: .semibold,
+                            design: displayMode == .sentinel ? .monospaced : .default)
+                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -1931,6 +1967,43 @@ private struct MacPastRow: Identifiable {
     var text: String
 }
 
+/// One past reflection on the Mac board: three lines, and "Read more" when there's more
+/// (it used to stop at three lines with no way to read the rest, 2026-11-03).
+private struct MacPastReflectionRow: View {
+    let label: String
+    let text: String
+    @State private var isExpanded = false
+    @State private var overflows = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label)
+                .scaledFont(12)
+                .foregroundStyle(MacTokens.secondaryInk)
+            Text(text)
+                .readingFont(size: 15)
+                .lineSpacing(3)
+                .foregroundStyle(MacTokens.ink)
+                .collapsibleLines(3, isExpanded: isExpanded, overflows: $overflows)
+                .textSelection(.enabled)
+            if overflows {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { isExpanded.toggle() }
+                } label: {
+                    Text(isExpanded ? "Show less" : "Read more")
+                        .scaledFont(12, weight: .medium)
+                        .foregroundStyle(MacTokens.accentInk)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 3)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 extension InsightView {
     private var macLoadedNudge: Insight? {
         if case .loaded(let insight) = viewModel.nudgeState { return insight }
@@ -2045,22 +2118,12 @@ extension InsightView {
                     .foregroundStyle(MacTokens.secondaryInk)
                     .padding(.top, 36)
                     .padding(.bottom, 10)
-                VStack(spacing: 0) {
-                    ForEach(Array(macPastRows.enumerated()), id: \.element.id) { index, row in
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(macPastLabel(row))
-                                .scaledFont(12)
-                                .foregroundStyle(MacTokens.secondaryInk)
-                            Text(Self.macCurlyQuotes(row.text))
-                                .readingFont(size: 15)
-                                .lineSpacing(3)
-                                .foregroundStyle(MacTokens.ink)
-                                .lineLimit(3)
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 13)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        if index < macPastRows.count - 1 {
+                let shown = macPastShowAll ? macPastRows[...] : macPastRows.prefix(pastListPreviewCount)
+                // Lazy: "Show all" can be hundreds of rows.
+                LazyVStack(spacing: 0) {
+                    ForEach(Array(shown.enumerated()), id: \.element.id) { index, row in
+                        MacPastReflectionRow(label: macPastLabel(row), text: Self.macCurlyQuotes(row.text))
+                        if index < shown.count - 1 {
                             Rectangle().fill(MacTokens.divider).frame(height: 1)
                         }
                     }
@@ -2068,6 +2131,17 @@ extension InsightView {
                 .background(MacTokens.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(MacTokens.divider, lineWidth: 1) }
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                if !macPastShowAll && macPastRows.count > pastListPreviewCount {
+                    Button {
+                        macPastShowAll = true
+                    } label: {
+                        Text("Show all (\(macPastRows.count))")
+                            .scaledFont(13, weight: .medium)
+                            .foregroundStyle(MacTokens.accentInk)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 10)
+                }
             }
         }
     }
@@ -2219,7 +2293,7 @@ extension InsightView {
         var onCard = Set<PersistentIdentifier>()
         if let loaded = macLoadedNudge { onCard.insert(loaded.persistentModelID) }
         if let newestToday = past.rows.first(where: { $0.periodIdentifier == todayID }) { onCard.insert(newestToday.persistentModelID) }
-        macPastRows = past.rows.filter { !onCard.contains($0.persistentModelID) }.prefix(14).map { insight in
+        macPastRows = past.rows.filter { !onCard.contains($0.persistentModelID) }.map { insight in
             MacPastRow(
                 id: insight.persistentModelID,
                 madeOn: insight.generatedAt,
