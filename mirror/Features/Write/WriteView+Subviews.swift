@@ -462,6 +462,14 @@ extension WriteView {
         }
     }
 
+    #if os(iOS)
+    /// Something else holds the bottom slot (the follow-up chip, undo, saved, panels).
+    var keyboardHintBlocked: Bool {
+        followUpQuestion != nil || pendingDelete || showSaved || isAttachingPhoto || isScanningText
+            || showFormattingPanel
+    }
+    #endif
+
     @ToolbarContentBuilder
     var focusModeToolbarItem: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {

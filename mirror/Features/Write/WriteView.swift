@@ -534,6 +534,13 @@ struct WriteView: View {
                 .padding(.bottom, 16)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
+
+            #if os(iOS)
+            // Shown once, the first time the keyboard comes up; same slot as the chip above.
+            // No `if` or modifiers here: each adds Debug stack under WriteView.body, and one
+            // `if` plus four modifiers crashed launch on the 14 Pro (2026-11-03).
+            KeyboardDismissHint(isKeyboardVisible: isKeyboardVisible, isBlocked: keyboardHintBlocked)
+            #endif
         }
         .overlay {
             if displayMode == .sentinel {
