@@ -357,23 +357,27 @@ extension WriteView {
 
     /// On iPhone Duo all three (trash, check, focus) go to the vertical bar on the right, under the
     /// status bar, instead of a horizontal top bar (owner, 2026-10-17). Elsewhere nothing moves.
+    /// Focus mode keeps only Save and the focus toggle: delete, discard and drafts are
+    /// managing the entry, not writing it, and leave until focus mode ends (owner, 2026-11-03).
     @ToolbarContentBuilder
     var toolbarItems: some ToolbarContent {
         if entry != nil {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    startDeleteWithUndo()
-                } label: {
-                    Image(systemName: "trash")
-                        .scaledFont(18, weight: .semibold)
-                        .foregroundStyle(pendingDelete ? (displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor)) : AnyShapeStyle(.secondary))
-                        // The lid lifts as the entry goes to the undo countdown.
-                        .glyphBounce(whenTurnsOn: pendingDelete, byLayer: true)
+            if !focusMode {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        startDeleteWithUndo()
+                    } label: {
+                        Image(systemName: "trash")
+                            .scaledFont(18, weight: .semibold)
+                            .foregroundStyle(pendingDelete ? (displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor)) : AnyShapeStyle(.secondary))
+                            // The lid lifts as the entry goes to the undo countdown.
+                            .glyphBounce(whenTurnsOn: pendingDelete, byLayer: true)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Delete entry")
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Delete entry")
+                .preferringVerticalBar()
             }
-            .preferringVerticalBar()
 
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -395,33 +399,35 @@ extension WriteView {
             }
             .preferringVerticalBar()
         } else {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    startDeleteWithUndo()
-                } label: {
-                    Image(systemName: "trash")
-                        .scaledFont(18, weight: .semibold)
-                        .foregroundStyle(
-                            pendingDelete
-                                ? (displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor))
-                                : (hasDraftContent ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
-                        )
-                        .glyphBounce(whenTurnsOn: pendingDelete, byLayer: true)
-                }
-                .buttonStyle(.plain)
-                .disabled(!hasDraftContent && !pendingDelete)
-                .accessibilityLabel("Discard draft")
-            }
-            .preferringVerticalBar()
-
-            // Save to Drafts, the newest drafts to continue, All Drafts…. Only the main editor:
-            // a prefilled one (widget prompt, Talk It Out) keeps its own text.
-            if takesSavedDrafts {
+            if !focusMode {
                 ToolbarItem(placement: .topBarLeading) {
-                    WriteDraftsMenu(canSave: hasDraftContent && !pendingDelete, save: saveToDrafts,
-                                    resume: continueSavedDraft)
+                    Button {
+                        startDeleteWithUndo()
+                    } label: {
+                        Image(systemName: "trash")
+                            .scaledFont(18, weight: .semibold)
+                            .foregroundStyle(
+                                pendingDelete
+                                    ? (displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor))
+                                    : (hasDraftContent ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
+                            )
+                            .glyphBounce(whenTurnsOn: pendingDelete, byLayer: true)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!hasDraftContent && !pendingDelete)
+                    .accessibilityLabel("Discard draft")
                 }
                 .preferringVerticalBar()
+
+                // Save to Drafts, the newest drafts to continue, All Drafts…. Only the main editor:
+                // a prefilled one (widget prompt, Talk It Out) keeps its own text.
+                if takesSavedDrafts {
+                    ToolbarItem(placement: .topBarLeading) {
+                        WriteDraftsMenu(canSave: hasDraftContent && !pendingDelete, save: saveToDrafts,
+                                        resume: continueSavedDraft)
+                    }
+                    .preferringVerticalBar()
+                }
             }
 
             ToolbarItem(placement: .topBarTrailing) {
