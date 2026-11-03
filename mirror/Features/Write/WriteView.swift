@@ -210,7 +210,7 @@ struct WriteView: View {
     /// a back-dated draft came back dated today after a tab switch or app kill).
     @State var entryDateChosen = false
     @State var showDatePicker = false
-    @State var focusMode = false
+    @State var focusMode = WriteView.startsInFocusMode
     @State var entryTags: [String] = []
     /// `JournalCollection.id` picked in Write; nil is Unfiled.
     @State var entryCollectionID: UUID? = nil
@@ -357,7 +357,8 @@ struct WriteView: View {
                         // Writing starter (writing-roadmap.md Tier 2 + 0.2) — only on a genuinely
                         // blank new entry. Disappears the instant there's any content, since at
                         // that point the user is already writing and doesn't need a starter.
-                        if entry == nil && !hasDraftContent {
+                        // Not in focus mode, which is the text alone.
+                        if entry == nil && !hasDraftContent && !focusMode {
                             WritingStarterChip(
                                 showsTalkItOut: SubscriptionService.offersTalkItOut(for: SubscriptionService.shared.tier),
                                 onTalkItOut: { presentTalkItOut() },
@@ -543,7 +544,7 @@ struct WriteView: View {
             #endif
         }
         .overlay {
-            if displayMode == .sentinel {
+            if displayMode == .sentinel && !focusMode {
                 ViewfinderCorners(inset: 4, length: 18)
                     .padding(.top, 50)
                     .padding(.bottom, 96)
@@ -604,7 +605,7 @@ struct WriteView: View {
             paragraph: activeParagraphStyle
         ))
         #else
-        .toolbar { toolbarItems; focusModeToolbarItem }
+        .toolbar { toolbarItems }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             // Only with the keyboard up: with it down there is no bar (owner, 2026-10-16; the
             // short checklist/attach/record bar is gone). Hidden while the Aa panel stands in for

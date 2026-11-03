@@ -355,140 +355,48 @@ extension WriteView {
         return draftVoiceNotes.isEmpty ? String(localized: "Record voice note") : String(localized: "Voice notes")
     }
 
-    /// On iPhone Duo all three (trash, check, focus) go to the vertical bar on the right, under the
-    /// status bar, instead of a horizontal top bar (owner, 2026-10-17). Elsewhere nothing moves.
-    /// Focus mode keeps only Save and the focus toggle: delete, discard and drafts are
-    /// managing the entry, not writing it, and leave until focus mode ends (owner, 2026-11-03).
-    @ToolbarContentBuilder
-    var toolbarItems: some ToolbarContent {
-        if entry != nil {
-            if !focusMode {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        startDeleteWithUndo()
-                    } label: {
-                        Image(systemName: "trash")
-                            .scaledFont(18, weight: .semibold)
-                            .foregroundStyle(pendingDelete ? (displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor)) : AnyShapeStyle(.secondary))
-                            // The lid lifts as the entry goes to the undo countdown.
-                            .glyphBounce(whenTurnsOn: pendingDelete, byLayer: true)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Delete entry")
-                }
-                .preferringVerticalBar()
+    /// The Write toolbar as one concrete type. As `some ToolbarContent` built here, its nested
+    /// opaque types were resolved inside WriteView.body and, with focus mode's changes, overflowed
+    /// the Debug main-thread stack on the iPhone 14 Pro (2026-11-03).
+    var toolbarItems: WriteToolbar {
+        WriteToolbar(
+            isExistingEntry: entry != nil,
+            focusMode: focusMode,
+            pendingDelete: pendingDelete,
+            hasDraftContent: hasDraftContent,
+            takesSavedDrafts: takesSavedDrafts,
+            saveGlyphBounces: saveGlyphBounces,
+            isSentinel: displayMode == .sentinel,
+            delete: { startDeleteWithUndo() },
+            save: { if entry != nil { saveAndDismiss() } else { saveDraft() } },
+            saveToDrafts: { saveToDrafts() },
+            continueSavedDraft: { continueSavedDraft($0) },
+            toggleFocus: {
+                withAnimation(.easeInOut(duration: 0.2)) { focusMode.toggle() }
+                if focusMode { editorFocused = true }
             }
-
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    saveAndDismiss()
-                } label: {
-                    Image(systemName: "checkmark.circle.fill")
-                        .scaledFont(22, weight: .semibold)
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor))
-                }
-                .buttonStyle(.plain)
-                // Save anyway while a voice note is still transcribing (1.4) —
-                // continueTranscriptionAfterSaveAnyway hands the in-flight pass
-                // off to write straight into the saved entry once it finishes.
-                #if os(macOS)
-                .keyboardShortcut(.return, modifiers: .command)
-                #endif
-                .accessibilityLabel("Save entry")
-            }
-            .preferringVerticalBar()
-        } else {
-            if !focusMode {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        startDeleteWithUndo()
-                    } label: {
-                        Image(systemName: "trash")
-                            .scaledFont(18, weight: .semibold)
-                            .foregroundStyle(
-                                pendingDelete
-                                    ? (displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor))
-                                    : (hasDraftContent ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
-                            )
-                            .glyphBounce(whenTurnsOn: pendingDelete, byLayer: true)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(!hasDraftContent && !pendingDelete)
-                    .accessibilityLabel("Discard draft")
-                }
-                .preferringVerticalBar()
-
-                // Save to Drafts, the newest drafts to continue, All Drafts…. Only the main editor:
-                // a prefilled one (widget prompt, Talk It Out) keeps its own text.
-                if takesSavedDrafts {
-                    ToolbarItem(placement: .topBarLeading) {
-                        WriteDraftsMenu(canSave: hasDraftContent && !pendingDelete, save: saveToDrafts,
-                                        resume: continueSavedDraft)
-                    }
-                    .preferringVerticalBar()
-                }
-            }
-
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    saveDraft()
-                } label: {
-                    Image(systemName: "checkmark.circle.fill")
-                        .scaledFont(22, weight: .semibold)
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(
-                            hasDraftContent
-                                ? (displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor))
-                                : AnyShapeStyle(Color.secondary)
-                        )
-                        // One bounce when the first words make the entry saveable. Driven from
-                        // WriteView state a beat after the button enables: a bounce started in
-                        // the same update as the enable never shows (sim recording, 2026-10-16).
-                        .symbolEffect(.bounce, value: saveGlyphBounces)
-                }
-                .accessibilityLabel("Save entry")
-                .buttonStyle(.plain)
-                // Save anyway while a voice note is still transcribing (1.4) —
-                // continueTranscriptionAfterSaveAnyway hands the in-flight pass
-                // off to write straight into the saved entry once it finishes.
-                .disabled(!hasDraftContent)
-                #if os(macOS)
-                .keyboardShortcut(.return, modifiers: .command)
-                #endif
-                .accessibilityLabel("Save entry")
-            }
-            .preferringVerticalBar()
-        }
+        )
     }
+
 
     #if os(iOS)
     /// Something else holds the bottom slot (the follow-up chip, undo, saved, panels).
     var keyboardHintBlocked: Bool {
-        followUpQuestion != nil || pendingDelete || showSaved || isAttachingPhoto || isScanningText
-            || showFormattingPanel
+        focusMode || followUpQuestion != nil || pendingDelete || showSaved || isAttachingPhoto
+            || isScanningText || showFormattingPanel
     }
     #endif
 
-    @ToolbarContentBuilder
-    var focusModeToolbarItem: some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) { focusMode.toggle() }
-                if focusMode { editorFocused = true }
-            } label: {
-                Image(systemName: focusMode
-                      ? "arrow.down.right.and.arrow.up.left"
-                      : "arrow.up.left.and.arrow.down.right")
-                    .scaledFont(17, weight: .medium)
-                    .foregroundStyle(MirrorTheme.textSecondary)
-                    .glyphReplaceTransition()
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(focusMode ? "Exit focus mode" : "Focus mode")
-        }
-        .preferringVerticalBar()
+    /// DEBUG `--focusMode` opens the editor in focus mode, for device screenshots
+    /// (devicectl can launch but not tap).
+    static var startsInFocusMode: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains("--focusMode")
+        #else
+        false
+        #endif
     }
+
 
     #if os(macOS)
     private func macParagraphLabel(_ style: NoteParagraphTextStyle) -> LocalizedStringKey {

@@ -215,4 +215,4 @@ Feature ordering rationale: Daily Nudge first (easiest AI, highest emotional imp
 
 Command-line build check: `xcodebuild build -project mirror.xcodeproj -scheme mirror -destination 'generic/platform=iOS Simulator' -configuration Debug`
 
-DEBUG launch flags for device and simulator captures (devicectl can launch but not tap): `--initialTab=entries|insights`, `--forceDisplayMode=classic|sentinel`, `--dynamicTypeSize=<DynamicTypeSize case, e.g. accessibility3>`, `--openBrainView`, `--openMonthlyReport`, `--openMoodTimeline`, `--openAsk`, `--openSettings`, `--openPaywall`; light/dark through `-mirrorAppearanceMode light|dark`.
+DEBUG launch flags for device and simulator captures (devicectl can launch but not tap): `--initialTab=entries|insights`, `--forceDisplayMode=classic|sentinel`, `--dynamicTypeSize=<DynamicTypeSize case, e.g. accessibility3>`, `--openBrainView`, `--openMonthlyReport`, `--openMoodTimeline`, `--openAsk`, `--openSettings`, `--openPaywall`, `--focusMode` (Write opens in focus mode); light/dark through `-mirrorAppearanceMode light|dark`.
