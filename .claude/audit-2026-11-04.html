@@ -1,0 +1,190 @@
+<title>MirrorNotes Performance Audit</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="robots" content="noindex">
+<style>
+  /* Layout: one reading column. Numbers first, then the plan as a table of steps, then UI notes, then decisions. Same tokens as the 10-21 and 10-24 reviews. */
+  :root {
+    --bg: #F2EEF8; --surface: #FFFFFF; --surface2: #F8F5FF; --surface3: #EDE8FC;
+    --accent: #6341CC; --accent-tint: rgba(99,65,204,0.10); --ember: #C23A57; --ok: #1E7E3E; --warn: #A65800;
+    --text: #16112A; --text-2: #4F4566; --text-3: #645B7D;
+    --border: rgba(22,17,42,0.08); --border-2: rgba(22,17,42,0.16);
+    --shadow: 0 1px 2px rgba(40,24,90,0.05), 0 10px 28px rgba(40,24,90,0.07);
+    --serif: ui-serif, 'New York', 'Iowan Old Style', Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+    --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #08060F; --surface: #110E1C; --surface2: #1C1830; --surface3: #241F3D;
+    --accent: #A78BFA; --accent-tint: rgba(139,108,240,0.16); --ember: #F97B8B; --ok: #4ADE80; --warn: #FBBF24;
+    --text: #EDE9F8; --text-2: #B3ABCF; --text-3: #9C93BC;
+    --border: rgba(237,233,248,0.08); --border-2: rgba(237,233,248,0.18);
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 28px rgba(0,0,0,0.35); color-scheme: dark; } }
+  :root[data-theme="dark"] {
+    --bg: #08060F; --surface: #110E1C; --surface2: #1C1830; --surface3: #241F3D;
+    --accent: #A78BFA; --accent-tint: rgba(139,108,240,0.16); --ember: #F97B8B; --ok: #4ADE80; --warn: #FBBF24;
+    --text: #EDE9F8; --text-2: #B3ABCF; --text-3: #9C93BC;
+    --border: rgba(237,233,248,0.08); --border-2: rgba(237,233,248,0.18);
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 28px rgba(0,0,0,0.35); color-scheme: dark; }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); line-height: 1.55; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 980px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  header.top { padding-block: 48px 24px; }
+  h1 { font-family: var(--serif); font-weight: 600; font-size: clamp(32px, 5vw, 48px); letter-spacing: -0.02em; line-height: 1.06; margin: 0 0 14px; text-wrap: balance; }
+  h2 { font-family: var(--serif); font-weight: 600; font-size: clamp(24px, 3.2vw, 32px); letter-spacing: -0.015em; line-height: 1.12; margin: 0 0 12px; text-wrap: balance; }
+  h3 { font-size: 17px; font-weight: 600; margin: 0 0 6px; }
+  p, li { color: var(--text-2); font-size: 16px; margin: 0; max-width: 46em; }
+  .lede { font-size: 18px; }
+  .meta { font-size: 14px; color: var(--text-3); }
+  .stack { display: grid; gap: 14px; }
+  section { padding-block: 44px; border-top: 1px solid var(--border); }
+  .kick { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+  .card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 20px; padding: 18px 20px; box-shadow: var(--shadow); min-width: 0; }
+  .card.alert { border-color: var(--ember); }
+  code { font-family: var(--mono); font-size: 13px; background: var(--surface3); padding: 1px 6px; border-radius: 6px; color: var(--text); overflow-wrap: anywhere; }
+  .tiles { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px; margin-top: 26px; }
+  @media (max-width: 820px) { .tiles { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  .tile { background: var(--surface); border: 1.5px solid var(--border); border-radius: 18px; padding: 16px 18px; min-width: 0; }
+  .tile .n { font-family: var(--serif); font-size: 34px; font-weight: 600; letter-spacing: -0.02em; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .tile .l { font-size: 13.5px; color: var(--text-2); margin-top: 6px; }
+  .scroll { overflow-x: auto; border: 1.5px solid var(--border); border-radius: 16px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; color: var(--text-2); }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); font-weight: 700; background: var(--surface2); }
+  tr:last-child td { border-bottom: 0; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td strong { color: var(--text); }
+  .good { color: var(--ok); font-weight: 600; }
+  .bad { color: var(--ember); font-weight: 600; }
+  .tag { display: inline-block; font-size: 11.5px; font-weight: 700; letter-spacing: .04em; padding: 2px 8px; border-radius: 100px; background: var(--surface3); color: var(--text); white-space: nowrap; }
+  .tag.measured { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
+  .tag.estimate { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+  .tag.unmeasured { background: color-mix(in srgb, var(--ember) 14%, transparent); color: var(--ember); }
+  ol.steps { margin: 0; padding-left: 22px; display: grid; gap: 18px; }
+  ol.steps li::marker { font-family: var(--serif); font-weight: 600; color: var(--accent); }
+  ol.steps h3 { display: inline; }
+  ul { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+  .decision { display: grid; gap: 6px; }
+  .decision .q { color: var(--text); font-weight: 600; }
+  a { color: var(--accent); }
+  footer { padding-block: 32px 56px; border-top: 1px solid var(--border); }
+</style>
+
+<div class="wrap">
+<header class="top">
+  <div class="kick">Audit · 4 November 2026 · branch 3.1.8</div>
+  <h1>MirrorNotes performance audit</h1>
+  <p class="lede">The big win is real and it is in one place. At 5,000 entries the Entries tab spends most of its main-thread time re-reading every entry's stored fields to decide whether anything changed. A 60-line prototype already halves that time. A shared change counter should remove most of the rest. Launch is fine. A full UI redesign is not needed; four targeted UI changes are listed below.</p>
+  <div class="tiles">
+    <div class="tile"><div class="n">64%</div><div class="l">of all main-thread time in the Entries scenario spent in one function, <code>EntryDecryptCache.signature</code></div></div>
+    <div class="tile"><div class="n">0.7–1.5 s</div><div class="l">main-thread hangs, 9 of them in 22 s, while searching a 5,000-entry journal</div></div>
+    <div class="tile"><div class="n">253 → 53 ms</div><div class="l">list snapshot after the prototype fix (−79%), measured</div></div>
+    <div class="tile"><div class="n">~350 ms</div><div class="l">cold launch to first frame at 5,000 entries; not a problem</div></div>
+  </div>
+</header>
+
+<section>
+  <div class="kick">Method</div>
+  <h2>How the numbers were taken</h2>
+  <div class="stack">
+    <p>Mac app, Apple-silicon laptop, synthetic 5,000-entry journal (<code>--perfSeed=5000</code>: one entry a day, every tenth with a 180 KB photo, synthetic text only). The scripted scenario opens Entries and runs six searches. Signposts come from <code>tools/perf/mac_baseline.sh</code>; attribution from a 22-second Time Profiler trace of the same scenario. Each baseline ran twice; runs agreed within 2%.</p>
+    <p>Builds were Debug and Debug compiled with <code>-O</code>. They differ by under 10% (deps 71 vs 67 ms), so the cost is not Swift code speed. It is SwiftData property access: every <code>@Model</code> getter goes through observation registration and key-path lookups.</p>
+    <p class="meta">Not measured: the iPhone. The same code runs there, on a slower CPU, so expect these numbers to be larger on an iPhone 14 Pro, but nobody has measured them. Also not measured: the app-foreground widget work and Gemma model load, because perf runs skip both on purpose (they post notifications and load the model).</p>
+  </div>
+</section>
+
+<section>
+  <div class="kick">Findings</div>
+  <h2>Where the time goes</h2>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Interval (5,000 entries)</th><th class="num">Today</th><th class="num">Prototype</th><th>What it is</th></tr></thead>
+    <tbody>
+      <tr><td><code>entries.deps</code></td><td class="num bad">67–75 ms</td><td class="num">75 ms</td><td>Runs on <strong>every body evaluation</strong> of the Entries tab, 22 times in the scenario. Hashes 22 fields of all 5,000 entries to build the <code>.task(id:)</code> key. Each search keystroke pays it.</td></tr>
+      <tr><td><code>entries.snapshot</code></td><td class="num bad">253 ms</td><td class="num good">53 ms</td><td>Builds the filtered, grouped list. Called <code>item(for:)</code> 4–5 times per entry (moods, tags, filter, sort), and each call recomputed the 22-field signature.</td></tr>
+      <tr><td><code>entries.search</code></td><td class="num bad">425 ms</td><td class="num good">253 ms</td><td>Search worker plus the document lookups that feed it. The 98 ms in the roadmap was the engine alone in a unit test, so this is a different scope, not a proven regression.</td></tr>
+      <tr><td>Main-thread samples, 22 s</td><td class="num bad">9,416</td><td class="num good">4,602</td><td>Of the remaining 4,602, the deps hash is 1,359 and SwiftUI observation bookkeeping for those same reads is about 1,500.</td></tr>
+      <tr><td>Main-thread hangs</td><td class="num bad">0.67–1.54 s</td><td class="num">0.27–0.71 s</td><td>Nine per run either way; shorter after the prototype.</td></tr>
+      <tr><td><code>launch</code></td><td class="num">331–360 ms</td><td class="num">339 ms</td><td>App init to first frame. The app-active repair passes are all one-time and gated; together under 1 ms after their first run.</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="stack" style="margin-top:22px">
+    <h3>The same pattern lives in four more places</h3>
+    <p>Every screen that needs to notice edits hashes the whole journal inside <code>body</code>: <code>InsightView.entryCacheKey</code> (mood and date of every entry and check-in), <code>MoodTimelineView.moodDataCacheKey</code>, <code>CalendarHeatmap</code> (<code>entries.map(\.encryptedMood).hashValue</code>, also on the Entries tab), and the list above. Seven views hold a full-history <code>@Query</code> of <code>Entry</code>, including Settings and the entry reader. Opening any entry loads all 5,000 rows and scans them twice per render for On This Day.</p>
+    <h3>Two costs nobody has measured yet</h3>
+    <ul>
+      <li><strong>Every app foreground</strong>, <code>updateWidgetHeatmaps</code> fetches every entry and check-in, decrypts every mood and calls <code>WidgetCenter.reloadAllTimelines()</code>; <code>syncNudgeToWidget</code> fetches every entry to read the newest one. Photos are stored inside the entry row, so touching any field loads the row's photo bytes too.</li>
+      <li><strong>Gemma reloads for each generation</strong> (<code>service = nil</code> in <code>runGemma</code>'s <code>defer</code>). Reflection, follow-up chip, digest and report each load the 1B model again. This only affects devices without Apple Intelligence, but there it is likely the largest wait in the app.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="kick">Plan</div>
+  <h2>Performance work, in order</h2>
+  <p style="margin-bottom:22px">Each step names its baseline, the change, the expected gain and the signpost that proves it. Steps 1–3 cover the measured problem. Steps 4–8 need a baseline first.</p>
+  <ol class="steps">
+    <li><h3>Keep the cheap signature and compute it once per pass</h3> <span class="tag measured">measured</span>
+      <p>The prototype hashes each encrypted field's length, first 40 and last 28 bytes. Every encryption draws a fresh random nonce at the front and ends in the GCM tag, so any rewrite changes both. <code>contentSignature</code> remembers each entry's signature and <code>item(for:)</code> reuses it. Diff: <code>.claude/audit-2026-11-04-entrylist-prototype.diff</code>. Result: <code>entries.snapshot</code> 253 → 53 ms, <code>entries.search</code> 425 → 253 ms. One caveat to test: if encryption ever fails, the field is stored as plaintext, and an edit in the middle of a long plaintext field with the same length would be missed.</p></li>
+    <li><h3>One journal change counter instead of per-render hashes</h3> <span class="tag estimate">estimate</span>
+      <p>A small <code>@Observable</code> <code>JournalRevision</code> that goes up on <code>ModelContext.didSave</code> from any context, on CloudKit's remote-change notification, and after restore or erase. The Entries list, Insights, Mood Timeline and the calendar key their <code>.task(id:)</code> on it instead of hashing every entry in <code>body</code>. Baseline 67–75 ms per body evaluation; expected under 1 ms, which also removes the ~1,500 samples of observation bookkeeping those reads cause. Verify with <code>entries.deps</code> and the hang count.</p></li>
+      <li><h3>Rebuild only the entries that changed</h3> <span class="tag estimate">estimate</span>
+      <p><code>didSave</code> carries the inserted, updated and deleted identifiers. Drop those from the decrypt cache and keep the rest; run the full signature pass only after a CloudKit import. Expected: <code>entries.snapshot</code> after a local edit drops from 53 ms toward the cost of filtering and grouping value types.</p></li>
+    <li><h3>Foreground widget work: metadata only, only when the journal changed</h3> <span class="tag unmeasured">unmeasured</span>
+      <p>Add signposts <code>active.widgetHeatmaps</code> and <code>active.syncNudge</code> and measure on the 14 Pro first. Then fetch with <code>propertiesToFetch = [\.createdAt, \.encryptedMood]</code>, skip the rebuild when <code>JournalRevision</code> hasn't moved since the last write, use <code>fetchLimit</code> for the newest entry, and reload only the widget kinds whose data changed.</p></li>
+    <li><h3>Entry reader: no full-journal query</h3> <span class="tag unmeasured">unmeasured</span>
+      <p>Replace <code>EntryDetailView</code>'s <code>allEntries</code> query with targeted fetches (a date-range fetch per past year for On This Day, the reflection's day window for the Mac pane) computed once in a <code>.task</code>. Same for Settings' word total and streak (<code>propertiesToFetch = [\.wordCount, \.createdAt]</code>). Signpost <code>reader.open</code>.</p></li>
+    <li><h3>Keep Gemma loaded for a short while</h3> <span class="tag unmeasured">unmeasured</span>
+      <p>Signpost <code>gemma.load</code> and <code>gemma.generate</code> on the 14 Pro with Apple Intelligence off. If load is a large share, keep the model for about a minute after a generation while the app is in the foreground, and release it on background (the GPU gate already does) and on memory warning. Peak memory is the trade, so measure that too.</p></li>
+    <li><h3>A read model for the whole app</h3> <span class="tag estimate">later</span>
+      <p>If steps 1–5 leave hangs above 100 ms on the phone, build <code>JournalIndex</code>: a background <code>@ModelActor</code> that keeps one value row per entry (dates, preview, mood, tags, flags, search text) and updates from the change counter. Screens read rows, never <code>@Model</code> objects across the whole journal. This is the large refactor; do it only if the numbers ask for it.</p></li>
+    <li><h3>Photos out of the row</h3> <span class="tag estimate">decision</span>
+      <p><code>@Attribute(.externalStorage)</code> on the photo and voice fields would stop full-row loads from carrying image bytes. It is a schema change on a synced model, so it needs its own migration and CloudKit test before anyone ships it.</p></li>
+  </ol>
+</section>
+
+<section>
+  <div class="kick">Incident</div>
+  <h2>The perf script launched the installed app</h2>
+  <div class="card alert stack">
+    <p>On this Mac, <code>xctrace record --launch</code> started <code>/Applications/MirrorNotes.app</code>, the App Store build, instead of the unsigned Debug copy, because both carry the bundle id <code>com.lokesh.mirror</code>. Release ignores <code>--perfSeed</code>, so the installed app opened your real Mac journal, as an ordinary launch would, twice for about 25 seconds and once more for about 5 seconds before a new guard stopped it. Nothing left the device; it ran its normal app-active work, which can include today's reflection if one was due.</p>
+    <p>Changing the copy's bundle id did not help. The script now records all processes, starts the Debug binary by path itself, aborts if any MirrorNotes outside the build folder is running with the seed argument, and warns if no <code>perfSeed</code> signpost appears. It also takes <code>PERF_OPTIMIZED=1</code> for a <code>-O</code> build. All numbers on this page come from the fixed script.</p>
+  </div>
+</section>
+
+<section>
+  <div class="kick">Design</div>
+  <h2>UI and UX: targeted changes, no redesign</h2>
+  <div class="stack">
+    <p>Two reviews shipped in the last three weeks (21 Oct design review, 24 Oct UI pass). A new visual system now would undo work that hasn't had time to land with users. What 15 November changes is who sees which screens, and the slowness above is the most visible UX problem in large journals. This pass looked at simulator captures of Insights, Entries, Write and the paywall as a Free user, and at the code. A system Apple ID prompt covered part of each capture and couldn't be dismissed from the command line, so the visual review is partial.</p>
+    <ol class="steps">
+      <li><h3>Free Insights is mostly locks</h3>
+        <p>After the one free reflection, a Free user's Insights tab is a stack of "Core required" cards and "Core" badges: digest, Ask, timeline, monthly report. Proposal: lead Free Insights with what Free keeps (streak, this week's moods, saved reflections) and gather the locked features into one "What Core adds" card at the end, with one upgrade button. Same change in Sentinel's Briefing tab.</p></li>
+      <li><h3>Search must keep up with typing at any size</h3>
+        <p>Today each keystroke in Entries search re-hashes the journal on the main thread (step 2 above). On a large journal that is visible typing lag. Fixing it is the single UX change with the widest reach.</p></li>
+      <li><h3>"53w" on entry rows</h3>
+        <p>The row's word count reads as "53 weeks" at a glance. Show "53 words" in Classic, or drop it from the row and keep it in the reader. Sentinel's mono style can keep a short form ("53 W").</p></li>
+      <li><h3>Paywall: two accents</h3>
+        <p>The Core header is the purple brand gradient; the Start Free Trial button below it is rose. Pick one so the button reads as part of the plan card. Needs a clean capture to confirm the colours.</p></li>
+    </ol>
+    <p class="meta">Not reviewed this time: Settings structure (about nine screens, four Sentinel-only), Mac, iPad, Dynamic Type at accessibility sizes. The 24 Oct pass covered Dynamic Type and VoiceOver.</p>
+  </div>
+</section>
+
+<section>
+  <div class="kick">Decisions</div>
+  <h2>Five choices</h2>
+  <div class="stack">
+    <div class="decision"><div class="q">1. Which branch for the performance work?</div><p>Recommended: a new branch <code>3.1.9</code> cut from 3.1.8 after it is submitted. 3.1.8 is the paid build waiting for 15 November and should not take a refactor now.</p></div>
+    <div class="decision"><div class="q">2. Steps 1–3 now, then measure on the 14 Pro before deciding on step 7?</div><p>Recommended: yes. Steps 1–3 are small, touch four views, and change no stored data.</p></div>
+    <div class="decision"><div class="q">3. Keep Gemma loaded for about a minute after a generation?</div><p>Only after step 6's measurement shows load time is a large share and memory stays safe on the iPhone 13.</p></div>
+    <div class="decision"><div class="q">4. Free Insights layout: one "What Core adds" card instead of separate locks?</div><p>Recommended before or right after 15 November, since that is when most users first see Free.</p></div>
+    <div class="decision"><div class="q">5. Photos as external storage?</div><p>Recommended: not now. Revisit if step 4's foreground numbers on the phone are large.</p></div>
+  </div>
+</section>
+
+<footer>
+  <p class="meta">Raw traces: <code>/private/tmp/mirror-perf-*</code> (temporary). Prototype diff and this page live in <code>mirror/.claude/</code>. No app code was changed on 3.1.8; only <code>tools/perf/mac_baseline.sh</code>.</p>
+</footer>
+</div>

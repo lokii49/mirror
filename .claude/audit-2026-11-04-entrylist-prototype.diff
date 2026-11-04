@@ -1,0 +1,98 @@
+diff --git a/mirror/Features/Entries/EntryListView.swift b/mirror/Features/Entries/EntryListView.swift
+index 8f3dd75..e3b9ab2 100644
+--- a/mirror/Features/Entries/EntryListView.swift
++++ b/mirror/Features/Entries/EntryListView.swift
+@@ -160,7 +160,7 @@ struct EntriesTabView: View {
+             filters: filters,
+             day: Calendar.current.startOfDay(for: filterNow),
+             entryCount: entries.count,
+-            contentHash: EntryDecryptCache.contentSignature(for: entries),
++            contentHash: decryptCache.contentSignature(for: entries),
+             sort: sortOrder.rawValue,
+             foregroundRefresh: foregroundRefresh,
+             collections: collectionSignature
+@@ -1962,20 +1962,38 @@ final class EntryDecryptCache {
+ 
+     private var items: [UUID: Item] = [:]
+ 
++    /// Changes to any encrypted field the list reads change the signature.
++    /// Cheap stand-in for a value: length plus the first and last bytes. Every encryption draws a
++    /// fresh random nonce (the first 12 bytes) and ends in the GCM tag (the last 16), so any rewrite
++    /// changes both; hashing the whole ciphertext cost most of the list's main-thread time.
++    private static func fingerprint(_ value: String?, into h: inout Hasher) {
++        guard let value else { h.combine(-1); return }
++        let utf8 = value.utf8
++        h.combine(utf8.count)
++        for b in utf8.prefix(40) { h.combine(b) }
++        for b in utf8.suffix(28) { h.combine(b) }
++    }
++    private static func fingerprint(_ value: Data?, into h: inout Hasher) {
++        guard let value else { h.combine(-1); return }
++        h.combine(value.count)
++        value.prefix(48).forEach { h.combine($0) }
++        value.suffix(32).forEach { h.combine($0) }
++    }
++
+     /// Changes to any encrypted field the list reads change the signature.
+     static func signature(of entry: Entry) -> Int {
+         var h = Hasher()
+-        h.combine(entry.encryptedText)
+-        h.combine(entry.encryptedMood)
+-        h.combine(entry.encryptedTagsStorage)
+-        h.combine(entry.encryptedVoiceNoteTranscript)
+-        h.combine(entry.encryptedAdditionalVoiceNoteTranscriptsStorage)
+-        h.combine(entry.encryptedVoiceNoteEnglishTranslation)
+-        h.combine(entry.encryptedAdditionalVoiceNoteEnglishTranslationsStorage)
+-        h.combine(entry.encryptedVoiceNoteLanguageName)
+-        h.combine(entry.encryptedAdditionalVoiceNoteLanguageNamesStorage)
+-        h.combine(entry.encryptedTextStyleData)
+-        h.combine(entry.encryptedInlineStyleData)
++        fingerprint(entry.encryptedText, into: &h)
++        fingerprint(entry.encryptedMood, into: &h)
++        fingerprint(entry.encryptedTagsStorage, into: &h)
++        fingerprint(entry.encryptedVoiceNoteTranscript, into: &h)
++        fingerprint(entry.encryptedAdditionalVoiceNoteTranscriptsStorage, into: &h)
++        fingerprint(entry.encryptedVoiceNoteEnglishTranslation, into: &h)
++        fingerprint(entry.encryptedAdditionalVoiceNoteEnglishTranslationsStorage, into: &h)
++        fingerprint(entry.encryptedVoiceNoteLanguageName, into: &h)
++        fingerprint(entry.encryptedAdditionalVoiceNoteLanguageNamesStorage, into: &h)
++        fingerprint(entry.encryptedTextStyleData, into: &h)
++        fingerprint(entry.encryptedInlineStyleData, into: &h)
+         h.combine(entry.fontChoice)
+         h.combine(entry.wordCount)
+         h.combine(entry.createdAt)
+@@ -1990,6 +2008,25 @@ final class EntryDecryptCache {
+         return h.finalize()
+     }
+ 
++    /// Per-entry signatures from the latest `contentSignature` pass, so a snapshot built right
++    /// after it doesn't read every model property again per lookup (it did 4-5 times per entry).
++    private var lastSignatures: [UUID: Int] = [:]
++
++    func contentSignature(for entries: [Entry]) -> Int {
++        var hasher = Hasher()
++        var sigs: [UUID: Int] = [:]
++        sigs.reserveCapacity(entries.count)
++        for entry in entries {
++            let id = entry.id
++            let sig = Self.signature(of: entry)
++            sigs[id] = sig
++            hasher.combine(id)
++            hasher.combine(sig)
++        }
++        lastSignatures = sigs
++        return hasher.finalize()
++    }
++
+     static func contentSignature(for entries: [Entry]) -> Int {
+         var hasher = Hasher()
+         for entry in entries {
+@@ -2000,7 +2037,7 @@ final class EntryDecryptCache {
+     }
+ 
+     func item(for entry: Entry) -> Item {
+-        let sig = Self.signature(of: entry)
++        let sig = lastSignatures[entry.id] ?? Self.signature(of: entry)
+         if let cached = items[entry.id], cached.signature == sig { return cached }
+         let preview = EntryRow.makePreview(for: entry)
+         let failed = entry.textDecryptionFailed
