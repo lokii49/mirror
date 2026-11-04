@@ -176,17 +176,32 @@
 </section>
 
 <section>
-  <div class="kick">Still missing</div>
-  <h2>What this audit did not cover</h2>
+  <div class="kick">Gaps, followed up</div>
+  <h2>What the first pass missed, and what came of it</h2>
+  <p style="margin-bottom:18px">Measured on the iPhone 14 Pro with 2,000 synthetic entries (every tenth with a photo-sized blob), the same UI test on the commit before the audit work (c636cc1) and after (commits ed37341…217ef74, not pushed, not in build 37).</p>
+  <div class="scroll" style="margin-bottom:22px">
+  <table>
+    <thead><tr><th>14 Pro, 2,000 entries</th><th class="num">Before</th><th class="num">After</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td>Launch to first responsive frame</td><td class="num">1.52 s</td><td class="num good">1.29 s</td><td>−15%, 5 launches each</td></tr>
+      <tr><td>Memory after a tour (Entries, reader, Insights, Mood Timeline)</td><td class="num">98.7 MB</td><td class="num good">94.7 MB</td><td>−4%</td></tr>
+      <tr><td>Peak memory during the tour</td><td class="num">130 MB</td><td class="num good">121 MB</td><td>−7%</td></tr>
+      <tr><td>Insights cache key, per tour</td><td class="num">4.8 ms</td><td class="num good">0.01 ms</td><td>Changed by analogy, now measured</td></tr>
+      <tr><td>Mood Timeline cache key</td><td class="num">2.7 ms</td><td class="num good">0.01 ms</td><td></td></tr>
+      <tr><td>Calendar cache key</td><td class="num">2.4 ms</td><td class="num good">0.01 ms</td><td></td></tr>
+      <tr><td>Reader On This Day</td><td class="num">115 ms</td><td class="num good">~0 ms</td><td>Opening an entry no longer loads the whole journal on iOS</td></tr>
+    </tbody>
+  </table>
+  </div>
   <ol class="steps">
-    <li><h3>Memory</h3><p>Every number here is time. Photos live inside the entry row and seven views hold a query over the whole journal, so peak memory on the phone at 2,000–5,000 entries with photos is unknown. It is the number step 8 (photos as external storage) depends on. Measure it first: one <code>XCTMemoryMetric</code> in the same phone test.</p></li>
-    <li><h3>Insights, Mood Timeline, calendar and reader were changed by analogy</h3><p>They had the same per-render whole-journal hash and got the same fix, but only the Entries tab was measured before and after. Add signposts to their cache tasks and compare.</p></li>
-    <li><h3>The last three hangs on the Mac</h3><p>About 330 ms each at 5,000 entries. The profile puts them in SwiftUI updating the list after a new snapshot lands (the snapshot itself is about 15% of the main thread now). That is the next Entries target.</p></li>
-    <li><h3>A save now costs two rebuilds</h3><p>Every counter bump is followed by a second one 400 ms later, so a local save runs the signature pass and the snapshot twice (about 110–180 ms in total at 5,000 entries, spread out). The second bump is only needed for saves from other contexts and iCloud imports; skipping it for main-context saves halves the common case. Small, separate commit.</p></li>
-    <li><h3>First open of Entries still reads every entry in <code>body</code></h3><p>Until the first snapshot exists, the list builds one synchronously. It happens once per tab open and is unchanged, but it is the last place <code>body</code> touches the whole journal.</p></li>
-    <li><h3>Launch on the phone</h3><p>"Launch is fine" is a Mac number (about 330 ms). The phone's launch was not measured.</p></li>
-    <li><h3>Mac look of the two UI changes</h3><p>The Mac build ran the new Entries code in the perf script, but nobody looked at the "words" label or the Free Insights card on the Mac before Mac 1.1.8 (37) went to TestFlight.</p></li>
-    <li><h3>Two paths only real use can test</h3><p>A change arriving from iCloud (edit on the iPhone 13, watch the 14 Pro's list, calendar and Insights update without reopening the tab) and a Siri entry saved while the app is open on Entries.</p></li>
+    <li><h3>Memory</h3><p>Measured (table). Peak memory is modest at 2,000 entries and went down. Photos as external storage (step 8) is not needed on these numbers.</p></li>
+    <li><h3>Screens changed by analogy</h3><p>Measured (table). The cost was smaller than the list's at 2,000 entries but grows with the journal; it is now near zero.</p></li>
+    <li><h3>The remaining Mac hangs</h3><p>About 300 ms each at 5,000 entries, when a search matches about 3,300 of them (the synthetic journal repeats its sentences) and SwiftUI lays out the result list. Rows now carry their ids as plain values, so <code>ForEach</code> no longer reads every entry's id through SwiftData (main-thread samples 2,578 → 2,253), but the hang itself stays. A real journal rarely matches two thirds of its entries; left as a known worst case.</p></li>
+    <li><h3>Two rebuilds per save</h3><p>Fixed. Saves from the main context get one bump; other contexts and iCloud imports keep the second. The counter also ignores other stores (the device backup copy, test stores).</p></li>
+    <li><h3>First open of Entries</h3><p>Fixed. It still builds synchronously (so the list never flashes empty), but runs the signature pass first instead of re-reading each entry's fields on every lookup.</p></li>
+    <li><h3>Launch on the phone</h3><p>Measured (table).</p></li>
+    <li><h3>Mac look</h3><p>Checked with the Mac snapshot harness in Free tier: the Entries list renders with the new rows (Mac rows already said "words"), the Weekly digest page keeps saved digests. The Mac Today lock card uses the same component as iOS.</p></li>
+    <li><h3>iCloud import and Siri while open</h3><p>Still need a two-device check by the owner.</p></li>
   </ol>
 </section>
 
