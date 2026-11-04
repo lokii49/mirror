@@ -33,10 +33,12 @@ sleep 3
 # Stop at once if anything other than this build's binary is running with the seed argument.
 if pgrep -fl -- "--perfSeed=$N" | grep -v "$DD" | grep -q MirrorNotes; then
   pgrep -fl -- "--perfSeed=$N"; echo "ABORT: a MirrorNotes outside $DD was launched; killing it" >&2
-  pkill -f -- "--perfSeed=$N"; kill $XCTRACE 2>/dev/null; exit 2
+  pkill -9 -f -- "--perfSeed=$N"; kill $XCTRACE 2>/dev/null; exit 2
 fi
 wait $XCTRACE || true  # exits non-zero when the time limit ends it
 kill $APPPID 2>/dev/null || true
+# Leave no extra copy registered with Launch Services (stale copies grey out the notification icon).
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u "$APP" 2>/dev/null || true
 xcrun xctrace export --input "$TRACE" --xpath '/trace-toc/run[@number="1"]/data/table[@schema="os-signpost"]' > "$OUT/signposts.xml"
 python3 "$ROOT/tools/perf/signposts.py" "$OUT/signposts.xml"
 grep -q perfSeed "$OUT/signposts.xml" || echo "WARNING: no perfSeed signpost: the seeded Debug build may not be what ran" >&2
