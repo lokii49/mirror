@@ -23,6 +23,9 @@ struct EntryDetailView: View {
     /// recording): a voice-only entry from a device whose key this one lacks reads fine as
     /// text, but editing it would write its unreadable fields back.
     @State private var contentUnreadable = false
+    /// Entries from this day in other years, built in a task: a computed property scanned the whole
+    /// journal twice per render (audit 2026-11-04).
+    @State private var cachedOnThisDay: [Entry] = []
     @State private var relatedInsight: Insight? = nil
     #if os(macOS)
     @State private var macReflection: Insight? = nil
@@ -71,7 +74,13 @@ struct EntryDetailView: View {
         WritingFontChoice.resolved(entryDefault: entry.fontChoice, override: nil).swiftUIDesign
     }
 
-    private var onThisDayEntries: [Entry] {
+    private var onThisDayEntries: [Entry] { cachedOnThisDay }
+
+    private var onThisDayKey: JournalCacheKey {
+        JournalCacheKey(entries: allEntries.count, checkIns: 0, revision: JournalRevision.shared.value, first: entry.id)
+    }
+
+    private func computeOnThisDay() -> [Entry] {
         let cal = Calendar.current
         let comps = cal.dateComponents([.month, .day], from: entry.createdAt)
         let thisYear = cal.component(.year, from: entry.createdAt)
@@ -245,6 +254,7 @@ struct EntryDetailView: View {
         .modifier(ReaderMatchScrolling(matches: searchMatches, index: $matchIndex))
         .background(MirrorTheme.bgBase)
         .task(id: MatchKey(entryID: entry.id, terms: searchHighlight.terms, text: entry.text)) { locateMatches() }
+        .task(id: onThisDayKey) { cachedOnThisDay = computeOnThisDay() }
         .task(id: entry.id) {
             contentUnreadable = entry.contentDecryptionFailed
             let text = entry.text
@@ -419,6 +429,7 @@ struct EntryDetailView: View {
         }
         .background(MirrorTheme.bgBase)
         .task(id: MatchKey(entryID: entry.id, terms: searchHighlight.terms, text: entry.text)) { locateMatches() }
+        .task(id: onThisDayKey) { cachedOnThisDay = computeOnThisDay() }
         .task(id: entry.id) {
             contentUnreadable = entry.contentDecryptionFailed
             displayedWordCount = strippedWordCount(entry.text)

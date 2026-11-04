@@ -58,22 +58,11 @@ struct InsightView: View {
 
     // entries.count alone misses in-place edits: changing an existing entry's mood or date
     // (both editable) must also invalidate cachedThisMonthEntries/cachedCurrentStreak/
-    // cachedWeekMoodEvents. Check-in moods+dates folded in too (matching
-    // MoodTimelineView.moodDataCacheKey) so a CloudKit sync that swaps a
-    // check-in without changing the count still triggers a recompute.
-    private var entryCacheKey: Int {
-        var hasher = Hasher()
-        hasher.combine(entries.count)
-        for entry in entries {
-            hasher.combine(entry.encryptedMood)
-            hasher.combine(entry.createdAt)
-        }
-        hasher.combine(moodCheckIns.count)
-        for checkIn in moodCheckIns {
-            hasher.combine(checkIn.encryptedMood)
-            hasher.combine(checkIn.createdAt)
-        }
-        return hasher.finalize()
+    // cachedWeekMoodEvents, and a CloudKit sync can swap a check-in without changing the count.
+    // JournalRevision covers both. It replaced a hash of every entry's and check-in's mood and
+    // date that ran on each body evaluation (audit 2026-11-04).
+    private var entryCacheKey: JournalCacheKey {
+        JournalCacheKey(entries: entries.count, checkIns: moodCheckIns.count, revision: JournalRevision.shared.value)
     }
 
     private var sentinelStatusLine: some View {

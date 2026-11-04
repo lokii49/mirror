@@ -172,7 +172,10 @@ struct CalendarHeatmap: View {
         .onChange(of: selectedDate) { _, newDate in
             if let newDate { viewDate = newDate }
         }
-        .task(id: entries.map(\.encryptedMood).hashValue) {
+        // Count, ends and JournalRevision: a mood or date edit saves, which bumps the revision.
+        // The old key hashed every entry's mood on each body evaluation and missed date edits.
+        .task(id: JournalCacheKey(entries: entries.count, checkIns: 0, revision: JournalRevision.shared.value,
+                                  first: entries.first?.id, last: entries.last?.id)) {
             var dict: [Date: [Entry]] = [:]
             for e in entries {
                 let day = cal.startOfDay(for: e.createdAt)

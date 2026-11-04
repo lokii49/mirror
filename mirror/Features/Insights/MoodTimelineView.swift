@@ -32,22 +32,11 @@ struct MoodTimelineView: View {
     @State private var cachedCurrentStreak: Int = 0
     @State private var cachedConsecutiveNegativeCount: Int = 0
 
-    /// Content hash of everything the mood caches depend on — entry moods +
-    /// dates AND check-in moods + dates. `.count` alone misses an in-place edit
-    /// or a remote insert-that-replaces-a-delete arriving via CloudKit.
-    private var moodDataCacheKey: Int {
-        var hasher = Hasher()
-        hasher.combine(entries.count)
-        for entry in entries {
-            hasher.combine(entry.encryptedMood)
-            hasher.combine(entry.createdAt)
-        }
-        hasher.combine(moodCheckIns.count)
-        for checkIn in moodCheckIns {
-            hasher.combine(checkIn.encryptedMood)
-            hasher.combine(checkIn.createdAt)
-        }
-        return hasher.finalize()
+    /// What the mood caches depend on: entry and check-in moods and dates. `.count` alone misses an
+    /// in-place edit or a CloudKit insert that replaces a delete; JournalRevision catches both. Count terms plus `JournalRevision` (any journal save or CloudKit import). Replaced a hash of
+    /// every entry's and check-in's mood and date that ran on each body evaluation.
+    private var moodDataCacheKey: JournalCacheKey {
+        JournalCacheKey(entries: entries.count, checkIns: moodCheckIns.count, revision: JournalRevision.shared.value)
     }
 
     private var contentMaxWidth: CGFloat { hSizeClass == .regular ? 700 : .infinity }
