@@ -1388,10 +1388,25 @@ private struct EntryRow: View {
                     .scaledFont(displayMode == .sentinel ? 11.5 : 13, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)
                     .foregroundStyle(.secondary)
                 if displayWordCount > 0 {
-                    Text("\(displayWordCount)w")
-                        .scaledFont(displayMode == .sentinel ? 11.5 : 13, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
+                    // "53w" read as "53 weeks" (audit 2026-11-04). Classic spells it out and falls
+                    // back to the short form only when the row has no room (large text sizes);
+                    // Sentinel keeps its terse mono label.
+                    let short = Text("\(displayWordCount)w")
+                    let full = Text(displayWordCount == 1 ? "1 word" : "\(displayWordCount) words")
+                    Group {
+                        if displayMode == .sentinel {
+                            short
+                        } else {
+                            ViewThatFits(in: .horizontal) {
+                                full.lineLimit(1)
+                                short.lineLimit(1)
+                            }
+                        }
+                    }
+                    .scaledFont(displayMode == .sentinel ? 11.5 : 13, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                    .accessibilityLabel(full)
                 }
                 Spacer(minLength: 8)
                 if let label = moodLabel {
