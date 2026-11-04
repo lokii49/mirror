@@ -137,6 +137,8 @@ struct EntriesTabView: View {
         /// Results are one ranked list (Best Match), not month sections.
         var isRanked = false
         var matchesWithoutFilters: Int?
+        /// Entries from today's date in earlier years (toolbar button), found here rather than in body.
+        var onThisDay: [Entry] = []
     }
 
     private struct SnapshotDeps: Equatable {
@@ -144,7 +146,9 @@ struct EntriesTabView: View {
         let filters: EntryFilterCriteria
         let day: Date
         let entryCount: Int
-        let contentHash: Int
+        /// `JournalRevision`: goes up on every journal save or CloudKit import. Replaced a hash of
+        /// every entry's stored fields that ran on each body evaluation (67-75 ms at 5,000 entries).
+        let revision: Int
         let sort: String
         let foregroundRefresh: Int
         let collections: Int
@@ -160,7 +164,7 @@ struct EntriesTabView: View {
             filters: filters,
             day: Calendar.current.startOfDay(for: filterNow),
             entryCount: entries.count,
-            contentHash: EntryDecryptCache.contentSignature(for: entries),
+            revision: JournalRevision.shared.value,
             sort: sortOrder.rawValue,
             foregroundRefresh: foregroundRefresh,
             collections: collectionSignature
@@ -267,7 +271,8 @@ struct EntriesTabView: View {
         // A transcript or tag can arrive before its encryption key even when body
         // text is already readable. Keep the existing key-arrival retry active.
         let unreadableCount = entries.filter { !cache.item(for: $0).document.isReadable }.count
-        return EntryListSnapshot(filteredEntries: result, usedMoods: usedMoods, usedTags: usedTags, pinnedEntries: pinnedEntries, groupedByMonth: groupedByMonth, rowPreviews: rowPreviews, unreadableCount: unreadableCount, isRanked: ranked && !result.isEmpty, matchesWithoutFilters: searchResults?.matchesWithoutFilters)
+        return EntryListSnapshot(filteredEntries: result, usedMoods: usedMoods, usedTags: usedTags, pinnedEntries: pinnedEntries, groupedByMonth: groupedByMonth, rowPreviews: rowPreviews, unreadableCount: unreadableCount, isRanked: ranked && !result.isEmpty, matchesWithoutFilters: searchResults?.matchesWithoutFilters,
+                                 onThisDay: OnThisDayService.matches(in: entries))
     }
 
     private var collectionLookup: CollectionLookup { collectionLookupCache }
@@ -331,7 +336,7 @@ struct EntriesTabView: View {
     // Computed on every render off the existing @Query — cheap (date-component comparison only,
     // no decryption) even for a large journal, and typically yields 0-2 entries.
     private var onThisDayMatches: [Entry] {
-        OnThisDayService.matches(in: entries)
+        snapshotCache?.onThisDay ?? []
     }
 
     /// Separate toolbar buttons, not one custom HStack: the system can then lay them out itself —
@@ -529,6 +534,10 @@ struct EntriesTabView: View {
                 let readerTerms = query.problem == nil ? ReaderSearchHighlight.terms(for: query) : []
                 if ReaderSearchHighlight.shared.terms != readerTerms { ReaderSearchHighlight.shared.terms = readerTerms }
                 var searchResults: EntrySearch.Results?
+                // What changed: one signature pass per journal revision, here rather than in body.
+                PerfSignpost.interval("entries.signatures") {
+                    decryptCache.checkSignatures(of: entries, revision: JournalRevision.shared.value)
+                }
                 if !query.isEmpty || filters.isActive {
                     decryptCache.prune(keeping: entries)
                     let documents = entries.map { ($0.id, decryptCache.item(for: $0).document) }
@@ -1962,20 +1971,38 @@ final class EntryDecryptCache {
 
     private var items: [UUID: Item] = [:]
 
+    /// Length plus the first and last bytes of a stored value. Every encryption draws a fresh random
+    /// nonce (the first 12 bytes) and ends in the GCM tag (the last 16), so any rewrite changes both.
+    /// Hashing whole ciphertexts and style blobs was a large share of the list's main-thread time.
+    private static func fingerprint(_ value: String?, into h: inout Hasher) {
+        guard let value else { h.combine(-1); return }
+        let utf8 = value.utf8
+        h.combine(utf8.count)
+        for byte in utf8.prefix(40) { h.combine(byte) }
+        for byte in utf8.suffix(28) { h.combine(byte) }
+    }
+
+    private static func fingerprint(_ value: Data?, into h: inout Hasher) {
+        guard let value else { h.combine(-1); return }
+        h.combine(value.count)
+        for byte in value.prefix(48) { h.combine(byte) }
+        for byte in value.suffix(32) { h.combine(byte) }
+    }
+
     /// Changes to any encrypted field the list reads change the signature.
     static func signature(of entry: Entry) -> Int {
         var h = Hasher()
-        h.combine(entry.encryptedText)
-        h.combine(entry.encryptedMood)
-        h.combine(entry.encryptedTagsStorage)
-        h.combine(entry.encryptedVoiceNoteTranscript)
-        h.combine(entry.encryptedAdditionalVoiceNoteTranscriptsStorage)
-        h.combine(entry.encryptedVoiceNoteEnglishTranslation)
-        h.combine(entry.encryptedAdditionalVoiceNoteEnglishTranslationsStorage)
-        h.combine(entry.encryptedVoiceNoteLanguageName)
-        h.combine(entry.encryptedAdditionalVoiceNoteLanguageNamesStorage)
-        h.combine(entry.encryptedTextStyleData)
-        h.combine(entry.encryptedInlineStyleData)
+        fingerprint(entry.encryptedText, into: &h)
+        fingerprint(entry.encryptedMood, into: &h)
+        fingerprint(entry.encryptedTagsStorage, into: &h)
+        fingerprint(entry.encryptedVoiceNoteTranscript, into: &h)
+        fingerprint(entry.encryptedAdditionalVoiceNoteTranscriptsStorage, into: &h)
+        fingerprint(entry.encryptedVoiceNoteEnglishTranslation, into: &h)
+        fingerprint(entry.encryptedAdditionalVoiceNoteEnglishTranslationsStorage, into: &h)
+        fingerprint(entry.encryptedVoiceNoteLanguageName, into: &h)
+        fingerprint(entry.encryptedAdditionalVoiceNoteLanguageNamesStorage, into: &h)
+        fingerprint(entry.encryptedTextStyleData, into: &h)
+        fingerprint(entry.encryptedInlineStyleData, into: &h)
         h.combine(entry.fontChoice)
         h.combine(entry.wordCount)
         h.combine(entry.createdAt)
@@ -1990,6 +2017,27 @@ final class EntryDecryptCache {
         return h.finalize()
     }
 
+    /// Signatures from the latest `checkSignatures` pass. A snapshot looks every entry up 4-5 times
+    /// (moods, tags, filters, sort), and each lookup used to read every stored field again.
+    private var recordedSignatures: [UUID: Int] = [:]
+    private var checkedRevision: Int?
+    /// Items already looked up since the last pass, by object identity: reading `entry.id` goes
+    /// through SwiftData too, and a snapshot looks each entry up several times.
+    private var resolved: [ObjectIdentifier: Item] = [:]
+
+    /// Reads every entry's fields once per journal revision (a save or a CloudKit import), so a
+    /// search keystroke or a filter change looks nothing up again.
+    func checkSignatures(of entries: [Entry], revision: Int) {
+        guard revision != checkedRevision else { return }
+        var signatures: [UUID: Int] = [:]
+        signatures.reserveCapacity(entries.count)
+        for entry in entries { signatures[entry.id] = Self.signature(of: entry) }
+        recordedSignatures = signatures
+        checkedRevision = revision
+        resolved = [:]
+    }
+
+    /// All entries' signatures as one value (tests).
     static func contentSignature(for entries: [Entry]) -> Int {
         var hasher = Hasher()
         for entry in entries {
@@ -2000,8 +2048,13 @@ final class EntryDecryptCache {
     }
 
     func item(for entry: Entry) -> Item {
-        let sig = Self.signature(of: entry)
-        if let cached = items[entry.id], cached.signature == sig { return cached }
+        // Only between passes: without one (tests, previews) every lookup checks the signature.
+        if checkedRevision != nil, let hit = resolved[ObjectIdentifier(entry)] { return hit }
+        let sig = recordedSignatures[entry.id] ?? Self.signature(of: entry)
+        if let cached = items[entry.id], cached.signature == sig {
+            if checkedRevision != nil { resolved[ObjectIdentifier(entry)] = cached }
+            return cached
+        }
         let preview = EntryRow.makePreview(for: entry)
         let failed = entry.textDecryptionFailed
         let mood = entry.mood
@@ -2052,7 +2105,12 @@ final class EntryDecryptCache {
                 textDecryptionFailed: failed
             )
         )
-        if !failed && searchReadable { items[entry.id] = item } else { items[entry.id] = nil }
+        if !failed && searchReadable {
+            items[entry.id] = item
+            if checkedRevision != nil { resolved[ObjectIdentifier(entry)] = item }
+        } else {
+            items[entry.id] = nil
+        }
         return item
     }
 
@@ -2063,6 +2121,10 @@ final class EntryDecryptCache {
     func prune(keeping entries: [Entry]) {
         let live = Set(entries.map(\.id))
         items = items.filter { live.contains($0.key) }
+        if resolved.count > entries.count {
+            let objects = Set(entries.map(ObjectIdentifier.init))
+            resolved = resolved.filter { objects.contains($0.key) }
+        }
     }
 }
 

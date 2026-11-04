@@ -86,4 +86,43 @@ struct EntryDecryptCacheTests {
         #expect(!cache.item(for: entry).document.isReadable)
         #expect(cache.cachedCount == 0)
     }
+
+    @Test @MainActor func recordedSignaturesAreReusedUntilTheNextRevision() {
+        let cache = EntryDecryptCache()
+        let entry = Entry(text: "Morning coffee by the window.")
+        cache.checkSignatures(of: [entry], revision: 1)
+        #expect(cache.item(for: entry).searchText.contains("coffee"))
+        // Same revision: the pass is skipped and the recorded signature is reused.
+        entry.text = "Evening tea on the balcony."
+        cache.checkSignatures(of: [entry], revision: 1)
+        #expect(cache.item(for: entry).searchText.contains("coffee"))
+        // The save that made the edit bumps the revision; the next pass picks the edit up.
+        cache.checkSignatures(of: [entry], revision: 2)
+        #expect(cache.item(for: entry).searchText.contains("tea"))
+        #expect(!cache.item(for: entry).searchText.contains("coffee"))
+    }
+
+    @Test @MainActor func entryAddedAfterThePassIsStillReadable() {
+        let cache = EntryDecryptCache()
+        let a = Entry(text: "A synthetic note about the river.")
+        cache.checkSignatures(of: [a], revision: 1)
+        let b = Entry(text: "Another synthetic note about the library.")
+        #expect(cache.item(for: b).searchText.contains("library"))
+    }
+
+    @Test @MainActor func signatureSeesSameLengthEditsAndPinAndMood() {
+        let entry = Entry(text: "Coffee at nine.", mood: "Content")
+        var previous = EntryDecryptCache.signature(of: entry)
+        entry.text = "Coffee at ten."   // re-encrypted: new nonce and tag
+        #expect(previous != EntryDecryptCache.signature(of: entry))
+        previous = EntryDecryptCache.signature(of: entry)
+        entry.mood = "Anxious"
+        #expect(previous != EntryDecryptCache.signature(of: entry))
+        previous = EntryDecryptCache.signature(of: entry)
+        entry.isPinned = true
+        #expect(previous != EntryDecryptCache.signature(of: entry))
+        previous = EntryDecryptCache.signature(of: entry)
+        entry.collectionID = UUID()
+        #expect(previous != EntryDecryptCache.signature(of: entry))
+    }
 }
