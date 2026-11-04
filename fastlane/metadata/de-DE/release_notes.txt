@@ -8,3 +8,7 @@ Außerdem in diesem Update
 • Du hast einen App Store-Angebotscode? Tippe in Einstellungen › Abonnement oder auf dem Planbildschirm auf „Code einlösen“.
 • Die Einstellungen haben jetzt eine „Fertig“-Taste und einen Griff, damit klar ist, wie man sie schließt.
 • Wenn die Pläne nicht laden, bietet „Abonnement“ „Erneut versuchen“, statt endlos zu laden.
+• Der Fokusmodus zeigt jetzt nur deine Worte: Symbolleiste, Schreibanstoß und Karten treten zurück, und eine Taste holt sie wieder.
+• Beim ersten Öffnen der Tastatur zeigt ein Tipp, dass du sie mit einem Wisch nach unten auf der Seite ausblendest.
+• Ein Tippen auf einen Tag im Kalender unter „Einträge“ lässt diesen Tag im Blick, statt zurück zu heute zu springen.
+• Frühere Reflexionen und Zusammenfassungen enden mit „Alle anzeigen“, damit du jede lesen kannst.

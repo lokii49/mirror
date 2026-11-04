@@ -6,3 +6,5 @@ Ya llegan Core y Deep
 Además en esta actualización
 
 • Si los planes no cargan, Suscripción ofrece Intentar de nuevo en lugar de quedarse cargando.
+• Las reflexiones pasadas del panel tienen Leer más, y las reflexiones pasadas y los resúmenes anteriores terminan con Mostrar todo.
+• Al tocar un día en el calendario de Entradas, ese día sigue a la vista en lugar de volver a hoy.

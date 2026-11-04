@@ -8,3 +8,7 @@ Também nesta atualização
 • Tem um código de oferta da App Store? Toque em Resgatar código em Ajustes › Assinatura ou na tela de planos.
 • Ajustes tem um botão Concluído e uma alça, para deixar claro como fechar.
 • Se os planos não carregarem, Assinatura oferece Tentar novamente em vez de ficar carregando.
+• O modo foco agora mostra só as suas palavras: a barra de ferramentas, o ponto de partida e os cartões saem de cena, e um botão os traz de volta.
+• Na primeira vez que o teclado abre, uma dica mostra que deslizar para baixo na página o oculta.
+• Tocar em um dia no calendário de Entradas mantém esse dia à vista em vez de voltar para hoje.
+• Reflexões anteriores e resumos anteriores terminam com Mostrar tudo, para você ler todos.

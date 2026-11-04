@@ -8,3 +8,7 @@ Inoltre in questo aggiornamento
 • Hai un codice offerta dell’App Store? Tocca Riscatta codice in Impostazioni › Abbonamento o nella schermata dei piani.
 • Le Impostazioni hanno un pulsante Fatto e una maniglia, così è chiaro come chiuderle.
 • Se i piani non si caricano, Abbonamento offre Riprova invece di caricare all’infinito.
+• La modalità focus ora mostra solo le tue parole: barra degli strumenti, spunto e schede si fanno da parte, e un pulsante li riporta.
+• La prima volta che si apre la tastiera, un suggerimento mostra che scorrendo verso il basso sulla pagina la nascondi.
+• Toccando un giorno nel calendario delle Voci, quel giorno resta in vista invece di tornare a oggi.
+• Le riflessioni passate e i riepiloghi precedenti finiscono con Mostra tutto, così puoi leggerli tutti.

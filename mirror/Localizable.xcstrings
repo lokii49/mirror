@@ -6694,6 +6694,70 @@
         }
       }
     },
+    "Every past reflection" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jede frühere Reflexion"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Every past reflection"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todas tus reflexiones pasadas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toutes vos réflexions passées"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tutte le riflessioni passate"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "過去のリフレクションをすべて"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "모든 지난 리플렉션"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todas as reflexões anteriores"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Все прошлые рефлексии"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每一条过往反思"
+          }
+        }
+      }
+    },
     "Every quote is copied word for word from these entries. Long entries are shortened to fit." : {
       "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Note under the rows.",
       "extractionState" : "manual",
@@ -7253,6 +7317,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "按意思查找日记，而不只是匹配字词。一次性下载 %@。你的日记永远不会离开此设备。"
+          }
+        }
+      }
+    },
+    "Focus mode, just your words" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fokusmodus, nur deine Worte"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Focus mode, just your words"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modo enfoque, solo tus palabras"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mode focus, rien que vos mots"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modalità focus, solo le tue parole"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォーカスモードは言葉だけ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "포커스 모드, 글만 남기기"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modo foco, só suas palavras"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Режим фокусировки: только ваш текст"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "专注模式，只留文字"
           }
         }
       }
@@ -12232,6 +12360,70 @@
         }
       }
     },
+    "Past reflections and digests now end with Show all, so you can read every one, not just the latest 14." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frühere Reflexionen und Zusammenfassungen enden jetzt mit „Alle anzeigen“, damit du jede lesen kannst, nicht nur die neuesten 14."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Past reflections and digests now end with Show all, so you can read every one, not just the latest 14."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las reflexiones pasadas y los resúmenes anteriores ahora terminan con Mostrar todo, para que puedas leerlos todos, no solo los 14 más recientes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les réflexions passées et les résumés précédents se terminent désormais par Tout afficher, pour tous les lire, pas seulement les 14 derniers."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le riflessioni passate e i riepiloghi precedenti ora finiscono con Mostra tutto, così puoi leggerli tutti, non solo gli ultimi 14."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "過去のリフレクションとダイジェストの最後に「すべて表示」が付きました。最新の14件だけでなく、すべて読めます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이제 지난 리플렉션과 다이제스트 끝에 '모두 보기'가 있어 최근 14개뿐 아니라 모두 읽을 수 있습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reflexões anteriores e resumos anteriores agora terminam com Mostrar tudo, para você ler todos, não só os 14 mais recentes."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Прошлые рефлексии и сводки теперь заканчиваются кнопкой «Показать все»: можно прочитать каждую, а не только последние 14."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "过往反思和过往摘要的末尾现在有「显示全部」，不只最近 14 条，每一条都能读到。"
+          }
+        }
+      }
+    },
     "Pause recording" : {
       "localizations" : {
         "de" : {
@@ -15888,6 +16080,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "要使用 App Store 优惠代码，请在 设置 › 订阅 或方案页面底部轻点「兑换代码」。"
+          }
+        }
+      }
+    },
+    "Tap the arrows at the top while you write and everything else steps aside: the toolbar, the starter and the cards. Tap them again to bring it all back. Swipe down on the page to hide the keyboard." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tippe beim Schreiben oben auf die Pfeile, und alles andere tritt zurück: Symbolleiste, Schreibanstoß und Karten. Tippe erneut, um alles zurückzuholen. Wische auf der Seite nach unten, um die Tastatur auszublenden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap the arrows at the top while you write and everything else steps aside: the toolbar, the starter and the cards. Tap them again to bring it all back. Swipe down on the page to hide the keyboard."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toca las flechas de arriba mientras escribes y todo lo demás se aparta: la barra de herramientas, el punto de partida y las tarjetas. Vuelve a tocarlas para recuperarlo todo. Desliza hacia abajo en la página para ocultar el teclado."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Touchez les flèches en haut pendant que vous écrivez, et tout le reste s’efface : la barre d’outils, le point de départ et les cartes. Touchez-les à nouveau pour tout faire revenir. Balayez la page vers le bas pour masquer le clavier."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tocca le frecce in alto mentre scrivi e tutto il resto si fa da parte: barra degli strumenti, spunto e schede. Toccale di nuovo per riportare tutto. Scorri verso il basso sulla pagina per nascondere la tastiera."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書いている途中で上部の矢印をタップすると、ツールバー、書き出しのヒント、カードが隠れます。もう一度タップするとすべて戻ります。ページを下にスワイプするとキーボードを隠せます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "글을 쓰는 중에 위쪽 화살표를 탭하면 도구 막대, 시작 도움말, 카드가 모두 물러납니다. 다시 탭하면 모두 돌아옵니다. 페이지를 아래로 쓸어내리면 키보드가 숨겨집니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toque nas setas no topo enquanto escreve e todo o resto sai de cena: a barra de ferramentas, o ponto de partida e os cartões. Toque de novo para trazer tudo de volta. Deslize para baixo na página para ocultar o teclado."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нажмите стрелки вверху во время письма, и всё остальное уйдёт: панель инструментов, отправная точка и карточки. Нажмите ещё раз, чтобы всё вернуть. Смахните страницу вниз, чтобы скрыть клавиатуру."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写作时轻点顶部的箭头，工具栏、起点提示和卡片都会让开。再次轻点即可全部恢复。在页面上向下轻扫可隐藏键盘。"
           }
         }
       }

@@ -8,3 +8,7 @@ Also in this update
 • Have an App Store offer code? Tap Redeem Code in Settings › Subscription or on the plans screen.
 • Settings has a Done button and a grab handle, so it's clear how to close it.
 • If plans can't load, Subscription offers Try Again instead of loading forever.
+• Focus mode is now just your words: the toolbar, the starter and the cards step aside, and one button brings them back.
+• The first time the keyboard opens, a tip shows that swiping down on the page hides it.
+• Tapping a day in the Entries calendar keeps that day in view instead of jumping back to today.
+• Past reflections and digests end with Show all, so you can read every one.

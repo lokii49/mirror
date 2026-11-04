@@ -446,6 +446,28 @@ enum FeatureCardRegistry {
             showInFeatureGuide: false,
             iOSOnly: true
         ),
+        // The Mac editor has its own toolbar and no focus mode.
+        .init(
+            id: "focus-mode-318",
+            title: "Focus mode, just your words",
+            body: "Tap the arrows at the top while you write and everything else steps aside: the toolbar, the starter and the cards. Tap them again to bring it all back. Swipe down on the page to hide the keyboard.",
+            symbolName: "arrow.up.left.and.arrow.down.right",
+            accentColor: MirrorTheme.violet,
+            tier: .free,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false,
+            iOSOnly: true
+        ),
+        .init(
+            id: "show-all-318",
+            title: "Every past reflection",
+            body: "Past reflections and digests now end with Show all, so you can read every one, not just the latest 14.",
+            symbolName: "clock.arrow.circlepath",
+            accentColor: .teal,
+            tier: .free,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false
+        ),
     ]
 
     /// 15 November 2026, the paid-plans cutover, in the reader's own date format.

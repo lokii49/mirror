@@ -6,3 +6,5 @@ Core et Deep sont là
 Également dans cette mise à jour
 
 • Si les formules ne se chargent pas, Abonnement propose Réessayer au lieu de charger sans fin.
+• Les réflexions passées du tableau ont Lire plus, et les réflexions passées et les résumés précédents se terminent par Tout afficher.
+• Toucher un jour dans le calendrier des Entrées garde ce jour à l’écran au lieu de revenir à aujourd’hui.

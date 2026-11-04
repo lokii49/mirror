@@ -8,3 +8,7 @@ Además en esta actualización
 • ¿Tienes un código de oferta del App Store? Toca Canjear código en Ajustes › Suscripción o en la pantalla de planes.
 • Ajustes tiene un botón Listo y un tirador, para que quede claro cómo cerrarlo.
 • Si los planes no cargan, Suscripción ofrece Intentar de nuevo en lugar de quedarse cargando.
+• El modo enfoque ahora es solo tus palabras: la barra de herramientas, el punto de partida y las tarjetas se apartan, y un botón los trae de vuelta.
+• La primera vez que se abre el teclado, un consejo muestra que deslizar hacia abajo en la página lo oculta.
+• Al tocar un día en el calendario de Entradas, ese día sigue a la vista en lugar de volver a hoy.
+• Las reflexiones pasadas y los resúmenes anteriores terminan con Mostrar todo, para que puedas leerlos todos.

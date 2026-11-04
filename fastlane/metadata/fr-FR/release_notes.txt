@@ -8,3 +8,7 @@ Core et Deep sont là
 • Vous avez un code d’offre de l’App Store ? Touchez « Utiliser un code » dans Réglages › Abonnement ou sur l’écran des formules.
 • Les Réglages ont un bouton Terminé et une poignée, pour savoir clairement comment les fermer.
 • Si les formules ne se chargent pas, Abonnement propose Réessayer au lieu de charger sans fin.
+• Le mode focus ne montre plus que vos mots : la barre d’outils, le point de départ et les cartes s’effacent, et un bouton les fait revenir.
+• La première fois que le clavier s’ouvre, une astuce montre qu’un balayage vers le bas sur la page le masque.
+• Toucher un jour dans le calendrier des Entrées garde ce jour à l’écran au lieu de revenir à aujourd’hui.
+• Les réflexions passées et les résumés précédents se terminent par Tout afficher, pour pouvoir tous les lire.
