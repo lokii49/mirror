@@ -73,6 +73,9 @@
 <div class="wrap">
 <header class="top">
   <div class="kick">Audit · 4 November 2026 · branch 3.1.8</div>
+  <div class="card" style="margin-bottom:22px; border-color: var(--ok)">
+    <p><strong style="color:var(--text)">Update, same day: steps 1, 2 and 4, the reader part of step 5, and two UI changes are built on 3.1.8</strong> (owner: "go ahead in 3.1.8"; commits 9491f4b…7678ab9, not pushed). Measured the same way at 5,000 entries: <code>entries.deps</code> 67 ms → 0.0 ms per render, snapshot 253 → 34 ms, search 425 → 139 ms, main-thread time −73%, hangs 9 (0.67–1.54 s) → 3 (~0.33 s). Free Insights shows one Core card; rows say "53 words". Not done: step 3 (rebuild only changed entries), Settings' full query (step 5), Gemma, photos, the paywall colour (the trial button is <code>MirrorTheme.ember</code> in both themes; your call). Not yet checked on an iPhone: the 14 Pro was offline, so tests ran on the iPhone Duo simulator.</p>
+  </div>
   <h1>MirrorNotes performance audit</h1>
   <p class="lede">The big win is real and it is in one place. At 5,000 entries the Entries tab spends most of its main-thread time re-reading every entry's stored fields to decide whether anything changed. A 60-line prototype already halves that time. A shared change counter should remove most of the rest. Launch is fine. The cost grows with the size of the journal: it is large from about 2,000 entries, while under about 1,000 it fits inside a frame and nobody would notice (estimated from the 5,000-entry numbers, which scale linearly). It is still worth fixing now, because every year of journaling adds 365 entries to it. A full UI redesign is not needed; four targeted UI changes are listed below.</p>
   <div class="tiles">
