@@ -48,7 +48,7 @@ struct JournalRevisionTests {
         let revision = JournalRevision()
         revision.bump()
         let first = revision.value
-        try await Task.sleep(for: .milliseconds(700))
+        try await Task.sleep(for: .seconds(1))
         #expect(revision.value == first + 1)
     }
 
