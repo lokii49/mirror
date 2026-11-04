@@ -4336,6 +4336,70 @@
         }
       }
     },
+    "Daily reflections and weekly digests are part of Core." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tägliche Reflexionen und wöchentliche Zusammenfassungen sind Teil von Core."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daily reflections and weekly digests are part of Core."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las reflexiones diarias y los resúmenes semanales son parte de Core."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les réflexions quotidiennes et les résumés hebdomadaires font partie de Core."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le riflessioni quotidiane e i riepiloghi settimanali fanno parte di Core."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "デイリーリフレクションと週間ダイジェストはCoreの機能です。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "데일리 리플렉션과 주간 다이제스트는 Core 기능입니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reflexões diárias e resumos semanais fazem parte do Core."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ежедневные размышления и еженедельные сводки доступны в Core."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每日反思和每周摘要是 Core 的一部分。"
+          }
+        }
+      }
+    },
     "Deadline moved up again." : {
       "localizations" : {
         "de" : {

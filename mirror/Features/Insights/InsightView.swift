@@ -656,9 +656,12 @@ struct InsightView: View {
         case .needsMoreEntries(let remaining):
             NeedsMoreEntriesCard(remaining: remaining)
         case .subscriptionRequired:
+            // One lock card for Free, not two: when the digest is locked too, this card names both
+            // and This Week's lock card is left out (audit 2026-11-04). Saved reflections and digests
+            // still show below on every tier.
             UpgradePromptCard(
                 title: "MirrorNotes Core",
-                subtitle: "Daily reflections are part of Core.",
+                subtitle: digestIsLocked ? "Daily reflections and weekly digests are part of Core." : "Daily reflections are part of Core.",
                 onUpgrade: { showPaywall = true }
             )
         case .pendingNightlyGeneration:
@@ -774,7 +777,25 @@ struct InsightView: View {
 
     // MARK: - Weekly Digest
 
+    private var digestIsLocked: Bool {
+        if case .subscriptionRequired = viewModel.digestState { return true }
+        return false
+    }
+
+    private var nudgeIsLocked: Bool {
+        if case .subscriptionRequired = viewModel.nudgeState { return true }
+        return false
+    }
+
+    @ViewBuilder
     private var digestSection: some View {
+        // Today's lock card already names the digest (see nudgeStatusContent).
+        if !(digestIsLocked && nudgeIsLocked) {
+            digestSectionContent
+        }
+    }
+
+    private var digestSectionContent: some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeader(
                 title: "This Week",
