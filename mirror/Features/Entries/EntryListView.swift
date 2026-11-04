@@ -110,9 +110,19 @@ struct EntriesTabView: View {
         }
     }
 
+    /// An entry and its id, read once while the snapshot is built. `ForEach` over `Entry` reads every
+    /// entry's `id` through SwiftData on each list update and observation-tracks all of them, even
+    /// in a lazy stack; with 5,000 entries that bookkeeping was most of the hang when a cleared
+    /// search brought the whole list back (audit 2026-11-04).
+    struct EntryRowRef: Identifiable {
+        let id: UUID
+        let entry: Entry
+    }
+
     private struct EntryMonthGroup {
         let date: Date
-        let entries: [Entry]
+        let rows: [EntryRowRef]
+        var entries: [Entry] { rows.map(\.entry) }
     }
 
     // Precomputed at task time — zero AES decrypts during scroll
@@ -130,7 +140,8 @@ struct EntriesTabView: View {
         let filteredEntries: [Entry]
         let usedMoods: [String]
         let usedTags: [String]
-        let pinnedEntries: [Entry]
+        let pinnedRows: [EntryRowRef]
+        var pinnedEntries: [Entry] { pinnedRows.map(\.entry) }
         let groupedByMonth: [EntryMonthGroup]
         let rowPreviews: [UUID: EntryRowPreview]
         let unreadableCount: Int
@@ -171,7 +182,12 @@ struct EntriesTabView: View {
         )
     }
 
-    private var listSnapshot: EntryListSnapshot { makeListSnapshot() }
+    /// Only until the first snapshot task lands (first open of the tab). Synchronous so the list
+    /// never flashes empty; the signature pass first, or every lookup would read every field again.
+    private var listSnapshot: EntryListSnapshot {
+        decryptCache.checkSignatures(of: entries, revision: JournalRevision.shared.value)
+        return makeListSnapshot()
+    }
 
     private func makeListSnapshot(searchResults: EntrySearch.Results? = nil) -> EntryListSnapshot {
         let query = EntrySearchQuery.parse(debouncedSearchText)
@@ -215,7 +231,7 @@ struct EntriesTabView: View {
         // (see entryList(_:)) — excluded here so they don't also render twice.
         // Deliberate: a month's "N entries" header counts only what's rendered
         // in that section, not the pinned ones that moved up top.
-        let pinnedEntries = result.filter(\.isPinned)
+        let pinnedRows = result.filter(\.isPinned).map { EntryRowRef(id: $0.id, entry: $0) }
         let calendar = Calendar.current
         let groups = Dictionary(grouping: result.filter { !$0.isPinned }) { entry -> Date in
             let comps = calendar.dateComponents([.year, .month], from: entry.createdAt)
@@ -223,7 +239,7 @@ struct EntriesTabView: View {
         }
 
         let monthSortAscending = sortOrder == .oldestFirst
-        let groupedByMonth = ranked ? [EntryMonthGroup(date: .distantPast, entries: result.filter { !$0.isPinned })].filter { !$0.entries.isEmpty } : groups.keys.sorted(by: monthSortAscending ? (<) : (>)).map { month in
+        let groupedByMonth = ranked ? [EntryMonthGroup(date: .distantPast, rows: result.filter { !$0.isPinned }.map { EntryRowRef(id: $0.id, entry: $0) })].filter { !$0.rows.isEmpty } : groups.keys.sorted(by: monthSortAscending ? (<) : (>)).map { month in
             let monthEntries = groups[month, default: []]
             let sortedMonthEntries: [Entry]
             switch sortOrder {
@@ -232,7 +248,7 @@ struct EntriesTabView: View {
             case .mostWords:   sortedMonthEntries = monthEntries.sorted { $0.wordCount > $1.wordCount }
             case .byMood:      sortedMonthEntries = monthEntries.sorted { (cache.item(for: $0).mood ?? "") < (cache.item(for: $1).mood ?? "") }
             }
-            return EntryMonthGroup(date: month, entries: sortedMonthEntries)
+            return EntryMonthGroup(date: month, rows: sortedMonthEntries.map { EntryRowRef(id: $0.id, entry: $0) })
         }
 
         // Precompute all row display data (mood + text decrypts) so EntryRow.init does zero decrypts
@@ -271,7 +287,7 @@ struct EntriesTabView: View {
         // A transcript or tag can arrive before its encryption key even when body
         // text is already readable. Keep the existing key-arrival retry active.
         let unreadableCount = entries.filter { !cache.item(for: $0).document.isReadable }.count
-        return EntryListSnapshot(filteredEntries: result, usedMoods: usedMoods, usedTags: usedTags, pinnedEntries: pinnedEntries, groupedByMonth: groupedByMonth, rowPreviews: rowPreviews, unreadableCount: unreadableCount, isRanked: ranked && !result.isEmpty, matchesWithoutFilters: searchResults?.matchesWithoutFilters,
+        return EntryListSnapshot(filteredEntries: result, usedMoods: usedMoods, usedTags: usedTags, pinnedRows: pinnedRows, groupedByMonth: groupedByMonth, rowPreviews: rowPreviews, unreadableCount: unreadableCount, isRanked: ranked && !result.isEmpty, matchesWithoutFilters: searchResults?.matchesWithoutFilters,
                                  onThisDay: OnThisDayService.matches(in: entries))
     }
 
@@ -959,7 +975,7 @@ struct EntriesTabView: View {
 
     /// The rows on screen now (search, filters and collection applied).
     private func visibleEntryIDs(_ snapshot: EntryListSnapshot) -> Set<UUID> {
-        Set(snapshot.pinnedEntries.map(\.id) + snapshot.groupedByMonth.flatMap { $0.entries.map(\.id) })
+        Set(snapshot.pinnedRows.map(\.id) + snapshot.groupedByMonth.flatMap { $0.rows.map(\.id) })
     }
 
     private var selectedEntries: [Entry] {
@@ -1121,8 +1137,8 @@ struct EntriesTabView: View {
 
             if !snapshot.pinnedEntries.isEmpty {
                 Section {
-                    ForEach(snapshot.pinnedEntries) { entry in
-                        entryRowView(entry, preview: snapshot.rowPreviews[entry.id])
+                    ForEach(snapshot.pinnedRows) { row in
+                        entryRowView(row.entry, preview: snapshot.rowPreviews[row.id])
                     }
                 } header: {
                     HStack(spacing: 4) {
@@ -1171,8 +1187,8 @@ struct EntriesTabView: View {
 
             ForEach(snapshot.groupedByMonth, id: \.date) { group in
                 Section {
-                    ForEach(group.entries) { entry in
-                        entryRowView(entry, preview: snapshot.rowPreviews[entry.id])
+                    ForEach(group.rows) { row in
+                        entryRowView(row.entry, preview: snapshot.rowPreviews[row.id])
                     }
                 } header: {
                     HStack {
@@ -1184,7 +1200,7 @@ struct EntriesTabView: View {
                             }
                         }
                         Spacer()
-                        Text(group.entries.count == 1 ? "1 entry" : "\(group.entries.count) entries")
+                        Text(group.rows.count == 1 ? "1 entry" : "\(group.rows.count) entries")
                             .scaledFont(12, weight: .semibold, design: .monospaced)
                             .textCase(nil)
                     }
@@ -1591,8 +1607,8 @@ extension EntriesTabView {
                 LazyVStack(alignment: .leading, spacing: 2) {
                     if !snapshot.pinnedEntries.isEmpty {
                         macSectionLabel("PINNED", icon: "pin", topPadding: 6)
-                        ForEach(snapshot.pinnedEntries) { entry in
-                            macRow(entry, snapshot: snapshot)
+                        ForEach(snapshot.pinnedRows) { row in
+                            macRow(row.entry, snapshot: snapshot)
                         }
                     }
                     if snapshot.filteredEntries.isEmpty {
@@ -1607,8 +1623,8 @@ extension EntriesTabView {
                     }
                     ForEach(snapshot.groupedByMonth, id: \.date) { group in
                         macSectionLabel(sectionTitle(for: group, ranked: snapshot.isRanked).uppercased(), icon: nil, topPadding: 14)
-                        ForEach(group.entries) { entry in
-                            macRow(entry, snapshot: snapshot)
+                        ForEach(group.rows) { row in
+                            macRow(row.entry, snapshot: snapshot)
                         }
                     }
                 }
@@ -1660,7 +1676,7 @@ extension EntriesTabView {
     /// The rows in the order they are drawn: pinned first, then each month.
     private func macOrderedEntries(_ snapshot: EntryListSnapshot) -> [Entry] {
         var seen = Set<UUID>()
-        return (snapshot.pinnedEntries + snapshot.groupedByMonth.flatMap(\.entries)).filter { seen.insert($0.id).inserted }
+        return (snapshot.pinnedRows + snapshot.groupedByMonth.flatMap(\.rows)).filter { seen.insert($0.id).inserted }.map(\.entry)
     }
 
     private func macMoveSelection(_ step: Int, _ snapshot: EntryListSnapshot) {
