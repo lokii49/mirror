@@ -12,3 +12,7 @@ Außerdem in diesem Update
 • Beim ersten Öffnen der Tastatur zeigt ein Tipp, dass du sie mit einem Wisch nach unten auf der Seite ausblendest.
 • Ein Tippen auf einen Tag im Kalender unter „Einträge“ lässt diesen Tag im Blick, statt zurück zu heute zu springen.
 • Frühere Reflexionen und Zusammenfassungen enden mit „Alle anzeigen“, damit du jede lesen kannst.
+• Große Tagebücher sind schneller: Die Eintragsliste, die Suche, Einblicke, der Stimmungsverlauf und der Kalender lesen nicht mehr bei jeder Änderung auf dem Bildschirm alle Einträge neu, und das Öffnen eines Eintrags lädt nicht mehr das ganze Tagebuch.
+• MirrorNotes startet etwas schneller und braucht weniger Arbeitsspeicher.
+• Einträge zeigen die Wortzahl ausgeschrieben („52 Wörter“ statt „52 W“).
+• Im kostenlosen Plan zeigt „Einblicke“ eine Karte zu Core statt zwei.

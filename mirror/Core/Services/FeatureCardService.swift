@@ -468,6 +468,17 @@ enum FeatureCardRegistry {
             sinceVersion: "3.1.8",
             showInFeatureGuide: false
         ),
+        // The audit of 4 November 2026: the list, search and Insights stopped re-reading every entry.
+        .init(
+            id: "faster-318",
+            title: "Faster with a big journal",
+            body: "The Entries list, search and Insights no longer re-read every entry whenever the screen changes, so years of writing stay quick.",
+            symbolName: "bolt.fill",
+            accentColor: .orange,
+            tier: .free,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false
+        ),
     ]
 
     /// 15 November 2026, the paid-plans cutover, in the reader's own date format.

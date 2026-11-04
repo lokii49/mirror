@@ -7192,6 +7192,70 @@
         }
       }
     },
+    "Faster with a big journal" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schneller bei großen Tagebüchern"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Faster with a big journal"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Más rápido con un diario grande"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus rapide avec un grand journal"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Più veloce con un diario grande"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "長い日記でも快適に"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기록이 많아도 빠르게"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mais rápido com um diário grande"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Быстрее с большим дневником"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大量日记也流畅"
+          }
+        }
+      }
+    },
     "Find duplicates" : {
       "comment" : "3.1.4 paid-plans notice, Undo, select mode, duplicate warning, retention. Model-translated; native review pending.",
       "localizations" : {
@@ -16401,6 +16465,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "每日回顾、提问、每周摘要、月度报告、心情时间线和小组件现在需要 Core 或 Deep。写作、阅读、搜索和 iCloud 备份永久免费，已为你生成的内容也都仍可阅读。新订阅者可免费试用 7 天。"
+          }
+        }
+      }
+    },
+    "The Entries list, search and Insights no longer re-read every entry whenever the screen changes, so years of writing stay quick." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Eintragsliste, die Suche und Einblicke lesen nicht mehr bei jeder Änderung auf dem Bildschirm alle Einträge neu. So bleiben auch Jahre an Einträgen flott."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The Entries list, search and Insights no longer re-read every entry whenever the screen changes, so years of writing stay quick."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La lista de Entradas, la búsqueda y Perspectivas ya no vuelven a leer todas las entradas cada vez que cambia la pantalla, así que años de escritura siguen yendo rápido."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La liste des Entrées, la recherche et les Aperçus ne relisent plus toutes les entrées à chaque changement d’écran : des années d’écriture restent fluides."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’elenco delle Voci, la ricerca e gli Approfondimenti non rileggono più tutte le voci a ogni cambio di schermata, così anni di scrittura restano veloci."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "エントリー一覧、検索、インサイトが、画面が変わるたびにすべてのエントリーを読み直さなくなりました。何年分の記録でも軽快です。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "항목 목록, 검색, 인사이트가 화면이 바뀔 때마다 모든 항목을 다시 읽지 않습니다. 몇 년 치 기록도 빠르게 열립니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A lista de Entradas, a busca e as Percepções não releem mais todas as entradas a cada mudança de tela, então anos de escrita continuam rápidos."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Список записей, поиск и аналитика больше не перечитывают все записи при каждом изменении экрана, так что даже годы записей открываются быстро."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "条目列表、搜索和洞察不再在每次画面变化时重新读取所有条目，多年的记录也一样流畅。"
           }
         }
       }

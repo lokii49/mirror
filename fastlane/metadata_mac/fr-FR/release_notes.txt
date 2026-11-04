@@ -8,3 +8,4 @@ Core et Deep sont là
 • Si les formules ne se chargent pas, Abonnement propose Réessayer au lieu de charger sans fin.
 • Les réflexions passées du tableau ont Lire plus, et les réflexions passées et les résumés précédents se terminent par Tout afficher.
 • Toucher un jour dans le calendrier des Entrées garde ce jour à l’écran au lieu de revenir à aujourd’hui.
+• Les grands journaux sont plus rapides : la liste des Entrées, la recherche et les Aperçus ne relisent plus toutes les entrées à chaque changement dans la fenêtre.

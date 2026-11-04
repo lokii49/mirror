@@ -8,3 +8,4 @@ Außerdem in diesem Update
 • Wenn die Pläne nicht laden, bietet „Abonnement“ „Erneut versuchen“, statt endlos zu laden.
 • Frühere Reflexionen auf der Übersicht haben „Mehr lesen“, und frühere Reflexionen und Zusammenfassungen enden mit „Alle anzeigen“.
 • Ein Tippen auf einen Tag im Kalender unter „Einträge“ lässt diesen Tag im Blick, statt zurück zu heute zu springen.
+• Große Tagebücher sind schneller: Die Eintragsliste, die Suche und Einblicke lesen nicht mehr bei jeder Änderung im Fenster alle Einträge neu.

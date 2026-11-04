@@ -12,3 +12,7 @@ Also in this update
 • The first time the keyboard opens, a tip shows that swiping down on the page hides it.
 • Tapping a day in the Entries calendar keeps that day in view instead of jumping back to today.
 • Past reflections and digests end with Show all, so you can read every one.
+• Big journals are faster: the Entries list, search, Insights, the mood timeline and the calendar no longer re-read every entry whenever the screen changes, and opening an entry no longer loads the whole journal.
+• MirrorNotes opens a little faster and uses less memory.
+• Entry rows spell out the word count ("52 words" instead of "52w").
+• On the free plan, Insights shows one card about Core instead of two.

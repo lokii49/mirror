@@ -8,3 +8,4 @@ Además en esta actualización
 • Si los planes no cargan, Suscripción ofrece Intentar de nuevo en lugar de quedarse cargando.
 • Las reflexiones pasadas del panel tienen Leer más, y las reflexiones pasadas y los resúmenes anteriores terminan con Mostrar todo.
 • Al tocar un día en el calendario de Entradas, ese día sigue a la vista en lugar de volver a hoy.
+• Los diarios grandes van más rápido: la lista de Entradas, la búsqueda y Perspectivas ya no vuelven a leer todas las entradas cada vez que cambia la ventana.

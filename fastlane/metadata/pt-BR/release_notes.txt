@@ -12,3 +12,7 @@ Também nesta atualização
 • Na primeira vez que o teclado abre, uma dica mostra que deslizar para baixo na página o oculta.
 • Tocar em um dia no calendário de Entradas mantém esse dia à vista em vez de voltar para hoje.
 • Reflexões anteriores e resumos anteriores terminam com Mostrar tudo, para você ler todos.
+• Diários grandes estão mais rápidos: a lista de Entradas, a busca, as Percepções, a linha do tempo de humor e o calendário não releem mais todas as entradas a cada mudança de tela, e abrir uma entrada não carrega mais o diário inteiro.
+• O MirrorNotes abre um pouco mais rápido e usa menos memória.
+• As entradas mostram o número de palavras por extenso (“52 palavras” em vez de “52 p”).
+• No plano gratuito, Percepções mostra um só cartão sobre o Core em vez de dois.
