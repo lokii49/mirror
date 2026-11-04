@@ -12,9 +12,11 @@ import CoreData
 /// 2026-11-04). The counter only says *when* to look again; each cache still decides *what*
 /// changed itself, so a bump that changed nothing a view shows costs one rebuild and no more.
 ///
-/// A save on another context reaches the main context's objects a moment later (merge), so every
-/// bump is followed by one more about 400 ms later: a cache rebuilt from not-yet-merged objects
-/// is rebuilt again once they are. The app saves right after each edit (pin, move, mood, date),
+/// A save on another context (Siri, the nightly task, voice transcription) or a CloudKit import
+/// reaches the main context's objects a moment later (merge), so those bumps are followed by one
+/// more about 400 ms later: a cache rebuilt from not-yet-merged objects is rebuilt again once they
+/// are. A main-context save needs no second bump: its objects are already current, and inserts and
+/// deletes also show up in the views' counts once their queries refresh. The app saves right after each edit (pin, move, mood, date),
 /// and the main context autosaves anything else, so unsaved in-memory edits are covered too.
 @MainActor
 @Observable
@@ -25,13 +27,20 @@ final class JournalRevision {
 
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
     @ObservationIgnored private var settleBump: Task<Void, Never>?
+    @ObservationIgnored private weak var container: ModelContainer?
 
-    func start() {
+    /// Counts saves to `container` only (not the device backup copy or other stores); saves from its
+    /// main context skip the settle bump.
+    func start(container: ModelContainer) {
         guard observers.isEmpty else { return }
+        self.container = container
         let center = NotificationCenter.default
         observers.append(center.addObserver(forName: ModelContext.didSave, object: nil, queue: .main) { [weak self] note in
-            guard Self.changedSomething(note.userInfo) else { return }
-            MainActor.assumeIsolated { self?.bump() }
+            guard Self.changedSomething(note.userInfo), let saver = note.object as? ModelContext else { return }
+            MainActor.assumeIsolated {
+                guard let self, let container = self.container, saver.container === container else { return }
+                self.bump(settle: saver !== container.mainContext)
+            }
         })
         observers.append(center.addObserver(forName: NSPersistentCloudKitContainer.eventChangedNotification, object: nil, queue: .main) { [weak self] note in
             guard let event = note.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey] as? NSPersistentCloudKitContainer.Event,
@@ -41,8 +50,9 @@ final class JournalRevision {
     }
 
     /// Also for changes that reach the store without a model-context save.
-    func bump() {
+    func bump(settle: Bool = true) {
         value &+= 1
+        guard settle else { return }
         settleBump?.cancel()
         settleBump = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(400))

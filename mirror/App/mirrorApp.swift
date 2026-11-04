@@ -68,7 +68,7 @@ struct mirrorApp: App {
             CloudSyncBackgroundTime.shared.start()
             #endif
             WidgetSaveRefresher.shared.start(container: sharedModelContainer)
-            JournalRevision.shared.start()
+            JournalRevision.shared.start(container: sharedModelContainer)
         }
         // Re-attach to a search-model download still running in its background session, so it
         // installs when it finishes even if Ask and Settings are never opened this launch.
