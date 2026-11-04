@@ -6,7 +6,11 @@ struct EntryDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.appDisplayMode) private var displayMode
     @Query private var insights: [Insight]
+    #if os(macOS)
+    /// The Mac pane's reflection and related entries read across the journal. iOS doesn't hold it:
+    /// opening an entry loaded every entry just for On This Day (audit 2026-11-04).
     @Query(sort: \Entry.createdAt, order: .reverse) private var allEntries: [Entry]
+    #endif
     @Query private var collections: [JournalCollection]
     /// "Move to > New collection…" in the More menu.
     @State private var newCollectionFor: Entry?
@@ -77,20 +81,41 @@ struct EntryDetailView: View {
     private var onThisDayEntries: [Entry] { cachedOnThisDay }
 
     private var onThisDayKey: JournalCacheKey {
-        JournalCacheKey(entries: allEntries.count, checkIns: 0, revision: JournalRevision.shared.value, first: entry.id)
+        JournalCacheKey(entries: 0, checkIns: 0, revision: JournalRevision.shared.value, first: entry.id)
     }
 
+    /// Entries on this entry's month and day in other years, newest first: one small date-range
+    /// fetch per year between the oldest and newest entry, instead of reading the whole journal.
     private func computeOnThisDay() -> [Entry] {
-        let cal = Calendar.current
-        let comps = cal.dateComponents([.month, .day], from: entry.createdAt)
-        let thisYear = cal.component(.year, from: entry.createdAt)
-        return allEntries.filter { other in
-            guard other.id != entry.id else { return false }
-            let otherComps = cal.dateComponents([.year, .month, .day], from: other.createdAt)
-            return otherComps.month == comps.month
-                && otherComps.day == comps.day
-                && otherComps.year != thisYear
+        Self.onThisDay(for: entry, in: modelContext)
+    }
+
+    static func onThisDay(for entry: Entry, in context: ModelContext, calendar cal: Calendar = .current) -> [Entry] {
+        let comps = cal.dateComponents([.year, .month, .day], from: entry.createdAt)
+        guard let month = comps.month, let day = comps.day, let ownYear = comps.year else { return [] }
+        func edge(_ order: SortOrder) -> Date? {
+            var d = FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: order)])
+            d.fetchLimit = 1
+            d.propertiesToFetch = [\.createdAt]
+            return (try? context.fetch(d))?.first?.createdAt
         }
+        guard let oldest = edge(.forward), let newest = edge(.reverse) else { return [] }
+        let ownID = entry.id
+        var matches: [Entry] = []
+        // A mistyped date decades away shouldn't turn this into hundreds of fetches.
+        let firstYear = max(cal.component(.year, from: oldest), ownYear - 100)
+        let lastYear = min(cal.component(.year, from: newest), ownYear + 100)
+        guard firstYear <= lastYear else { return [] }
+        for year in firstYear...lastYear where year != ownYear {
+            // Feb 29 in a year without one would roll over to Mar 1: skip, as the old filter did.
+            guard let start = cal.date(from: DateComponents(year: year, month: month, day: day)),
+                  cal.component(.month, from: start) == month, cal.component(.day, from: start) == day,
+                  let end = cal.date(byAdding: .day, value: 1, to: start) else { continue }
+            let descriptor = FetchDescriptor<Entry>(predicate: #Predicate { $0.createdAt >= start && $0.createdAt < end && $0.id != ownID },
+                                                    sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
+            matches += (try? context.fetch(descriptor)) ?? []
+        }
+        return matches.sorted { $0.createdAt > $1.createdAt }
     }
 
     private var moodLabel: String? {
