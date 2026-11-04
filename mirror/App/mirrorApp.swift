@@ -1269,10 +1269,27 @@ struct mirrorApp: App {
         return f
     }()
 
+    /// The journal revision and day the widget heatmaps were last built from (this launch).
+    @MainActor private static var widgetHeatmapsBuiltFor: (container: ObjectIdentifier, revision: Int, day: Date)?
+
     @MainActor
     static func updateWidgetHeatmaps(context: ModelContext) {
-        let descriptor = FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt)])
-        let entries = (try? context.fetch(descriptor)) ?? []
+        PerfSignpost.interval("widget.heatmaps") { buildWidgetHeatmaps(context: context) }
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    /// Runs on every app foreground and after every journal save. Rebuilds only when the journal
+    /// changed (JournalRevision) or the day did, and reads only the three fields the heatmaps use:
+    /// a full fetch also loaded every entry's text and photo bytes (photos live in the row).
+    @MainActor
+    private static func buildWidgetHeatmaps(context: ModelContext) {
+        let builtFor = (container: ObjectIdentifier(context.container), revision: JournalRevision.shared.value,
+                        day: Calendar.current.startOfDay(for: Date()))
+        if let last = widgetHeatmapsBuiltFor, last.container == builtFor.container,
+           last.revision == builtFor.revision, last.day == builtFor.day { return }
+        var descriptor = FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt)])
+        descriptor.propertiesToFetch = [\.id, \.createdAt, \.encryptedMood]
+        guard let entries = try? context.fetch(descriptor) else { return }
 
         // Entry count per day drives the streak + wrote-today flags below. Stays
         // entry-only — a mood check-in isn't "writing an entry".
@@ -1316,14 +1333,18 @@ struct mirrorApp: App {
         }
         defaults?.set(streak, forKey: "widget.streak")
         defaults?.set(wroteToday, forKey: "widget.wrote.today")
-
-        WidgetCenter.shared.reloadAllTimelines()
+        widgetHeatmapsBuiltFor = builtFor
     }
 
     // Writes today's nudge text to AppGroup so NudgeWidget can read it even if the
     // nudge was generated in a previous app session (runDailyNudgeIfNeeded bails early then).
     @MainActor
     static func syncNudgeToWidget(context: ModelContext) {
+        PerfSignpost.interval("widget.syncNudge") { syncNudgeToWidgetNow(context: context) }
+    }
+
+    @MainActor
+    private static func syncNudgeToWidgetNow(context: ModelContext) {
         let today = DateHelpers.dayIdentifier(for: Date())
         let descriptor = FetchDescriptor<Insight>(
             predicate: #Predicate { $0.periodIdentifier == today }
@@ -1353,9 +1374,27 @@ struct mirrorApp: App {
         }
         defaults?.set(InsightService.nudgeTextForOutsideApp(nudge.content), forKey: "widget.nudge.text")
         defaults?.set(today, forKey: "widget.nudge.date")
-        let entryDescriptor = FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
-        let todaysEntries = (try? context.fetch(entryDescriptor)) ?? []
-        defaults?.set(InsightService.reflectedDay(of: nudge, entriesNewestFirst: todaysEntries).map { DateHelpers.dayIdentifier(for: $0) }, forKey: "widget.nudge.aboutDate")
+        // The newest readable entry at or before the reflection decides the day it's about. Look at
+        // the latest few first; only a run of unreadable entries needs the whole journal (this
+        // fetched every entry, with text and photos, on every foreground).
+        let generatedAt = nudge.generatedAt
+        var aboutDescriptor = FetchDescriptor<Entry>(predicate: #Predicate { $0.createdAt <= generatedAt },
+                                                     sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
+        aboutDescriptor.fetchLimit = 40
+        let recent = (try? context.fetch(aboutDescriptor)) ?? []
+        var aboutDay = InsightService.reflectedDay(of: nudge, entriesNewestFirst: recent)
+        if aboutDay == nil, recent.count == aboutDescriptor.fetchLimit {
+            aboutDescriptor.fetchLimit = nil
+            aboutDay = InsightService.reflectedDay(of: nudge, entriesNewestFirst: (try? context.fetch(aboutDescriptor)) ?? [])
+        }
+        defaults?.set(aboutDay.map { DateHelpers.dayIdentifier(for: $0) }, forKey: "widget.nudge.aboutDate")
+        // Today's mood: the newest entry of today's journal day (from 4 AM).
+        let journalDayStart = DateHelpers.journalDayStart(for: Date())
+        let journalDayEnd = Calendar.current.date(byAdding: .day, value: 1, to: journalDayStart) ?? .distantFuture
+        var todayDescriptor = FetchDescriptor<Entry>(predicate: #Predicate { $0.createdAt >= journalDayStart && $0.createdAt < journalDayEnd },
+                                                     sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
+        todayDescriptor.fetchLimit = 1
+        let todaysEntries = (try? context.fetch(todayDescriptor)) ?? []
         if let todaysMood = journalDayMood(entriesNewestFirst: todaysEntries) {
             defaults?.set(todaysMood, forKey: "widget.nudge.mood")
         } else {
