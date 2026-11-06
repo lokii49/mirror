@@ -637,6 +637,7 @@
 		98B9B1135C1385B3F97DFEA1 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = MirrorWatch;
+			platformFilter = ios;
 			target = 1D64D65BBE9C6782412ABE80 /* MirrorWatch */;
 			targetProxy = D6CA17216AFD1D82E5F7FA07 /* PBXContainerItemProxy */;
 		};
