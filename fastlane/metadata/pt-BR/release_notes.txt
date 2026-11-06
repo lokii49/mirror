@@ -18,7 +18,7 @@ Também nesta atualização
 • Novo topo ao escrever: a data como título, o humor ao lado, Salvar como botão, e Apagar e o modo foco no menu ⋯.
 • Nova anotação pela Central de Controle, pela Siri ou pelo menu de Entradas.
 • Modelos: Revisão da noite, Plano semanal e Páginas matinais, além dos seus, só neste dispositivo.
-• Sugestões do seu dia: as sugestões de diário da Apple como ponto de partida.
+• Sugestões do seu dia: comece uma entrada com as sugestões de diário da Apple. Músicas, podcasts, treinos, lugares, pessoas e passos chegam como linhas curtas, com fotos, capas e um mapa do percurso ou do lugar.
 • Em aberto reúne todos os itens de lista não marcados das suas entradas.
 • Vincule uma entrada a outra e veja em «Vinculada de» o que aponta para ela.
 • Padrões e Retrospectiva do ano (Deep): os humores ligados aos seus dias, horários e tags, e seu ano em números.

@@ -18,7 +18,7 @@ Inoltre in questo aggiornamento
 • Nuova intestazione per scrivere: la data come titolo, l’umore accanto, Salva come pulsante, Elimina e la modalità concentrazione nel menu ⋯.
 • Nuovo appunto dal Centro di Controllo, da Siri o dal menu delle voci.
 • Modelli: Riepilogo serale, Piano settimanale e Pagine del mattino, più i tuoi, solo su questo dispositivo.
-• Suggerimenti dalla tua giornata: i suggerimenti per il diario di Apple come punto di partenza.
+• Suggerimenti dalla tua giornata: inizia una voce dai suggerimenti per il diario di Apple. Brani, podcast, allenamenti, luoghi, persone e passi arrivano come righe brevi, con foto, copertine e una mappa del percorso o del luogo.
 • Ancora aperti raccoglie le voci delle liste non spuntate.
 • Collega una voce a un’altra e guarda in «Collegata da» cosa rimanda lì.
 • Schemi e Anno in rassegna (Deep): gli stati d’animo legati a giorni, orari e tag, e il tuo anno in numeri.

@@ -18,7 +18,7 @@ Core et Deep sont là
 • Nouvel en-tête pour écrire : la date en titre, l’humeur à côté, Enregistrer en bouton, Supprimer et le mode concentration dans le menu ⋯.
 • Nouveau pense-bête depuis le centre de contrôle, Siri ou le menu des entrées.
 • Modèles : Bilan du soir, Plan de la semaine et Pages du matin, plus les vôtres, sur cet appareil.
-• Suggestions de votre journée : les suggestions de journal d’Apple comme point de départ.
+• Suggestions de votre journée : commencez une entrée à partir des suggestions de journal d’Apple. Morceaux, podcasts, entraînements, lieux, personnes et pas arrivent en lignes courtes, avec photos, pochettes et une carte de votre parcours ou du lieu.
 • Encore à faire liste tous les éléments non cochés de vos entrées.
 • Liez une entrée à une autre et voyez sous « Liée depuis » ce qui y renvoie.
 • Tendances et Bilan de l’année (Deep) : les humeurs liées à vos jours, heures et tags, et votre année en chiffres.

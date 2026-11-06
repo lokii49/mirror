@@ -18,7 +18,7 @@ Also in this update
 • Write has a new header: the date as a title, Mood beside it, Save as a button, and Delete and focus mode in the ⋯ menu.
 • New Scratch Note from Control Center, Siri or the Entries menu.
 • Templates: Evening Review, Weekly Plan and Morning Pages, plus your own, kept on this device.
-• Suggestions from your day: Apple's Journaling Suggestions as a starting point.
+• Suggestions from your day: start an entry from Apple's Journaling Suggestions. Songs, podcasts, workouts, places, people and steps come in as short lines, with photos, artwork and a map of your route or place.
 • Still Open lists every unticked checklist item across your entries.
 • Link an entry to another, and see what links to it under Linked from.
 • Patterns and Year in Review (Deep): the moods that come with your days, times and tags, and your year in numbers.
