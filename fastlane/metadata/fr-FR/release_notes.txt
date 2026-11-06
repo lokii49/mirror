@@ -22,7 +22,7 @@ Core et Deep sont là
 • Encore à faire liste tous les éléments non cochés de vos entrées.
 • Liez une entrée à une autre et voyez sous « Liée depuis » ce qui y renvoie.
 • Tendances et Bilan de l’année (Deep) : les humeurs liées à vos jours, heures et tags, et votre année en chiffres.
-• MirrorNotes sur Apple Watch : notez une humeur ou une note rapide.
+• MirrorNotes sur Apple Watch : enregistrez une note vocale, tapez une note rapide ou notez votre humeur. Les notes vocales sont transcrites sur l’iPhone.
 • Enregistrez vos relevés d’humeur dans Apple Santé si vous le souhaitez (Réglages › Journal).
 • Les grands journaux sont plus rapides : la liste des Entrées, la recherche, les Aperçus, la chronologie de l’humeur et le calendrier ne relisent plus toutes les entrées à chaque changement d’écran, et ouvrir une entrée ne charge plus tout le journal.
 • MirrorNotes s’ouvre un peu plus vite et utilise moins de mémoire.

@@ -22,7 +22,7 @@ Außerdem in diesem Update
 • „Noch offen“ zeigt alle nicht abgehakten Checklisten-Punkte deiner Einträge.
 • Verlinke Einträge miteinander und sieh unter „Verlinkt von“, was hierher verweist.
 • Muster und Jahresrückblick (Deep): welche Stimmungen zu Tagen, Uhrzeiten und Tags gehören, und dein Jahr in Zahlen.
-• MirrorNotes auf der Apple Watch: Stimmung oder schnelle Notiz eintragen.
+• MirrorNotes auf der Apple Watch: Sprachnotiz aufnehmen, schnelle Notiz tippen oder Stimmung eintragen. Sprachnotizen werden auf dem iPhone transkribiert.
 • Stimmungsabfragen auf Wunsch in Apple Health sichern (Einstellungen › Journal).
 • Große Tagebücher sind schneller: Die Eintragsliste, die Suche, Einblicke, der Stimmungsverlauf und der Kalender lesen nicht mehr bei jeder Änderung auf dem Bildschirm alle Einträge neu, und das Öffnen eines Eintrags lädt nicht mehr das ganze Tagebuch.
 • MirrorNotes startet etwas schneller und braucht weniger Arbeitsspeicher.

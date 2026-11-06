@@ -22,7 +22,7 @@ Also in this update
 • Still Open lists every unticked checklist item across your entries.
 • Link an entry to another, and see what links to it under Linked from.
 • Patterns and Year in Review (Deep): the moods that come with your days, times and tags, and your year in numbers.
-• MirrorNotes on Apple Watch: log a mood or a quick note.
+• MirrorNotes on Apple Watch: record a voice note, type a quick note or log a mood. Voice notes get a transcript on your iPhone.
 • Save mood check-ins to Apple Health if you choose (Settings › Journal).
 • Big journals are faster: the Entries list, search, Insights, the mood timeline and the calendar no longer re-read every entry whenever the screen changes, and opening an entry no longer loads the whole journal.
 • MirrorNotes opens a little faster and uses less memory.

@@ -22,7 +22,7 @@ Inoltre in questo aggiornamento
 • Ancora aperti raccoglie le voci delle liste non spuntate.
 • Collega una voce a un’altra e guarda in «Collegata da» cosa rimanda lì.
 • Schemi e Anno in rassegna (Deep): gli stati d’animo legati a giorni, orari e tag, e il tuo anno in numeri.
-• MirrorNotes su Apple Watch: registra l’umore o una nota veloce.
+• MirrorNotes su Apple Watch: registra una nota vocale, scrivi una nota veloce o annota l’umore. Le note vocali vengono trascritte sull’iPhone.
 • Salva i check-in dell’umore in Apple Salute se vuoi (Impostazioni › Diario).
 • I diari grandi sono più veloci: l’elenco delle Voci, la ricerca, gli Approfondimenti, la cronologia dell’umore e il calendario non rileggono più tutte le voci a ogni cambio di schermata, e aprire una voce non carica più l’intero diario.
 • MirrorNotes si apre un po’ più in fretta e usa meno memoria.

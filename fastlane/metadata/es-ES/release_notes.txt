@@ -22,7 +22,7 @@ Además en esta actualización
 • Pendientes reúne los elementos sin marcar de todas tus listas.
 • Enlaza una entrada con otra y mira en «Enlazada desde» qué apunta a ella.
 • Patrones y Resumen del año (Deep): qué estados de ánimo van con tus días, horas y etiquetas, y tu año en cifras.
-• MirrorNotes en el Apple Watch: registra tu ánimo o una nota rápida.
+• MirrorNotes en el Apple Watch: graba una nota de voz, escribe una nota rápida o registra tu ánimo. Las notas de voz se transcriben en el iPhone.
 • Guarda tus registros de ánimo en Salud de Apple si quieres (Ajustes › Diario).
 • Los diarios grandes van más rápido: la lista de Entradas, la búsqueda, Perspectivas, la cronología del estado de ánimo y el calendario ya no vuelven a leer todas las entradas cada vez que cambia la pantalla, y abrir una entrada ya no carga todo el diario.
 • MirrorNotes se abre un poco más rápido y usa menos memoria.

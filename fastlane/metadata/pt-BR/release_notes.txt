@@ -22,7 +22,7 @@ Também nesta atualização
 • Em aberto reúne todos os itens de lista não marcados das suas entradas.
 • Vincule uma entrada a outra e veja em «Vinculada de» o que aponta para ela.
 • Padrões e Retrospectiva do ano (Deep): os humores ligados aos seus dias, horários e tags, e seu ano em números.
-• MirrorNotes no Apple Watch: registre um humor ou uma nota rápida.
+• MirrorNotes no Apple Watch: grave uma nota de voz, digite uma nota rápida ou registre o humor. As notas de voz são transcritas no iPhone.
 • Salve seus registros de humor no Apple Saúde, se quiser (Ajustes › Diário).
 • Diários grandes estão mais rápidos: a lista de Entradas, a busca, as Percepções, a linha do tempo de humor e o calendário não releem mais todas as entradas a cada mudança de tela, e abrir uma entrada não carrega mais o diário inteiro.
 • O MirrorNotes abre um pouco mais rápido e usa menos memória.
