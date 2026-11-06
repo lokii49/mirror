@@ -2002,6 +2002,70 @@
         }
       }
     },
+    "Add Scratch for quick notes" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Sammlung „Notizen“ für schnelle Notizen hinzufügen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Scratch for quick notes"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Añadir Apuntes para notas rápidas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ajouter Pense-bête pour les notes rapides"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Aggiungi Appunti per le note veloci"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "クイックメモ用の「メモ」を追加"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "빠른 메모용 '메모' 추가"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Adicionar Anotações para notas rápidas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Добавить «Заметки» для быстрых записей"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "添加“随手记”，用于快速记录"
+          }
+        }
+      }
+    },
     "After a few entries, MirrorNotes reflects your own words back to you." : {
       "localizations" : {
         "de" : {
@@ -2191,6 +2255,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "琥珀色"
+          }
+        }
+      }
+    },
+    "An entry can be in one collection. Deleting a collection keeps its entries; they move to Unfiled. Reflections read every collection except the ones kept out of them." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ein Eintrag kann in einer Sammlung sein. Beim Löschen einer Sammlung bleiben ihre Einträge erhalten und landen unter „Ohne Sammlung“. Reflexionen lesen alle Sammlungen außer denen, die davon ausgenommen sind."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An entry can be in one collection. Deleting a collection keeps its entries; they move to Unfiled. Reflections read every collection except the ones kept out of them."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Una entrada puede estar en una colección. Al eliminar una colección se conservan sus entradas, que pasan a Sin colección. Las reflexiones leen todas las colecciones salvo las excluidas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Une entrée peut appartenir à une collection. Supprimer une collection conserve ses entrées, qui passent dans Sans collection. Les réflexions lisent toutes les collections sauf celles qui en sont exclues."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Una voce può stare in una raccolta. Eliminando una raccolta le sue voci restano e passano a Senza raccolta. Le riflessioni leggono tutte le raccolte tranne quelle escluse."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "エントリーは1つのコレクションに入れられます。コレクションを削除してもエントリーは残り、未分類に移ります。リフレクションは、使わない設定にしたコレクション以外をすべて読みます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "항목은 하나의 컬렉션에 속할 수 있습니다. 컬렉션을 삭제해도 항목은 남아 미분류로 이동합니다. 리플렉션은 제외한 컬렉션을 뺀 모든 컬렉션을 읽습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Uma entrada pode estar em uma coleção. Ao apagar uma coleção, as entradas continuam e vão para Sem coleção. As reflexões leem todas as coleções, exceto as que ficam de fora."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Запись может быть в одной коллекции. При удалении коллекции записи сохраняются и переходят в «Без коллекции». Размышления читают все коллекции, кроме исключённых."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "一个条目可属于一个合集。删除合集时其中的条目会保留并移到“未归类”。回顾会读取除不用于回顾的合集之外的所有合集。"
           }
         }
       }
@@ -6440,6 +6568,70 @@
         }
       }
     },
+    "Entries here stay in your journal, search and streaks, but reflections, digests, reports, Ask, mood charts and mood alerts don't read them, and no mood is detected for them. Reflections already made don't change." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Einträge hier bleiben in deinem Journal, in der Suche und in Serien, aber Reflexionen, Zusammenfassungen, Berichte, Fragen, Stimmungsdiagramme und Stimmungswarnungen lesen sie nicht, und für sie wird keine Stimmung erkannt. Bereits erstellte Reflexionen ändern sich nicht."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entries here stay in your journal, search and streaks, but reflections, digests, reports, Ask, mood charts and mood alerts don't read them, and no mood is detected for them. Reflections already made don't change."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Las entradas de aquí siguen en tu diario, en la búsqueda y en las rachas, pero las reflexiones, los resúmenes, los informes, Preguntar, los gráficos de ánimo y las alertas de ánimo no las leen, y no se detecta su estado de ánimo. Las reflexiones ya hechas no cambian."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Les entrées ici restent dans votre journal, la recherche et les séries, mais les réflexions, résumés, rapports, Demander, graphiques d’humeur et alertes d’humeur ne les lisent pas, et aucune humeur n’est détectée pour elles. Les réflexions déjà faites ne changent pas."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Le voci qui restano nel tuo diario, nella ricerca e nelle serie, ma riflessioni, riepiloghi, report, Chiedi, grafici dell’umore e avvisi sull’umore non le leggono, e per loro non viene rilevato l’umore. Le riflessioni già fatte non cambiano."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ここにあるエントリーはジャーナル、検索、連続記録には残りますが、リフレクション、ダイジェスト、レポート、質問、ムードのグラフ、ムードアラートでは読まれず、ムードも検出されません。作成済みのリフレクションは変わりません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "여기 있는 항목은 일기, 검색, 연속 기록에는 그대로 남지만 리플렉션, 다이제스트, 리포트, 질문, 기분 차트, 기분 알림은 이 항목을 읽지 않으며 기분도 감지하지 않습니다. 이미 만든 리플렉션은 바뀌지 않습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "As entradas daqui continuam no seu diário, na busca e nas sequências, mas reflexões, resumos, relatórios, Perguntar, gráficos de humor e alertas de humor não as leem, e nenhum humor é detectado para elas. Reflexões já feitas não mudam."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Записи здесь остаются в дневнике, поиске и сериях, но размышления, сводки, отчёты, «Спросить», графики настроения и оповещения о настроении их не читают, и настроение для них не определяется. Уже созданные размышления не меняются."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "这里的条目仍保留在日记、搜索和连续记录中，但回顾、摘要、报告、提问、情绪图表和情绪提醒都不会读取它们，也不会为它们识别情绪。已生成的回顾不会改变。"
+          }
+        }
+      }
+    },
     "Entries saved twice with the same text show up together, with their dates. Merge them into one; the copies go to Recently Deleted." : {
       "comment" : "3.1.4 paid-plans notice, Undo, select mode, duplicate warning, retention. Model-translated; native review pending.",
       "localizations" : {
@@ -9514,6 +9706,70 @@
         }
       }
     },
+    "Keep out of reflections" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Aus Reflexionen heraushalten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep out of reflections"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Excluir de las reflexiones"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Exclure des réflexions"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Escludi dalle riflessioni"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "リフレクションに使わない"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "리플렉션에서 제외"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Deixar fora das reflexões"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Не использовать в размышлениях"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "不用于回顾"
+          }
+        }
+      }
+    },
     "Kept" : {
       "comment" : "3.1.4 Recently Deleted, Drafts, Duplicates, collection in Write. Model-translated; native review pending.",
       "localizations" : {
@@ -9575,6 +9831,70 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "保留"
+          }
+        }
+      }
+    },
+    "Kept out of reflections" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Aus Reflexionen herausgehalten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kept out of reflections"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Excluida de las reflexiones"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Exclue des réflexions"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Esclusa dalle riflessioni"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "リフレクションに使われません"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "리플렉션에서 제외됨"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Fora das reflexões"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Не используется в размышлениях"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "不用于回顾"
           }
         }
       }
@@ -9697,6 +10017,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "与%@相关"
+          }
+        }
+      }
+    },
+    "Lists, numbers and reminders that reflections won't read." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Listen, Nummern und Erinnerungen, die Reflexionen nicht lesen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lists, numbers and reminders that reflections won't read."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Listas, números y recordatorios que las reflexiones no leerán."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Listes, numéros et rappels que les réflexions ne liront pas."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Liste, numeri e promemoria che le riflessioni non leggeranno."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "リフレクションが読まないリスト、番号、リマインダー。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "리플렉션이 읽지 않는 목록, 번호, 미리 알림."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Listas, números e lembretes que as reflexões não vão ler."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Списки, номера и напоминания, которые размышления не читают."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "回顾不会读取的清单、号码和提醒。"
           }
         }
       }
@@ -14519,6 +14903,71 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "已浏览"
+          }
+        }
+      }
+    },
+    "Scratch" : {
+      "comment" : "Ready-made collection for quick notes kept out of reflections",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Notizen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scratch"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Apuntes"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Pense-bête"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Appunti"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "メモ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "메모"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Anotações"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Заметки"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "随手记"
           }
         }
       }
@@ -30895,71 +31344,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "始终免费"
-          }
-        }
-      }
-    },
-    "An entry can be in one collection. Deleting a collection keeps its entries; they move to Unfiled. Reflections still use all entries." : {
-      "comment" : "Collections and saved views. Model-translated; native review pending.",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Ein Eintrag kann in einer Sammlung sein. Beim Löschen einer Sammlung bleiben ihre Einträge erhalten und landen unter „Ohne Sammlung“. Reflexionen nutzen weiterhin alle Einträge."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "An entry can be in one collection. Deleting a collection keeps its entries; they move to Unfiled. Reflections still use all entries."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Una entrada puede estar en una colección. Al eliminar una colección se conservan sus entradas, que pasan a Sin colección. Las reflexiones siguen usando todas las entradas."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Une entrée peut appartenir à une collection. Supprimer une collection conserve ses entrées, qui passent dans Sans collection. Les réflexions utilisent toujours toutes les entrées."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Una voce può stare in una raccolta. Eliminando una raccolta le sue voci restano e passano a Senza raccolta. Le riflessioni usano sempre tutte le voci."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "エントリーは1つのコレクションに入れられます。コレクションを削除してもエントリーは残り、未分類に移ります。リフレクションは引き続きすべてのエントリーを使います。"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "항목은 하나의 컬렉션에 속할 수 있습니다. 컬렉션을 삭제해도 항목은 남아 미분류로 이동합니다. 리플렉션은 계속 모든 항목을 사용합니다."
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Uma entrada pode estar em uma coleção. Ao apagar uma coleção, as entradas continuam e vão para Sem coleção. As reflexões continuam usando todas as entradas."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Запись может быть в одной коллекции. При удалении коллекции записи сохраняются и переходят в «Без коллекции». Размышления по-прежнему используют все записи."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "一个条目可属于一个合集。删除合集时其中的条目会保留并移到“未归类”。回顾仍使用全部条目。"
           }
         }
       }

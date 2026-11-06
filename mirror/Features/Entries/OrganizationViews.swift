@@ -217,6 +217,10 @@ struct OrganizationManagerSheet: View {
     private var sortedCollections: [JournalCollection] {
         collections.sorted { ($0.sortIndex, $0.createdAt) < ($1.sortIndex, $1.createdAt) }
     }
+    /// Offer Scratch only until some collection is kept out of reflections.
+    private var hasKeptOutCollection: Bool {
+        collections.contains { $0.payload?.keepsOutOfInsights == true }
+    }
     private var sortedViews: [SavedEntryView] {
         views.sorted { ($0.sortIndex, $0.createdAt) < ($1.sortIndex, $1.createdAt) }
     }
@@ -236,13 +240,22 @@ struct OrganizationManagerSheet: View {
 
                 Section {
                     ForEach(sortedCollections) { collection in
-                        HStack {
-                            Label(collection.payload?.name ?? String(localized: "Locked collection"),
-                                  systemImage: collection.payload?.icon ?? "folder")
-                            Spacer()
-                            Text("\(JournalOrganizationStore.entryCount(in: collection.id, context: modelContext))")
-                                .foregroundStyle(.secondary)
-                                .monospacedDigit()
+                        NavigationLink {
+                            CollectionSettingsView(collection: collection)
+                        } label: {
+                            HStack {
+                                Label(collection.payload?.name ?? String(localized: "Locked collection"),
+                                      systemImage: collection.payload?.icon ?? "folder")
+                                Spacer()
+                                if collection.payload?.keepsOutOfInsights == true {
+                                    Image(systemName: "eye.slash")
+                                        .foregroundStyle(.secondary)
+                                        .accessibilityLabel("Kept out of reflections")
+                                }
+                                Text("\(JournalOrganizationStore.entryCount(in: collection.id, context: modelContext))")
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                            }
                         }
                         .contextMenu {
                             Button("Rename", systemImage: "pencil") { startRename(collection) }
@@ -262,10 +275,27 @@ struct OrganizationManagerSheet: View {
                         nameDraft = ""
                         creatingCollection = true
                     }
+                    if !hasKeptOutCollection {
+                        Button {
+                            perform { try JournalOrganizationStore.addScratchCollection(in: modelContext) }
+                        } label: {
+                            Label {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Add Scratch for quick notes")
+                                    Text("Lists, numbers and reminders that reflections won't read.")
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                }
+                            } icon: {
+                                Image(systemName: JournalOrganizationStore.scratchIcon)
+                            }
+                        }
+                        .accessibilityIdentifier("collections.addScratch")
+                    }
                 } header: {
                     Text("Collections")
                 } footer: {
-                    Text("An entry can be in one collection. Deleting a collection keeps its entries; they move to Unfiled. Reflections still use all entries.")
+                    Text("An entry can be in one collection. Deleting a collection keeps its entries; they move to Unfiled. Reflections read every collection except the ones kept out of them.")
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
@@ -369,6 +399,81 @@ struct OrganizationManagerSheet: View {
         if let renamingView { perform { try JournalOrganizationStore.rename(renamingView, to: name, in: modelContext) } }
         renamingCollection = nil
         renamingView = nil
+    }
+
+    private func perform(_ action: () throws -> Void) {
+        do { try action() } catch {
+            errorMessage = String(localized: "This device can't encrypt right now. Try again once it's unlocked.")
+        }
+    }
+}
+
+/// One collection: its name, whether reflections and insights read it, and delete.
+struct CollectionSettingsView: View {
+    let collection: JournalCollection
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+    @State private var name = ""
+    @State private var keepOut = false
+    @State private var confirmDelete = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        Form {
+            Section("Name") {
+                TextField("Name", text: $name)
+                    .onSubmit(saveName)
+            }
+            Section {
+                Toggle("Keep out of reflections", isOn: Binding(get: { keepOut }, set: setKeepOut))
+                    .accessibilityIdentifier("collection.keepOut")
+            } footer: {
+                Text("Entries here stay in your journal, search and streaks, but reflections, digests, reports, Ask, mood charts and mood alerts don't read them, and no mood is detected for them. Reflections already made don't change.")
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Section {
+                Button("Delete collection", role: .destructive) { confirmDelete = true }
+            }
+        }
+        #if os(macOS)
+        .formStyle(.grouped)
+        #endif
+        .navigationTitle(name.isEmpty ? String(localized: "Collection") : name)
+        .onAppear {
+            name = collection.payload?.name ?? ""
+            keepOut = collection.payload?.keepsOutOfInsights ?? false
+        }
+        .onDisappear(perform: saveName)
+        .confirmationDialog(String(localized: "Delete “\(collection.payload?.name ?? "")”?"), isPresented: $confirmDelete,
+                            titleVisibility: .visible) {
+            Button("Delete collection", role: .destructive) {
+                perform { try JournalOrganizationStore.delete(collection, in: modelContext) }
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Its \(JournalOrganizationStore.entryCount(in: collection.id, context: modelContext)) entries stay in your journal and move to Unfiled.")
+        }
+        .alert("Couldn't save", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(errorMessage ?? "")
+        }
+    }
+
+    private func setKeepOut(_ value: Bool) {
+        perform {
+            try JournalOrganizationStore.setKeepsOutOfInsights(collection, value, in: modelContext)
+            keepOut = value
+        }
+    }
+
+    private func saveName() {
+        // Deleted from here, or never readable: nothing to rename.
+        guard collection.modelContext != nil, !collection.isDeleted, let current = collection.payload?.name else { return }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != current else { return }
+        perform { try JournalOrganizationStore.rename(collection, to: trimmed, in: modelContext) }
     }
 
     private func perform(_ action: () throws -> Void) {
