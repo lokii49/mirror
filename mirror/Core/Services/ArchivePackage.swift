@@ -141,9 +141,16 @@ nonisolated enum ArchivePackage {
     }
 
     /// Called at launch: removes plaintext left by an export or import that was
-    /// interrupted (crash, force quit).
-    static func removeStaleStaging() {
-        try? FileManager.default.removeItem(at: stagingRoot)
+    /// interrupted (crash, force quit). Only folders made before `cutoff` (this launch) go: the
+    /// cleanup runs on a background queue, and an export started right after launch (or a test,
+    /// on a slow simulator) must not lose its folder to it.
+    static func removeStaleStaging(createdBefore cutoff: Date) {
+        let fm = FileManager.default
+        guard let items = try? fm.contentsOfDirectory(at: stagingRoot, includingPropertiesForKeys: [.creationDateKey]) else { return }
+        for item in items {
+            let created = (try? item.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
+            if created < cutoff { try? fm.removeItem(at: item) }
+        }
     }
 
     static func makeStagingDirectory(named name: String) throws -> URL {

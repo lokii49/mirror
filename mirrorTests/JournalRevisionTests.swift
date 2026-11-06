@@ -61,11 +61,17 @@ struct JournalRevisionTests {
         #expect(!JournalRevision.changedSomething([ModelContext.NotificationKey.updatedIdentifiers.rawValue: [PersistentIdentifier]()]))
     }
 
+    /// Waits for the delayed settle bump (~400 ms) instead of a fixed sleep: on a busy CI
+    /// simulator the main actor can run it well after a second.
+    private func waitForChange(_ revision: JournalRevision, from value: Int) async {
+        for _ in 0..<100 where revision.value == value { try? await Task.sleep(for: .milliseconds(50)) }
+    }
+
     @Test func aBumpIsFollowedByOneMoreAfterMergesSettle() async throws {
         let revision = JournalRevision()
         revision.bump()
         let first = revision.value
-        try await Task.sleep(for: .seconds(1))
+        await waitForChange(revision, from: first)
         #expect(revision.value == first + 1)
     }
 
@@ -97,7 +103,7 @@ struct JournalRevisionTests {
         other.insert(Entry(text: "A synthetic note from another context.", mood: "Content"))
         try other.save()
         let afterSave = revision.value
-        try await Task.sleep(for: .seconds(1))
+        await waitForChange(revision, from: afterSave)
         #expect(revision.value == afterSave + 1)
     }
 }

@@ -39,10 +39,21 @@ struct mirrorApp: App {
 
     var sharedModelContainer: ModelContainer = MirrorModelContainer.shared
 
+    /// The app is the host of the unit tests (not a UI-test launch).
+    static var isUnitTestHost: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            && !ProcessInfo.processInfo.arguments.contains("--uitesting")
+        #else
+        return false
+        #endif
+    }
+
     init() {
         PerfSignpost.beginLaunch()
         // Plaintext left by an archive export/import that was interrupted (crash, force quit).
-        DispatchQueue.global(qos: .utility).async { ArchivePackage.removeStaleStaging() }
+        let launch = Date()
+        DispatchQueue.global(qos: .utility).async { ArchivePackage.removeStaleStaging(createdBefore: launch) }
         #if os(macOS) && DEBUG
         if let dir = MacFormatPopoverRender.requestedDirectory {
             DispatchQueue.main.async { MacFormatPopoverRender.renderAndQuit(to: dir) }
@@ -310,6 +321,10 @@ struct mirrorApp: App {
             // Store couldn't be opened: sharedModelContainer is an empty stand-in, so nothing
             // below (generation, cleanup passes, reminders) has anything real to work on.
             guard MirrorModelContainer.isStoreAvailable else { return }
+            // Hosting unit tests: the tests drive generation and the cleanup passes themselves.
+            // App-launched passes would race them through shared hooks (LocalLLMService's test
+            // intercept, insight rows, the main actor) on a simulator where a model is available.
+            if Self.isUnitTestHost { return }
             #if DEBUG && os(macOS)
             // Snapshot mode renders sample data only: no generation, cleanup passes or permission prompts.
             if MacSnapshot.isRequested { return }
