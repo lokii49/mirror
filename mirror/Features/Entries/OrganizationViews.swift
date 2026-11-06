@@ -213,10 +213,21 @@ struct OrganizationManagerSheet: View {
     @State private var creatingCollection = false
     @State private var pendingDelete: JournalCollection?
     @State private var errorMessage: String?
+    /// Collections pushed by id (a row's link, or the Mac harness).
+    @State private var path: [UUID] = []
 
     private var sortedCollections: [JournalCollection] {
         collections.sorted { ($0.sortIndex, $0.createdAt) < ($1.sortIndex, $1.createdAt) }
     }
+    /// A footer on iOS; a row on Mac, where a list footer keeps one line's height and a longer
+    /// text ran into the row above.
+    private var collectionsFooter: some View {
+        Text("An entry can be in one collection. Deleting a collection keeps its entries; they move to Unfiled. Reflections read every collection except the ones kept out of them.")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
     /// Offer Scratch only until some collection is kept out of reflections.
     private var hasKeptOutCollection: Bool {
         collections.contains { $0.payload?.keepsOutOfInsights == true }
@@ -226,7 +237,10 @@ struct OrganizationManagerSheet: View {
     }
 
     var body: some View {
-        PlatformNavigationStack {
+        // A real stack on Mac too (PlatformNavigationStack leaves it out there): the rows below push
+        // the library pages and a collection's own page, and without a stack the Mac showed them
+        // greyed out and did nothing on click.
+        NavigationStack(path: $path) {
             List {
                 Section {
                     ForEach(LibraryPage.allCases) { page in
@@ -240,9 +254,7 @@ struct OrganizationManagerSheet: View {
 
                 Section {
                     ForEach(sortedCollections) { collection in
-                        NavigationLink {
-                            CollectionSettingsView(collection: collection)
-                        } label: {
+                        NavigationLink(value: collection.id) {
                             HStack {
                                 Label(collection.payload?.name ?? String(localized: "Locked collection"),
                                       systemImage: collection.payload?.icon ?? "folder")
@@ -292,11 +304,15 @@ struct OrganizationManagerSheet: View {
                         }
                         .accessibilityIdentifier("collections.addScratch")
                     }
+                    #if os(macOS)
+                    collectionsFooter
+                    #endif
                 } header: {
                     Text("Collections")
                 } footer: {
-                    Text("An entry can be in one collection. Deleting a collection keeps its entries; they move to Unfiled. Reflections read every collection except the ones kept out of them.")
-                        .fixedSize(horizontal: false, vertical: true)
+                    #if os(iOS)
+                    collectionsFooter
+                    #endif
                 }
 
                 Section {
@@ -329,6 +345,16 @@ struct OrganizationManagerSheet: View {
                 }
             }
             .navigationTitle("Organize")
+            .navigationDestination(for: UUID.self) { id in
+                if let collection = collections.first(where: { $0.id == id }) {
+                    CollectionSettingsView(collection: collection)
+                }
+            }
+            #if os(macOS) && DEBUG
+            .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugOpenCollection)) { note in
+                if let id = note.object as? UUID { path = [id] }
+            }
+            #endif
             #if os(macOS)
             .frame(minWidth: 440, idealWidth: 480, minHeight: 480, idealHeight: 560)
             #endif
@@ -420,15 +446,21 @@ struct CollectionSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Name") {
+            Section {
                 TextField("Name", text: $name)
                     .onSubmit(saveName)
+            } header: {
+                // The Mac form already labels the field.
+                #if os(iOS)
+                Text("Name")
+                #endif
             }
             Section {
                 Toggle("Keep out of reflections", isOn: Binding(get: { keepOut }, set: setKeepOut))
                     .accessibilityIdentifier("collection.keepOut")
             } footer: {
                 Text("Entries here stay in your journal, search and streaks, but reflections, digests, reports, Ask, mood charts and mood alerts don't read them, and no mood is detected for them. Reflections already made don't change.")
+                    .lineLimit(nil)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Section {
@@ -519,3 +551,10 @@ struct OrganizationPrompts: ViewModifier {
             }
     }
 }
+
+#if os(macOS) && DEBUG
+extension Notification.Name {
+    /// Snapshot mode only: pushes the collection whose id is the object, as a row click does.
+    static let mirrorMacDebugOpenCollection = Notification.Name("mirror.mac.debug.openCollection")
+}
+#endif

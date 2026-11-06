@@ -456,6 +456,42 @@ enum MacSnapshot {
             NSApp.terminate(nil)
             return
         }
+        // Organize with a kept-out collection (Scratch) and that collection's own page.
+        if CommandLine.arguments.contains("--macSnapshotOrganizeOnly") {
+            go("entries")
+            try? await Task.sleep(for: .seconds(1))
+            NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["organizer": true])
+            for _ in 0..<20 where mainWindow()?.sheets.first == nil { try? await Task.sleep(for: .seconds(0.25)) }
+            try? await Task.sleep(for: .seconds(1))
+            capture(mainWindow()?.sheets.first ?? mainWindow(), name: "organize-before-scratch")
+            // The sheet appears once the window is key, which the first capture makes it.
+            try? await Task.sleep(for: .seconds(1.5))
+            capture(mainWindow()?.sheets.first ?? mainWindow(), name: "organize-before-scratch-2")
+            let scratch = try? JournalOrganizationStore.addScratchCollection(in: context)
+            NSLog("MacSnapshot: scratch created = %@, kept out = %@", scratch == nil ? "no" : "yes",
+                  scratch?.payload?.keepsOutOfInsights == true ? "yes" : "no")
+            try? await Task.sleep(for: .seconds(1.5))
+            capture(mainWindow()?.sheets.first ?? mainWindow(), name: "organize-after-scratch")
+            // The row's own navigation (value link → navigationDestination) inside the sheet.
+            if let scratch {
+                NotificationCenter.default.post(name: .mirrorMacDebugOpenCollection, object: scratch.id)
+                try? await Task.sleep(for: .seconds(1.5))
+                capture(mainWindow()?.sheets.first ?? mainWindow(), name: "organize-pushed-scratch")
+            }
+            if let scratch {
+                let host = NSHostingController(rootView: NavigationStack { CollectionSettingsView(collection: scratch) }
+                    .environment(\.modelContext, context).modelContainer(context.container))
+                let window = NSWindow(contentViewController: host)
+                window.setContentSize(NSSize(width: 480, height: 420))
+                window.center(); window.makeKeyAndOrderFront(nil)
+                try? await Task.sleep(for: .seconds(1.5))
+                capture(window, name: "collection-settings-scratch")
+            }
+            NSApp.terminate(nil)
+            // With the sheet's stack pushed, terminate didn't always end the run.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { exit(0) }
+            return
+        }
         if CommandLine.arguments.contains("--macSnapshotSearchOnly") {
             go("entries")
             try? await Task.sleep(for: .seconds(1))
