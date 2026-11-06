@@ -12,7 +12,7 @@ struct MirrorWatchApp: App {
             WatchHomeView()
                 .environment(sender)
                 .onAppear {
-                    sender.activate()
+                    sender.resumeOnOpen()
                     #if DEBUG
                     // Simulator check: one mood and one synthetic note to the paired iPhone.
                     if CommandLine.arguments.contains("--watchSelfTest") {

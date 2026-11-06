@@ -98,4 +98,67 @@ struct WatchInboxTests {
             #expect(WatchInbox.waiting.isEmpty, "Delete Everything clears waiting items")
         }
     }
+
+    // MARK: - Voice notes (build 43)
+
+    /// Synthetic bytes stand in for audio: the inbox stores them; it doesn't decode them.
+    private func voiceFile(_ id: String, bytes: [UInt8] = [1, 2, 3, 4, 5]) throws -> URL {
+        let url = try #require(WatchInbox.voiceFileURL(id: id))
+        try Data(bytes).write(to: url)
+        return url
+    }
+
+    @Test func aVoiceNoteBecomesAVoiceEntryAndItsFileIsRemoved() throws {
+        let context = try context()
+        let d = defaults()
+        let id = UUID().uuidString
+        let file = try voiceFile(id)
+        WatchInbox.$pendingAccount.withValue("WatchInboxTests.\(UUID().uuidString)") {
+            defer { WatchInbox.erasePending() }
+            WatchInbox.receiveVoice(id: id, date: Date().addingTimeInterval(-60), duration: 12.5, in: context, defaults: d)
+            let entries = (try? context.fetch(FetchDescriptor<Entry>())) ?? []
+            #expect(entries.count == 1)
+            #expect(entries.first?.source == .voice)
+            #expect(entries.first?.voiceNoteData == Data([1, 2, 3, 4, 5]), "stored encrypted, read back the same")
+            #expect(entries.first?.voiceNoteDuration == 12.5)
+            #expect(!FileManager.default.fileExists(atPath: file.path), "the waiting copy is deleted once saved")
+            // A repeat delivery saves nothing and leaves no file behind.
+            let again = try? voiceFile(id)
+            WatchInbox.receiveVoice(id: id, date: Date(), duration: 12.5, in: context, defaults: d)
+            #expect(((try? context.fetch(FetchDescriptor<Entry>())) ?? []).count == 1)
+            #expect(!FileManager.default.fileExists(atPath: again?.path ?? ""))
+        }
+    }
+
+    @Test func aVoiceNoteWaitsForTheKeyWithItsAudio() throws {
+        let context = try context()
+        let d = defaults()
+        let id = UUID().uuidString
+        let file = try voiceFile(id)
+        WatchInbox.$pendingAccount.withValue("WatchInboxTests.\(UUID().uuidString)") {
+            defer { WatchInbox.erasePending() }
+            MirrorEncryption.$sealFailsForTesting.withValue(true) {
+                WatchInbox.receiveVoice(id: id, date: Date(), duration: 3, in: context, defaults: d)
+            }
+            #expect(((try? context.fetch(FetchDescriptor<Entry>())) ?? []).isEmpty)
+            #expect(WatchInbox.waiting.map(\.kind) == [.voice])
+            #expect(FileManager.default.fileExists(atPath: file.path), "the audio waits with it")
+            WatchInbox.retryWaiting(in: context, defaults: d)
+            #expect(WatchInbox.waiting.isEmpty)
+            #expect(((try? context.fetch(FetchDescriptor<Entry>())) ?? []).first?.source == .voice)
+            #expect(!FileManager.default.fileExists(atPath: file.path))
+        }
+    }
+
+    @Test func voiceNotesOnlyArriveAsFilesAndEraseRemovesTheirAudio() throws {
+        // A message naming a voice note is refused: only a file transfer may bring one.
+        #expect(WatchInbox.item(from: ["id": "v1", "kind": "voice", "value": "../../x.m4a", "date": 0.0]) == nil)
+        // Only a UUID becomes a file name.
+        #expect(WatchInbox.voiceFileURL(id: "../escape") == nil)
+        let file = try voiceFile(UUID().uuidString)
+        WatchInbox.$pendingAccount.withValue("WatchInboxTests.\(UUID().uuidString)") {
+            WatchInbox.erasePending()
+        }
+        #expect(!FileManager.default.fileExists(atPath: file.path), "Delete Everything removes waiting audio")
+    }
 }

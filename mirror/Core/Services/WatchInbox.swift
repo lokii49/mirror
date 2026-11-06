@@ -1,6 +1,9 @@
 import Foundation
 import Security
 import SwiftData
+#if canImport(Speech)
+import Speech
+#endif
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -15,11 +18,16 @@ import WatchConnectivity
 @MainActor
 enum WatchInbox {
     struct Item: Equatable, Codable {
-        enum Kind: String, Codable { case mood, note }
+        /// `voice` (3.1.8 build 43): `value` is the audio's file name in `voiceDirectory`. The
+        /// pending list is Keychain JSON; an optional field and a new case decode alongside what
+        /// build 42 stored (moods and notes only).
+        enum Kind: String, Codable { case mood, note, voice }
         let id: String
         let kind: Kind
         let value: String
         let date: Date
+        /// A voice note's length in seconds.
+        var duration: Double? = nil
     }
 
     static let handledKey = "mirror.watchInbox.handledIDs"
@@ -43,6 +51,9 @@ enum WatchInbox {
               let value = (payload["value"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty,
               let seconds = payload["date"] as? Double else { return nil }
         if kind == .mood, !MirrorTheme.moodOptions.contains(value) { return nil }
+        // Voice notes arrive only as files (`receiveVoice`); a message naming one is never trusted
+        // with a file name.
+        if kind == .voice { return nil }
         // A clock far off on either device mustn't date an entry in the future.
         return Item(id: id, kind: kind, value: value, date: min(Date(timeIntervalSince1970: seconds), Date()))
     }
@@ -52,7 +63,11 @@ enum WatchInbox {
     @discardableResult
     static func save(_ item: Item, in context: ModelContext, defaults: UserDefaults = .standard) -> Bool {
         var handled = defaults.stringArray(forKey: handledKey) ?? []
-        guard !handled.contains(item.id) else { return true }
+        guard !handled.contains(item.id) else {
+            // A repeat delivery of a voice note leaves a second copy of the audio behind.
+            if item.kind == .voice { removeVoiceFile(item.value) }
+            return true
+        }
         guard MirrorEncryption.canEncrypt(creatingIfNeeded: true) else { return false }
         switch item.kind {
         case .mood:
@@ -75,6 +90,25 @@ enum WatchInbox {
                 return false
             }
             MoodAutoDetector.shared.detectIfNeeded(entry, context: context)
+        case .voice:
+            guard let file = voiceFileURL(named: item.value), let audio = try? Data(contentsOf: file) else {
+                // The audio is gone (Delete Everything ran meanwhile): nothing left to save.
+                handled.append(item.id)
+                defaults.set(Array(handled.suffix(500)), forKey: handledKey)
+                return true
+            }
+            let entry = Entry(text: "", source: .voice)
+            entry.createdAt = item.date
+            entry.weekIdentifier = DateHelpers.weekIdentifier(for: item.date)
+            entry.voiceNoteData = audio
+            entry.voiceNoteDuration = item.duration ?? 0
+            context.insert(entry)
+            do { try context.save() } catch {
+                context.delete(entry)
+                return false
+            }
+            removeVoiceFile(item.value)
+            transcribe(entry, audio: audio, in: context)
         }
         handled.append(item.id)
         defaults.set(Array(handled.suffix(500)), forKey: handledKey)
@@ -105,9 +139,89 @@ enum WatchInbox {
         storePending(items)
     }
 
-    /// Clears the waiting items (Delete Everything).
+    /// Clears the waiting items and their audio (Delete Everything).
     static func erasePending() {
         KeychainManager.delete(account: pendingAccount)
+        if let dir = voiceDirectory { try? FileManager.default.removeItem(at: dir) }
+    }
+
+    /// Keeps an item for the next retry without trying to save it (the store isn't open).
+    static func queueForLater(_ item: Item) {
+        addPending(item)
+    }
+
+    // MARK: - Voice notes
+
+    /// A voice note from the watch, already copied into `voiceDirectory` as `<id>.m4a`.
+    static func receiveVoice(id: String, date: Date, duration: Double, in context: ModelContext,
+                             defaults: UserDefaults = .standard) {
+        let item = Item(id: id, kind: .voice, value: "\(id).m4a", date: min(date, Date()), duration: max(0, duration))
+        retryWaiting(in: context, defaults: defaults)
+        let saved = pending().isEmpty && save(item, in: context, defaults: defaults)
+        if !saved { addPending(item) }
+        #if DEBUG
+        NSLog("WatchInbox: voice %@", saved ? "saved" : "waiting for the key")
+        #endif
+    }
+
+    /// Where watch audio waits until it's saved into an entry. On iOS the files are protected
+    /// "complete unless open": they can be written while the phone is locked (a watch note arrives
+    /// in a pocket) and read only once it's unlocked, which is also when the journal key is there.
+    nonisolated static var voiceDirectory: URL? {
+        guard let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }
+        let dir = support.appendingPathComponent("WatchVoiceInbox", isDirectory: true)
+        if !FileManager.default.fileExists(atPath: dir.path) {
+            #if os(iOS)
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true,
+                                                     attributes: [.protectionKey: FileProtectionType.completeUnlessOpen])
+            #else
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            #endif
+        }
+        return dir
+    }
+
+    /// The audio file for an id: only a UUID becomes a file name, so a message can't point
+    /// anywhere else.
+    nonisolated static func voiceFileURL(id: String) -> URL? {
+        guard UUID(uuidString: id) != nil else { return nil }
+        return voiceDirectory?.appendingPathComponent("\(id).m4a")
+    }
+
+    private static func voiceFileURL(named name: String) -> URL? {
+        guard name.hasSuffix(".m4a") else { return nil }
+        return voiceFileURL(id: String(name.dropLast(4)))
+    }
+
+    private static func removeVoiceFile(_ name: String) {
+        if let url = voiceFileURL(named: name) { try? FileManager.default.removeItem(at: url) }
+    }
+
+    /// The transcript, as the iPhone's own recorder makes it, once speech recognition is already
+    /// allowed (a background wake can't ask). Otherwise, or if it fails, the entry is marked so
+    /// the entry's Retry button offers it again; the audio is saved either way.
+    private static func transcribe(_ entry: Entry, audio: Data, in context: ModelContext) {
+        #if os(iOS) && canImport(Speech)
+        guard SFSpeechRecognizer.authorizationStatus() == .authorized else {
+            entry.voiceNoteTranscriptionFailed = true
+            try? context.save()
+            return
+        }
+        Task { @MainActor in
+            do {
+                let result = try await VoiceTranscriptionService.transcribe(audioData: audio)
+                guard !entry.isDeleted else { return }
+                WriteView.applyTranscription(result, to: entry, atIndex: 0)
+                entry.voiceNoteTranscriptionFailed = (entry.voiceNoteTranscript ?? "").isEmpty
+            } catch {
+                guard !entry.isDeleted else { return }
+                entry.voiceNoteTranscriptionFailed = true
+            }
+            try? context.save()
+            MoodAutoDetector.shared.detectIfNeeded(entry, context: context)
+            mirrorApp.updateWidgetHeatmaps(context: context)
+        }
+        #endif
     }
 
     // MARK: - Pending store
@@ -160,12 +274,41 @@ enum WatchInbox {
         nonisolated func sessionDidBecomeInactive(_ session: WCSession) {}
         nonisolated func sessionDidDeactivate(_ session: WCSession) { session.activate() }
 
+        /// A voice note. The file is gone when this returns, so it's copied here, on WatchConnectivity's
+        /// queue, before anything else.
+        nonisolated func session(_ session: WCSession, didReceive file: WCSessionFile) {
+            let meta = file.metadata ?? [:]
+            guard (meta["kind"] as? String) == "voice", let id = meta["id"] as? String,
+                  let seconds = meta["date"] as? Double,
+                  let destination = WatchInbox.voiceFileURL(id: id) else { return }
+            let duration = meta["duration"] as? Double ?? 0
+            // Five minutes of AAC is about 3 MB; anything far larger isn't a watch note.
+            let size = (try? file.fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+            guard size > 0, size < 50_000_000 else { return }
+            try? FileManager.default.removeItem(at: destination)
+            guard (try? FileManager.default.copyItem(at: file.fileURL, to: destination)) != nil else { return }
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    let date = Date(timeIntervalSince1970: seconds)
+                    guard MirrorModelContainer.isStoreAvailable else {
+                        WatchInbox.queueForLater(.init(id: id, kind: .voice, value: "\(id).m4a", date: min(date, Date()), duration: duration))
+                        return
+                    }
+                    WatchInbox.receiveVoice(id: id, date: date, duration: duration, in: MirrorModelContainer.shared.mainContext)
+                }
+            }
+        }
+
         nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
             // userInfo is a property list: only these four plain values are read from it.
             let copy: [String: Any] = userInfo.filter { ["id", "kind", "value", "date"].contains($0.key) }
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
-                    guard MirrorModelContainer.isStoreAvailable else { return }
+                    guard MirrorModelContainer.isStoreAvailable else {
+                        // The journal can't open yet: keep the item for the next retry.
+                        if let item = WatchInbox.item(from: copy) { WatchInbox.queueForLater(item) }
+                        return
+                    }
                     WatchInbox.receive(copy, in: MirrorModelContainer.shared.mainContext)
                 }
             }

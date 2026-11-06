@@ -1,0 +1,71 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "NSMicrophoneUsageDescription" : {
+      "comment" : "Privacy - Microphone Usage Description (watch)",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MirrorNotes nutzt das Mikrofon, um Sprachnotizen aufzunehmen, die es an MirrorNotes auf deinem iPhone sendet."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes uses the microphone to record voice notes, which it sends to MirrorNotes on your iPhone."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MirrorNotes usa el micrófono para grabar notas de voz, que envía a MirrorNotes en tu iPhone."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MirrorNotes utilise le micro pour enregistrer des notes vocales, qu’il envoie à MirrorNotes sur votre iPhone."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MirrorNotes usa il microfono per registrare note vocali, che invia a MirrorNotes sul tuo iPhone."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MirrorNotesはマイクを使ってボイスメモを録音し、iPhoneのMirrorNotesに送ります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MirrorNotes는 마이크로 음성 메모를 녹음해 iPhone의 MirrorNotes로 보냅니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "O MirrorNotes usa o microfone para gravar notas de voz, que envia ao MirrorNotes no seu iPhone."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MirrorNotes использует микрофон, чтобы записывать голосовые заметки и отправлять их в MirrorNotes на iPhone."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MirrorNotes 使用麦克风录制语音笔记，并发送到你 iPhone 上的 MirrorNotes。"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.1"
+}
