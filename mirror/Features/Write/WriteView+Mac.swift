@@ -60,97 +60,109 @@ extension WriteView {
 
             Spacer(minLength: 4)
 
-            // Notes-style capsule groups. B / I / U live in the Aa popover, as in Notes; ⌘B / ⌘I / ⌘U and
-            // the Format menu still apply them directly.
-            HStack(spacing: 2) {
-                macToolbarButton(label: "Text formatting", isOn: showFormattingPanel) {
-                    showFormattingPanel.toggle()
-                } content: {
-                    Text("Aa").font(.system(size: 15, weight: .medium))
-                }
-                .popover(isPresented: $showFormattingPanel, arrowEdge: .bottom) {
-                    MacNotesFormatPopover(state: panelState, dismiss: { showFormattingPanel = false })
-                        .environment(\.appDisplayMode, displayMode)
-                }
-                macToolbarButton(label: "Checklist", isOn: panelState.activeParagraphStyle == .checklistUnchecked
-                                 || panelState.activeParagraphStyle == .checklistChecked) {
-                    applyTextCommand(.checklist)
-                } content: {
-                    Image(systemName: "checklist").font(.system(size: 15))
-                }
-                macToolbarButton(label: "Add photo", isOn: false) { macChoosePhoto() } content: {
-                    MacIcon(name: "image", size: 17)
-                }
-                // The recorder iOS opens from Record Audio: pause, listen back, then add (owner,
-                // 2026-11-06). It replaces the inline recording row on the Mac.
-                macToolbarButton(label: "Record voice note", isOn: showRecorderSheet) { showRecorderSheet = true } content: {
-                    MacIcon(name: "mic", size: 17)
-                }
-            }
-            .modifier(MacToolbarCapsule())
-
-            HStack(spacing: 2) {
-                Menu {
-                    macMoodMenuItems
-                } label: {
-                    // The chosen mood is named in the bar (design review 2026-10-21: one action
-                    // bar holds formatting, mood, tags and Save); the smile stands in until then.
-                    if let mood = viewModel.selectedMood {
-                        HStack(spacing: 6) {
-                            Circle().fill(MirrorTheme.moodColor(for: mood)).frame(width: 7, height: 7)
-                            Text(MirrorTheme.localizedMoodName(for: mood))
-                                .font(.system(size: 12.5, weight: .semibold))
-                                .lineLimit(1)
-                        }
-                        .padding(.horizontal, 10)
-                        .frame(height: 30)
-                        .contentShape(Rectangle())
-                    } else {
-                        MacIcon(name: "smile", size: 17)
-                            .frame(width: 34, height: 30)
-                            .contentShape(Rectangle())
+            // Focus mode leaves the text: the formatting, mood, tag, collection, drafts and Talk it out
+            // groups step aside, as on iPhone and iPad (owner, 2026-11-06). Save stays: ⌘↩ is the Mac habit.
+            if !focusMode {
+                // Notes-style capsule groups. B / I / U live in the Aa popover, as in Notes; ⌘B / ⌘I / ⌘U and
+                // the Format menu still apply them directly.
+                HStack(spacing: 2) {
+                    macToolbarButton(label: "Text formatting", isOn: showFormattingPanel) {
+                        showFormattingPanel.toggle()
+                    } content: {
+                        Text("Aa").font(.system(size: 15, weight: .medium))
+                    }
+                    .popover(isPresented: $showFormattingPanel, arrowEdge: .bottom) {
+                        MacNotesFormatPopover(state: panelState, dismiss: { showFormattingPanel = false })
+                            .environment(\.appDisplayMode, displayMode)
+                    }
+                    macToolbarButton(label: "Checklist", isOn: panelState.activeParagraphStyle == .checklistUnchecked
+                                     || panelState.activeParagraphStyle == .checklistChecked) {
+                        applyTextCommand(.checklist)
+                    } content: {
+                        Image(systemName: "checklist").font(.system(size: 15))
+                    }
+                    macToolbarButton(label: "Add photo", isOn: false) { macChoosePhoto() } content: {
+                        MacIcon(name: "image", size: 17)
+                    }
+                    // The recorder iOS opens from Record Audio: pause, listen back, then add (owner,
+                    // 2026-11-06). It replaces the inline recording row on the Mac.
+                    macToolbarButton(label: "Record voice note", isOn: showRecorderSheet) { showRecorderSheet = true } content: {
+                        MacIcon(name: "mic", size: 17)
                     }
                 }
-                .menuStyle(.button)
-                .buttonStyle(.plain)
-                .menuIndicator(.hidden)
-                .foregroundStyle(viewModel.selectedMood == nil ? MacTokens.controlInk : MacTokens.accent)
-                .accessibilityLabel("Mood")
-                .help("Mood")
-                macToolbarButton(label: "Add tag", isOn: false) { showTagInput = true } content: {
-                    MacIcon(name: "tag", size: 17)
-                }
-                WriteCollectionPicker(selection: $entryCollectionID, style: .macToolbar)
+                .modifier(MacToolbarCapsule())
+
+                HStack(spacing: 2) {
+                    Menu {
+                        macMoodMenuItems
+                    } label: {
+                        // The chosen mood is named in the bar (design review 2026-10-21: one action
+                        // bar holds formatting, mood, tags and Save); the smile stands in until then.
+                        if let mood = viewModel.selectedMood {
+                            HStack(spacing: 6) {
+                                Circle().fill(MirrorTheme.moodColor(for: mood)).frame(width: 7, height: 7)
+                                Text(MirrorTheme.localizedMoodName(for: mood))
+                                    .font(.system(size: 12.5, weight: .semibold))
+                                    .lineLimit(1)
+                            }
+                            .padding(.horizontal, 10)
+                            .frame(height: 30)
+                            .contentShape(Rectangle())
+                        } else {
+                            MacIcon(name: "smile", size: 17)
+                                .frame(width: 34, height: 30)
+                                .contentShape(Rectangle())
+                        }
+                    }
                     .menuStyle(.button)
                     .buttonStyle(.plain)
-                    .foregroundStyle(entryCollectionID == nil ? MacTokens.controlInk : MacTokens.accent)
-                    .help("Collection")
-                if takesSavedDrafts {
-                    WriteDraftsMenu(style: .macToolbar, canSave: hasDraftContent, save: saveToDrafts,
-                                    resume: continueSavedDraft)
+                    .menuIndicator(.hidden)
+                    .foregroundStyle(viewModel.selectedMood == nil ? MacTokens.controlInk : MacTokens.accent)
+                    .accessibilityLabel("Mood")
+                    .help("Mood")
+                    macToolbarButton(label: "Add tag", isOn: false) { showTagInput = true } content: {
+                        MacIcon(name: "tag", size: 17)
+                    }
+                    WriteCollectionPicker(selection: $entryCollectionID, style: .macToolbar)
                         .menuStyle(.button)
                         .buttonStyle(.plain)
-                        .foregroundStyle(MacTokens.controlInk)
-                        .help("Drafts")
+                        .foregroundStyle(entryCollectionID == nil ? MacTokens.controlInk : MacTokens.accent)
+                        .help("Collection")
+                    if takesSavedDrafts {
+                        WriteDraftsMenu(style: .macToolbar, canSave: hasDraftContent, save: saveToDrafts,
+                                        resume: continueSavedDraft)
+                            .menuStyle(.button)
+                            .buttonStyle(.plain)
+                            .foregroundStyle(MacTokens.controlInk)
+                            .help("Drafts")
+                    }
                 }
-            }
-            .modifier(MacToolbarCapsule())
+                .modifier(MacToolbarCapsule())
 
-            if SubscriptionService.offersTalkItOut(for: SubscriptionService.shared.tier) {
-                Button { presentTalkItOut() } label: {
-                    Text("Talk it out")
-                        .font(.system(size: 12.5, weight: .semibold))
-                        .foregroundStyle(MacTokens.accentInk)
-                        .padding(.horizontal, 14)
-                        .frame(height: 30)
-                        .background(MacTokens.surface, in: Capsule())
-                        .overlay { Capsule().stroke(MacTokens.controlBorder, lineWidth: 1) }
+                if SubscriptionService.offersTalkItOut(for: SubscriptionService.shared.tier) {
+                    Button { presentTalkItOut() } label: {
+                        Text("Talk it out")
+                            .font(.system(size: 12.5, weight: .semibold))
+                            .foregroundStyle(MacTokens.accentInk)
+                            .padding(.horizontal, 14)
+                            .frame(height: 30)
+                            .background(MacTokens.surface, in: Capsule())
+                            .overlay { Capsule().stroke(MacTokens.controlBorder, lineWidth: 1) }
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.leading, 6)
+                    .fixedSize()
+                    .help("Talk it out")
                 }
-                .buttonStyle(.plain)
-                .padding(.leading, 6)
-                .fixedSize()
-                .help("Talk it out")
             }
+
+            macToolbarButton(label: focusMode ? "Exit focus mode" : "Focus mode", isOn: focusMode) {
+                withAnimation(.easeInOut(duration: 0.2)) { focusMode.toggle() }
+            } content: {
+                Image(systemName: focusMode ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
+                    .font(.system(size: 14, weight: .medium))
+            }
+            .keyboardShortcut(focusMode ? KeyboardShortcut(.escape, modifiers: []) : nil)
 
             // Save sits at the end of the one bar; the bottom edge of the window is free. ⌘↩ is
             // the File menu's Save Entry (MacCommands), which calls the same save.
@@ -294,6 +306,24 @@ extension WriteView {
                     }
                     .focused($tagFieldFocused)
                     .onAppear { DispatchQueue.main.async { tagFieldFocused = true } }
+                // The tags already used in the journal, as iPhone offers them (owner, 2026-11-06).
+                ForEach(filteredTagSuggestions.prefix(6), id: \.self) { tag in
+                    Button {
+                        entryTags.append(tag)
+                        tagText = ""
+                        showTagInput = false
+                        if entry == nil { saveDraftToStorage() }
+                    } label: {
+                        Text("#\(MirrorTheme.localizedTagName(for: tag))")
+                            .font(.system(size: 12.5))
+                            .foregroundStyle(MacTokens.accent)
+                            .padding(.horizontal, 10)
+                            .frame(height: 26)
+                            .background(MacTokens.accent.opacity(0.10), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .help("Add this tag")
+                }
             }
             if viewModel.selectedMood != nil, moodWasSuggested {
                 Text("Mood suggested from your entry. Change it any time.")
@@ -373,9 +403,25 @@ extension WriteView {
     /// (design review 2026-10-21), so the bottom edge is free and the status reads with the text.
     var macStatusLine: some View {
         HStack(spacing: 14) {
-            Text(viewModel.wordCount == 1 ? "1 word" : "\(viewModel.wordCount) words")
-                .font(.system(size: 12))
-                .foregroundStyle(MacTokens.secondaryInk)
+            // Toward the daily word goal, as on iPhone: a ring once it's in sight, a check at it.
+            HStack(spacing: 5) {
+                if viewModel.wordCount >= dailyWordGoal {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(MirrorTheme.green)
+                } else if viewModel.wordCount >= 50 {
+                    WordGoalRing(progress: Double(viewModel.wordCount) / Double(max(dailyWordGoal, 1)))
+                }
+                Text(viewModel.wordCount == 1 ? "1 word" : "\(viewModel.wordCount) words")
+                    .font(.system(size: 12).monospacedDigit())
+                    .foregroundStyle(viewModel.wordCount >= dailyWordGoal ? AnyShapeStyle(MirrorTheme.green) : AnyShapeStyle(MacTokens.secondaryInk))
+                if viewModel.wordCount >= 50 && viewModel.wordCount < dailyWordGoal {
+                    Text("/ \(dailyWordGoal)")
+                        .font(.system(size: 12).monospacedDigit())
+                        .foregroundStyle(MacTokens.secondaryInk.opacity(0.7))
+                }
+            }
+            .accessibilityElement(children: .combine)
             DraftSaveStatusLabel(state: draftSaveState, retry: retryDraftSave)
             Spacer(minLength: 0)
         }
@@ -383,6 +429,23 @@ extension WriteView {
         .padding(.top, 14)
         .padding(.bottom, 24)
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// Continuity Camera into the entry: each image from File › Import from iPhone (Take Photo, Scan
+/// Documents) becomes a photo.
+struct MacContinuityCameraImport: ViewModifier {
+    let attach: (Data) -> Void
+
+    func body(content: Content) -> some View {
+        content.importableFromServices(for: NSImage.self) { images in
+            let photos = images.compactMap { image -> Data? in
+                guard let tiff = image.tiffRepresentation, let bitmap = NSBitmapImageRep(data: tiff) else { return nil }
+                return bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.9])
+            }
+            photos.forEach(attach)
+            return !photos.isEmpty
+        }
     }
 }
 

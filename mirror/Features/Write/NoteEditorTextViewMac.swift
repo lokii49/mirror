@@ -1087,6 +1087,7 @@ struct NoteEditorTextView: NSViewRepresentable {
                 layout?.trailingModel = trailing
                 refreshTypingAttributes(in: textView)
                 emit(storage: storage, textView: textView)
+                if trailing.style == .checklistChecked { parent.panelState.onChecklistItemChecked?() }
                 return
             }
             let range = text.paragraphRange(for: NSRange(location: paragraphStart, length: 0))
@@ -1095,6 +1096,9 @@ struct NoteEditorTextView: NSViewRepresentable {
             mutate(textView, range: range) { storage in
                 storage.addAttribute(NoteEditorCodec.paragraphStyleKey, value: next.rawValue, range: range)
             }
+            // Same as iPhone: the first check asks about sorting, then checked items move down if
+            // the person chose that (owner, 2026-11-06: Mac like iOS).
+            if next == .checklistChecked { parent.panelState.onChecklistItemChecked?() }
         }
     }
 }

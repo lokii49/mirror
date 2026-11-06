@@ -82,11 +82,7 @@ struct SubscriptionView: View {
             PaywallView(initialTier: subscriptionService.tier == .core ? .deep : .core)
                 .environment(\.appDisplayMode, displayMode)
         }
-        #if os(iOS)
-        .offerCodeRedemption(isPresented: $showRedeemCode) { _ in
-            Task { await subscriptionService.offerCodeSheetClosed() }
-        }
-        #endif
+        .modifier(RedeemCodeSheet(isPresented: $showRedeemCode))
     }
 
     private var statusCard: some View {
@@ -428,8 +424,7 @@ struct SubscriptionView: View {
     /// a Mac, where RevenueCat found the older StoreKit 1 version of this sheet crashes.
     @ViewBuilder
     private var redeemCodeButton: some View {
-        #if os(iOS)
-        if !ProcessInfo.processInfo.isiOSAppOnMac {
+        if RedeemCodeSheet.isAvailable {
             Button { showRedeemCode = true } label: {
                 if displayMode == .sentinel {
                     Text("REDEEM CODE").scaledFont(12, weight: .medium, design: .monospaced)
@@ -438,6 +433,37 @@ struct SubscriptionView: View {
                 }
             }
             .foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// Apple's offer-code sheet, then a silent purchase sync. iPhone and iPad; the Mac app on
+/// macOS 15+ (owner, 2026-11-06: Mac like iOS). Not for the iPhone app running on a Mac, where
+/// RevenueCat found the older StoreKit 1 sheet crashes.
+struct RedeemCodeSheet: ViewModifier {
+    @Binding var isPresented: Bool
+
+    static var isAvailable: Bool {
+        #if os(iOS)
+        return !ProcessInfo.processInfo.isiOSAppOnMac
+        #else
+        if #available(macOS 15.0, *) { return true }
+        return false
+        #endif
+    }
+
+    func body(content: Content) -> some View {
+        #if os(iOS)
+        content.offerCodeRedemption(isPresented: $isPresented) { _ in
+            Task { await SubscriptionService.shared.offerCodeSheetClosed() }
+        }
+        #else
+        if #available(macOS 15.0, *) {
+            content.offerCodeRedemption(isPresented: $isPresented) { _ in
+                Task { await SubscriptionService.shared.offerCodeSheetClosed() }
+            }
+        } else {
+            content
         }
         #endif
     }

@@ -311,7 +311,7 @@ struct WriteView: View {
                 ScrollView {
                     VStack(spacing: 0) {
                         #if os(macOS)
-                        macDateLine
+                        if !focusMode { macDateLine } else { Color.clear.frame(height: 40) }
                         #endif
                         if !draftVoiceNotes.isEmpty {
                             VStack(spacing: 8) {
@@ -399,9 +399,12 @@ struct WriteView: View {
                         .frame(maxWidth: .infinity)
 
                         #if os(macOS)
-                        macChipsRow
-                        macPhotosRow
-                        macStatusLine
+                        // Focus mode is the text (owner, 2026-11-06: as on iPhone and iPad).
+                        if !focusMode {
+                            macChipsRow
+                            macPhotosRow
+                            macStatusLine
+                        }
                         #endif
                     }
                     #if os(macOS)
@@ -578,6 +581,9 @@ struct WriteView: View {
         .navigationBarTitleDisplayMode(.inline)
         #if os(macOS)
         .safeAreaInset(edge: .top, spacing: 0) { macToolbar }
+        // File › Import from iPhone (Take Photo, Scan Documents): Continuity Camera, the Mac's
+        // camera and document scanner (owner, 2026-11-06: Mac like iOS). Each image becomes a photo.
+        .modifier(MacContinuityCameraImport { macAttachPhoto(data: $0) })
         // Escape leaves the editor of an existing entry without saving (the design has no back button).
         .onExitCommand { if entry != nil { dismiss() } }
         #if DEBUG
@@ -592,6 +598,7 @@ struct WriteView: View {
             case "restoreDraft": if let draft = pendingEditDraft { restoreEditDraft(draft) }
             case "discardDraft": discardEditDraft()
             case "openRecorder": showRecorderSheet = true
+            case "focus": focusMode.toggle()
             default: break
             }
         }

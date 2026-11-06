@@ -642,7 +642,7 @@ struct WritingStarterChip: View {
 }
 
 /// The Write header's progress toward the daily word goal: a thin ring the size of a glyph.
-private struct WordGoalRing: View {
+struct WordGoalRing: View {
     let progress: Double
 
     var body: some View {

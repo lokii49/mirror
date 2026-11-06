@@ -344,8 +344,7 @@ struct ProtocolSettingsView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                // The Mac editor never sorts checklists, so the setting would do nothing there.
-                #if os(iOS)
+                // Both editors sort checked items now (Mac since 3.1.8).
                 SettingsGroup(title: "Checklists") {
                     VStack(alignment: .leading, spacing: 0) {
                         Toggle(isOn: Binding(
@@ -364,7 +363,6 @@ struct ProtocolSettingsView: View {
                     }
                     .padding(.vertical, 2)
                 }
-                #endif
 
                 SettingsGroup(title: "Input") {
                     // SettingsRowLabel centers its 32pt icon against the title (correct, and

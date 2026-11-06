@@ -160,12 +160,8 @@ struct PaywallView: View {
             }
             .onChange(of: subscriptionService.corePackages) { _, _ in selectDefaultIfNeeded() }
             .onChange(of: subscriptionService.deepPackages) { _, _ in selectDefaultIfNeeded() }
-            #if os(iOS)
             // A redeemed code raises the tier, and the tier change above closes the paywall.
-            .offerCodeRedemption(isPresented: $showRedeemCode) { _ in
-                Task { await subscriptionService.offerCodeSheetClosed() }
-            }
-            #endif
+            .modifier(RedeemCodeSheet(isPresented: $showRedeemCode))
         }
     }
 
@@ -590,13 +586,7 @@ struct PaywallView: View {
 extension PaywallView {
     /// Apple's offer-code sheet. Hidden for the iPhone app on a Mac, where RevenueCat found the older
     /// StoreKit 1 version of this sheet crashes.
-    fileprivate var offersRedeemCode: Bool {
-        #if os(iOS)
-        !ProcessInfo.processInfo.isiOSAppOnMac
-        #else
-        false
-        #endif
-    }
+    fileprivate var offersRedeemCode: Bool { RedeemCodeSheet.isAvailable }
 
     @ViewBuilder
     fileprivate func purchaseLinks(separated: Bool) -> some View {

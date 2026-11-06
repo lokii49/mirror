@@ -106,6 +106,9 @@ struct MirrorMacCommands: Commands {
                 .keyboardShortcut(.delete, modifiers: .command)
                 .disabled(entry == nil)
         }
+        // File › Import from iPhone or iPad: Take Photo, Scan Documents, Add Sketch (Continuity
+        // Camera) into the open entry.
+        ImportFromDevicesCommands()
         CommandGroup(after: .sidebar) {
             Button("Hide Sidebar") {
                 unlocked { NotificationCenter.default.post(name: .mirrorMacToggleSidebar, object: nil) }

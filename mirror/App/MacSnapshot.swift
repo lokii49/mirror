@@ -487,6 +487,14 @@ enum MacSnapshot {
             go("write")
             try? await Task.sleep(for: .seconds(2))
             capture(mainWindow(), name: "write-header")
+            // Focus mode: the text and the way out.
+            if CommandLine.arguments.contains("--macSnapshotWriteFocus") {
+                NotificationCenter.default.post(name: .mirrorMacDebugWrite, object: nil, userInfo: ["action": "focus"])
+                try? await Task.sleep(for: .seconds(1.5))
+                capture(mainWindow(), name: "write-focus")
+                NotificationCenter.default.post(name: .mirrorMacDebugWrite, object: nil, userInfo: ["action": "focus"])
+                try? await Task.sleep(for: .seconds(1))
+            }
             // Time for an outside check (Writing Tools in the Edit menu, via System Events).
             if CommandLine.arguments.contains("--macSnapshotWriteHold") {
                 NSLog("MacSnapshot: holding write")
