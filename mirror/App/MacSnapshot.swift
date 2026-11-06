@@ -12,6 +12,14 @@ import PDFKit
 // Capturing the app's own window needs no Screen Recording permission.
 
 enum MacSnapshot {
+    /// The appearance the harness runs in: `--macSnapshotDark`, `--macSnapshotLight` (App Store
+    /// captures, which must not follow a Mac that switches to dark at sunset), else the system's.
+    static var harnessAppearance: String {
+        if CommandLine.arguments.contains("--macSnapshotDark") { return "dark" }
+        if CommandLine.arguments.contains("--macSnapshotLight") { return "light" }
+        return "system"
+    }
+
     static var isRequested: Bool { CommandLine.arguments.contains("--macSnapshot") }
 
     static var outputDirectory: URL {
@@ -363,8 +371,12 @@ enum MacSnapshot {
         try? await Task.sleep(for: .seconds(2))
         capture(settingsWindow(), name: "5c-settings-chose-dark")
         capture(mainWindow(), name: "5d-main-chose-dark")
-        UserDefaults.standard.set(CommandLine.arguments.contains("--macSnapshotDark") ? "dark" : "system", forKey: "mirrorAppearanceMode")
-        if !CommandLine.arguments.contains("--macSnapshotDark") { NSApp.appearance = nil }
+        UserDefaults.standard.set(Self.harnessAppearance, forKey: "mirrorAppearanceMode")
+        switch Self.harnessAppearance {
+        case "light": NSApp.appearance = NSAppearance(named: .aqua)
+        case "dark": break
+        default: NSApp.appearance = nil
+        }
 
         // Close and reopen: the board's chrome must come back.
         settingsWindow()?.performClose(nil)
@@ -427,10 +439,18 @@ enum MacSnapshot {
             context.insert(profile)
         }
         SampleData.seed(into: context)
+        if CommandLine.arguments.contains("--macSnapshotStore") {
+            // App Store captures: the French i18n test entries stay out, so an English listing's
+            // "You also wrote" can't quote one of them.
+            for entry in (try? context.fetch(FetchDescriptor<Entry>())) ?? [] where entry.tags.contains("i18n") {
+                context.delete(entry)
+            }
+            try? context.save()
+        }
         try? context.save()
 
         applyOverrides()
-        UserDefaults.standard.set(CommandLine.arguments.contains("--macSnapshotDark") ? "dark" : "system", forKey: "mirrorAppearanceMode")
+        UserDefaults.standard.set(Self.harnessAppearance, forKey: "mirrorAppearanceMode")
 
         func mainWindow() -> NSWindow? {
             NSApp.windows.first { $0.isVisible && $0.contentView != nil && !($0 is NSPanel) && abs($0.frame.width - 720) > 1 } ?? NSApp.windows.first { $0.isVisible }
