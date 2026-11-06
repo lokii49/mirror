@@ -599,6 +599,8 @@ struct WritingStarterChip: View {
     @State private var showTemplateManager = false
     /// Your templates, unsealed once and again when the manager closes (not on every render).
     @State private var customTemplates: [CustomTemplate] = []
+    /// The one-time explanation under "Suggestions from your day" (owner, 2026-11-06).
+    @AppStorage("mirror.suggestions.tipShown") private var suggestionsTipShown = false
     private var isSentinel: Bool { displayMode == .sentinel }
     private var accent: Color { isSentinel ? MirrorTheme.ember : MirrorTheme.violet }
 
@@ -638,10 +640,32 @@ struct WritingStarterChip: View {
                         .appendingPathExtension(photo.photo.pathExtension.isEmpty ? "jpg" : photo.photo.pathExtension)
                     return (try? FileManager.default.copyItem(at: photo.photo, to: copy)) != nil ? copy : nil
                 }
-                await MainActor.run { onSuggestion(suggestion.title, copies) }
+                await MainActor.run {
+                    suggestionsTipShown = true
+                    onSuggestion(suggestion.title, copies)
+                }
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("write.suggestions")
+            if !suggestionsTipShown {
+                HStack(alignment: .top, spacing: 8) {
+                    Text("Photos, workouts and places from your day, picked in Apple's own sheet. Nothing reaches MirrorNotes until you choose one.")
+                        .scaledFont(12.5)
+                        .foregroundStyle(MirrorTheme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button { suggestionsTipShown = true } label: {
+                        Image(systemName: "xmark")
+                            .scaledFont(11, weight: .bold)
+                            .foregroundStyle(MirrorTheme.textTertiary)
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Dismiss")
+                }
+                .padding(.leading, 22)
+                .padding(.bottom, 4)
+            }
         }
         #endif
     }

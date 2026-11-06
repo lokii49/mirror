@@ -38,6 +38,8 @@ struct MoodCheckInView: View {
 
     @State private var selected: String?
     @State private var logged: String?
+    /// The one-time Apple Health offer under the confirmation (owner, 2026-11-06).
+    @State private var offersHealth = false
     /// The picker's own height: the sheet is exactly that tall (`.medium` left a band under
     /// "Not now"). iOS 26's floating sheet adds the bottom safe area to a `.height` detent,
     /// so that is taken back off there.
@@ -62,6 +64,7 @@ struct MoodCheckInView: View {
         mirrorApp.updateWidgetHeatmaps(context: modelContext)
         WidgetCenter.shared.reloadAllTimelines()
         UINotificationFeedbackGenerator().notificationOccurred(.success)
+        offersHealth = HealthCheckInTip.isDue
         withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.32, dampingFraction: 0.85)) { logged = mood }
     }
 
@@ -209,6 +212,10 @@ struct MoodCheckInView: View {
             Text("Added to your mood timeline.")
                 .scaledFont(13, weight: .medium)
                 .foregroundStyle(.secondary)
+            if offersHealth {
+                HealthCheckInTip(mood: mood, isSentinel: isSentinel)
+                    .padding(.horizontal, 20)
+            }
             Spacer()
             Button("Done") { dismiss() }
                 .scaledFont(15, weight: .semibold)
@@ -224,8 +231,79 @@ struct MoodCheckInView: View {
         .task {
             // Auto-cancels when the view goes away, so a manual "Done" tap
             // won't leave a stale dismiss() firing later against another sheet.
+            // Not while the Health offer is up: it waits for an answer or Done.
+            guard !offersHealth else { return }
             try? await Task.sleep(for: .seconds(2))
             dismiss()
         }
+    }
+}
+
+/// Once per device, after a check-in: offers to save check-ins to Apple Health (iPhone and iPad on
+/// iOS 18+, while saving is off). Turn On asks Health and, if allowed, saves the check-in just
+/// logged too. Marked shown the first time it appears, so it never comes back.
+private struct HealthCheckInTip: View {
+    let mood: String
+    let isSentinel: Bool
+    static let shownKey = "mirror.health.checkInTipShown"
+    @AppStorage(HealthCheckInTip.shownKey) private var shown = false
+    @State private var result: LocalizedStringKey?
+    @State private var asking = false
+
+    static var isDue: Bool {
+        HealthMoodWriter.isAvailable && !HealthMoodWriter.isEnabled && !UserDefaults.standard.bool(forKey: shownKey)
+    }
+
+    var body: some View {
+        VStack(spacing: 8) {
+            if let result {
+                Text(result)
+                    .scaledFont(13, weight: .medium)
+                    .foregroundStyle(MirrorTheme.textSecondary)
+                    .multilineTextAlignment(.center)
+            } else {
+                Text("Also save check-ins to Apple Health?")
+                    .scaledFont(14, weight: .semibold)
+                    .foregroundStyle(MirrorTheme.textPrimary)
+                Text("Each check-in becomes a State of Mind in Health. MirrorNotes never reads from Health.")
+                    .scaledFont(12.5)
+                    .foregroundStyle(MirrorTheme.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 10) {
+                    Button("Not now") { result = "You can turn it on later in Settings › Journal." }
+                        .buttonStyle(.bordered)
+                        .tint(isSentinel ? MirrorTheme.ember : MirrorTheme.violet)
+                    Button {
+                        turnOn()
+                    } label: {
+                        if asking { ProgressView() } else { Text("Turn On") }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(isSentinel ? MirrorTheme.ember : MirrorTheme.buttonFill)
+                    .disabled(asking)
+                }
+                .scaledFont(14, weight: .semibold)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity)
+        .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .onAppear { shown = true }
+    }
+
+    private func turnOn() {
+        #if os(iOS)
+        guard #available(iOS 18.0, *) else { return }
+        asking = true
+        Task {
+            let allowed = await HealthMoodWriter.requestAccess()
+            UserDefaults.standard.set(allowed, forKey: HealthMoodWriter.enabledKey)
+            if allowed { HealthMoodWriter.writeCheckIn(mood: mood) }
+            asking = false
+            result = allowed ? "Saved to Apple Health. New check-ins will be too."
+                             : "Health didn't allow it. You can change that in the Health app under Sharing."
+        }
+        #endif
     }
 }

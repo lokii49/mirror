@@ -404,6 +404,12 @@ struct ProtocolSettingsView: View {
                                 .padding(.leading, 44)
                                 .padding(.top, -4)
                                 .fixedSize(horizontal: false, vertical: true)
+                            Text("Turning this off stops new check-ins from going to Health; the ones already saved stay in Health, where you can see or delete them.")
+                                .scaledFont(12.5)
+                                .foregroundStyle(MirrorTheme.textSecondary)
+                                .padding(.leading, 44)
+                                .padding(.top, 6)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                         .padding(.vertical, 2)
                     }
@@ -411,6 +417,22 @@ struct ProtocolSettingsView: View {
                         Button("OK", role: .cancel) {}
                     } message: {
                         Text("Allow MirrorNotes to write State of Mind in the Health app › Sharing › Apps, then turn this on again.")
+                    }
+                }
+
+                // Explains Write's "Suggestions from your day" where it's offered (owner, 2026-11-06).
+                if DeviceFeature.journalingSuggestionsAvailable {
+                    SettingsGroup(title: "Suggestions from your day") {
+                        VStack(alignment: .leading, spacing: 0) {
+                            SettingsRowLabel(title: "Apple's Journaling Suggestions", systemImage: "photo.on.rectangle.angled", iconColor: .orange)
+                            Text("In Write, Suggestions from your day opens Apple's own sheet of photos, workouts and places from your day. MirrorNotes sees only the one you pick, to start that entry, and nothing else. Which suggestions appear is set in Settings › Privacy & Security › Journaling Suggestions.")
+                                .scaledFont(12.5)
+                                .foregroundStyle(MirrorTheme.textSecondary)
+                                .padding(.leading, 44)
+                                .padding(.top, -4)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(.vertical, 2)
                     }
                 }
 
