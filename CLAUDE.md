@@ -105,7 +105,7 @@ Measure prompt changes off-device with `mirror/tools/llmrig` (README has method 
 (Mac, then visionOS: on the roadmap — see `mirror/.claude/roadmap.md`)
 ❌ Social features (never — private by design)
 ❌ Export to Notion/Obsidian (Phase 2)
-❌ Multiple journals / folders (Phase 2)
+❌ Multiple journals (Phase 2; one-level collections have shipped, see Data Flow › Kept-out collections)
 ❌ Custom AI personas (Phase 3)
 ```
 
@@ -170,6 +170,8 @@ Layout is derivable via `ls`/`find`. Notable additions not obvious from a first 
 **Search**: `SearchService` — local only, filters SwiftData entries by keyword.
 
 **Noticing journal changes (since 3.1.8, audit 2026-11-04)**: views that cache work over the whole journal key their `.task(id:)` on `JournalRevision.shared.value` plus counts (`JournalCacheKey`), never on a hash of every entry computed in `body`. The counter goes up on any model-context save that changed something and on a finished CloudKit import, then once more ~400 ms later for merges. That hash read every entry's stored fields on each body evaluation (67–75 ms at 5,000 entries, 64% of the Entries tab's main-thread time). Edits must still save right away, as they do today; the list's `EntryDecryptCache` re-reads fields once per revision. Measure with `tools/perf/mac_baseline.sh` (`PERF_OPTIMIZED=1`); it launches the Debug binary by path because `xctrace --launch` started the installed App Store app.
+
+**Kept-out collections (Scratch, since 3.1.8)**: a collection can be kept out of reflections and insights (Organize › collection › Keep out of reflections; Organize offers a ready-made Scratch collection with it on until one exists). The flag is `keepOutOfInsights` in the collection's encrypted `Payload` (optional: synthesized Codable can't default a missing key), so no CloudKit schema change. Kept-out entries still count as writing (Entries, search, heatmap counts, streaks, XP, the writing reminder) but never feed a model, a chart, an alert or a widget mood: filter at the source with `InsightScope` (`InsightScope(context:)` in runners, `InsightEntriesMemo` over a view's `@Query`), not inside InsightService. Any new code that reads entries for an insight, mood aggregate or model call must go through it. Mood auto-detection and Write's follow-up question skip them. Reflections already made aren't regenerated. Versions before 3.1.8 ignore the flag, still read those entries for their own reflections, and drop the flag if they rename the collection. Archives carry it.
 
 **Weekly Digest trigger**: generation runs only on Sundays, from app-active, the nightly `BGProcessingTask`, or the single app refresh (`com.lokesh.mirror.dailyNudge`, re-armed ~10 min out on every backgrounding), which also runs the digest and monthly report gates before the nudge (since 3.1.2; the separate weekly/monthly refresh requests were never submitted before, and didn't stay pending beside the daily one on device). The digest's week is `DateHelpers.digestWeekIdentifier` — fixed ISO Monday–Sunday — never the locale week (`weekIdentifier`): in Sunday-first locales the locale week put Sunday in a new empty week and digests silently never generated (fixed 2026-09-27).
 
