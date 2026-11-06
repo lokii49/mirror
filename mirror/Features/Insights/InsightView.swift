@@ -734,7 +734,7 @@ struct InsightView: View {
             PatternsView()
         } label: {
             ExplorationTile(
-                title: displayMode == .sentinel ? "Patterns" : "Patterns",
+                title: "Patterns",
                 subtitle: "Moods by day, time and tag",
                 icon: "square.grid.3x3.topleft.filled",
                 color: .pink,

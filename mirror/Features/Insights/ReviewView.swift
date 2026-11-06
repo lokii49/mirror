@@ -132,6 +132,17 @@ struct ReviewView: View {
                           start: period.start, span: span)) {
             load()
         }
+        // To Month: this month for the current year, else that year's December (the year view in
+        // early January points at last year, and Month used to open on last January).
+        .onChange(of: span) { _, newSpan in
+            guard newSpan == .month else { return }
+            if calendar.isDate(anchor, equalTo: Date(), toGranularity: .year) {
+                anchor = Date()
+            } else if let year = calendar.dateInterval(of: .year, for: anchor),
+                      let december = calendar.date(byAdding: .day, value: -1, to: year.end) {
+                anchor = december
+            }
+        }
     }
 
     private func step(_ by: Int) {

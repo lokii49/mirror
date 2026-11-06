@@ -40,10 +40,36 @@ enum EntryLinks {
         }
     }
 
+    /// All backlinks, built once per journal revision and container: the reader asks on every open
+    /// and every save, and each build decrypts every styled entry (code review, 2026-11-06).
+    @MainActor private static var cache: (revision: Int, container: ObjectIdentifier, byTarget: [UUID: [Backlink]])?
+
+    @MainActor
+    static func cachedBacklinks(to target: UUID, in context: ModelContext) -> [Backlink] {
+        let revision = JournalRevision.shared.value
+        let container = ObjectIdentifier(context.container)
+        if let cache, cache.revision == revision, cache.container == container {
+            return cache.byTarget[target] ?? []
+        }
+        var descriptor = FetchDescriptor<Entry>(predicate: #Predicate { $0.encryptedInlineStyleData != nil },
+                                                sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
+        descriptor.propertiesToFetch = [\.id, \.createdAt, \.encryptedInlineStyleData]
+        var byTarget: [UUID: [Backlink]] = [:]
+        for entry in (try? context.fetch(descriptor)) ?? [] {
+            guard let ranges = NoteEditorCodec.decodeInlineStyleDocument(entry.inlineStyleData)?.ranges else { continue }
+            let targets = Set(ranges.compactMap { entryID(from: $0.linkURL) }).subtracting([entry.id])
+            guard !targets.isEmpty else { continue }
+            let link = Backlink(id: entry.id, createdAt: entry.createdAt, title: title(of: entry))
+            for target in targets { byTarget[target, default: []].append(link) }
+        }
+        cache = (revision, container, byTarget)
+        return byTarget[target] ?? []
+    }
+
     /// An entry's first non-empty line, without photo tokens, for lists of links.
     static func title(of entry: Entry) -> String {
         let line = entry.text
-            .replacingOccurrences(of: #"\[\[mirror-photo[^\]]*\]\]"#, with: "", options: .regularExpression)
+            .replacingPhotoTokens()
             .components(separatedBy: "\n")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .first { !$0.isEmpty } ?? ""
@@ -71,6 +97,9 @@ enum EntryLinks {
 struct EntryLinkRouting: ViewModifier {
     @Environment(\.modelContext) private var modelContext
     @State private var missing = false
+    /// iPhone and iPad: the linked entry is pushed on top of this reader, so Back returns here
+    /// (it used to replace the open entry; code review, 2026-11-06).
+    @State private var pushed: UUID?
 
     func body(content: Content) -> some View {
         content
@@ -79,12 +108,19 @@ struct EntryLinkRouting: ViewModifier {
                 var descriptor = FetchDescriptor<Entry>(predicate: #Predicate { $0.id == id })
                 descriptor.fetchLimit = 1
                 if ((try? modelContext.fetchCount(descriptor)) ?? 0) > 0 {
+                    #if os(iOS)
+                    pushed = id
+                    #else
                     EntryLinks.open(id)
+                    #endif
                 } else {
                     missing = true
                 }
                 return .handled
             })
+            #if os(iOS)
+            .navigationDestination(item: $pushed) { id in LinkedEntryReader(entryID: id) }
+            #endif
             .alert("Entry not found", isPresented: $missing) {
                 Button("OK", role: .cancel) {}
             } message: {
@@ -93,10 +129,29 @@ struct EntryLinkRouting: ViewModifier {
     }
 }
 
+/// A linked entry's reader, pushed from a link (iPhone and iPad).
+struct LinkedEntryReader: View {
+    @Query private var matches: [Entry]
+
+    init(entryID: UUID) {
+        _matches = Query(filter: #Predicate<Entry> { $0.id == entryID })
+    }
+
+    var body: some View {
+        if let entry = matches.first {
+            EntryDetailView(entry: entry)
+        } else {
+            ContentUnavailableView("Entry not found", systemImage: "link",
+                                   description: Text("The linked entry was deleted, or hasn't synced to this device yet."))
+        }
+    }
+}
+
 /// "Linked from": entries that link here, in the reader.
 struct LinkedFromSection: View {
     let entryID: UUID
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.openURL) private var openURL
     @Environment(\.appDisplayMode) private var displayMode
     @State private var links: [EntryLinks.Backlink] = []
 
@@ -107,7 +162,7 @@ struct LinkedFromSection: View {
             Color.clear
                 .frame(height: 0)
                 .task(id: TaskKey(entryID: entryID, revision: JournalRevision.shared.value)) {
-                    links = EntryLinks.backlinks(to: entryID, in: modelContext)
+                    links = EntryLinks.cachedBacklinks(to: entryID, in: modelContext)
                 }
             if !links.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
@@ -116,7 +171,8 @@ struct LinkedFromSection: View {
                         .foregroundStyle(MirrorTheme.textTertiary)
                         .tracking(0.6)
                     ForEach(links) { link in
-                        Button { EntryLinks.open(link.id) } label: {
+                        // Through the reader's link routing: pushed on iPhone and iPad, the pane on Mac.
+                        Button { if let url = URL(string: EntryLinks.urlString(for: link.id)) { openURL(url) } } label: {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(link.title)
                                     .scaledFont(15, weight: .medium)
@@ -151,6 +207,9 @@ struct EntryLinkPicker: View {
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @State private var query = ""
     @State private var shown: [EntryLinks.Backlink] = []
+    /// Built once when the sheet opens (each entry decrypted once); typing filters these strings off
+    /// the main actor (code review, 2026-11-06: it re-decrypted the whole journal per search).
+    @State private var index: [(item: EntryLinks.Backlink, text: String)]?
 
     var body: some View {
         NavigationStack {
@@ -185,11 +244,22 @@ struct EntryLinkPicker: View {
                 // A short pause so typing doesn't search on every key.
                 if !query.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
                 guard !Task.isCancelled else { return }
-                let pool = entries.filter { $0.id != excluding && !$0.textDecryptionFailed }
-                let found = query.trimmingCharacters(in: .whitespaces).isEmpty
-                    ? Array(pool.prefix(50))
-                    : Array(SearchService.filter(query: query, in: pool).prefix(50))
-                shown = found.map { .init(id: $0.id, createdAt: $0.createdAt, title: EntryLinks.title(of: $0)) }
+                if index == nil {
+                    index = entries.compactMap { entry in
+                        guard entry.id != excluding, !entry.textDecryptionFailed else { return nil }
+                        let item = EntryLinks.Backlink(id: entry.id, createdAt: entry.createdAt, title: EntryLinks.title(of: entry))
+                        return (item, (entry.insightContext + " " + entry.tags.joined(separator: " ")).lowercased())
+                    }
+                }
+                let all = index ?? []
+                let needle = query.trimmingCharacters(in: .whitespaces).lowercased()
+                guard !needle.isEmpty else { shown = Array(all.prefix(50).map(\.item)); return }
+                let tag = needle.hasPrefix("#") ? String(needle.dropFirst()) : needle
+                let found = await Task.detached(priority: .userInitiated) {
+                    Array(all.lazy.filter { $0.text.contains(needle) || (!tag.isEmpty && $0.text.contains(tag)) }.prefix(50).map(\.item))
+                }.value
+                guard !Task.isCancelled else { return }
+                shown = found
             }
         }
         #if os(macOS)

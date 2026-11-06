@@ -70,6 +70,20 @@ struct PatternsAndReviewTests {
         #expect(result.lengths.map(\.key) == ["short", "long"])
     }
 
+    @Test func aQualifyingTagIsNotCrowdedOutByTagsWithoutARepeat() {
+        // Six busier tags whose moods never repeat, then a seventh with a clear pattern.
+        let moods = ["Joyful", "Sad", "Calm", "Drained", "Hopeful", "Content"]
+        var entries: [PatternsService.Reading] = []
+        for (t, _) in moods.enumerated() {
+            for (i, mood) in moods.prefix(4).enumerated() {
+                entries.append(.init(date: date(2026, 4, 1 + i), mood: moods[(i + t) % moods.count] == mood ? mood : moods[(i + t) % moods.count], tags: ["busy\(t)"]))
+            }
+        }
+        for i in 0..<3 { entries.append(.init(date: date(2026, 5, 1 + i), mood: "Grateful", tags: ["steady"])) }
+        let result = PatternsService.compute(entries: entries, days: [], keptCollections: [], maxTags: 6, calendar: calendar)
+        #expect(result.tags.map(\.key).contains("steady"))
+    }
+
     // MARK: Review
 
     @Test func reviewCountsWritingStreaksAndBusiestDays() {

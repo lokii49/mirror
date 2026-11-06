@@ -39,9 +39,6 @@ enum PatternsService {
         var tags: [Row] = []
         var collections: [Row] = []
         var lengths: [Row] = []
-        /// Mood readings counted at all (days for weekdays, entries for the rest).
-        var readingCount = 0
-
         var isEmpty: Bool { weekdays.isEmpty && timesOfDay.isEmpty && tags.isEmpty && collections.isEmpty && lengths.isEmpty }
     }
 
@@ -84,7 +81,6 @@ enum PatternsService {
     static func compute(entries: [Reading], days: [(date: Date, mood: String)], keptCollections: [UUID],
                         maxTags: Int = 6, calendar: Calendar = .current) -> Result {
         var result = Result()
-        result.readingCount = max(entries.count, days.count)
 
         let byWeekday = Dictionary(grouping: days) { calendar.component(.weekday, from: $0.date) }
         // The locale's first weekday first.
@@ -100,11 +96,12 @@ enum PatternsService {
         for reading in entries {
             for tag in Set(reading.tags) { byTag[tag, default: []].append((reading.date, reading.mood)) }
         }
-        result.tags = byTag
-            .filter { $0.value.count >= minimumReadings }
+        // Rows first, then the most-used ones: cutting before row() let tags with no repeated mood
+        // take slots that qualifying tags further down never got (code review, 2026-11-06).
+        result.tags = Array(byTag
             .sorted { $0.value.count != $1.value.count ? $0.value.count > $1.value.count : $0.key < $1.key }
-            .prefix(maxTags)
             .compactMap { row(key: $0.key, readings: $0.value.map { (date: $0.0, mood: $0.1) }) }
+            .prefix(maxTags))
 
         let kept = Set(keptCollections)
         let byCollection = Dictionary(grouping: entries.filter { $0.collectionID.map(kept.contains) ?? false }) { $0.collectionID! }

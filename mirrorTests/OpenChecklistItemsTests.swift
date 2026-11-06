@@ -45,7 +45,7 @@ struct OpenChecklistItemsTests {
     }
 
     @Test func photoTokensAreLeftOutOfTheShownText() {
-        let text = "Pick up [[mirror-photo:0]]prints"
+        let text = "Pick up [[mirror-photo-0]]prints"
         let lines = OpenChecklistItems.uncheckedLines(text: text, textStyleData: styles([.checklistUnchecked]))
         #expect(lines.first?.text == "Pick up prints")
     }

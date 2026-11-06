@@ -597,6 +597,8 @@ struct WritingStarterChip: View {
 
     @Environment(\.appDisplayMode) private var displayMode
     @State private var showTemplateManager = false
+    /// Your templates, unsealed once and again when the manager closes (not on every render).
+    @State private var customTemplates: [CustomTemplate] = []
     private var isSentinel: Bool { displayMode == .sentinel }
     private var accent: Color { isSentinel ? MirrorTheme.ember : MirrorTheme.violet }
 
@@ -659,10 +661,9 @@ struct WritingStarterChip: View {
                 }
             }
             // Your own templates (this device only), then managing them.
-            let custom = CustomTemplateStore.readable()
-            if !custom.isEmpty {
+            if !customTemplates.isEmpty {
                 Divider()
-                ForEach(custom) { template in
+                ForEach(customTemplates) { template in
                     Button { onUseTemplate(template.text, .max) } label: {
                         Label(template.title, systemImage: "doc.text")
                     }
@@ -690,7 +691,10 @@ struct WritingStarterChip: View {
         .accessibilityLabel(showsTalkItOut ? "Need a starting point? Talk it out, or use a template" : "Need a starting point?")
         .accessibilityIdentifier("write.starter")
         // Inside this struct, not on WriteView.body (Debug stack limit).
-        .sheet(isPresented: $showTemplateManager) { TemplateManagerView() }
+        .sheet(isPresented: $showTemplateManager, onDismiss: { customTemplates = CustomTemplateStore.readable() }) {
+            TemplateManagerView()
+        }
+        .task { customTemplates = CustomTemplateStore.readable() }
     }
 }
 

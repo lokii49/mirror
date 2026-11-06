@@ -27,7 +27,7 @@ enum OpenChecklistItems {
         var lines: [Line] = []
         for (index, style) in styles.enumerated() where style == .checklistUnchecked && paragraphs.indices.contains(index) {
             let shown = paragraphs[index]
-                .replacingOccurrences(of: #"\[\[mirror-photo[^\]]*\]\]"#, with: "", options: .regularExpression)
+                .replacingPhotoTokens()
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             if !shown.isEmpty { lines.append(Line(index: index, text: shown)) }
         }
@@ -70,7 +70,7 @@ enum OpenChecklistItems {
         guard current == .checklistUnchecked || current == .checklistChecked else { return false }
         let paragraphs = text.components(separatedBy: "\n")
         guard paragraphs.indices.contains(line.index),
-              paragraphs[line.index].replacingOccurrences(of: #"\[\[mirror-photo[^\]]*\]\]"#, with: "", options: .regularExpression)
+              paragraphs[line.index].replacingPhotoTokens()
                 .trimmingCharacters(in: .whitespacesAndNewlines) == line.text else { return false }
         document.paragraphStyles[line.index] = checked ? .checklistChecked : .checklistUnchecked
         guard let encoded = try? JSONEncoder().encode(document) else { return false }
@@ -79,4 +79,9 @@ enum OpenChecklistItems {
         do { try context.save() } catch { return false }
         return true
     }
+}
+
+extension String {
+    /// The text without its `[[mirror-photo-N]]` tokens (`textWithPhotoTokensReplaced`).
+    func replacingPhotoTokens() -> String { textWithPhotoTokensReplaced(self, placeholder: "") }
 }

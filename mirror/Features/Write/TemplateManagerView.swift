@@ -109,6 +109,12 @@ private struct TemplateEditorView: View {
     @State var template: CustomTemplate
     let onSave: (CustomTemplate) -> Void
 
+    /// Anything typed: a swipe mustn't drop it (Cancel is the way out).
+    private var hasInput: Bool {
+        !template.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !template.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     private var canSave: Bool {
         !template.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !template.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -150,6 +156,6 @@ private struct TemplateEditorView: View {
         #if os(macOS)
         .frame(minWidth: 440, minHeight: 380)
         #endif
-        .interactiveDismissDisabled(canSave)
+        .interactiveDismissDisabled(hasInput)
     }
 }
