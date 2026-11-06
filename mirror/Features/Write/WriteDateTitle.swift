@@ -14,14 +14,14 @@ struct WriteDateTitle: View {
     var body: some View {
         VStack(alignment: .leading, spacing: isSentinel ? 3 : 1) {
             Text(weekday)
-                .scaledFont(isSentinel ? 20 : 30, weight: .bold, design: isSentinel ? .monospaced : .default)
+                .scaledFont(isSentinel ? 25 : 30, weight: .bold, design: isSentinel ? .monospaced : .default)
                 .kerning(isSentinel ? 0.6 : -0.4)
                 .foregroundStyle(primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             HStack(spacing: 5) {
                 Text(detail)
-                    .scaledFont(isSentinel ? 11.5 : 15, weight: .medium, design: isSentinel ? .monospaced : .default)
+                    .scaledFont(isSentinel ? 13 : 15, weight: .medium, design: isSentinel ? .monospaced : .default)
                     .kerning(isSentinel ? 0.4 : 0)
                     .foregroundStyle(secondary)
                     .lineLimit(1)

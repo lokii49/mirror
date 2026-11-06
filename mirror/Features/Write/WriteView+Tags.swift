@@ -85,40 +85,13 @@ extension WriteView {
                             .buttonStyle(.plain)
                         }
                     }
-                } else if displayMode != .sentinel {
-                    // Option A (owner 2026-11-06): the second row is quiet text, not more pills.
-                    Button {
-                        showTagInput = true
-                    } label: {
-                        WriteHeaderTextLabel(title: "Add tag", systemImage: "number")
-                    }
-                    .buttonStyle(.plain)
                 } else {
+                    // Option A (owner 2026-11-06): the second row is quiet text, not more pills,
+                    // in both themes.
                     Button {
                         showTagInput = true
                     } label: {
-                        HStack(spacing: 3) {
-                            Image(systemName: "plus")
-                                .scaledFont(10, weight: .semibold)
-                            Text("tag")
-                                .scaledFont(11, weight: .semibold, design: .monospaced)
-                        }
-                        // Same pill as the date and Mood buttons above it: it used to be a grey
-                        // fill with tertiary text, which read as disabled.
-                        .foregroundStyle(MirrorTheme.textSecondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(MirrorTheme.inkRaised),
-                            in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
-                        )
-                        .overlay {
-                            if displayMode == .sentinel {
-                                RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1)
-                            } else {
-                                Capsule().stroke(MirrorTheme.inkBorder, lineWidth: 1)
-                            }
-                        }
+                        WriteHeaderTextLabel(title: "Add tag", systemImage: "number", isSentinel: displayMode == .sentinel)
                     }
                     .buttonStyle(.plain)
                 }

@@ -163,67 +163,11 @@ extension WriteView {
         }
     }
 
-    @ViewBuilder
+    /// Option A (owner 2026-11-06), in both themes (owner: same design in both modes): an empty
+    /// mood is an invitation (dashed accent pill), a picked one shows its colour and name. Its
+    /// own struct: the header sits at the Debug stack limit.
     var signalLabel: some View {
-        if displayMode == .sentinel {
-            sentinelSignalLabel
-        } else {
-            // Option A (owner 2026-11-06): an empty mood is an invitation (dashed accent pill
-            // with a face), a picked one shows its colour and name. Its own struct: the header
-            // sits at the Debug stack limit.
-            WriteMoodPill(mood: viewModel.selectedMood, isDetecting: isDetectingMood)
-        }
-    }
-
-    var sentinelSignalLabel: some View {
-        Group {
-            HStack(spacing: 6) {
-                if isDetectingMood {
-                    ProgressView()
-                        .scaleEffect(0.65)
-                        .frame(width: 13, height: 13)
-                } else {
-                    if let selectedMood = viewModel.selectedMood {
-                        Circle()
-                            .fill(MirrorTheme.moodColor(for: selectedMood))
-                            .frame(width: 8, height: 8)
-                    } else {
-                        Image(systemName: "waveform")
-                            .scaledFont(10, weight: .semibold)
-                            .foregroundStyle(MirrorTheme.ember)
-                    }
-                    Group {
-                        if let selectedMood = viewModel.selectedMood {
-                            Text(MirrorTheme.localizedMoodName(for: selectedMood).uppercased())
-                        } else {
-                            Text("SIGNAL")
-                        }
-                    }
-                        .scaledFont(11.5, weight: .semibold, design: .monospaced)
-                        .kerning(0.4)
-                        .lineLimit(1)
-                        .foregroundStyle(viewModel.selectedMood == nil ? MirrorTheme.ember : MirrorTheme.moodColor(for: viewModel.selectedMood ?? ""))
-                }
-                Image(systemName: "chevron.down")
-                    .scaledFont(10, weight: .semibold)
-                    .foregroundStyle(MirrorTheme.textSecondary)
-            }
-            .padding(.horizontal, 11)
-            .padding(.vertical, 7)
-            .background(
-                viewModel.selectedMood == nil ? MirrorTheme.ember.opacity(0.10) : MirrorTheme.moodColor(for: viewModel.selectedMood ?? "").opacity(0.14),
-                in: RoundedRectangle(cornerRadius: 5, style: .continuous)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .stroke(
-                        viewModel.selectedMood == nil ? MirrorTheme.ember.opacity(0.35) : MirrorTheme.moodColor(for: viewModel.selectedMood ?? "").opacity(0.4),
-                        lineWidth: 1
-                    )
-            }
-        }
-        .animation(.easeInOut(duration: 0.2), value: viewModel.selectedMood)
-        .animation(.easeInOut(duration: 0.2), value: isDetectingMood)
+        WriteMoodPill(mood: viewModel.selectedMood, isDetecting: isDetectingMood, isSentinel: displayMode == .sentinel)
     }
 
     /// Sentinel's replacement for the native Menu — SwiftUI's Menu can't be
@@ -660,54 +604,23 @@ struct WritingStarterChip: View {
                 }
             }
         } label: {
-            if isSentinel {
-                sentinelLabel
-            } else {
-                // Option A (owner 2026-11-06): one quiet line, not a card above the page.
-                HStack(spacing: 6) {
-                    Image(systemName: "sparkles")
-                        .scaledFont(13, weight: .semibold)
-                    Text("Need a starting point?")
-                        .scaledFont(14, weight: .medium)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
-                }
-                .foregroundStyle(accent)
-                .frame(minHeight: 32)
-                .contentShape(Rectangle())
-                .frame(maxWidth: .infinity, alignment: .leading)
+            // Option A (owner 2026-11-06): one quiet line, not a card above the page, in both themes.
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles")
+                    .scaledFont(13, weight: .semibold)
+                Text(isSentinel ? "NEED A STARTING POINT?" : "Need a starting point?")
+                    .scaledFont(isSentinel ? 12.5 : 14, weight: isSentinel ? .semibold : .medium, design: isSentinel ? .monospaced : .default)
+                    .kerning(isSentinel ? 0.4 : 0)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
             }
+            .foregroundStyle(accent)
+            .frame(minHeight: 32)
+            .contentShape(Rectangle())
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(showsTalkItOut ? "Need a starting point? Talk it out, or use a template" : "Need a starting point?")
-    }
-
-    private var sentinelLabel: some View {
-            HStack(spacing: 10) {
-                Image(systemName: "bubble.left.and.text.bubble.right")
-                    .scaledFont(14, weight: .semibold)
-                    .foregroundStyle(accent)
-                Text(isSentinel ? "NEED A STARTING POINT?" : "Need a starting point?")
-                    .scaledFont(isSentinel ? 11.5 : 13, weight: isSentinel ? .semibold : .medium, design: isSentinel ? .monospaced : .default)
-                    .foregroundStyle(MirrorTheme.textSecondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .scaledFont(11, weight: .semibold)
-                    .foregroundStyle(MirrorTheme.textTertiary)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(
-                isSentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(Color(.secondarySystemGroupedBackground)),
-                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(accent.opacity(isSentinel ? 0.3 : 0.2), lineWidth: 1)
-            }
-            .contentShape(Rectangle())
     }
 }
 
@@ -734,9 +647,10 @@ private struct WordGoalRing: View {
 struct WriteMoodPill: View {
     let mood: String?
     let isDetecting: Bool
+    var isSentinel = false
 
     var body: some View {
-        let accent = MirrorTheme.violet
+        let accent = isSentinel ? MirrorTheme.ember : MirrorTheme.violet
         let tint = mood.map { MirrorTheme.moodColor(for: $0) } ?? accent
         HStack(spacing: 7) {
             if isDetecting {
@@ -747,19 +661,20 @@ struct WriteMoodPill: View {
                 Circle()
                     .fill(tint)
                     .frame(width: 10, height: 10)
-                Text(MirrorTheme.localizedMoodName(for: mood))
+                Text(isSentinel ? MirrorTheme.localizedMoodName(for: mood).uppercased() : MirrorTheme.localizedMoodName(for: mood))
                     .foregroundStyle(tint)
             } else {
-                Image(systemName: "face.smiling")
-                    .scaledFont(16, weight: .medium)
+                Image(systemName: isSentinel ? "waveform" : "face.smiling")
+                    .scaledFont(isSentinel ? 13 : 16, weight: .medium)
                     .foregroundStyle(accent)
             }
             if mood == nil {
-                Text("Mood")
+                Text(isSentinel ? "SIGNAL" : "Mood")
                     .foregroundStyle(accent)
             }
         }
-        .scaledFont(15, weight: .semibold)
+        .scaledFont(isSentinel ? 13.5 : 15, weight: .semibold, design: isSentinel ? .monospaced : .default)
+        .kerning(isSentinel ? 0.4 : 0)
         .lineLimit(1)
         .padding(.horizontal, 13)
         .padding(.vertical, 9)

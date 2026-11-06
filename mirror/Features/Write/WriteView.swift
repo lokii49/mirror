@@ -545,8 +545,9 @@ struct WriteView: View {
         }
         .overlay {
             if displayMode == .sentinel && !focusMode {
+                // Below the date title and the second row (option A's header is taller).
                 ViewfinderCorners(inset: 4, length: 18)
-                    .padding(.top, 50)
+                    .padding(.top, 104)
                     .padding(.bottom, 96)
                     .padding(.horizontal, 4)
             }
