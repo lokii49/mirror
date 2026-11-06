@@ -54,7 +54,8 @@ enum ArchiveTransfer {
         for collection in collections {
             guard let payload = collection.payload else { continue }
             names[collection.id] = payload.name
-            collectionRecords.append(.init(id: collection.id, name: payload.name, icon: payload.icon, colorIndex: payload.colorIndex))
+            collectionRecords.append(.init(id: collection.id, name: payload.name, icon: payload.icon, colorIndex: payload.colorIndex,
+                                           keepOutOfInsights: payload.keepOutOfInsights))
         }
         // Views the device can't decrypt are left out, like collections.
         let viewRecords: [ArchivePackage.Manifest.SavedViewRecord] = savedViews
@@ -178,7 +179,8 @@ enum ArchiveTransfer {
         var known = Set(((try? context.fetch(FetchDescriptor<JournalCollection>())) ?? []).map(\.id))
         var nextIndex = (((try? context.fetch(FetchDescriptor<JournalCollection>())) ?? []).map(\.sortIndex).max() ?? -1) + 1
         for record in plan.collections where !known.contains(record.id) {
-            let collection = JournalCollection(id: record.id, payload: .init(name: record.name, icon: record.icon, colorIndex: record.colorIndex),
+            let collection = JournalCollection(id: record.id, payload: .init(name: record.name, icon: record.icon, colorIndex: record.colorIndex,
+                                                                             keepOutOfInsights: record.keepOutOfInsights),
                                                sortIndex: nextIndex)
             guard collection.encryptedPayload != nil else { continue }
             context.insert(collection)

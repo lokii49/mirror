@@ -15,9 +15,12 @@ enum JournalOrganizationStore {
 
     @discardableResult
     static func createCollection(name: String, icon: String = "folder", colorIndex: Int = 0,
+                                 keepOutOfInsights: Bool = false,
                                  in context: ModelContext) throws -> JournalCollection {
         let next = (collections(in: context).map(\.sortIndex).max() ?? -1) + 1
-        let collection = JournalCollection(payload: .init(name: name, icon: icon, colorIndex: colorIndex), sortIndex: next)
+        let collection = JournalCollection(payload: .init(name: name, icon: icon, colorIndex: colorIndex,
+                                                          keepOutOfInsights: keepOutOfInsights ? true : nil),
+                                           sortIndex: next)
         guard collection.encryptedPayload != nil else { throw StoreError.keyUnavailable }
         context.insert(collection)
         try save(context)
@@ -29,6 +32,33 @@ enum JournalOrganizationStore {
         payload.name = name
         guard collection.setPayload(payload) else { throw StoreError.keyUnavailable }
         try save(context)
+    }
+
+    /// Keeps the collection's entries out of reflections and insights, or lets them back in.
+    /// Nothing already generated changes.
+    static func setKeepsOutOfInsights(_ collection: JournalCollection, _ keepOut: Bool, in context: ModelContext) throws {
+        guard var payload = collection.payload else { throw StoreError.keyUnavailable }
+        payload.keepOutOfInsights = keepOut ? true : nil
+        guard collection.setPayload(payload) else { throw StoreError.keyUnavailable }
+        try save(context)
+    }
+
+    /// The localized name of the ready-made notes collection.
+    static var scratchName: String { String(localized: "Scratch", comment: "Ready-made collection for quick notes kept out of reflections") }
+    static let scratchIcon = "note.text"
+
+    /// The ready-made collection for quick notes, lists and reminders: kept out of reflections.
+    /// A collection already named Scratch is switched over instead of adding a second one.
+    @discardableResult
+    static func addScratchCollection(in context: ModelContext) throws -> JournalCollection {
+        let name = scratchName
+        if let existing = collections(in: context).first(where: {
+            $0.payload?.name.compare(name, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
+        }) {
+            try setKeepsOutOfInsights(existing, true, in: context)
+            return existing
+        }
+        return try createCollection(name: name, icon: scratchIcon, keepOutOfInsights: true, in: context)
     }
 
     static func entryCount(in collectionID: UUID, context: ModelContext) -> Int {

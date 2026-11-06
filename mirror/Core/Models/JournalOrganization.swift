@@ -20,6 +20,13 @@ import SwiftData
         var name: String
         var icon: String = "folder"
         var colorIndex: Int = 0
+        /// Entries here stay out of reflections, insights, mood charts and alerts (InsightScope).
+        /// Optional so payloads written before it (no key) still decode: synthesized Codable
+        /// doesn't apply defaults, and a failed decode makes the collection unreadable. Versions
+        /// before 3.1.8 ignore it and drop it if they rename the collection.
+        var keepOutOfInsights: Bool? = nil
+
+        var keepsOutOfInsights: Bool { keepOutOfInsights == true }
     }
 
     init(id: UUID = UUID(), payload: Payload, sortIndex: Int) {

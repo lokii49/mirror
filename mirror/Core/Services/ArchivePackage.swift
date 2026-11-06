@@ -107,6 +107,8 @@ nonisolated enum ArchivePackage {
             var name: String
             var icon: String
             var colorIndex: Int
+            /// Absent in packages from before 3.1.8.
+            var keepOutOfInsights: Bool? = nil
         }
         struct SavedViewRecord: Codable, Sendable, Equatable {
             var id: UUID
