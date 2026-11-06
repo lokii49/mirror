@@ -479,6 +479,17 @@ enum FeatureCardRegistry {
             sinceVersion: "3.1.8",
             showInFeatureGuide: false
         ),
+        // Kept-out collections (InsightScope): Scratch is offered in Organize on iOS and Mac.
+        .init(
+            id: "scratch-318",
+            title: "Notes that stay out of reflections",
+            body: "In Entries, open Manage collections and views and add Scratch for quick notes, lists and numbers. Reflections, Ask, mood charts and mood alerts don't read it, and any collection can be kept out the same way.",
+            symbolName: "note.text",
+            accentColor: .teal,
+            tier: .free,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false
+        ),
     ]
 
     /// 15 November 2026, the paid-plans cutover, in the reader's own date format.

@@ -9072,6 +9072,70 @@
         }
       }
     },
+    "In Entries, open Manage collections and views and add Scratch for quick notes, lists and numbers. Reflections, Ask, mood charts and mood alerts don't read it, and any collection can be kept out the same way." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Öffne unter „Einträge“ „Sammlungen und Ansichten verwalten“ und füge „Notizen“ für schnelle Notizen, Listen und Nummern hinzu. Reflexionen, Fragen, Stimmungsdiagramme und Stimmungswarnungen lesen sie nicht, und jede Sammlung lässt sich genauso heraushalten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In Entries, open Manage collections and views and add Scratch for quick notes, lists and numbers. Reflections, Ask, mood charts and mood alerts don't read it, and any collection can be kept out the same way."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "En Entradas, abre Gestionar colecciones y vistas y añade Apuntes para notas rápidas, listas y números. Las reflexiones, Preguntar, los gráficos de ánimo y las alertas de ánimo no la leen, y cualquier colección se puede excluir del mismo modo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Dans Entrées, ouvrez Gérer les collections et les vues et ajoutez Pense-bête pour les notes rapides, listes et numéros. Les réflexions, Demander, les graphiques d’humeur et les alertes d’humeur ne la lisent pas, et toute collection peut en être exclue de la même façon."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "In Voci, apri Gestisci raccolte e viste e aggiungi Appunti per note veloci, liste e numeri. Riflessioni, Chiedi, grafici dell’umore e avvisi sull’umore non la leggono, e qualsiasi raccolta si può escludere allo stesso modo."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "「エントリー」で「コレクションと表示を管理」を開き、クイックメモやリスト、番号用の「メモ」を追加できます。リフレクション、質問、ムードのグラフ、ムードアラートはこれを読みません。ほかのコレクションも同じように除外できます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "항목에서 컬렉션 및 보기 관리를 열고 빠른 메모, 목록, 번호를 위한 '메모'를 추가하세요. 리플렉션, 질문, 기분 차트, 기분 알림은 이 컬렉션을 읽지 않으며, 다른 컬렉션도 같은 방법으로 제외할 수 있습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Em Entradas, abra Gerenciar coleções e visualizações e adicione Anotações para notas rápidas, listas e números. Reflexões, Perguntar, gráficos de humor e alertas de humor não a leem, e qualquer coleção pode ficar de fora do mesmo jeito."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "В разделе «Записи» откройте «Управлять коллекциями и видами» и добавьте «Заметки» для быстрых записей, списков и номеров. Размышления, «Спросить», графики настроения и оповещения о настроении их не читают, и так же можно исключить любую коллекцию."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "在“条目”中打开“管理合集和视图…”，添加“随手记”，用来放快速笔记、清单和号码。回顾、提问、情绪图表和情绪提醒都不会读取它，任何合集也都可以这样设为不用于回顾。"
+          }
+        }
+      }
+    },
     "In Write, Save to Drafts puts an entry aside so you can finish it later. Drafts stay on this device." : {
       "comment" : "3.1.4 Recently Deleted, Drafts, Duplicates, collection in Write. Model-translated; native review pending.",
       "localizations" : {
@@ -11974,6 +12038,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "以后"
+          }
+        }
+      }
+    },
+    "Notes that stay out of reflections" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Notizen, die nicht in Reflexionen landen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notes that stay out of reflections"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Notas que quedan fuera de las reflexiones"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Des notes à l’écart des réflexions"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Note che restano fuori dalle riflessioni"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "リフレクションに使われないメモ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "리플렉션에 쓰이지 않는 메모"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Notas que ficam fora das reflexões"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Заметки, которые не попадают в размышления"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "不用于回顾的笔记"
           }
         }
       }
