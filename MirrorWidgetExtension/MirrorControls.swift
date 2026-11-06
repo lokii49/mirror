@@ -32,4 +32,17 @@ struct MirrorLogMoodControl: ControlWidget {
         .description("Opens the mood check-in.")
     }
 }
+
+@available(iOS 18.0, *)
+struct MirrorScratchNoteControl: ControlWidget {
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: "com.lokesh.mirror.control.scratchNote") {
+            ControlWidgetButton(action: OpenURLIntent(URL(string: "mirror://scratch-note")!)) {
+                Label("Scratch Note", systemImage: "note.text")
+            }
+        }
+        .displayName("Scratch Note")
+        .description("A quick note that reflections don't read.")
+    }
+}
 #endif

@@ -101,6 +101,7 @@ struct DraftsView: View {
                 .accessibilityHint("Opens it in Write")
                 .swipeActions {
                     Button("Delete", role: .destructive) { delete(draft) }
+                        .tint(.red)
                 }
                 .contextMenu {
                     Button("Continue writing", systemImage: "square.and.pencil") { resume(draft) }
@@ -271,6 +272,7 @@ struct RecentlyDeletedView: View {
                             }
                             .swipeActions(edge: .trailing) {
                                 Button("Delete", role: .destructive) { pendingDelete = row }
+                                    .tint(.red)
                             }
                             .contextMenu {
                                 Button("Restore", systemImage: "arrow.uturn.backward") { restore([row]) }

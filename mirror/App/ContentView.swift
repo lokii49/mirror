@@ -56,6 +56,8 @@ struct ContentView: View {
     @State private var reviewPromptCoordinator = ReviewPromptCoordinator.shared
     @State private var showMoodCheckIn = false
     @State private var moodCheckInPresenter = MoodCheckInPresenter.shared
+    @State private var scratchNotePresenter = ScratchNotePresenter.shared
+    @State private var showScratchNote = false
     @State private var appLock = AppLock.shared
     @State private var deepLinkEntryID: UUID? = nil
     #if os(macOS)
@@ -174,7 +176,7 @@ struct ContentView: View {
         ReviewRequestManager.canPresentPrompt(
             pending: reviewPromptCoordinator.isPending,
             alreadyShown: ReviewRequestManager.hasShownEntryMilestonePrompt,
-            rootSheetUp: showPaywall || showWhatsNew || showRatePrompt || showMoodCheckIn,
+            rootSheetUp: showPaywall || showWhatsNew || showRatePrompt || showMoodCheckIn || showScratchNote,
             childSheetUp: moodCheckInPresenter.blockedByOtherSheet,
             onboardingComplete: onboardingComplete
         )
@@ -185,7 +187,16 @@ struct ContentView: View {
     /// in this session, `pending` simply carries to the next launch/tap.
     private var canPresentMoodCheckIn: Bool {
         moodCheckInPresenter.pending
-            && !showPaywall && !showWhatsNew && !showRatePrompt && !showMoodCheckIn
+            && !showPaywall && !showWhatsNew && !showRatePrompt && !showMoodCheckIn && !showScratchNote
+            && !moodCheckInPresenter.blockedByOtherSheet
+            && onboardingComplete
+    }
+
+    /// The quick note into Scratch (Control Center button, Entries menu, Mac File menu), once the
+    /// screen is free of other modals. Until then `pending` waits, like the mood check-in.
+    private var canPresentScratchNote: Bool {
+        scratchNotePresenter.pending
+            && !showPaywall && !showWhatsNew && !showRatePrompt && !showMoodCheckIn && !showScratchNote
             && !moodCheckInPresenter.blockedByOtherSheet
             && onboardingComplete
     }
@@ -307,7 +318,7 @@ struct ContentView: View {
         #if os(iOS)
         // Write focuses its editor on launch, and these sheets open over it a moment later: put the
         // keyboard away so it doesn't sit on top of the sheet (2026-10-09).
-        .onChange(of: showWhatsNew || showMoodCheckIn || showRatePrompt || showPaywall) { _, covered in
+        .onChange(of: showWhatsNew || showMoodCheckIn || showRatePrompt || showPaywall || showScratchNote) { _, covered in
             if covered {
                 UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
             }
@@ -317,6 +328,16 @@ struct ContentView: View {
             // Neither UI tests nor the DEBUG --showRatePrompt launch may spend the real prompt.
             RateUsPromptSheet(consumesMilestone: !isUITesting && !Self.isRatePromptLaunch)
                 .environment(\.appDisplayMode, displayMode)
+        }
+        .sheet(isPresented: $showScratchNote) {
+            ScratchNoteSheet()
+                .environment(\.appDisplayMode, displayMode)
+        }
+        .onChange(of: canPresentScratchNote, initial: true) { _, canPresent in
+            // Re-read `pending`: with two Mac windows open, the first one to see it takes it.
+            guard canPresent, scratchNotePresenter.pending else { return }
+            scratchNotePresenter.pending = false
+            showScratchNote = true
         }
         .sheet(isPresented: $showMoodCheckIn) {
             MoodCheckInView()
@@ -446,6 +467,9 @@ struct ContentView: View {
             case "mood-checkin":
                 // The Log Mood control; presents once the screen is free (canPresentMoodCheckIn).
                 moodCheckInPresenter.pending = true
+            case "scratch-note":
+                // The Scratch Note control; presents once the screen is free (canPresentScratchNote).
+                scratchNotePresenter.pending = true
             case "insights", "nudge":
                 selectedTab = 2
                 selectedSidebarItem = .insights

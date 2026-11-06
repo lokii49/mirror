@@ -794,6 +794,7 @@ extension WriteView {
     static func clearAllDraftStorage() {
         clearDraftStorage(slot: .newEntry, attachments: .live)
         clearDraftStorage(slot: .newEntryWindow, attachments: .window)
+        clearDraftStorage(slot: .scratchNote, attachments: nil)
     }
 
     static func clearDraftStorage(slot: WriteDraftStore.Slot, attachments: DraftAttachmentStore.Location?) {
@@ -818,6 +819,7 @@ extension WriteView {
         DraftAttachmentStore.clearIncludingPreserved(at: .window)
         WriteDraftStore.clearIncludingPreserved()
         WriteDraftStore.clearIncludingPreserved(slot: .newEntryWindow)
+        WriteDraftStore.clearIncludingPreserved(slot: .scratchNote)
         WriteDraftStore.clearAllEntryDrafts()
         SavedDraftStore.deleteAll()
         NotificationCenter.default.post(name: .mirrorDraftsErased, object: nil)

@@ -57,6 +57,8 @@ enum WriteDraftStore {
         case entry(UUID)
         /// A new entry put aside in Drafts (`SavedDraftStore`).
         case saved(UUID)
+        /// The quick note going into Scratch (`ScratchNoteSheet`), kept apart from Write's.
+        case scratchNote
 
         static let entryKeyPrefix = "mirror.writeDraft.v2.entry."
         static let savedKeyPrefix = "mirror.writeDraft.v2.saved."
@@ -67,6 +69,7 @@ enum WriteDraftStore {
             case .newEntryWindow: return "mirror.writeDraft.v2.newWindow"
             case .entry(let id): return Self.entryKeyPrefix + id.uuidString
             case .saved(let id): return Self.savedKeyPrefix + id.uuidString
+            case .scratchNote: return "mirror.writeDraft.v2.scratchNote"
             }
         }
 
@@ -74,7 +77,7 @@ enum WriteDraftStore {
         /// save cannot overwrite it before its key arrives (e.g. via iCloud Keychain).
         var preservedKey: String { key + ".unreadable" }
 
-        var isNewEntry: Bool { self == .newEntry || self == .newEntryWindow }
+        var isNewEntry: Bool { self == .newEntry || self == .newEntryWindow || self == .scratchNote }
     }
 
     enum LoadResult: Equatable {

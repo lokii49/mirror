@@ -181,6 +181,10 @@ struct SavedViewsMenu<Label: View>: View {
                 }
             }
             if !sorted.isEmpty { Divider() }
+            Button("New Scratch Note", systemImage: JournalOrganizationStore.scratchIcon) {
+                ScratchNotePresenter.shared.pending = true
+            }
+            Divider()
             Button("Save current view…", systemImage: "bookmark.badge.plus", action: saveCurrent)
                 .disabled(!canSaveCurrent)
             Button("Manage collections and views…", systemImage: "slider.horizontal.3", action: manage)
@@ -273,9 +277,12 @@ struct OrganizationManagerSheet: View {
                             Button("Rename", systemImage: "pencil") { startRename(collection) }
                             Button("Delete", systemImage: "trash", role: .destructive) { pendingDelete = collection }
                         }
+                        // Explicit tints: the app's accent otherwise paints Delete purple too.
                         .swipeActions {
                             Button("Delete", role: .destructive) { pendingDelete = collection }
+                                .tint(.red)
                             Button("Rename") { startRename(collection) }
+                                .tint(.gray)
                         }
                     }
                     .onMove { from, to in
@@ -330,7 +337,9 @@ struct OrganizationManagerSheet: View {
                             }
                             .swipeActions {
                                 Button("Delete", role: .destructive) { try? JournalOrganizationStore.delete(view, in: modelContext) }
+                                    .tint(.red)
                                 Button("Rename") { startRename(view) }
+                                    .tint(.gray)
                             }
                     }
                     .onMove { from, to in

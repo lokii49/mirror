@@ -88,6 +88,8 @@ struct MirrorMacCommands: Commands {
             .keyboardShortcut("n", modifiers: .command)
             Button("New Entry in New Window") { unlocked { openWindow(id: "new-entry") } }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
+            Button("New Scratch Note") { unlocked { ScratchNotePresenter.shared.pending = true } }
+                .keyboardShortcut("n", modifiers: [.command, .option])
             Divider()
             Button("Save Entry") { unlocked { editor?.save() } }
                 .keyboardShortcut(.return, modifiers: .command)

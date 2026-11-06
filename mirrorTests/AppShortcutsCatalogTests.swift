@@ -11,6 +11,8 @@ struct AppShortcutsCatalogTests {
         "Add a journal entry in ${applicationName}",
         "Write in ${applicationName}",
         "Journal in ${applicationName}",
+        "Add a note to Scratch in ${applicationName}",
+        "Scratch note in ${applicationName}",
     ]
 
     private static var languages: [String] { Bundle.main.localizations.filter { $0 != "Base" && $0 != "en" } }

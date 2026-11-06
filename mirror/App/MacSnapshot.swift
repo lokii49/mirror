@@ -456,6 +456,23 @@ enum MacSnapshot {
             NSApp.terminate(nil)
             return
         }
+        // The quick note into Scratch: the sheet as File › New Scratch Note opens it, then saved.
+        if CommandLine.arguments.contains("--macSnapshotScratchNoteOnly") {
+            go("entries")
+            try? await Task.sleep(for: .seconds(1))
+            ScratchNotePresenter.shared.pending = true
+            for _ in 0..<20 where mainWindow()?.sheets.first == nil { try? await Task.sleep(for: .seconds(0.25)) }
+            try? await Task.sleep(for: .seconds(1))
+            capture(mainWindow()?.sheets.first ?? mainWindow(), name: "scratch-note-sheet")
+            try? await Task.sleep(for: .seconds(1))
+            capture(mainWindow()?.sheets.first ?? mainWindow(), name: "scratch-note-sheet-2")
+            let saved = try? ScratchNotes.save("Gate code 4412.", in: context)
+            NSLog("MacSnapshot: scratch note saved = %@, in kept-out collection = %@", saved == nil ? "no" : "yes",
+                  saved.map { InsightScope(context: context).includes($0) ? "no" : "yes" } ?? "n/a")
+            NSApp.terminate(nil)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { exit(0) }
+            return
+        }
         // Organize with a kept-out collection (Scratch) and that collection's own page.
         if CommandLine.arguments.contains("--macSnapshotOrganizeOnly") {
             go("entries")
