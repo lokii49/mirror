@@ -1,13 +1,15 @@
 import SwiftUI
 import SwiftData
 
-/// Drafts, Duplicates and Recently Deleted: opened from the Saved views menu and from Organize.
+/// Still open, Drafts, Duplicates and Recently Deleted: opened from the Saved views menu and from
+/// Organize.
 enum LibraryPage: String, Identifiable, CaseIterable {
-    case drafts, duplicates, recentlyDeleted
+    case stillOpen, drafts, duplicates, recentlyDeleted
     var id: String { rawValue }
 
     var title: LocalizedStringKey {
         switch self {
+        case .stillOpen: return "Still Open"
         case .drafts: return "Drafts"
         case .duplicates: return "Duplicates"
         case .recentlyDeleted: return "Recently Deleted"
@@ -16,6 +18,7 @@ enum LibraryPage: String, Identifiable, CaseIterable {
 
     var icon: String {
         switch self {
+        case .stillOpen: return "checklist.unchecked"
         case .drafts: return "doc.text"
         case .duplicates: return "square.on.square"
         case .recentlyDeleted: return "trash"
@@ -25,6 +28,7 @@ enum LibraryPage: String, Identifiable, CaseIterable {
     @ViewBuilder
     var destination: some View {
         switch self {
+        case .stillOpen: StillOpenView()
         case .drafts: DraftsView()
         case .duplicates: DuplicatesView()
         case .recentlyDeleted: RecentlyDeletedView()
@@ -67,6 +71,94 @@ private struct LibraryRowText: View {
         }
         .padding(.vertical, 2)
     }
+}
+
+// MARK: - Still open
+
+/// Unticked checklist items from every entry, newest entry first. Tick one here and it's ticked
+/// in its entry (tap again to untick); tap the words to open the entry.
+struct StillOpenView: View {
+    @Environment(\.modelContext) private var modelContext
+    @State private var groups: [OpenChecklistItems.Group] = []
+    @State private var loaded = false
+    /// Ticked on this page, so a mistaken tick can be undone before the page closes.
+    @State private var ticked: Set<String> = []
+    @State private var failed = false
+
+    var body: some View {
+        List {
+            if loaded && groups.isEmpty {
+                ContentUnavailableView("Nothing left open", systemImage: "checklist.checked",
+                                       description: Text("Checklist items you haven't ticked show up here."))
+                    .listRowBackground(Color.clear)
+            }
+            ForEach(groups) { group in
+                Section {
+                    ForEach(group.lines, id: \.index) { line in
+                        row(line, in: group)
+                    }
+                } header: {
+                    Text(group.createdAt, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated).year())
+                }
+            }
+        }
+        .overlay { if !loaded { ProgressView() } }
+        .navigationTitle("Still Open")
+        .task {
+            guard !loaded else { return }
+            groups = OpenChecklistItems.groups(in: modelContext)
+            loaded = true
+        }
+        .alert("Couldn't save", isPresented: $failed) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("This item changed in its entry since the page opened, or the device can't encrypt right now.")
+        }
+    }
+
+    private func key(_ line: OpenChecklistItems.Line, _ group: OpenChecklistItems.Group) -> String {
+        "\(group.entryID.uuidString)#\(line.index)"
+    }
+
+    private func row(_ line: OpenChecklistItems.Line, in group: OpenChecklistItems.Group) -> some View {
+        let isTicked = ticked.contains(key(line, group))
+        return HStack(spacing: 12) {
+            Button {
+                let next = !isTicked
+                if OpenChecklistItems.setChecked(next, line: line, entryID: group.entryID, in: modelContext) {
+                    if next { ticked.insert(key(line, group)) } else { ticked.remove(key(line, group)) }
+                } else {
+                    failed = true
+                }
+            } label: {
+                Image(systemName: isTicked ? "checkmark.circle.fill" : "circle")
+                    .scaledFont(20)
+                    .foregroundStyle(isTicked ? AnyShapeStyle(MirrorTheme.violet) : AnyShapeStyle(.secondary))
+                    .frame(minWidth: 32, minHeight: 32)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(isTicked ? "Untick" : "Tick")
+            .accessibilityValue(line.text)
+            Button {
+                NotificationCenter.default.post(name: .mirrorOpenEntryFromLibrary, object: group.entryID)
+            } label: {
+                Text(line.text)
+                    .strikethrough(isTicked)
+                    .foregroundStyle(isTicked ? .secondary : .primary)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens its entry")
+        }
+    }
+}
+
+extension Notification.Name {
+    /// A library page asks Entries to close its sheets and open this entry (object: the entry id).
+    static let mirrorOpenEntryFromLibrary = Notification.Name("mirror.openEntryFromLibrary")
 }
 
 // MARK: - Drafts

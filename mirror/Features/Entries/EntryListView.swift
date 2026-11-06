@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Combine
 
 private let moodLabels = MirrorTheme.moodOptions
 
@@ -527,9 +528,19 @@ struct EntriesTabView: View {
             .sheet(isPresented: $showOrganizer) { OrganizationManagerSheet() }
             .sheet(item: $libraryPage) { LibrarySheet(page: $0) }
             // Drafts > Continue writing from inside Organize: close it so Write isn't left under it.
-            .onReceive(NotificationCenter.default.publisher(for: .mirrorResumeSavedDraft)) { _ in
+            // Also Still open's "open this entry": the same modifier (no new one on this body).
+            .onReceive(NotificationCenter.default.publisher(for: .mirrorResumeSavedDraft)
+                .merge(with: NotificationCenter.default.publisher(for: .mirrorOpenEntryFromLibrary))) { note in
                 showOrganizer = false
                 libraryPage = nil
+                if note.name == .mirrorOpenEntryFromLibrary, let id = note.object as? UUID,
+                   let entry = entries.first(where: { $0.id == id }) {
+                    // After the sheet has gone, or the push is dropped under it.
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(450))
+                        open(entry)
+                    }
+                }
             }
             .modifier(OrganizationPrompts(newCollectionFor: $newCollectionFor, savingView: $savingView, saveView: saveCurrentView))
             .sheet(isPresented: $showFilters) {
