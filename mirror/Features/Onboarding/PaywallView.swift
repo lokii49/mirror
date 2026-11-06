@@ -237,7 +237,9 @@ struct PaywallView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Group {
                         if isSentinel {
-                            Text(selectedTier == .core ? "SENTINEL CORE" : "SENTINEL DEEP")
+                            // The plan's own name, in Sentinel's uppercase (owner, 2026-11-06: not "Sentinel Core").
+                            Text(selectedTier == .core ? "MirrorNotes Core" : "MirrorNotes Deep")
+                                .textCase(.uppercase)
                                 .scaledFont(26, weight: .bold, design: .monospaced)
                                 .tracking(0.5)
                         } else {
