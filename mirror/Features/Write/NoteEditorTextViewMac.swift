@@ -375,6 +375,11 @@ struct NoteEditorTextView: NSViewRepresentable {
         textView.linkTextAttributes = [.foregroundColor: NSColor.linkColor, .underlineStyle: NSUnderlineStyle.single.rawValue]
         textView.delegate = coordinator
         storage.delegate = coordinator
+        // Writing Tools in its panel, plain-text results, photos left alone (WritingToolsGuard).
+        if #available(macOS 15.0, *) {
+            textView.writingToolsBehavior = .limited
+            textView.allowedWritingToolsResultOptions = [.plainText]
+        }
         textView.onToggleChecklist = { [weak coordinator] start in coordinator?.toggleChecklist(at: start) }
         textView.checklistItemAtCaret = { [weak coordinator, weak textView] in
             guard let coordinator, let textView else { return nil }
@@ -553,6 +558,11 @@ struct NoteEditorTextView: NSViewRepresentable {
         }
 
         // MARK: Emitting changes
+
+        @available(macOS 15.0, *)
+        func textView(_ textView: NSTextView, writingToolsIgnoredRangesInEnclosingRange enclosingRange: NSRange) -> [NSValue] {
+            WritingToolsGuard.ignoredRanges(in: textView.string, enclosing: enclosingRange).map { NSValue(range: $0) }
+        }
 
         func textDidChange(_ notification: Notification) {
             guard !isApplying, let textView, let storage = textView.textStorage else { return }

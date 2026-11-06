@@ -55,6 +55,12 @@ struct NoteEditorTextView: UIViewRepresentable {
         textView.editorUndo = context.coordinator.editorUndoManager
         context.coordinator.editorUndoManager.textView = textView
         textView.delegate = context.coordinator
+        // Writing Tools in its panel, plain-text results, photos and list markers left alone
+        // (WritingToolsGuard).
+        if #available(iOS 18.0, *) {
+            textView.writingToolsBehavior = .limited
+            textView.allowedWritingToolsResultOptions = [.plainText]
+        }
         textView.backgroundColor = .clear
         textView.isEditable = true
         textView.isSelectable = true
@@ -540,6 +546,11 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         var bodyAttributes: [NSAttributedString.Key: Any] { bodyAttributes(fontChoice: entryDefaultFontChoice) }
+
+        @available(iOS 18.0, *)
+        func textView(_ textView: UITextView, writingToolsIgnoredRangesInEnclosingRange enclosingRange: NSRange) -> [NSValue] {
+            WritingToolsGuard.ignoredRanges(in: textView.text ?? "", enclosing: enclosingRange).map { NSValue(range: $0) }
+        }
 
         func textViewDidChange(_ textView: UITextView) {
             guard !isApplyingStyledText else { return }

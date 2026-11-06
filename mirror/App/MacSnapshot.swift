@@ -487,6 +487,11 @@ enum MacSnapshot {
             go("write")
             try? await Task.sleep(for: .seconds(2))
             capture(mainWindow(), name: "write-header")
+            // Time for an outside check (Writing Tools in the Edit menu, via System Events).
+            if CommandLine.arguments.contains("--macSnapshotWriteHold") {
+                NSLog("MacSnapshot: holding write")
+                try? await Task.sleep(for: .seconds(40))
+            }
             // The recorder the toolbar's mic opens (no recording: that would ask for the microphone).
             if CommandLine.arguments.contains("--macSnapshotRecorder") {
                 NotificationCenter.default.post(name: .mirrorMacDebugWrite, object: nil, userInfo: ["action": "openRecorder"])
