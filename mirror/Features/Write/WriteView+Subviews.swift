@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(JournalingSuggestions)
+import JournalingSuggestions
+#endif
 #if canImport(UIKit)
 import UIKit
 #elseif canImport(AppKit)
@@ -589,6 +592,8 @@ struct WritingStarterChip: View {
     let onTalkItOut: () -> Void
     /// The text a template starts the entry with, and where the caret goes in it.
     let onUseTemplate: (_ text: String, _ cursorOffset: Int) -> Void
+    /// A Journaling Suggestion picked (iPhone; iPad from iPadOS 26): its title and photo files.
+    var onSuggestion: ((_ title: String, _ photos: [URL]) -> Void)? = nil
 
     @Environment(\.appDisplayMode) private var displayMode
     @State private var showTemplateManager = false
@@ -596,6 +601,51 @@ struct WritingStarterChip: View {
     private var accent: Color { isSentinel ? MirrorTheme.ember : MirrorTheme.violet }
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            starterMenu
+            suggestionsPicker
+        }
+    }
+
+    /// Apple's Journaling Suggestions (photos, workouts, places from your day), chosen in Apple's
+    /// own sheet; nothing reaches the app until the person picks one (3.1.8, item 7).
+    @ViewBuilder
+    private var suggestionsPicker: some View {
+        #if os(iOS) && canImport(JournalingSuggestions)
+        if let onSuggestion, #available(iOS 17.2, *),
+           UIDevice.current.userInterfaceIdiom == .phone || ProcessInfo.processInfo.isOperatingSystemAtLeast(OperatingSystemVersion(majorVersion: 26, minorVersion: 0, patchVersion: 0)) {
+            JournalingSuggestionsPicker {
+                HStack(spacing: 6) {
+                    Image(systemName: "photo.on.rectangle.angled")
+                        .scaledFont(13, weight: .semibold)
+                    Text(isSentinel ? "SUGGESTIONS FROM YOUR DAY" : "Suggestions from your day")
+                        .scaledFont(isSentinel ? 12.5 : 14, weight: isSentinel ? .semibold : .medium, design: isSentinel ? .monospaced : .default)
+                        .kerning(isSentinel ? 0.4 : 0)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                }
+                .foregroundStyle(accent)
+                .frame(minHeight: 32)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            } onCompletion: { suggestion in
+                let photos = await suggestion.content(forType: JournalingSuggestion.Photo.self).prefix(4)
+                // Copied out: the attach path deletes its file when done, and these belong to the framework.
+                let copies: [URL] = photos.compactMap { photo in
+                    let copy = FileManager.default.temporaryDirectory
+                        .appendingPathComponent(UUID().uuidString)
+                        .appendingPathExtension(photo.photo.pathExtension.isEmpty ? "jpg" : photo.photo.pathExtension)
+                    return (try? FileManager.default.copyItem(at: photo.photo, to: copy)) != nil ? copy : nil
+                }
+                await MainActor.run { onSuggestion(suggestion.title, copies) }
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("write.suggestions")
+        }
+        #endif
+    }
+
+    private var starterMenu: some View {
         Menu {
             if showsTalkItOut {
                 Button(action: onTalkItOut) {

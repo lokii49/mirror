@@ -367,6 +367,16 @@ struct WriteView: View {
                                 onUseTemplate: { text, cursorOffset in
                                     viewModel.text = text
                                     applyTextCommand(.moveCursor(location: cursorOffset))
+                                },
+                                onSuggestion: { title, photos in
+                                    let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+                                    if !trimmed.isEmpty {
+                                        viewModel.text = trimmed + "\n\n"
+                                        applyTextCommand(.moveCursor(location: .max))
+                                    }
+                                    #if os(iOS)
+                                    photos.forEach { handlePickedPhoto(.success($0)) }
+                                    #endif
                                 }
                             )
                             .padding(.horizontal, 20)
