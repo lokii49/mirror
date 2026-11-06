@@ -20,7 +20,10 @@ struct WhatsNewWalkthrough: View {
     static var snapshotPhase: Int? = nil
 
     /// Card ids that have a demo. A What's New with none of them uses the plain list instead.
-    static let demoIDs: Set<String> = ["smart-ask-search-310", "reflection-styles-310", "format-panel-310", "writing-310"]
+    static let demoIDs: Set<String> = ["smart-ask-search-310", "reflection-styles-310", "format-panel-310", "writing-310",
+                                       // 3.1.8 (owner, 2026-11-06): the ten pages of the 3.1.8 What's New video.
+                                       "theme-318", "write-318", "focus-mode-318", "scratch-318", "still-open-318",
+                                       "links-318", "patterns-318", "watch-318", "health-318", "show-all-318"]
 
     static func supports(_ cards: [FeatureCard]) -> Bool {
         cards.contains { demoIDs.contains($0.id) }
@@ -112,7 +115,8 @@ struct WhatsNewWalkthrough: View {
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
                         .foregroundStyle(.white)
-                        .background(accent, in: buttonShape)
+                        // White text needs the deep plum fill: the dark-mode accent (#C98BC6) carries white at 2.6:1.
+                        .background(displayMode == .sentinel ? accent : MirrorTheme.buttonFill, in: buttonShape)
                 }
                 .buttonStyle(.plain)
                 .keyboardShortcut(.defaultAction)
@@ -183,6 +187,16 @@ private struct WhatsNewPage: View {
         case "reflection-styles-310": return AnyView(DemoStage { AnyView(ReflectionStylesDemo(phase: $0)) })
         case "format-panel-310": return AnyView(DemoStage { AnyView(FormatPanelDemo(phase: $0)) })
         case "writing-310": return AnyView(DemoStage { AnyView(WritingDemo(phase: $0)) })
+        case "theme-318": return AnyView(DemoStage { AnyView(ThemeDemo(phase: $0)) })
+        case "write-318": return AnyView(DemoStage { AnyView(WriteHeaderDemo(phase: $0)) })
+        case "focus-mode-318": return AnyView(DemoStage { AnyView(FocusModeDemo(phase: $0)) })
+        case "scratch-318": return AnyView(DemoStage { AnyView(ScratchDemo(phase: $0)) })
+        case "still-open-318": return AnyView(DemoStage { AnyView(StillOpenDemo(phase: $0)) })
+        case "links-318": return AnyView(DemoStage { AnyView(EntryLinksDemo(phase: $0)) })
+        case "patterns-318": return AnyView(DemoStage { AnyView(PatternsDemo(phase: $0)) })
+        case "watch-318": return AnyView(DemoStage { AnyView(WatchDemo(phase: $0)) })
+        case "health-318": return AnyView(DemoStage { AnyView(HealthDemo(phase: $0)) })
+        case "show-all-318": return AnyView(DemoStage { AnyView(ShowAllDemo(phase: $0)) })
         default: return AnyView(IconStage(card: card))
         }
     }
@@ -489,6 +503,510 @@ private struct WritingDemo: View {
             .frame(height: 28)
             .background(MirrorTheme.bgBase, in: Capsule())
             .overlay(Capsule().stroke(MirrorTheme.inkBorder, lineWidth: 1))
+    }
+}
+
+// MARK: - 3.1.8 demos (the 3.1.8 What's New video's pages, drawn here so they follow theme, text size and language)
+// Sample text reuses strings the app already translates (the 3.1.0 demo lines, template names, mood names,
+// "Still Open", "Linked from", …). Each demo's body is one type-erased block (main-thread stack limit).
+
+private struct DemoAccent {
+    let mode: DisplayMode
+    var color: Color { mode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary }
+    var corner: CGFloat { mode == .sentinel ? 6 : 12 }
+}
+
+/// Weekday and date in the view's language (the render harness sets `\.locale`).
+private func demoDate(_ daysAgo: Int, _ locale: Locale, weekday: Bool = true) -> String {
+    let date = Calendar.current.date(byAdding: .day, value: -daysAgo, to: Date()) ?? Date()
+    return weekday
+        ? date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(locale))
+        : date.formatted(.dateTime.day().month(.abbreviated).locale(locale))
+}
+
+private func moodPill(_ mood: String, mode: DisplayMode) -> some View {
+    HStack(spacing: 5) {
+        Circle().fill(MirrorTheme.moodColor(for: mood)).frame(width: 8, height: 8)
+        Text(LocalizedStringKey(mood))
+    }
+    .scaledFont(12, weight: .semibold)
+    .padding(.horizontal, 9)
+    .frame(height: 24)
+    .background(MirrorTheme.moodColor(for: mood).opacity(0.16), in: Capsule())
+}
+
+/// The same small Write screen in light, then dark: paper and plum, then warm off-black.
+private struct ThemeDemo: View {
+    let phase: Int
+    @Environment(\.appDisplayMode) private var displayMode
+    @Environment(\.locale) private var locale
+
+    var body: some View {
+        let dark = phase >= 2
+        return AnyView(VStack(spacing: 12) {
+            HStack(spacing: 8) {
+                modeIcon("sun.max.fill", on: !dark)
+                modeIcon("moon.fill", on: dark)
+                Spacer(minLength: 0)
+            }
+            sample
+                .environment(\.colorScheme, dark ? .dark : .light)
+                .animation(.easeInOut(duration: 0.5), value: dark)
+            Spacer(minLength: 0)
+        })
+    }
+
+    private var sample: AnyView {
+        let a = DemoAccent(mode: displayMode)
+        return AnyView(VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(verbatim: demoDate(0, locale)).scaledFont(15, weight: .bold).foregroundStyle(MirrorTheme.textPrimary)
+                Spacer(minLength: 0)
+                Text("Save").scaledFont(12, weight: .semibold).foregroundStyle(.white)
+                    .padding(.horizontal, 12).frame(height: 26)
+                    .background(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.buttonFill, in: Capsule())
+            }
+            HStack(alignment: .top, spacing: 9) {
+                RoundedRectangle(cornerRadius: 1.5).fill(a.color).frame(width: 3)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Sat on the balcony after dinner. Finally quiet.")
+                        .scaledFont(14, weight: .medium, design: .serif).italic()
+                        .foregroundStyle(MirrorTheme.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("You seem calmer tonight.").scaledFont(13).foregroundStyle(MirrorTheme.textSecondary)
+                }
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: a.corner, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: a.corner, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1))
+        }
+        .padding(12)
+        .background(MirrorTheme.bgBase, in: RoundedRectangle(cornerRadius: a.corner + 4, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: a.corner + 4, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1)))
+    }
+
+    private func modeIcon(_ symbol: String, on: Bool) -> some View {
+        let a = DemoAccent(mode: displayMode)
+        return Image(systemName: symbol)
+            .scaledFont(14, weight: .semibold)
+            .foregroundStyle(on ? Color.white : Color.primary.opacity(0.5))
+            .frame(width: 36, height: 30)
+            .background(on ? a.color : MirrorTheme.bgBase, in: Capsule())
+    }
+}
+
+/// The date as the title, Mood beside it, then a template fills the page.
+private struct WriteHeaderDemo: View {
+    let phase: Int
+    @Environment(\.appDisplayMode) private var displayMode
+    @Environment(\.locale) private var locale
+
+    var body: some View {
+        let a = DemoAccent(mode: displayMode)
+        let templates: [WritingTemplate] = [.eveningReview, .gratitude, .morningPages]
+        return AnyView(VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .bottom) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(verbatim: Date().formatted(.dateTime.weekday(.wide).locale(locale)))
+                        .scaledFont(22, weight: .bold)
+                    Text(verbatim: demoDate(0, locale, weekday: false))
+                        .scaledFont(12).foregroundStyle(MirrorTheme.textSecondary)
+                }
+                Spacer(minLength: 8)
+                if phase >= 1 {
+                    moodPill("Peaceful", mode: displayMode).transition(.scale.combined(with: .opacity))
+                } else {
+                    Text("Mood").scaledFont(12, weight: .semibold).foregroundStyle(MirrorTheme.textSecondary)
+                        .padding(.horizontal, 10).frame(height: 24)
+                        .overlay(Capsule().strokeBorder(MirrorTheme.textSecondary, style: StrokeStyle(lineWidth: 1, dash: [3, 2])))
+                }
+            }
+            HStack(spacing: 6) {
+                ForEach(templates) { template in
+                    Text(verbatim: template.title)
+                        .scaledFont(12, weight: .semibold)
+                        .lineLimit(1)
+                        .foregroundStyle(phase >= 3 && template == .eveningReview ? Color.white : Color.primary)
+                        .padding(.horizontal, 10).frame(height: 28)
+                        .background(phase >= 3 && template == .eveningReview ? a.color : MirrorTheme.bgBase, in: Capsule())
+                        .overlay(Capsule().stroke(MirrorTheme.inkBorder, lineWidth: phase >= 3 && template == .eveningReview ? 0 : 1))
+                }
+            }
+            .opacity(phase >= 2 ? 1 : 0)
+            Text(verbatim: phase >= 3 ? WritingTemplate.eveningReview.seedText.trimmingCharacters(in: .whitespacesAndNewlines)
+                                        .components(separatedBy: .newlines).filter { !$0.isEmpty }.prefix(2).joined(separator: "\n") : " ")
+                .scaledFont(14, weight: .semibold)
+                .lineSpacing(6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .demoCard(displayMode, accent: a.color)
+                .opacity(phase >= 3 ? 1 : 0.4)
+            Spacer(minLength: 0)
+        })
+    }
+}
+
+/// Focus mode: the date, mood and toolbar step aside and only the words stay.
+private struct FocusModeDemo: View {
+    let phase: Int
+    @Environment(\.appDisplayMode) private var displayMode
+    @Environment(\.locale) private var locale
+
+    var body: some View {
+        let a = DemoAccent(mode: displayMode)
+        let focused = phase == 2 || phase == 3
+        return AnyView(VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "ellipsis.circle").opacity(focused ? 0 : 1)
+                Image(systemName: focused ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
+                    .foregroundStyle(phase == 1 || focused ? a.color : Color.primary)
+                    .frame(width: 30, height: 30)
+                    .background(phase == 1 ? a.color.opacity(0.18) : Color.clear, in: Circle())
+                Spacer(minLength: 0)
+                Text("Save").scaledFont(12, weight: .semibold).foregroundStyle(.white)
+                    .padding(.horizontal, 12).frame(height: 26)
+                    .background(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.buttonFill, in: Capsule())
+            }
+            .scaledFont(16, weight: .semibold)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(verbatim: demoDate(0, locale)).scaledFont(18, weight: .bold)
+                moodPill("Content", mode: displayMode)
+            }
+            .opacity(focused ? 0 : 1)
+            .frame(height: focused ? 0 : nil, alignment: .top)
+            .clipped()
+            HStack(alignment: .center, spacing: 1) {
+                Text("Walked to the market early.").readingFont(size: focused ? 19 : 16)
+                Caret(color: a.color)
+                Spacer(minLength: 0)
+            }
+            Spacer(minLength: 0)
+            HStack {
+                ForEach(["textformat", "checklist", "camera", "mic"], id: \.self) { symbol in
+                    Image(systemName: symbol).frame(maxWidth: .infinity)
+                }
+            }
+            .scaledFont(15)
+            .foregroundStyle(MirrorTheme.textSecondary)
+            .opacity(focused ? 0 : 1)
+        })
+    }
+}
+
+/// A quick note goes into Scratch, kept out; the reflection reads only the journal entry.
+private struct ScratchDemo: View {
+    let phase: Int
+    @Environment(\.appDisplayMode) private var displayMode
+
+    var body: some View {
+        let a = DemoAccent(mode: displayMode)
+        return AnyView(VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Label("Entries", systemImage: "book.closed").scaledFont(12, weight: .bold).foregroundStyle(MirrorTheme.textSecondary)
+                    Text("Sat on the balcony after dinner. Finally quiet.")
+                        .scaledFont(13).fixedSize(horizontal: false, vertical: true)
+                        .demoCard(displayMode, highlighted: phase >= 3, accent: a.color)
+                    if phase == 0 { note.transition(.opacity) }
+                }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                VStack(alignment: .leading, spacing: 6) {
+                    Label("Scratch", systemImage: "note.text").scaledFont(12, weight: .bold).foregroundStyle(MirrorTheme.textSecondary)
+                    if phase >= 1 { note.transition(.move(edge: .leading).combined(with: .opacity)) }
+                    if phase >= 2 {
+                        Label("Keep out of reflections", systemImage: "eye.slash")
+                            .scaledFont(11, weight: .semibold)
+                            .foregroundStyle(a.color)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+            if phase >= 3 {
+                HStack(spacing: 8) {
+                    Image(systemName: "sparkles").foregroundStyle(a.color)
+                    Text("You seem calmer tonight.").scaledFont(13, weight: .medium)
+                    Spacer(minLength: 0)
+                }
+                .demoCard(displayMode, accent: a.color)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+            Spacer(minLength: 0)
+        })
+    }
+
+    private var note: some View {
+        Text("Oats, lemons, tape")
+            .scaledFont(13)
+            .fixedSize(horizontal: false, vertical: true)
+            .demoCard(displayMode, accent: DemoAccent(mode: displayMode).color)
+    }
+}
+
+/// Unticked checklist items from three entries gather into one list; one gets ticked.
+private struct StillOpenDemo: View {
+    let phase: Int
+    @Environment(\.appDisplayMode) private var displayMode
+    @Environment(\.locale) private var locale
+
+    var body: some View {
+        let a = DemoAccent(mode: displayMode)
+        let items: [(LocalizedStringKey, Int)] = [("Call the dentist", 4), ("Return the library books", 2), ("Send the photos", 1)]
+        return AnyView(VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "checklist.unchecked").foregroundStyle(a.color)
+                Text("Still Open").scaledFont(15, weight: .bold)
+                Text(verbatim: "\(phase >= 3 ? 2 : 3)").scaledFont(13, weight: .semibold).foregroundStyle(MirrorTheme.textSecondary).monospacedDigit()
+                Spacer(minLength: 0)
+            }
+            .opacity(phase >= 1 ? 1 : 0.35)
+            ForEach(Array(items.enumerated()), id: \.offset) { i, item in
+                let ticked = phase >= 3 && i == 0
+                HStack(spacing: 9) {
+                    Image(systemName: ticked ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(ticked ? a.color : MirrorTheme.textSecondary)
+                    Text(item.0).scaledFont(13).strikethrough(ticked).opacity(ticked ? 0.55 : 1).lineLimit(2)
+                    Spacer(minLength: 6)
+                    Text(verbatim: demoDate(item.1, locale, weekday: false))
+                        .scaledFont(11).foregroundStyle(MirrorTheme.textSecondary).opacity(phase >= 2 ? 1 : 0)
+                }
+                .demoCard(displayMode, highlighted: phase >= 1 && phase < 3 && i == 0, accent: a.color)
+                .opacity(phase >= 1 ? 1 : 0.35)
+                .offset(x: phase >= 1 ? 0 : CGFloat(i * 14 - 14))
+            }
+            Spacer(minLength: 0)
+        })
+    }
+}
+
+/// Select words, Add Link › Link to an Entry; the older entry shows Linked from.
+private struct EntryLinksDemo: View {
+    let phase: Int
+    @Environment(\.appDisplayMode) private var displayMode
+    @Environment(\.locale) private var locale
+
+    var body: some View {
+        let a = DemoAccent(mode: displayMode)
+        return AnyView(VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(verbatim: demoDate(0, locale)).scaledFont(11).foregroundStyle(MirrorTheme.textSecondary)
+                Text("Walked to the market early.")
+                    .scaledFont(14)
+                    .foregroundStyle(phase >= 3 ? a.color : Color.primary)
+                    .underline(phase >= 3)
+                    .padding(.horizontal, 2)
+                    .background(phase == 1 ? a.color.opacity(0.2) : Color.clear, in: RoundedRectangle(cornerRadius: 3))
+            }
+            .demoCard(displayMode, accent: a.color)
+            .overlay(alignment: .bottomTrailing) {
+                if phase == 2 {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Add Link").padding(.horizontal, 10).padding(.vertical, 6)
+                        Text("Link to an Entry…").foregroundStyle(a.color).padding(.horizontal, 10).padding(.vertical, 6)
+                            .frame(maxWidth: .infinity, alignment: .leading).background(a.color.opacity(0.12))
+                    }
+                    .scaledFont(12, weight: .medium)
+                    .fixedSize()
+                    .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: a.corner, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: a.corner, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1))
+                    .shadow(color: .black.opacity(0.15), radius: 8, y: 3)
+                    .offset(x: -8, y: 46)
+                    .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
+                }
+            }
+            .zIndex(1)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(verbatim: demoDate(5, locale)).scaledFont(11).foregroundStyle(MirrorTheme.textSecondary)
+                Text("Sat on the balcony after dinner. Finally quiet.").scaledFont(14).fixedSize(horizontal: false, vertical: true)
+                if phase >= 3 {
+                    Divider().padding(.vertical, 3)
+                    Text("Linked from").scaledFont(11, weight: .bold).foregroundStyle(a.color)
+                    Label { Text(verbatim: demoDate(0, locale)) } icon: { Image(systemName: "link") }
+                        .scaledFont(12, weight: .medium).foregroundStyle(a.color)
+                }
+            }
+            .demoCard(displayMode, highlighted: phase >= 3, accent: a.color)
+            Spacer(minLength: 0)
+        })
+    }
+}
+
+/// Patterns' rows, counted from the moods shown: the weekday, its most common mood, "n of m".
+private struct PatternsDemo: View {
+    let phase: Int
+    @Environment(\.appDisplayMode) private var displayMode
+    @Environment(\.locale) private var locale
+
+    var body: some View {
+        let a = DemoAccent(mode: displayMode)
+        var calendar = Calendar.current
+        calendar.locale = locale
+        let days = calendar.standaloneWeekdaySymbols
+        let rows: [(String, String, Int, Int)] = [(days[0], "Grateful", 5, 7), (days[3], "Anxious", 3, 5), (days[5], "Joyful", 4, 6)]
+        return AnyView(VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 6) {
+                Image(systemName: "square.grid.3x3.topleft.filled").foregroundStyle(a.color)
+                Text("Patterns").scaledFont(15, weight: .bold)
+                Spacer(minLength: 0)
+                Text("Year in Review").scaledFont(11, weight: .semibold).foregroundStyle(a.color)
+                    .padding(.horizontal, 8).frame(height: 22)
+                    .background(a.color.opacity(0.14), in: Capsule())
+                    .opacity(phase >= 3 ? 1 : 0)
+            }
+            VStack(alignment: .leading, spacing: 11) {
+                ForEach(Array(rows.enumerated()), id: \.offset) { i, row in
+                    let tint = MirrorTheme.moodColor(for: row.1)
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack(spacing: 7) {
+                            Text(verbatim: row.0).scaledFont(13, weight: .medium).lineLimit(1)
+                            Spacer(minLength: 6)
+                            Circle().fill(tint).frame(width: 8, height: 8)
+                            Text(LocalizedStringKey(row.1)).scaledFont(13, weight: .semibold)
+                            Text("\(row.2) of \(row.3)").scaledFont(12).monospacedDigit().foregroundStyle(MirrorTheme.textSecondary)
+                        }
+                        GeometryReader { proxy in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(MirrorTheme.inkBorder.opacity(0.6))
+                                Capsule().fill(tint).frame(width: max(4, proxy.size.width * (phase >= 2 ? Double(row.2) / Double(row.3) : 0)))
+                            }
+                        }
+                        .frame(height: 4)
+                    }
+                    .opacity(phase >= 1 ? (phase >= 3 && i != 0 ? 0.45 : 1) : 0.25)
+                }
+            }
+            .demoCard(displayMode, accent: a.color)
+            Spacer(minLength: 0)
+        })
+    }
+}
+
+/// A mood logged on the watch arrives on the iPhone.
+private struct WatchDemo: View {
+    let phase: Int
+    @Environment(\.appDisplayMode) private var displayMode
+    @Environment(\.locale) private var locale
+
+    var body: some View {
+        let a = DemoAccent(mode: displayMode)
+        let moods = ["Peaceful", "Grateful", "Drained"]
+        return AnyView(HStack(alignment: .center, spacing: 10) {
+            VStack(spacing: 5) {
+                ForEach(moods, id: \.self) { mood in
+                    let picked = phase >= 1 && mood == "Peaceful"
+                    HStack(spacing: 5) {
+                        Circle().fill(MirrorTheme.moodColor(for: mood)).frame(width: 8, height: 8)
+                        Text(LocalizedStringKey(mood)).scaledFont(11, weight: .semibold).lineLimit(1).minimumScaleFactor(0.8)
+                        Spacer(minLength: 0)
+                        if picked { Image(systemName: "checkmark").scaledFont(9, weight: .bold) }
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 7).frame(height: 26)
+                    .background(picked ? MirrorTheme.moodColor(for: mood).opacity(0.45) : Color.white.opacity(0.14), in: Capsule())
+                }
+            }
+            .padding(10)
+            .frame(width: 118, height: 128)
+            .background(Color.black, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous).stroke(Color.gray.opacity(0.5), lineWidth: 3))
+            .overlay(alignment: .bottom) { Image(systemName: "applewatch").scaledFont(12).foregroundStyle(MirrorTheme.textSecondary).offset(y: 22) }
+            Image(systemName: "arrow.right")
+                .scaledFont(16, weight: .bold)
+                .foregroundStyle(a.color)
+                .opacity(phase >= 2 ? 1 : 0.2)
+            VStack(alignment: .leading, spacing: 7) {
+                Image(systemName: "iphone").scaledFont(14).foregroundStyle(MirrorTheme.textSecondary)
+                VStack(alignment: .leading, spacing: 5) {
+                    moodPill("Peaceful", mode: displayMode)
+                    Text(verbatim: Date().formatted(.dateTime.hour().minute().locale(locale)))
+                        .scaledFont(11).foregroundStyle(MirrorTheme.textSecondary)
+                }
+                .demoCard(displayMode, highlighted: phase >= 3, accent: a.color)
+                .opacity(phase >= 3 ? 1 : 0)
+                Text("Walked to the market early.").scaledFont(12).lineLimit(2)
+                    .demoCard(displayMode, accent: a.color)
+            }
+            .frame(maxWidth: .infinity)
+        })
+    }
+}
+
+/// A mood check-in, written one way into Apple Health as a State of Mind.
+private struct HealthDemo: View {
+    let phase: Int
+    @Environment(\.appDisplayMode) private var displayMode
+    @Environment(\.locale) private var locale
+
+    var body: some View {
+        let a = DemoAccent(mode: displayMode)
+        let pink = Color(red: 0.98, green: 0.24, blue: 0.40)
+        return AnyView(VStack(spacing: 18) {
+            Spacer(minLength: 0)
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Image(systemName: "face.smiling").foregroundStyle(a.color).scaledFont(16)
+                    moodPill("Grateful", mode: displayMode)
+                    Text(verbatim: Date().formatted(.dateTime.hour().minute().locale(locale)))
+                        .scaledFont(11).foregroundStyle(MirrorTheme.textSecondary)
+                }
+                .demoCard(displayMode, highlighted: phase == 1, accent: a.color)
+                .frame(maxWidth: .infinity)
+                Image(systemName: "arrow.right")
+                    .scaledFont(18, weight: .bold)
+                    .foregroundStyle(a.color)
+                    .opacity(phase >= 2 ? 1 : 0.2)
+                VStack(alignment: .leading, spacing: 6) {
+                    Image(systemName: "heart.text.square.fill").foregroundStyle(pink).scaledFont(20)
+                    Text("Apple Health").scaledFont(13, weight: .bold)
+                    HStack(spacing: 5) {
+                        Circle().fill(MirrorTheme.moodColor(for: "Grateful")).frame(width: 8, height: 8)
+                        Text(LocalizedStringKey("Grateful")).scaledFont(12)
+                    }
+                }
+                .demoCard(displayMode, highlighted: phase >= 3, accent: pink)
+                .frame(maxWidth: .infinity)
+                .opacity(phase >= 3 ? 1 : 0.3)
+            }
+            Spacer(minLength: 0)
+        })
+    }
+}
+
+/// Past reflections end with Show all, and the list keeps going.
+private struct ShowAllDemo: View {
+    let phase: Int
+    @Environment(\.appDisplayMode) private var displayMode
+    @Environment(\.locale) private var locale
+
+    var body: some View {
+        let a = DemoAccent(mode: displayMode)
+        let lines: [LocalizedStringKey] = ["Sat on the balcony after dinner. Finally quiet.", "Deadline moved up again.",
+                                           "Long call with Mum about the trip.", "Walked to the market early."]
+        return AnyView(VStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 7) {
+                ForEach(0..<6, id: \.self) { i in
+                    let day = i + (phase >= 3 ? 14 : 1)
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(verbatim: demoDate(day, locale, weekday: false))
+                            .scaledFont(11).foregroundStyle(MirrorTheme.textSecondary).monospacedDigit()
+                            .frame(width: 52, alignment: .leading)
+                        Text(lines[i % lines.count]).scaledFont(13, design: .serif).lineLimit(1)
+                        Spacer(minLength: 0)
+                    }
+                }
+            }
+            .demoCard(displayMode, accent: a.color)
+            .animation(.easeInOut(duration: 0.45), value: phase >= 3)
+            Text("Show all (\(63))")
+                .scaledFont(13, weight: .semibold)
+                .foregroundStyle(phase == 2 ? Color.white : a.color)
+                .padding(.horizontal, 14).frame(height: 30)
+                .background(phase == 2 ? a.color : a.color.opacity(0.12), in: Capsule())
+                .scaleEffect(phase == 2 ? 0.95 : 1)
+                .opacity(phase >= 3 ? 0 : 1)
+            Spacer(minLength: 0)
+        })
     }
 }
 

@@ -9,7 +9,15 @@ import UIKit
 @MainActor
 final class WhatsNewRenderHarness: XCTestCase {
     func test_renderWalkthroughPages() throws {
-        let cards = FeatureCardRegistry.all.filter { $0.sinceVersion == "3.1.0" }
+        try renderPages(version: "3.1.0")
+    }
+
+    func test_renderWalkthroughPages318() throws {
+        try renderPages(version: "3.1.8")
+    }
+
+    private func renderPages(version: String) throws {
+        let cards = FeatureCardRegistry.all.filter { $0.sinceVersion == version }
         let ordered = cards.filter { !WhatsNewWalkthrough.demoIDs.contains($0.id) } + cards.filter { WhatsNewWalkthrough.demoIDs.contains($0.id) }
         WhatsNewWalkthrough.snapshotPhase = 3
         defer { WhatsNewWalkthrough.snapshotPhase = nil }
@@ -23,7 +31,7 @@ final class WhatsNewRenderHarness: XCTestCase {
                     .environment(\.locale, Locale(identifier: locale)))
                 let image = try render(view, mode: mode, style: style)
                 let attachment = XCTAttachment(image: image)
-                attachment.name = "wn-\(name)-\(i)"
+                attachment.name = "wn\(version)-\(name)-\(i)"
                 attachment.lifetime = .keepAlways
                 add(attachment)
             }
