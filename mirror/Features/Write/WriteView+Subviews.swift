@@ -592,8 +592,9 @@ struct WritingStarterChip: View {
     let onTalkItOut: () -> Void
     /// The text a template starts the entry with, and where the caret goes in it.
     let onUseTemplate: (_ text: String, _ cursorOffset: Int) -> Void
-    /// A Journaling Suggestion picked (iPhone; iPad from iPadOS 26): its title and photo files.
-    var onSuggestion: ((_ title: String, _ photos: [URL]) -> Void)? = nil
+    /// A Journaling Suggestion picked (iPhone; iPad from iPadOS 26): its title, a line per moment,
+    /// pictures and mood (`SuggestionInsert`).
+    var onSuggestion: ((SuggestionInsert) -> Void)? = nil
 
     @Environment(\.appDisplayMode) private var displayMode
     @State private var showTemplateManager = false
@@ -632,17 +633,10 @@ struct WritingStarterChip: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
             } onCompletion: { suggestion in
-                let photos = await suggestion.content(forType: JournalingSuggestion.Photo.self).prefix(4)
-                // Copied out: the attach path deletes its file when done, and these belong to the framework.
-                let copies: [URL] = photos.compactMap { photo in
-                    let copy = FileManager.default.temporaryDirectory
-                        .appendingPathComponent(UUID().uuidString)
-                        .appendingPathExtension(photo.photo.pathExtension.isEmpty ? "jpg" : photo.photo.pathExtension)
-                    return (try? FileManager.default.copyItem(at: photo.photo, to: copy)) != nil ? copy : nil
-                }
+                let insert = await SuggestionInsert.read(suggestion)
                 await MainActor.run {
                     suggestionsTipShown = true
-                    onSuggestion(suggestion.title, copies)
+                    onSuggestion(insert)
                 }
             }
             .buttonStyle(.plain)

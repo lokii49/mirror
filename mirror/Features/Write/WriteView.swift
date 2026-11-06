@@ -368,14 +368,15 @@ struct WriteView: View {
                                     viewModel.text = text
                                     applyTextCommand(.moveCursor(location: cursorOffset))
                                 },
-                                onSuggestion: { title, photos in
-                                    let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
-                                    if !trimmed.isEmpty {
-                                        viewModel.text = trimmed + "\n\n"
+                                onSuggestion: { insert in
+                                    let text = insert.text
+                                    if !text.isEmpty {
+                                        viewModel.text = text
                                         applyTextCommand(.moveCursor(location: .max))
                                     }
+                                    if let mood = insert.mood, viewModel.selectedMood == nil { viewModel.selectedMood = mood }
                                     #if os(iOS)
-                                    photos.forEach { handlePickedPhoto(.success($0)) }
+                                    insert.pictures.forEach { handlePickedPhoto(.success($0)) }
                                     #endif
                                 }
                             )
