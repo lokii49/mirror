@@ -1,12 +1,14 @@
-#if os(iOS)
 import AVFoundation
 import SwiftUI
+#if os(iOS)
 import UIKit
+#endif
 
 /// Records a voice note in segments, so it can pause, play back what it has so far, and resume, as
 /// the recorder Notes opens from Record Audio does. AAC files can't be read until their recorder
 /// stops, so each pause stops the current segment and merges everything recorded into one file;
-/// playback and the final note use that file.
+/// playback and the final note use that file. iOS and Mac (since 3.1.8: the Mac's mic opens this
+/// too, owner 2026-11-06); macOS has no audio session or interruptions, so those lines are iOS only.
 @Observable
 @MainActor
 final class SegmentedVoiceRecorder: NSObject {
@@ -76,9 +78,11 @@ final class SegmentedVoiceRecorder: NSObject {
             AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
         ]
         do {
+            #if os(iOS)
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .duckOthers])
             try session.setActive(true)
+            #endif
             let recorder = try AVAudioRecorder(url: url, settings: settings)
             recorder.isMeteringEnabled = true
             recorder.prepareToRecord()
@@ -93,8 +97,10 @@ final class SegmentedVoiceRecorder: NSObject {
             segmentElapsed = 0
             state = .recording
             startTimer()
+            #if os(iOS)
             NotificationCenter.default.addObserver(self, selector: #selector(handleInterruption(_:)),
                                                    name: AVAudioSession.interruptionNotification, object: nil)
+            #endif
         } catch {
             self.error = error.localizedDescription
             try? FileManager.default.removeItem(at: url)
@@ -110,7 +116,9 @@ final class SegmentedVoiceRecorder: NSObject {
         self.segmentURL = nil
         segmentElapsed = 0
         stopTimer()
+        #if os(iOS)
         NotificationCenter.default.removeObserver(self, name: AVAudioSession.interruptionNotification, object: nil)
+        #endif
         state = .paused
         guard segmentDuration > 0 else {
             try? FileManager.default.removeItem(at: segmentURL)
@@ -181,8 +189,10 @@ final class SegmentedVoiceRecorder: NSObject {
     private func play() {
         guard state == .paused, let mergedURL else { return }
         do {
+            #if os(iOS)
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
             try AVAudioSession.sharedInstance().setActive(true)
+            #endif
             let player = try AVAudioPlayer(contentsOf: mergedURL)
             if playbackTime >= mergedDuration - 0.05 { playbackTime = 0 }
             player.currentTime = playbackTime
@@ -240,11 +250,13 @@ final class SegmentedVoiceRecorder: NSObject {
         }
     }
 
+    #if os(iOS)
     @objc private func handleInterruption(_ note: Notification) {
         guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
               AVAudioSession.InterruptionType(rawValue: raw) == .began else { return }
         Task { @MainActor in await self.pause() }
     }
+    #endif
 
     private func cleanUp() {
         if let mergedURL { try? FileManager.default.removeItem(at: mergedURL) }
@@ -255,7 +267,9 @@ final class SegmentedVoiceRecorder: NSObject {
         playbackTime = 0
         state = .idle
         NotificationCenter.default.removeObserver(self)
+        #if os(iOS)
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        #endif
     }
 
     private static func concatenate(_ urls: [URL]) async throws -> URL {
@@ -277,7 +291,7 @@ final class SegmentedVoiceRecorder: NSObject {
         let output = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("m4a")
-        if #available(iOS 18, *) {
+        if #available(iOS 18, macOS 15, *) {
             try await export.export(to: output, as: .m4a)
         } else {
             export.outputURL = output
@@ -326,6 +340,9 @@ struct VoiceRecorderSheet: View {
         }
         .padding(.horizontal, 20)
         .background(isSentinel ? MirrorTheme.inkBase : Color(.systemBackground))
+        #if os(macOS)
+        .frame(minWidth: 520, idealWidth: 560, minHeight: 640, idealHeight: 680)
+        #endif
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
         .interactiveDismissDisabled(recorder.hasAudio)
@@ -350,6 +367,13 @@ struct VoiceRecorderSheet: View {
                     .frame(width: 48, height: 48)
                     .recorderCircle(isSentinel: isSentinel, fill: nil)
             }
+            #if os(macOS)
+            // The Mac draws a menu as a pop-up button with its own frame and chevron.
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            #endif
             // A merge in progress still writes a file; deleting under it orphaned that file.
             .disabled(recorder.isMerging || isSaving)
             .accessibilityLabel("More")
@@ -365,6 +389,10 @@ struct VoiceRecorderSheet: View {
                     .recorderCircle(isSentinel: isSentinel, fill: recorder.hasAudio ? accent : nil)
             }
             .disabled(isSaving || recorder.isMerging)
+            #if os(macOS)
+            .buttonStyle(.plain)
+            .keyboardShortcut(.return, modifiers: .command)
+            #endif
             .accessibilityLabel("Done")
             .accessibilityIdentifier("recorderDone")
         }
@@ -475,6 +503,10 @@ struct VoiceRecorderSheet: View {
         }
         .buttonStyle(.plain)
         .disabled(recorder.isMerging || isSaving)
+        #if os(macOS)
+        // Space records and pauses, as in Voice Memos on the Mac.
+        .keyboardShortcut(.space, modifiers: [])
+        #endif
         .accessibilityLabel(isRecording ? "Pause recording" : "Record")
         .accessibilityIdentifier("recorderRecord")
     }
@@ -483,7 +515,12 @@ struct VoiceRecorderSheet: View {
         VStack(spacing: 6) {
             Text("Microphone access is off").font(.footnote.weight(.semibold))
             Button("Open Settings") {
+                #if os(iOS)
                 if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                #else
+                // System Settings › Privacy & Security › Microphone.
+                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") { openURL(url) }
+                #endif
             }
             .font(.footnote)
         }
@@ -547,11 +584,10 @@ private extension View {
                 .overlay(Circle().stroke(MirrorTheme.ember.opacity(0.3), lineWidth: 1))
         } else if let fill {
             self.background(Circle().fill(fill))
-        } else if #available(iOS 26, *) {
+        } else if #available(iOS 26, macOS 26, *) {
             self.glassEffect(.regular.interactive(), in: Circle())
         } else {
             self.background(Circle().fill(Color(.tertiarySystemFill)))
         }
     }
 }
-#endif

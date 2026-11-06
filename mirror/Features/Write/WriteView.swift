@@ -590,6 +590,7 @@ struct WriteView: View {
             case "appendText": if let text = note.userInfo?["text"] as? String { viewModel.text += text }
             case "restoreDraft": if let draft = pendingEditDraft { restoreEditDraft(draft) }
             case "discardDraft": discardEditDraft()
+            case "openRecorder": showRecorderSheet = true
             default: break
             }
         }
@@ -737,14 +738,13 @@ struct WriteView: View {
             }
             .ignoresSafeArea()
         }
-        #if os(iOS)
+        // Record Audio on iOS and the Mac toolbar's mic (Mac since 3.1.8, owner 2026-11-06).
         .sheet(isPresented: $showRecorderSheet) {
             VoiceRecorderSheet { data, duration in
                 appendVoiceNote(data: data, duration: duration)
             }
             .environment(\.appDisplayMode, displayMode)
         }
-        #endif
         .sheet(isPresented: $showDocumentScanner) {
             DocumentScannerController { result in
                 handleScannedPages(result)

@@ -81,7 +81,9 @@ extension WriteView {
                 macToolbarButton(label: "Add photo", isOn: false) { macChoosePhoto() } content: {
                     MacIcon(name: "image", size: 17)
                 }
-                macToolbarButton(label: "Record voice note", isOn: isRecordingInline) { toggleInlineRecording() } content: {
+                // The recorder iOS opens from Record Audio: pause, listen back, then add (owner,
+                // 2026-11-06). It replaces the inline recording row on the Mac.
+                macToolbarButton(label: "Record voice note", isOn: showRecorderSheet) { showRecorderSheet = true } content: {
                     MacIcon(name: "mic", size: 17)
                 }
             }

@@ -461,6 +461,15 @@ enum MacSnapshot {
             go("write")
             try? await Task.sleep(for: .seconds(2))
             capture(mainWindow(), name: "write-header")
+            // The recorder the toolbar's mic opens (no recording: that would ask for the microphone).
+            if CommandLine.arguments.contains("--macSnapshotRecorder") {
+                NotificationCenter.default.post(name: .mirrorMacDebugWrite, object: nil, userInfo: ["action": "openRecorder"])
+                for _ in 0..<20 where mainWindow()?.sheets.first == nil { try? await Task.sleep(for: .seconds(0.25)) }
+                try? await Task.sleep(for: .seconds(1))
+                capture(mainWindow()?.sheets.first ?? mainWindow(), name: "write-recorder")
+                try? await Task.sleep(for: .seconds(1))
+                capture(mainWindow()?.sheets.first ?? mainWindow(), name: "write-recorder-2")
+            }
             NSApp.terminate(nil)
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) { exit(0) }
             return
