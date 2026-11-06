@@ -39,7 +39,11 @@ struct AskView: View {
     /// One-time offer of the semantic-search model: shown to anyone who can ask (Core/Deep) and
     /// hasn't answered yet, never re-shown after Download or Not now.
     /// The offer before an answer; after Download, the same card shows the download until the model is in.
+    /// Not offered where Foundation Models answers (owner, 2026-11-06): a 333 MB download is a lot
+    /// to ask there, and Settings › Smart Search still has it. Someone who already chose Download
+    /// keeps seeing its progress.
     @State private var showSmartSearchOffer = SemanticSearchService.consent != .declined && !SemanticSearchService.isModelOnDisk
+        && (SemanticSearchService.consent == .accepted || !FoundationModelEngine.isAvailable)
     @FocusState private var isInputFocused: Bool
 
     private var monthLimit: Int {
