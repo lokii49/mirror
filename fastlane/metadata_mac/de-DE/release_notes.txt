@@ -12,7 +12,7 @@ Außerdem in diesem Update
 • Sprachnotizen wie auf dem iPhone: pausieren, anhören, dann hinzufügen.
 • Beim Schreiben: Fokusmodus, Tagesziel für Wörter und Tag-Vorschläge.
 • Checklisten-Zeilen per Ziehen umsortieren; abgehakte Punkte können nach unten wandern.
-• Ablage › Von Gerät importieren: Foto oder Scan mit dem iPhone.
+• Integration der iPhone-Kamera: Foto oder Scan mit dem iPhone direkt in einen Eintrag (Menü „Ablage“).
 • Vorlagen, Noch offen, Verlinkungen, Muster und Jahresrückblick.
 • Code einlösen im Abo-Bildschirm und in den Einstellungen.
 • Große Tagebücher sind schneller: Die Eintragsliste, die Suche und Einblicke lesen nicht mehr bei jeder Änderung im Fenster alle Einträge neu.

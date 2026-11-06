@@ -614,8 +614,7 @@ struct WritingStarterChip: View {
     @ViewBuilder
     private var suggestionsPicker: some View {
         #if os(iOS) && canImport(JournalingSuggestions)
-        if let onSuggestion, #available(iOS 17.2, *),
-           UIDevice.current.userInterfaceIdiom == .phone || ProcessInfo.processInfo.isOperatingSystemAtLeast(OperatingSystemVersion(majorVersion: 26, minorVersion: 0, patchVersion: 0)) {
+        if let onSuggestion, #available(iOS 17.2, *), DeviceFeature.journalingSuggestionsAvailable {
             JournalingSuggestionsPicker {
                 HStack(spacing: 6) {
                     Image(systemName: "photo.on.rectangle.angled")

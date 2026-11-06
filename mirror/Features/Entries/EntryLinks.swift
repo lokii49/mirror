@@ -24,24 +24,9 @@ enum EntryLinks {
         let title: String
     }
 
-    /// Entries whose own links point at `target`, newest first. Only entries that carry inline
-    /// styles are decrypted.
-    @MainActor
-    static func backlinks(to target: UUID, in context: ModelContext) -> [Backlink] {
-        var descriptor = FetchDescriptor<Entry>(predicate: #Predicate { $0.encryptedInlineStyleData != nil },
-                                                sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
-        descriptor.propertiesToFetch = [\.id, \.createdAt, \.encryptedInlineStyleData]
-        let candidates = (try? context.fetch(descriptor)) ?? []
-        return candidates.compactMap { entry in
-            guard entry.id != target,
-                  let ranges = NoteEditorCodec.decodeInlineStyleDocument(entry.inlineStyleData)?.ranges,
-                  ranges.contains(where: { entryID(from: $0.linkURL) == target }) else { return nil }
-            return Backlink(id: entry.id, createdAt: entry.createdAt, title: title(of: entry))
-        }
-    }
-
-    /// All backlinks, built once per journal revision and container: the reader asks on every open
-    /// and every save, and each build decrypts every styled entry (code review, 2026-11-06).
+    /// Entries whose own links point at `target`, newest first, built for every target at once and
+    /// kept per journal revision and container: the reader asks on every open and every save, and
+    /// each build decrypts every entry that carries inline styles (code review, 2026-11-06).
     @MainActor private static var cache: (revision: Int, container: ObjectIdentifier, byTarget: [UUID: [Backlink]])?
 
     @MainActor
@@ -209,7 +194,11 @@ struct EntryLinkPicker: View {
     @State private var shown: [EntryLinks.Backlink] = []
     /// Built once when the sheet opens (each entry decrypted once); typing filters these strings off
     /// the main actor (code review, 2026-11-06: it re-decrypted the whole journal per search).
+    /// Entries are main-actor models, so the build runs there in short chunks that yield, and the
+    /// newest entries show before it finishes (audit, 2026-11-06: one pass froze large journals).
     @State private var index: [(item: EntryLinks.Backlink, text: String)]?
+    /// The first page, shown at once (titles only).
+    @State private var newest: [EntryLinks.Backlink] = []
 
     var body: some View {
         NavigationStack {
@@ -229,7 +218,13 @@ struct EntryLinkPicker: View {
             }
             .overlay {
                 if shown.isEmpty {
-                    ContentUnavailableView.search(text: query)
+                    if index == nil {
+                        ProgressView()
+                    } else if query.trimmingCharacters(in: .whitespaces).isEmpty {
+                        ContentUnavailableView("No entries to link", systemImage: "link")
+                    } else {
+                        ContentUnavailableView.search(text: query)
+                    }
                 }
             }
             .searchable(text: $query, prompt: Text("Search entries"))
@@ -240,20 +235,35 @@ struct EntryLinkPicker: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }
-            .task(id: query) {
-                // A short pause so typing doesn't search on every key.
-                if !query.isEmpty { try? await Task.sleep(for: .milliseconds(200)) }
-                guard !Task.isCancelled else { return }
-                if index == nil {
-                    index = entries.compactMap { entry in
-                        guard entry.id != excluding, !entry.textDecryptionFailed else { return nil }
-                        let item = EntryLinks.Backlink(id: entry.id, createdAt: entry.createdAt, title: EntryLinks.title(of: entry))
-                        return (item, (entry.insightContext + " " + entry.tags.joined(separator: " ")).lowercased())
+            .task {
+                // The newest page first, then the whole index in chunks that let the sheet scroll
+                // and take typing meanwhile. Runs once per open.
+                var built: [(item: EntryLinks.Backlink, text: String)] = []
+                built.reserveCapacity(entries.count)
+                for (n, entry) in entries.enumerated() {
+                    guard entry.id != excluding, !entry.textDecryptionFailed else { continue }
+                    let item = EntryLinks.Backlink(id: entry.id, createdAt: entry.createdAt, title: EntryLinks.title(of: entry))
+                    built.append((item, (entry.insightContext + " " + entry.tags.joined(separator: " ")).lowercased()))
+                    if built.count == 50, newest.isEmpty {
+                        newest = built.map(\.item)
+                        if query.isEmpty { shown = newest }
+                    }
+                    if n % 100 == 99 {
+                        await Task.yield()
+                        if Task.isCancelled { return }
                     }
                 }
-                let all = index ?? []
+                index = built
+            }
+            .task(id: TaskKey(query: query, ready: index != nil)) {
                 let needle = query.trimmingCharacters(in: .whitespaces).lowercased()
-                guard !needle.isEmpty else { shown = Array(all.prefix(50).map(\.item)); return }
+                guard !needle.isEmpty else {
+                    shown = index.map { Array($0.prefix(50).map(\.item)) } ?? newest
+                    return
+                }
+                // A short pause so typing doesn't search on every key.
+                try? await Task.sleep(for: .milliseconds(200))
+                guard !Task.isCancelled, let all = index else { return }
                 let tag = needle.hasPrefix("#") ? String(needle.dropFirst()) : needle
                 let found = await Task.detached(priority: .userInitiated) {
                     Array(all.lazy.filter { $0.text.contains(needle) || (!tag.isEmpty && $0.text.contains(tag)) }.prefix(50).map(\.item))
@@ -266,4 +276,6 @@ struct EntryLinkPicker: View {
         .frame(minWidth: 460, minHeight: 480)
         #endif
     }
+
+    private struct TaskKey: Hashable { var query: String; var ready: Bool }
 }

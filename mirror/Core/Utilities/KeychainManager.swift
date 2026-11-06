@@ -35,14 +35,20 @@ enum KeychainManager {
 
     /// Update-in-place, falling back to add only when the item doesn't exist.
     /// Never delete-then-add: a kill between those two calls would erase the item.
-    static func save(data: Data, account: String, synchronizable: Bool = false) {
+    /// `accessible` (a `kSecAttrAccessible…` value) applies when the item is first added; nil
+    /// keeps the system default, readable only while the device is unlocked. Returns whether the
+    /// data was stored.
+    @discardableResult
+    static func save(data: Data, account: String, synchronizable: Bool = false, accessible: CFString? = nil) -> Bool {
         let query = baseQuery(account: account, synchronizable: synchronizable)
         let status = SecItemUpdate(query as CFDictionary, [kSecValueData: data] as CFDictionary)
         if status == errSecItemNotFound {
             var item = query
             item[kSecValueData] = data
-            SecItemAdd(item as CFDictionary, nil)
+            if let accessible { item[kSecAttrAccessible] = accessible }
+            return SecItemAdd(item as CFDictionary, nil) == errSecSuccess
         }
+        return status == errSecSuccess
     }
 
     /// Exact-slot read: matches only the requested synchronizable variant, so the

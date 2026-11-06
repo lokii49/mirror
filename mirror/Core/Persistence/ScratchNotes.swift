@@ -46,7 +46,12 @@ enum ScratchNotes {
         entry.weekIdentifier = DateHelpers.weekIdentifier(for: entry.createdAt)
         entry.collectionID = collection.id
         context.insert(entry)
-        try context.save()
+        do { try context.save() } catch {
+            // Leave nothing for autosave to save later: the caller says it wasn't saved, so a
+            // second try mustn't make a duplicate.
+            context.delete(entry)
+            throw error
+        }
         // Skips itself for a kept-out collection; runs if they turned keeping Scratch out off.
         MoodAutoDetector.shared.detectIfNeeded(entry, context: context)
         ReviewRequestManager.requestIfEntryMilestoneReached(context: context)

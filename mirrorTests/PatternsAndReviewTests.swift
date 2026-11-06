@@ -120,4 +120,22 @@ struct PatternsAndReviewTests {
         #expect(!ReviewStatsService.isReviewWeek(date(2027, 1, 8), calendar: calendar))
         #expect(!ReviewStatsService.isReviewWeek(date(2026, 12, 31), calendar: calendar))
     }
+
+    /// Year in Review's tile labels pick the plural form for the count (Russian has three) and
+    /// show only the noun: the number is drawn above them.
+    @Test func reviewTileLabelsUseEachLanguagesPluralForms() {
+        func label(_ n: Int, _ language: String) -> String {
+            var resource = LocalizedStringResource("review.tile.entries \(n)")
+            resource.locale = Locale(identifier: language)
+            return String(localized: resource)
+        }
+        #expect(label(1, "en") == "entry")
+        #expect(label(5, "en") == "entries")
+        #expect(label(1, "ru") == "запись")
+        #expect(label(3, "ru") == "записи")
+        #expect(label(5, "ru") == "записей")
+        #expect(label(21, "ru") == "запись")
+        #expect(label(1, "de") == "Eintrag")
+        #expect(label(2, "de") == "Einträge")
+    }
 }

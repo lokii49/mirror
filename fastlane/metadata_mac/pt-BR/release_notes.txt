@@ -12,7 +12,7 @@ Também nesta atualização
 • Grave notas de voz como no iPhone: pause, ouça de novo e adicione.
 • Ao escrever: modo foco, meta diária de palavras e sugestões de tags.
 • Arraste linhas de lista para reordenar; itens marcados podem ir para o fim.
-• Arquivo › Importar do dispositivo: foto ou digitalização com o iPhone.
+• Câmera de Continuidade: foto ou digitalização com o iPhone direto no diário (menu Arquivo).
 • Modelos, Em aberto, vínculos entre entradas, Padrões e Retrospectiva do ano.
 • Resgatar código na tela de planos e nos Ajustes.
 • Diários grandes estão mais rápidos: a lista de Entradas, a busca e as Percepções não releem mais todas as entradas a cada mudança na janela.

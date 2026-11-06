@@ -149,7 +149,8 @@ struct WriteSaveButton: View {
 
     private var button: some View {
         Button(action: save) {
-            Text(isSentinel ? "SAVE" : "Save")
+            Text("Save")
+                .textCase(isSentinel ? .uppercase : nil)
                 .scaledFont(isSentinel ? 13 : 16, weight: .semibold, design: isSentinel ? .monospaced : .default)
                 .padding(.horizontal, 4)
         }

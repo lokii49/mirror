@@ -71,7 +71,7 @@ enum CardTier: CaseIterable, Equatable, Hashable {
 struct FeatureCard: Identifiable {
     let id: String
     let title: LocalizedStringKey
-    let body: LocalizedStringKey
+    var body: LocalizedStringKey
     let symbolName: String
     let accentColor: Color
     let tier: CardTier
@@ -81,6 +81,51 @@ struct FeatureCard: Identifiable {
     var showInFeatureGuide: Bool = true
     /// iPhone/iPad only (the Mac has its own version of the feature, or none).
     var iOSOnly: Bool = false
+    /// What this device needs for the card's promise to hold.
+    var requirement: DeviceFeature? = nil
+    /// Shown instead of `body` where `requirement` isn't met; nil hides the card there.
+    var bodyWithoutRequirement: LocalizedStringKey? = nil
+
+    /// The card as this device should show it, or nil when it promises something this device
+    /// can't do (Health before iOS 18, a Watch on an iPad).
+    func forThisDevice() -> FeatureCard? {
+        guard let requirement, !requirement.isAvailable else { return self }
+        guard let bodyWithoutRequirement else { return nil }
+        var card = self
+        card.body = bodyWithoutRequirement
+        return card
+    }
+}
+
+/// Device-dependent features a What's New card can promise.
+enum DeviceFeature {
+    case appleHealth, appleWatch, journalingSuggestions
+
+    var isAvailable: Bool {
+        switch self {
+        case .appleHealth:
+            return HealthMoodWriter.isAvailable
+        case .appleWatch:
+            #if os(iOS)
+            return UIDevice.current.userInterfaceIdiom == .phone
+            #else
+            return false
+            #endif
+        case .journalingSuggestions:
+            return Self.journalingSuggestionsAvailable
+        }
+    }
+
+    /// Where Write offers Apple's Journaling Suggestions: iPhone on iOS 17.2+, iPad from 26.
+    static var journalingSuggestionsAvailable: Bool {
+        #if os(iOS) && canImport(JournalingSuggestions)
+        guard #available(iOS 17.2, *) else { return false }
+        return UIDevice.current.userInterfaceIdiom == .phone
+            || ProcessInfo.processInfo.isOperatingSystemAtLeast(OperatingSystemVersion(majorVersion: 26, minorVersion: 0, patchVersion: 0))
+        #else
+        return false
+        #endif
+    }
 }
 
 // MARK: - Registry — add new cards here when releasing features
@@ -499,7 +544,9 @@ enum FeatureCardRegistry {
             tier: .free,
             sinceVersion: "3.1.8",
             showInFeatureGuide: false,
-            iOSOnly: true
+            iOSOnly: true,
+            requirement: .journalingSuggestions,
+            bodyWithoutRequirement: "The date is the title, Mood sits beside it, and Delete and focus mode moved into the ⋯ menu. Need a start? Pick a template or write your own."
         ),
         .init(
             id: "still-open-318",
@@ -540,7 +587,8 @@ enum FeatureCardRegistry {
             tier: .free,
             sinceVersion: "3.1.8",
             showInFeatureGuide: false,
-            iOSOnly: true
+            iOSOnly: true,
+            requirement: .appleWatch
         ),
         .init(
             id: "health-318",
@@ -551,7 +599,8 @@ enum FeatureCardRegistry {
             tier: .free,
             sinceVersion: "3.1.8",
             showInFeatureGuide: false,
-            iOSOnly: true
+            iOSOnly: true,
+            requirement: .appleHealth
         ),
     ]
 
@@ -573,7 +622,7 @@ final class FeatureCardService {
 
     private let lastSeenVersionKey = "mirror.whatsNew.lastSeenVersion"
 
-    var allCards: [FeatureCard] { FeatureCardRegistry.all.filter { $0.showInFeatureGuide } }
+    var allCards: [FeatureCard] { FeatureCardRegistry.all.filter { $0.showInFeatureGuide }.compactMap { $0.forThisDevice() } }
 
     /// The Mac has its own version numbers (1.x) while cards carry the iOS release they shipped
     /// in, so a Mac upgrade compared 1.x against "3.1.0" and never showed a card. List only the Mac
@@ -614,9 +663,10 @@ final class FeatureCardService {
 
     var whatsNewCards: [FeatureCard] {
         #if os(macOS)
-        return Self.macWhatsNewCards(lastSeen: lastSeenVersion, current: currentAppVersion)
+        return Self.macWhatsNewCards(lastSeen: lastSeenVersion, current: currentAppVersion).compactMap { $0.forThisDevice() }
+        #else
+        return Self.iOSWhatsNewCards(lastSeen: lastSeenVersion, current: currentAppVersion).compactMap { $0.forThisDevice() }
         #endif
-        return Self.iOSWhatsNewCards(lastSeen: lastSeenVersion, current: currentAppVersion)
     }
 
     /// Only the newest release with cards since the last seen version, never the backlog. A device

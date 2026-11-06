@@ -62,8 +62,11 @@ struct InsightScopeTests {
         #expect(scope.excludedCollectionIDs == [scratch.id])
         #expect(scope.filter([unfiled, filed, note]).map(\.id) == [unfiled.id, filed.id])
         #expect(!scope.includes(note))
-        // An entry whose collection is gone (deleted elsewhere) reads as Unfiled: included.
-        #expect(scope.includes(collectionID: UUID()))
+        // An entry filed in a collection this device doesn't have yet (CloudKit delivered the
+        // entry first) is kept out until the collection arrives.
+        #expect(!scope.includes(collectionID: UUID()))
+        #expect(scope.includes(collectionID: nil))
+        #expect(InsightScope.everything.includes(collectionID: UUID()), "a scope from ids alone checks nothing else")
     }
 
     @Test func nothingKeptOutReturnsTheSameEntries() throws {
@@ -71,7 +74,7 @@ struct InsightScopeTests {
         _ = try JournalOrganizationStore.createCollection(name: "Work", in: context)
         let entries = [entry(in: nil, "One.", context: context), entry(in: nil, "Two.", context: context)]
         let scope = InsightScope(context: context)
-        #expect(scope.excludesNothing)
+        #expect(scope.excludedCollectionIDs.isEmpty)
         #expect(scope.filter(entries).map(\.id) == entries.map(\.id))
     }
 

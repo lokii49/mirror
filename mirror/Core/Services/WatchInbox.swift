@@ -1,5 +1,9 @@
 import Foundation
+import Security
 import SwiftData
+#if canImport(UIKit)
+import UIKit
+#endif
 #if canImport(WatchConnectivity)
 import WatchConnectivity
 #endif
@@ -10,8 +14,8 @@ import WatchConnectivity
 /// this phone is the only one that receives it); a note becomes an Unfiled entry.
 @MainActor
 enum WatchInbox {
-    struct Item: Equatable {
-        enum Kind: String { case mood, note }
+    struct Item: Equatable, Codable {
+        enum Kind: String, Codable { case mood, note }
         let id: String
         let kind: Kind
         let value: String
@@ -19,10 +23,18 @@ enum WatchInbox {
     }
 
     static let handledKey = "mirror.watchInbox.handledIDs"
-    /// Items that arrived while the journal key wasn't available (phone locked since restart):
-    /// kept in memory and saved on the next try. A quit before then loses them (the watch already
-    /// counted them as delivered).
-    private(set) static var waiting: [Item] = []
+    /// Items that arrived while the journal key couldn't be read. The key is readable only while
+    /// the phone is unlocked, and WatchConnectivity wakes the app for a watch item with the phone
+    /// in a pocket, so this is the usual case, not an edge one. They wait in a Keychain item this
+    /// device can write while locked (after the first unlock since a restart), so a quit doesn't
+    /// lose them: the watch already counted them as delivered.
+    /// A task-local so tests use their own Keychain item, never the app's.
+    @TaskLocal static var pendingAccount = "mirror.watchInbox.pending"
+    /// The newest items kept when far more pile up than anyone logs between unlocks.
+    static let pendingLimit = 200
+
+    /// The items waiting for the key, oldest first.
+    static var waiting: [Item] { pending() }
 
     /// The watch's payload, or nil for anything malformed or unknown.
     nonisolated static func item(from payload: [String: Any]) -> Item? {
@@ -35,7 +47,8 @@ enum WatchInbox {
         return Item(id: id, kind: kind, value: value, date: min(Date(timeIntervalSince1970: seconds), Date()))
     }
 
-    /// Saves one item unless it was saved before. False when it must wait for the key.
+    /// Saves one item unless it was saved before. False when it must wait for the key or the save
+    /// failed; nothing of it stays behind in the context then, so a retry can't save it twice.
     @discardableResult
     static func save(_ item: Item, in context: ModelContext, defaults: UserDefaults = .standard) -> Bool {
         var handled = defaults.stringArray(forKey: handledKey) ?? []
@@ -43,35 +56,82 @@ enum WatchInbox {
         guard MirrorEncryption.canEncrypt(creatingIfNeeded: true) else { return false }
         switch item.kind {
         case .mood:
-            context.insert(MoodCheckIn(mood: item.value, createdAt: item.date))
+            let checkIn = MoodCheckIn(mood: item.value, createdAt: item.date)
+            context.insert(checkIn)
+            do { try context.save() } catch {
+                context.delete(checkIn)
+                return false
+            }
+            // To Health only once the check-in is saved: the watch is where it was logged, and
+            // this phone is the only one that receives it.
             HealthMoodWriter.writeCheckIn(mood: item.value, at: item.date)
         case .note:
             let entry = Entry(text: item.value, source: .typed)
             entry.createdAt = item.date
             entry.weekIdentifier = DateHelpers.weekIdentifier(for: item.date)
             context.insert(entry)
+            do { try context.save() } catch {
+                context.delete(entry)
+                return false
+            }
             MoodAutoDetector.shared.detectIfNeeded(entry, context: context)
         }
-        do { try context.save() } catch { return false }
         handled.append(item.id)
         defaults.set(Array(handled.suffix(500)), forKey: handledKey)
         mirrorApp.updateWidgetHeatmaps(context: context)
         return true
     }
 
-    static func receive(_ payload: [String: Any], in context: ModelContext) {
+    static func receive(_ payload: [String: Any], in context: ModelContext, defaults: UserDefaults = .standard) {
         guard let item = item(from: payload) else { return }
-        let saved = save(item, in: context)
-        if !saved { waiting.append(item) }
+        // Anything older still waiting goes first, so items keep the order they were logged in.
+        retryWaiting(in: context, defaults: defaults)
+        let saved = pending().isEmpty && save(item, in: context, defaults: defaults)
+        if !saved { addPending(item) }
         #if DEBUG
         // The kind only, never the text.
         NSLog("WatchInbox: %@ %@", item.kind.rawValue, saved ? "saved" : "waiting for the key")
         #endif
     }
 
-    /// Saves what waited for the key; on every foreground.
-    static func retryWaiting(in context: ModelContext) {
-        waiting = waiting.filter { !save($0, in: context) }
+    /// Saves what waited for the key: on every foreground, when protected data becomes available,
+    /// and before each new item. Stops at the first one that still can't be saved.
+    static func retryWaiting(in context: ModelContext, defaults: UserDefaults = .standard) {
+        var items = pending()
+        guard !items.isEmpty else { return }
+        while let first = items.first, save(first, in: context, defaults: defaults) {
+            items.removeFirst()
+        }
+        storePending(items)
+    }
+
+    /// Clears the waiting items (Delete Everything).
+    static func erasePending() {
+        KeychainManager.delete(account: pendingAccount)
+    }
+
+    // MARK: - Pending store
+
+    private static func pending() -> [Item] {
+        guard let data = KeychainManager.read(account: pendingAccount).data else { return [] }
+        return (try? JSONDecoder().decode([Item].self, from: data)) ?? []
+    }
+
+    private static func addPending(_ item: Item) {
+        var items = pending()
+        guard !items.contains(where: { $0.id == item.id }) else { return }
+        items.append(item)
+        storePending(items)
+    }
+
+    private static func storePending(_ items: [Item]) {
+        guard !items.isEmpty else {
+            KeychainManager.delete(account: pendingAccount)
+            return
+        }
+        guard let data = try? JSONEncoder().encode(Array(items.suffix(pendingLimit))) else { return }
+        KeychainManager.save(data: data, account: pendingAccount,
+                             accessible: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly)
     }
 
     #if os(iOS) && canImport(WatchConnectivity)
@@ -83,6 +143,15 @@ enum WatchInbox {
         let session = WCSession.default
         session.delegate = receiver
         session.activate()
+        // The key becomes readable when the phone unlocks, which can happen with the app in
+        // the background (no foreground to retry on).
+        NotificationCenter.default.addObserver(forName: UIApplication.protectedDataDidBecomeAvailableNotification,
+                                               object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated {
+                guard MirrorModelContainer.isStoreAvailable else { return }
+                retryWaiting(in: MirrorModelContainer.shared.mainContext)
+            }
+        }
     }
 
     private final class Receiver: NSObject, WCSessionDelegate {

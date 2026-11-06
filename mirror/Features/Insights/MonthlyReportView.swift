@@ -75,7 +75,7 @@ struct MonthlyReportView: View {
                     } label: {
                         Label("This month in numbers", systemImage: "calendar.badge.checkmark")
                             .scaledFont(15, weight: .semibold)
-                            .foregroundStyle(MirrorTheme.violet)
+                            .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet)
                             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                             .contentShape(Rectangle())
                     }

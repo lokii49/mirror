@@ -302,7 +302,7 @@ struct mirrorApp: App {
                 AppLock.shared.setPrivacyCover(false)
                 AppLock.shared.didReturn()
                 // Watch items that came while the journal key was locked away.
-                if !WatchInbox.waiting.isEmpty { WatchInbox.retryWaiting(in: sharedModelContainer.mainContext) }
+                WatchInbox.retryWaiting(in: sharedModelContainer.mainContext)
             @unknown default:
                 break
             }

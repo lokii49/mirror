@@ -342,6 +342,15 @@ struct VoiceRecorderSheet: View {
         .background(isSentinel ? MirrorTheme.inkBase : Color(.systemBackground))
         #if os(macOS)
         .frame(minWidth: 520, idealWidth: 560, minHeight: 640, idealHeight: 680)
+        // Escape closes it while nothing is recorded, like a swipe down on iPhone; with a
+        // recording, ✓ saves it and More › Delete Recording throws it away.
+        .background {
+            Button("Close") { if !recorder.hasAudio { dismiss() } }
+                .keyboardShortcut(.cancelAction)
+                .opacity(0)
+                .frame(width: 0, height: 0)
+                .accessibilityHidden(true)
+        }
         #endif
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)

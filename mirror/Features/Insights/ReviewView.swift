@@ -153,10 +153,11 @@ struct ReviewView: View {
 
     private func tiles(_ stats: ReviewStatsService.Stats) -> some View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-            tile(value: stats.entries, label: stats.entries == 1 ? "entry" : "entries")
-            tile(value: stats.words, label: stats.words == 1 ? "word" : "words")
-            tile(value: stats.activeDays, label: stats.activeDays == 1 ? "day written" : "days written")
-            tile(value: stats.longestStreak, label: stats.longestStreak == 1 ? "day, longest streak" : "days, longest streak")
+            // One catalog key per tile with plural forms: Russian needs three, not "== 1".
+            tile(value: stats.entries, label: "review.tile.entries \(stats.entries)")
+            tile(value: stats.words, label: "review.tile.words \(stats.words)")
+            tile(value: stats.activeDays, label: "review.tile.days \(stats.activeDays)")
+            tile(value: stats.longestStreak, label: "review.tile.streak \(stats.longestStreak)")
         }
     }
 

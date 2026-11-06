@@ -12,7 +12,7 @@ Inoltre in questo aggiornamento
 • Registra note vocali come su iPhone: pausa, riascolta, poi aggiungi.
 • In scrittura: modalità concentrazione, obiettivo di parole e suggerimenti di tag.
 • Trascina le righe delle liste per riordinarle; le voci spuntate possono scendere in fondo.
-• Archivio › Importa da dispositivo: foto o scansione con l’iPhone.
+• Fotocamera Continuity: foto o scansione con l’iPhone direttamente nel diario (menu Archivio).
 • Modelli, Ancora aperti, collegamenti tra voci, Schemi e Anno in rassegna.
 • Riscatta codice nella schermata dei piani e nelle Impostazioni.
 • I diari grandi sono più veloci: l’elenco delle Voci, la ricerca e gli Approfondimenti non rileggono più tutte le voci a ogni cambiamento nella finestra.

@@ -182,6 +182,15 @@ struct ContentView: View {
         )
     }
 
+    /// What's New only on a screen with no other root sheet up or waiting (a cold launch from the
+    /// Scratch Note control or the check-in reminder opens that sheet first; presenting both
+    /// fails and can leave a flag stuck). It isn't marked seen, so it shows on a later launch.
+    private var canPresentWhatsNew: Bool {
+        !showPaywall && !showWhatsNew && !showRatePrompt && !showMoodCheckIn && !showScratchNote
+            && !scratchNotePresenter.pending && !moodCheckInPresenter.pending
+            && !moodCheckInPresenter.blockedByOtherSheet
+    }
+
     /// The mood check-in sheet is triggered by tapping the daily reminder —
     /// present it once the screen is free of other modals. If it never clears
     /// in this session, `pending` simply carries to the next launch/tap.
@@ -400,7 +409,7 @@ struct ContentView: View {
                 selectedSidebarItem = .write
                 Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 800_000_000)
-                    if featureCardService.shouldShowWhatsNew {
+                    if featureCardService.shouldShowWhatsNew && canPresentWhatsNew {
                         showWhatsNew = true
                     }
                 }
@@ -428,7 +437,7 @@ struct ContentView: View {
             if onboardingComplete && !isUITesting && featureCardService.shouldShowWhatsNew {
                 Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 500_000_000)
-                    showWhatsNew = true
+                    if canPresentWhatsNew { showWhatsNew = true }
                 }
             }
         }

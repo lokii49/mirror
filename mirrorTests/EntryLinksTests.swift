@@ -48,9 +48,19 @@ struct EntryLinksTests {
         elsewhere.inlineStyleData = link(to: UUID())
         [target, linking, mentioning, elsewhere].forEach(context.insert)
         try context.save()
-        let links = EntryLinks.backlinks(to: target.id, in: context)
+        let links = EntryLinks.cachedBacklinks(to: target.id, in: context)
         #expect(links.map(\.id) == [linking.id])
         #expect(links.first?.title == "See that day for more.")
+        #expect(EntryLinks.cachedBacklinks(to: linking.id, in: context).isEmpty, "a link isn't its own backlink")
+
+        // A new link shows once the journal revision moves (the app's saves move it).
+        let later = Entry(text: "Another synthetic link.")
+        later.createdAt = linking.createdAt.addingTimeInterval(60)
+        later.inlineStyleData = link(to: target.id)
+        context.insert(later)
+        try context.save()
+        JournalRevision.shared.bump(settle: false)
+        #expect(EntryLinks.cachedBacklinks(to: target.id, in: context).map(\.id) == [later.id, linking.id], "newest first")
     }
 
     @Test func titleSkipsBlankLinesAndPhotoTokens() {

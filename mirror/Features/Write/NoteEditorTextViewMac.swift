@@ -304,7 +304,7 @@ final class MirrorNSTextView: NSTextView {
                             NSCursor.closedHand.push()
                         }
                         if dragging {
-                            dropIndicatorY = dropLineY(at: location)
+                            dropIndicatorY = dropLineY(at: location, from: start)
                             needsDisplay = true
                             autoscroll(with: next)
                         }
@@ -326,16 +326,19 @@ final class MirrorNSTextView: NSTextView {
         super.mouseDown(with: event)
     }
 
-    /// The top edge of the line under `point`, where a dragged line would be inserted.
-    private func dropLineY(at point: NSPoint) -> CGFloat? {
+    /// Where the dragged line starting at `sourceStart` would land if dropped at `point`, as
+    /// `Coordinator.moveParagraph` places it: moving up, above the line under the pointer; moving
+    /// down, below it. Nil over the dragged line itself (dropping there moves nothing).
+    private func dropLineY(at point: NSPoint, from sourceStart: Int) -> CGFloat? {
         guard let layoutManager, let textContainer else { return nil }
         let index = characterIndexForInsertion(at: point)
         let text = string as NSString
         guard text.length > 0 else { return nil }
         let paragraph = text.paragraphRange(for: NSRange(location: min(index, text.length - 1), length: 0))
-        let glyphs = layoutManager.glyphRange(forCharacterRange: NSRange(location: paragraph.location, length: 1), actualCharacterRange: nil)
+        guard paragraph.location != sourceStart else { return nil }
+        let glyphs = layoutManager.glyphRange(forCharacterRange: paragraph, actualCharacterRange: nil)
         let rect = layoutManager.boundingRect(forGlyphRange: glyphs, in: textContainer)
-        return rect.minY + textContainerOrigin.y
+        return (paragraph.location > sourceStart ? rect.maxY : rect.minY) + textContainerOrigin.y
     }
 
     override func draw(_ dirtyRect: NSRect) {

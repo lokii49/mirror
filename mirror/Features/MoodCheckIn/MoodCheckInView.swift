@@ -47,8 +47,14 @@ struct MoodCheckInView: View {
     private func log(_ mood: String) {
         // Saved encrypted; with the key unreadable, log nothing rather than plaintext.
         guard MirrorEncryption.canEncrypt(creatingIfNeeded: true) else { return }
-        modelContext.insert(MoodCheckIn(mood: mood))
-        try? modelContext.save()
+        let checkIn = MoodCheckIn(mood: mood)
+        modelContext.insert(checkIn)
+        do { try modelContext.save() } catch {
+            // Not saved: leave nothing behind for autosave, and don't tell Health it was logged.
+            modelContext.delete(checkIn)
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            return
+        }
         // To Apple Health when turned on: only from here, never when a check-in syncs in.
         HealthMoodWriter.writeCheckIn(mood: mood)
         // Rebuild the widget mood-map blob (entries + check-ins) and refresh so

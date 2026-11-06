@@ -103,7 +103,7 @@ private struct WatchSentView: View {
                 .font(.title2)
                 .foregroundStyle(.green)
             Text(title).font(.headline)
-            Text("Saved in MirrorNotes on your iPhone.")
+            Text("Sent to MirrorNotes on your iPhone.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

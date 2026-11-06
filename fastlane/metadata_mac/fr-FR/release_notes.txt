@@ -12,7 +12,7 @@ Core et Deep sont là
 • Enregistrez des notes vocales comme sur iPhone : pause, réécoute, puis ajout.
 • Pour écrire : mode concentration, objectif de mots du jour et suggestions de tags.
 • Faites glisser les lignes de liste pour les réordonner ; les éléments cochés peuvent descendre.
-• Fichier › Importer depuis l’appareil : photo ou scan avec l’iPhone.
+• Appareil photo de continuité : photo ou scan avec l’iPhone, directement dans une entrée (menu Fichier).
 • Modèles, Encore à faire, liens entre entrées, Tendances et Bilan de l’année.
 • Utiliser un code depuis l’écran des forfaits et les réglages.
 • Les grands journaux sont plus rapides : la liste des Entrées, la recherche et les Aperçus ne relisent plus toutes les entrées à chaque changement dans la fenêtre.

@@ -32,6 +32,8 @@ enum JournalErase {
         // An unsaved Write draft is journal text too, and so are the person's own templates.
         WriteView.eraseAllDraftStorage()
         CustomTemplateStore.erase()
+        // Watch items still waiting for the journal key.
+        WatchInbox.erasePending()
         // So is what the widgets and lock screen show (backlog A10).
         WidgetBridge.clearJournalDerived()
         // And the lock-screen reminder, which can quote a line of today's reflection.

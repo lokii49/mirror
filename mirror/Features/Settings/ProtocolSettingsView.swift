@@ -126,6 +126,16 @@ struct ProtocolSettingsView: View {
         #endif
     }
 
+    /// The Apple Health footer names the device the check-ins are logged on.
+    private var healthFooter: LocalizedStringKey {
+        #if os(iOS)
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            return "Each mood check-in logged on this iPad is saved to Health as a State of Mind. MirrorNotes never reads from Health, and your entries are never sent there."
+        }
+        #endif
+        return "Each mood check-in logged on this iPhone is saved to Health as a State of Mind. MirrorNotes never reads from Health, and your entries are never sent there."
+    }
+
     var body: some View {
         SettingsScroll {
             VStack(spacing: 14) {
@@ -388,7 +398,7 @@ struct ProtocolSettingsView: View {
                             }
                             .tint(MirrorTheme.primary)
                             .accessibilityIdentifier("settings.healthMoods")
-                            Text("Each mood check-in logged on this iPhone is saved to Health as a State of Mind. MirrorNotes never reads from Health, and your entries are never sent there.")
+                            Text(healthFooter)
                                 .scaledFont(12.5)
                                 .foregroundStyle(MirrorTheme.textSecondary)
                                 .padding(.leading, 44)

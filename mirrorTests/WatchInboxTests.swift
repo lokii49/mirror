@@ -4,7 +4,7 @@ import Testing
 @testable import mirror
 
 /// What the Apple Watch app sends, saved on the iPhone. Synthetic text only.
-@Suite("Watch inbox")
+@Suite("Watch inbox", .serialized)
 @MainActor
 struct WatchInboxTests {
     private final class Containers { var all: [ModelContainer] = [] }
@@ -53,5 +53,49 @@ struct WatchInboxTests {
         #expect(WatchInbox.save(item, in: context, defaults: d))
         #expect(WatchInbox.save(item, in: context, defaults: d))
         #expect(try context.fetch(FetchDescriptor<Entry>()).count == 1)
+    }
+
+    /// Watch items that come while the journal key can't be read (the phone is locked) wait in
+    /// the Keychain and are saved, in order, once it can.
+    @Test func itemsWaitForTheKeyAndAreSavedInOrderLater() throws {
+        let context = try context()
+        let d = defaults()
+        WatchInbox.$pendingAccount.withValue("WatchInboxTests.\(UUID().uuidString)") {
+            defer { WatchInbox.erasePending() }
+            let older = Date().addingTimeInterval(-600)
+            MirrorEncryption.$sealFailsForTesting.withValue(true) {
+                WatchInbox.receive(["id": "w1", "kind": "note", "value": "Synthetic first.", "date": older.timeIntervalSince1970], in: context, defaults: d)
+                WatchInbox.receive(["id": "w2", "kind": "mood", "value": "Peaceful", "date": older.timeIntervalSince1970], in: context, defaults: d)
+            }
+            #expect(((try? context.fetch(FetchDescriptor<Entry>())) ?? []).isEmpty, "nothing saved without the key")
+            #expect(WatchInbox.waiting.map(\.id) == ["w1", "w2"])
+            // A new item once the key is back goes after the ones that waited.
+            WatchInbox.receive(["id": "w3", "kind": "note", "value": "Synthetic third.", "date": Date().timeIntervalSince1970], in: context, defaults: d)
+            #expect(WatchInbox.waiting.isEmpty)
+            #expect(d.stringArray(forKey: WatchInbox.handledKey) == ["w1", "w2", "w3"])
+            #expect(((try? context.fetch(FetchDescriptor<Entry>())) ?? []).count == 2)
+            #expect(((try? context.fetch(FetchDescriptor<MoodCheckIn>())) ?? []).contains { $0.decryptedMood == "Peaceful" })
+        }
+    }
+
+    @Test func aForegroundRetrySavesWhatWaitedAndEraseClearsIt() throws {
+        let context = try context()
+        let d = defaults()
+        WatchInbox.$pendingAccount.withValue("WatchInboxTests.\(UUID().uuidString)") {
+            defer { WatchInbox.erasePending() }
+            MirrorEncryption.$sealFailsForTesting.withValue(true) {
+                WatchInbox.receive(["id": "r1", "kind": "note", "value": "Synthetic waiting.", "date": Date().timeIntervalSince1970], in: context, defaults: d)
+                WatchInbox.retryWaiting(in: context, defaults: d)
+            }
+            #expect(WatchInbox.waiting.count == 1, "still locked: still waiting")
+            WatchInbox.retryWaiting(in: context, defaults: d)
+            #expect(WatchInbox.waiting.isEmpty)
+            #expect(((try? context.fetch(FetchDescriptor<Entry>())) ?? []).map(\.text) == ["Synthetic waiting."])
+            MirrorEncryption.$sealFailsForTesting.withValue(true) {
+                WatchInbox.receive(["id": "r2", "kind": "note", "value": "Synthetic erased.", "date": Date().timeIntervalSince1970], in: context, defaults: d)
+            }
+            WatchInbox.erasePending()
+            #expect(WatchInbox.waiting.isEmpty, "Delete Everything clears waiting items")
+        }
     }
 }

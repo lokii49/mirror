@@ -12,7 +12,7 @@ Also in this update
 • Record voice notes as on iPhone: pause, listen back, then add.
 • Write gains focus mode, the daily word goal and tag suggestions.
 • Drag checklist lines to reorder them; checked items can move to the bottom.
-• File › Import From Device: take a photo or scan a document with your iPhone.
+• Continuity Camera: take a photo or scan a document with your iPhone, straight into an entry (File menu).
 • Templates, Still Open, links between entries, Patterns and Year in Review.
 • Redeem Code on the plans screen and in Settings.
 • Big journals are faster: the Entries list, search and Insights no longer re-read every entry whenever the window changes.
