@@ -5,6 +5,7 @@ Ya llegan Core y Deep
 
 Además en esta actualización
 
+• Un aspecto nuevo: páginas de papel cálido y casi negras con un acento ciruela, más cómodas para la vista de noche y más cerca del icono de la app.
 • ¿Tienes un código de oferta del App Store? Toca Canjear código en Ajustes › Suscripción o en la pantalla de planes.
 • Ajustes tiene un botón Listo y un tirador, para que quede claro cómo cerrarlo.
 • Si los planes no cargan, Suscripción ofrece Intentar de nuevo en lugar de quedarse cargando.

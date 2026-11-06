@@ -744,7 +744,7 @@ struct MoodTimelineView: View {
                         .padding(.horizontal, 32)
                         .padding(.vertical, 14)
                         .background(
-                            LinearGradient(colors: [MirrorTheme.violet, Color.indigo], startPoint: .leading, endPoint: .trailing),
+                            MirrorTheme.accentGradient,
                             in: Capsule()
                         )
                 }

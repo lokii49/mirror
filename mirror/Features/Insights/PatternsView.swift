@@ -240,7 +240,7 @@ struct DeepLockCard: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 32)
                     .padding(.vertical, 14)
-                    .background(MirrorTheme.violet, in: Capsule())
+                    .background(MirrorTheme.buttonFill, in: Capsule())
             }
             .buttonStyle(.plain)
         }

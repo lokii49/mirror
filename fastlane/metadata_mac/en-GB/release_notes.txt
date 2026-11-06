@@ -5,6 +5,7 @@ Core and Deep are here
 
 Also in this update
 
+• A new look: warm paper and off-black pages with a plum accent, easier on the eyes at night and closer to the app icon.
 • If plans can't load, Subscription offers Try Again instead of loading forever.
 • Past reflections on the board have Read more, and past reflections and digests end with Show all.
 • Tapping a day in the Entries calendar keeps that day in view instead of jumping back to today.

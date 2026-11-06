@@ -28,25 +28,26 @@ struct WatchHomeView: View {
     }
 }
 
-/// The twelve moods, as in the app (names and colours), positive first.
+/// The twelve moods, as in the app (names and colours), positive first. The colours are
+/// `MirrorTheme.moodColor(for:)`'s exact values (the watch target can't import it).
 private struct WatchMoodPicker: View {
     @Environment(WatchSender.self) private var sender
     @Environment(\.dismiss) private var dismiss
     @State private var sent: String?
 
     static let moods: [(key: String, name: LocalizedStringResource, color: Color)] = [
-        ("Joyful", "Joyful", Color(red: 0.98, green: 0.76, blue: 0.20)),
-        ("Grateful", "Grateful", Color(red: 0.38, green: 0.75, blue: 0.45)),
-        ("Peaceful", "Peaceful", Color(red: 0.45, green: 0.75, blue: 0.95)),
-        ("Content", "Content", Color(red: 0.36, green: 0.70, blue: 0.66)),
-        ("Energized", "Energized", Color(red: 0.98, green: 0.58, blue: 0.20)),
-        ("Hopeful", "Hopeful", Color(red: 0.62, green: 0.50, blue: 0.92)),
-        ("Anxious", "Anxious", Color(red: 0.85, green: 0.68, blue: 0.30)),
-        ("Overwhelmed", "Overwhelmed", Color(red: 0.78, green: 0.42, blue: 0.52)),
-        ("Frustrated", "Frustrated", Color(red: 0.88, green: 0.42, blue: 0.36)),
-        ("Drained", "Drained", Color(red: 0.55, green: 0.55, blue: 0.62)),
-        ("Sad", "Sad", Color(red: 0.42, green: 0.52, blue: 0.80)),
-        ("Numb", "Numb", Color(red: 0.62, green: 0.62, blue: 0.66)),
+        ("Joyful", "Joyful", Color(red: 1.000, green: 0.835, blue: 0.310)),
+        ("Grateful", "Grateful", Color(red: 0.400, green: 0.733, blue: 0.416)),
+        ("Peaceful", "Peaceful", Color(red: 0.506, green: 0.831, blue: 0.980)),
+        ("Content", "Content", Color(red: 0.302, green: 0.714, blue: 0.675)),
+        ("Energized", "Energized", Color(red: 1.000, green: 0.596, blue: 0.000)),
+        ("Hopeful", "Hopeful", Color(red: 0.584, green: 0.459, blue: 0.804)),
+        ("Anxious", "Anxious", Color(red: 0.831, green: 0.659, blue: 0.294)),
+        ("Overwhelmed", "Overwhelmed", Color(red: 0.851, green: 0.416, blue: 0.388)),
+        ("Frustrated", "Frustrated", Color(red: 0.851, green: 0.541, blue: 0.310)),
+        ("Drained", "Drained", Color(red: 0.604, green: 0.588, blue: 0.639)),
+        ("Sad", "Sad", Color(red: 0.416, green: 0.624, blue: 0.820)),
+        ("Numb", "Numb", Color(red: 0.765, green: 0.796, blue: 0.820)),
     ]
 
     var body: some View {

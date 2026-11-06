@@ -5,6 +5,7 @@ Core e Deep chegaram
 
 Também nesta atualização
 
+• Um visual novo: páginas cor de papel quente e quase pretas com um destaque ameixa, mais confortáveis para os olhos à noite e mais próximas do ícone do app.
 • Tem um código de oferta da App Store? Toque em Resgatar código em Ajustes › Assinatura ou na tela de planos.
 • Ajustes tem um botão Concluído e uma alça, para deixar claro como fechar.
 • Se os planos não carregarem, Assinatura oferece Tentar novamente em vez de ficar carregando.

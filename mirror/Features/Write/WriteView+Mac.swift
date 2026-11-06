@@ -627,7 +627,7 @@ struct MacEntryDatePopover: View {
                         .foregroundStyle(Color.white)
                         .padding(.horizontal, 18)
                         .frame(height: 28)
-                        .background(MacTokens.accent, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                        .background(MacTokens.accentFill, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
                 }
                 .buttonStyle(.plain)
                 .keyboardShortcut(.defaultAction)
@@ -752,7 +752,7 @@ struct MacEntryDatePopover: View {
                 }
                 .foregroundStyle(isSelected ? Color.white : (isFuture ? MacTokens.secondaryInk.opacity(0.4) : MacTokens.ink))
                 .frame(width: 34, height: 36)
-                .background(isSelected ? MacTokens.accent : Color.clear, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .background(isSelected ? MacTokens.accentFill : Color.clear, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .overlay {
                     if isToday && !isSelected {
                         RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(MacTokens.accent.opacity(0.6), lineWidth: 1)

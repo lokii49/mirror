@@ -206,9 +206,12 @@ struct PaywallView: View {
     private var heroSection: some View {
         ZStack(alignment: .topTrailing) {
             LinearGradient(
+                // Plum & Paper: deep plums only, so the white title and copy stay at 6:1 or
+                // better in both appearances (the old ends, violetLight under white, were ~2:1).
+                // Deep runs darker than Core so the two plans still read apart.
                 colors: selectedTier == .core
-                    ? [Color.indigo, MirrorTheme.primary, MirrorTheme.violet.opacity(0.85)]
-                    : [MirrorTheme.violet, Color.indigo, MirrorTheme.violetLight.opacity(0.85)],
+                    ? [MirrorTheme.hex(0x6E2A55, 0x6E2A55), MirrorTheme.buttonFill, MirrorTheme.hex(0x9A4478, 0x9A4478)]
+                    : [MirrorTheme.hex(0x4E1B3C, 0x4E1B3C), MirrorTheme.hex(0x6E2A55, 0x6E2A55), MirrorTheme.buttonFill],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )

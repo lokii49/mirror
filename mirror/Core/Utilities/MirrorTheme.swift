@@ -36,51 +36,61 @@ enum MirrorTheme {
 
     // MARK: - Surface tokens
 
-    // Dark steps (2026-10-21 design review): page #08060F → card #15111F → raised #1E1933.
-    // The old card (#110E1C) sat 1.3:1 above the page and read as ink on ink; cards only
-    // separated by their border. Light values are unchanged. Widgets mirror the dark values
-    // in `WidgetTheme`, asserted by `WidgetThemeTokenTests`.
-    static let inkBase    = hex(0x08060F, 0xF2EEF8)  // page background
-    static let inkMid     = hex(0x15111F, 0xFFFFFF)  // base card
-    static let inkRaised  = hex(0x1E1933, 0xF8F5FF)  // elevated card / sheet
-    static let inkBorder  = hex(0x2A2545, 0xE0D9F5)  // dividers, stroke
+    // Plum & Paper (owner, 2026-11-06; options and measurements in the theme review artifact):
+    // warm off-black and paper instead of the blue-black and lavender of the violet theme, so
+    // long night-time writing glares less and the app matches its leather-journal icon. Same
+    // three dark steps as the 2026-10-21 review (page → card → raised). Widgets mirror the dark
+    // values in `WidgetTheme`, asserted by `WidgetThemeTokenTests`; Sentinel shares these.
+    static let inkBase    = hex(0x0E0A0D, 0xF6F2F3)  // page background
+    static let inkMid     = hex(0x1A1418, 0xFFFFFF)  // base card
+    static let inkRaised  = hex(0x241C22, 0xFAF6F8)  // elevated card / sheet
+    static let inkBorder  = hex(0x33282F, 0xE7DDE2)  // dividers, stroke
 
     // MARK: - Accent tokens
 
-    static let violet      = hex(0x7C5CE4, 0x6341CC)  // primary accent
-    static let violetLight = hex(0xA78BFA, 0x7C5CE4)  // secondary labels, tints
-    static let violetDim   = hex(0x3D2D8A, 0xEDE8FC)  // tint backgrounds (chips, etc.)
+    // The accent keeps its old names (`violet`…) so ~200 call sites don't churn; it is plum now.
+    // Accent text: 6.3:1 or better on every dark surface (violet was 3.6–4.3:1), 6.3:1 light.
+    // It sits ≥ 9.9 (OKLab ΔE×100) from every mood colour and 11.1 from Sentinel's ember.
+    static let violet      = hex(0xC98BC6, 0x8E3A6E)  // primary accent
+    static let violetLight = hex(0xD8A3D4, 0x9B4C85)  // secondary labels, tints (≥ 4.5:1 on violetDim)
+    static let violetDim   = hex(0x3A2238, 0xF4E4EE)  // tint backgrounds (chips, etc.)
     // ember — warm second accent. 3 uses only: paywall CTA, mood alert, first insight.
     static let ember       = hex(0xF97B8B, 0xE05470)
-    /// Fill for buttons that carry white text. `violet` in dark mode (#7C5CE4) puts white at
-    /// 4.7:1; this deeper step reaches 5.4:1. Light mode is the same violet as the accent.
-    /// Accent-coloured *text* on dark surfaces keeps `violet`; only filled controls use this.
-    static let buttonFill  = hex(0x6E4FE0, 0x6341CC)
+    /// Fill for anything that carries white text. The dark accent (#C98BC6) is a light plum that
+    /// white can't sit on (2.6:1), so filled controls use this deep plum: white at 7.4:1 dark and
+    /// 7.1:1 light. Accent-coloured *text* uses `violet`; only filled controls use this.
+    static let buttonFill  = hex(0x8A3769, 0x8E3A6E)
 
     // MARK: - Fixed dark surfaces
 
     // Brain View draws on the same near-black canvas in both modes (its node and mood colours
     // are tuned for it); these were written out in four files. Sentinel's hub is `ember`.
     static let brainCanvas = Color(red: 0.09, green: 0.09, blue: 0.10)
-    static let brainHub    = Color(red: 0.62, green: 0.5, blue: 1.0)
+    static let brainHub    = Color(red: 0.835, green: 0.608, blue: 0.816)  // #D59BD0, 8:1 on the canvas
     /// The Brain lock card's icon, a step lighter than the hub.
-    static let brainIcon   = Color(red: 0.68, green: 0.56, blue: 1.0)
+    static let brainIcon   = Color(red: 0.867, green: 0.663, blue: 0.851)  // #DDA9D9
     /// The terminal-style panels of the Sentinel signal-source sheet, dark in both modes.
     static let inkDeep     = Color(red: 0.043, green: 0.043, blue: 0.063)
 
     // MARK: - Text tokens
 
-    static let textPrimary   = hex(0xEDE9F8, 0x16112A)
-    static let textSecondary = hex(0x7A7098, 0x6B6080)
+    static let textPrimary   = hex(0xF0E8EC, 0x1D1419)
+    // Dark was #7A7098, 4.1:1 on cards; now 5.2:1.
+    static let textSecondary = hex(0x948591, 0x72636D)
     // Muted text (dates, timestamps, labels; ~50 uses) now reads at 4.5:1 or better on every
     // surface in both modes. It was #A89FC0 light / #3F3860 dark — 2.2:1 and under 2:1 — the
     // same colour the website darkened on 2026-10-21 to pass its accessibility audit; the three
     // surfaces use one value again.
-    static let textTertiary  = hex(0x9087B0, 0x6E6587)
+    static let textTertiary  = hex(0x9C8D99, 0x75666F)
 
     // MARK: - Legacy aliases (kept for backward compat)
 
-    static let primary   = Color.accentColor           // tracks AccentColor.colorset (#7C5CE4 / #A78BFA)
+    /// The asset by name, not `Color.accentColor`. The root views apply `.tint(primary)`; with
+    /// `Color.accentColor` there, the Debug test copy on the 14 Pro showed classic tabs and
+    /// toolbar buttons in system blue (2026-11-06) while Sentinel's explicit ember worked, though
+    /// the shipped Release build showed violet. Cause not pinned down; naming the asset avoids
+    /// it either way, and `Color.accentColor` in child views reads this root tint.
+    static let primary   = Color("AccentColor")        // AccentColor.colorset (#8E3A6E / dark #C98BC6)
     static let primaryUI = UIColor.tintColor
 
     static let bgBase  = inkBase
@@ -95,12 +105,10 @@ enum MirrorTheme {
 
     static let palette: [Color] = [red, yellow, green, blue, purple]
 
-    /// The fill behind white-text CTAs (paywall, rate-us, onboarding). It used to run
-    /// `violet` → `violetLight`, whose dark-mode end (#A78BFA) left white at 2.7:1; it now runs
-    /// `buttonFill` → #7C5CE4 in both modes, 5.4→4.7:1 dark and 6.7→4.7:1 light (light mode's
-    /// colours are the same as before). Measured 2026-10-21.
+    /// The fill behind white-text CTAs (paywall, rate-us, onboarding): `buttonFill` → #9A4478 in
+    /// both modes, white at 7.4→6.1:1 dark and 7.1→6.1:1 light (measured 2026-11-06).
     static var accentGradient: LinearGradient {
-        LinearGradient(colors: [buttonFill, hex(0x7C5CE4, 0x7C5CE4)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        LinearGradient(colors: [buttonFill, hex(0x9A4478, 0x9A4478)], startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
     // MARK: - Mood

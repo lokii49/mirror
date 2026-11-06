@@ -5,6 +5,7 @@ Core und Deep sind da
 
 Außerdem in diesem Update
 
+• Ein neuer Look: warmes Papier und fast schwarze Seiten mit einem Pflaumen-Akzent, abends angenehmer für die Augen und näher am App-Symbol.
 • Wenn die Pläne nicht laden, bietet „Abonnement“ „Erneut versuchen“, statt endlos zu laden.
 • Frühere Reflexionen auf der Übersicht haben „Mehr lesen“, und frühere Reflexionen und Zusammenfassungen enden mit „Alle anzeigen“.
 • Ein Tippen auf einen Tag im Kalender unter „Einträge“ lässt diesen Tag im Blick, statt zurück zu heute zu springen.

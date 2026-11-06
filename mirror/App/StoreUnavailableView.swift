@@ -39,6 +39,7 @@ struct StoreUnavailableView: View {
                 retryResult = MirrorModelContainer.canOpenStoreNow() ? .opens : .stillFailing
             }
             .buttonStyle(.borderedProminent)
+            .tint(MirrorTheme.buttonFill)
 
             if let url = AppConstants.feedbackURL {
                 Button("Contact support") { openURL(url) }

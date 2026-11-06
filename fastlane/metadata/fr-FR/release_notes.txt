@@ -5,6 +5,7 @@ Core et Deep sont là
 
 Également dans cette mise à jour
 
+• Un nouveau look : des pages couleur papier chaud et presque noires avec une touche prune, plus douces pour les yeux le soir et plus proches de l’icône de l’app.
 • Vous avez un code d’offre de l’App Store ? Touchez « Utiliser un code » dans Réglages › Abonnement ou sur l’écran des formules.
 • Les Réglages ont un bouton Terminé et une poignée, pour savoir clairement comment les fermer.
 • Si les formules ne se chargent pas, Abonnement propose Réessayer au lieu de charger sans fin.

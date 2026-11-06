@@ -5,6 +5,7 @@ Core and Deep are here
 
 Also in this update
 
+• A new look: warm paper and off-black pages with a plum accent, easier on the eyes at night and closer to the app icon.
 • Have an App Store offer code? Tap Redeem Code in Settings › Subscription or on the plans screen.
 • Settings has a Done button and a grab handle, so it's clear how to close it.
 • If plans can't load, Subscription offers Try Again instead of loading forever.

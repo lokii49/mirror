@@ -5,6 +5,7 @@ Core e Deep chegaram
 
 Também nesta atualização
 
+• Um visual novo: páginas cor de papel quente e quase pretas com um destaque ameixa, mais confortáveis para os olhos à noite e mais próximas do ícone do app.
 • Se os planos não carregarem, Assinatura oferece Tentar novamente em vez de ficar carregando.
 • As reflexões anteriores do painel têm Ler mais, e reflexões anteriores e resumos anteriores terminam com Mostrar tudo.
 • Tocar em um dia no calendário de Entradas mantém esse dia à vista em vez de voltar para hoje.

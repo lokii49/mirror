@@ -5,6 +5,7 @@ Core et Deep sont là
 
 Également dans cette mise à jour
 
+• Un nouveau look : des pages couleur papier chaud et presque noires avec une touche prune, plus douces pour les yeux le soir et plus proches de l’icône de l’app.
 • Si les formules ne se chargent pas, Abonnement propose Réessayer au lieu de charger sans fin.
 • Les réflexions passées du tableau ont Lire plus, et les réflexions passées et les résumés précédents se terminent par Tout afficher.
 • Toucher un jour dans le calendrier des Entrées garde ce jour à l’écran au lieu de revenir à aujourd’hui.

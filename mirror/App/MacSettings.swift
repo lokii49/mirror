@@ -316,7 +316,7 @@ struct MacSegmented: View {
                         .font(.system(size: 12.5, weight: selected ? .semibold : .regular))
                         .foregroundStyle(selected ? Color.white : MacTokens.ink)
                         .frame(width: option.width, height: 26)
-                        .background(selected ? MacTokens.accent : Color.clear)
+                        .background(selected ? MacTokens.accentFill : Color.clear)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)

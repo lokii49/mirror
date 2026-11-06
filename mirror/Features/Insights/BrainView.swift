@@ -332,7 +332,7 @@ struct BrainView: View {
                     .padding(.horizontal, 32)
                     .padding(.vertical, 14)
                     .background(
-                        LinearGradient(colors: displayMode == .sentinel ? [MirrorTheme.ember, .orange] : [MirrorTheme.violet, Color.indigo], startPoint: .leading, endPoint: .trailing),
+                        LinearGradient(colors: displayMode == .sentinel ? [MirrorTheme.ember, .orange] : [MirrorTheme.buttonFill, MirrorTheme.hex(0x9A4478, 0x9A4478)], startPoint: .leading, endPoint: .trailing),
                         in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 8, style: .continuous)) : AnyShape(Capsule())
                     )
                 }

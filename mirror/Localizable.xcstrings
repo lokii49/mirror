@@ -2453,6 +2453,71 @@
         }
       }
     },
+    "A warmer look" : {
+      "comment" : "What's New card title: the Plum & Paper colour theme",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ein wärmerer Look"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A warmer look"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Un aspecto más cálido"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Un look plus chaleureux"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Un aspetto più caldo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "あたたかい見た目に"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "더 따뜻해진 모습"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Um visual mais acolhedor"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Более тёплый облик"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "更温暖的外观"
+          }
+        }
+      }
+    },
     "About the same at the end as at the start." : {
       "localizations" : {
         "de" : {
@@ -26156,6 +26221,71 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "一早走去了市场。"
+          }
+        }
+      }
+    },
+    "Warm paper and off-black pages with a plum accent: easier on the eyes when you write at night, and closer to the journal on the app icon." : {
+      "comment" : "What's New card body: the Plum & Paper colour theme",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Warmes Papier und fast schwarze Seiten mit einem Pflaumen-Akzent: angenehmer für die Augen, wenn du abends schreibst, und näher am Tagebuch auf dem App-Symbol."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warm paper and off-black pages with a plum accent: easier on the eyes when you write at night, and closer to the journal on the app icon."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Páginas de papel cálido y casi negras con un acento ciruela: más cómodas para la vista cuando escribes de noche y más cerca del diario del icono de la app."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Des pages couleur papier chaud et presque noires avec une touche prune : plus douces pour les yeux quand vous écrivez le soir, et plus proches du journal de l’icône de l’app."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Pagine color carta calda e quasi nere con un accento prugna: più riposanti per gli occhi quando scrivi la sera e più vicine al diario dell’icona dell’app."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "温かみのある紙色とほぼ黒のページに、プラムのアクセント。夜に書くときも目に優しく、アプリアイコンの日記帳ともなじみます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "따뜻한 종이색과 거의 검은 페이지에 자두색 포인트: 밤에 쓸 때도 눈이 편하고, 앱 아이콘의 일기장과도 어울립니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Páginas cor de papel quente e quase pretas com um destaque ameixa: mais confortáveis para os olhos quando você escreve à noite e mais próximas do diário do ícone do app."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Тёплые бумажные и почти чёрные страницы со сливовым акцентом: мягче для глаз, когда пишете вечером, и ближе к дневнику на значке приложения."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "温暖的纸色与近黑色页面，搭配梅子色点缀：夜里写作更护眼，也与 App 图标上的日记本更协调。"
           }
         }
       }

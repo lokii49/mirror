@@ -479,6 +479,17 @@ enum FeatureCardRegistry {
             sinceVersion: "3.1.8",
             showInFeatureGuide: false
         ),
+        // Plum & Paper (owner, 2026-11-06): the whole app's colours, on iPhone, iPad and Mac.
+        .init(
+            id: "theme-318",
+            title: "A warmer look",
+            body: "Warm paper and off-black pages with a plum accent: easier on the eyes when you write at night, and closer to the journal on the app icon.",
+            symbolName: "paintpalette",
+            accentColor: MirrorTheme.violet,
+            tier: .free,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false
+        ),
         // Offer codes are redeemed through StoreKit's sheet, which the Mac app doesn't offer.
         .init(
             id: "redeem-code-318",

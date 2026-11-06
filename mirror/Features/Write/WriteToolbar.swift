@@ -141,7 +141,8 @@ struct WriteSaveButton: View {
         // Prominent only when enabled: a disabled prominent button is white on light grey in the
         // light appearance (14 Pro, 2026-11-06); the plain bordered style reads as off instead.
         if enabled {
-            button.buttonStyle(.borderedProminent)
+            // White text needs the deep plum: the dark accent tint is too light under it.
+            button.buttonStyle(.borderedProminent).tint(MirrorTheme.buttonFill)
         } else {
             button.buttonStyle(.bordered)
         }

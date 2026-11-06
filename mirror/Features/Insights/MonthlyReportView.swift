@@ -474,7 +474,7 @@ struct MonthlyReportView: View {
                 .frame(height: 46)
             }
             .background(
-                LinearGradient(colors: displayMode == .sentinel ? [MirrorTheme.ember, .orange] : [MirrorTheme.violet, MirrorTheme.violetLight], startPoint: .leading, endPoint: .trailing),
+                LinearGradient(colors: displayMode == .sentinel ? [MirrorTheme.ember, .orange] : [MirrorTheme.buttonFill, MirrorTheme.hex(0x9A4478, 0x9A4478)], startPoint: .leading, endPoint: .trailing),
                 in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 8, style: .continuous)) : AnyShape(Capsule())
             )
             .buttonStyle(.plain)
