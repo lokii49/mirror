@@ -69,6 +69,10 @@ struct mirrorApp: App {
             #endif
             WidgetSaveRefresher.shared.start(container: sharedModelContainer)
             JournalRevision.shared.start(container: sharedModelContainer)
+            #if os(iOS)
+            // Moods and notes logged on Apple Watch arrive here and are saved with the journal key.
+            WatchInbox.start()
+            #endif
         }
         // Re-attach to a search-model download still running in its background session, so it
         // installs when it finishes even if Ask and Settings are never opened this launch.
@@ -297,6 +301,8 @@ struct mirrorApp: App {
             case .active:
                 AppLock.shared.setPrivacyCover(false)
                 AppLock.shared.didReturn()
+                // Watch items that came while the journal key was locked away.
+                if !WatchInbox.waiting.isEmpty { WatchInbox.retryWaiting(in: sharedModelContainer.mainContext) }
             @unknown default:
                 break
             }

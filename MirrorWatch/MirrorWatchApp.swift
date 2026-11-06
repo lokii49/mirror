@@ -1,0 +1,26 @@
+import SwiftUI
+
+/// MirrorNotes on Apple Watch (3.1.8, item 9): log a mood or a quick note. The watch never holds
+/// the journal key or the journal; each item goes to the iPhone (WatchConnectivity, queued until
+/// it's reachable), which saves it encrypted like anything written there.
+@main
+struct MirrorWatchApp: App {
+    @State private var sender = WatchSender.shared
+
+    var body: some Scene {
+        WindowGroup {
+            WatchHomeView()
+                .environment(sender)
+                .onAppear {
+                    sender.activate()
+                    #if DEBUG
+                    // Simulator check: one mood and one synthetic note to the paired iPhone.
+                    if CommandLine.arguments.contains("--watchSelfTest") {
+                        sender.send(.mood, value: "Grateful")
+                        sender.send(.note, value: "Synthetic note from the watch self-test.")
+                    }
+                    #endif
+                }
+        }
+    }
+}
