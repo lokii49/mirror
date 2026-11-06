@@ -5,6 +5,9 @@ private let moodLabels = MirrorTheme.moodOptions
 
 struct EntriesTabView: View {
     var navResetID: UUID = UUID()
+    /// Changes when Entries is tapped again in the tab bar: an open (pushed) reader closes,
+    /// otherwise the list scrolls back to the top, like Insights. Nil where there's no tab bar.
+    var scrollToTopID: UUID? = nil
     var deepLinkEntryID: Binding<UUID?> = .constant(nil)
     /// macOS shows the reader beside the list instead of pushing it. When set, opening an
     /// entry writes it here and the list never navigates.
@@ -1081,6 +1084,7 @@ struct EntriesTabView: View {
     }
 
     private func entryList(_ snapshot: EntryListSnapshot) -> some View {
+        ScrollViewReader { proxy in
         List {
             // Activity heatmap
             Section {
@@ -1096,6 +1100,7 @@ struct EntriesTabView: View {
                 .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 8, trailing: 0))
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
+                .id(Self.listTopID)
             }
 
             if journalSafety.restoreOffer != nil {
@@ -1222,7 +1227,24 @@ struct EntriesTabView: View {
         .environment(\.defaultMinListRowHeight, 1)
         .scrollDismissesKeyboard(.interactively)
         .background(MirrorTheme.bgBase)
+        .onChange(of: scrollToTopID) { _, _ in
+            // First tap closes a pushed reader (the list is then where it was); the next scrolls.
+            if showEntryDetail {
+                showEntryDetail = false
+                selectedEntry = nil
+                return
+            }
+            if reduceMotion {
+                proxy.scrollTo(Self.listTopID, anchor: .top)
+            } else {
+                withAnimation(.easeOut(duration: 0.3)) { proxy.scrollTo(Self.listTopID, anchor: .top) }
+            }
+        }
+        }
     }
+
+    /// The heatmap row, the list's first row (scroll-to-top target).
+    private static let listTopID = "entries.listTop"
 
     /// The search matches entries the filters hide: offer to keep the search and
     /// drop the filters, instead of leaving the user to guess which one to remove.

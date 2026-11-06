@@ -46,6 +46,10 @@ struct ContentView: View {
     @State private var insightViewModel = InsightViewModel()
     @State private var showPaywall = false
     @State private var entriesNavResetID = UUID()
+    /// Tapping Entries in the tab bar while already on it: the list scrolls back to the top (or
+    /// closes the open reader first). Insights gets this from the system; the Entries list sits
+    /// inside the split view's stack, where the system doesn't find it.
+    @State private var entriesScrollToTopID = UUID()
     @State private var showWhatsNew = false
     /// The paid-plans notice on its own, for installs that never get it in What's New.
     @State private var showRatePrompt = false
@@ -479,12 +483,15 @@ struct ContentView: View {
         let sentinel = displayMode == .sentinel
         let selection = Binding<AppSidebarItem>(
             get: { selectedSidebarItem ?? .write },
-            set: { selectedSidebarItem = $0 }
+            set: {
+                if $0 == .entries && selectedSidebarItem == .entries { entriesScrollToTopID = UUID() }
+                selectedSidebarItem = $0
+            }
         )
         return TabView(selection: selection) {
             Tab(sentinel ? "Log" : "Entries", systemImage: sentinel ? "viewfinder" : "book.closed", value: AppSidebarItem.entries) {
                 // List and reader side by side where there's room; compact keeps the pushed reader.
-                EntriesSplitView(navResetID: entriesNavResetID, deepLinkEntryID: $deepLinkEntryID)
+                EntriesSplitView(navResetID: entriesNavResetID, scrollToTopID: entriesScrollToTopID, deepLinkEntryID: $deepLinkEntryID)
             }
             Tab(sentinel ? "Transmission" : "Write", systemImage: sentinel ? "antenna.radiowaves.left.and.right" : "square.and.pencil", value: AppSidebarItem.write) {
                 WriteTabView(onSave: {
@@ -511,8 +518,15 @@ struct ContentView: View {
     // MARK: - iPhone layout (TabView), iOS 17
 
     private var phoneLayout: some View {
-        TabView(selection: $selectedTab) {
-            EntriesTabView(navResetID: entriesNavResetID, deepLinkEntryID: $deepLinkEntryID)
+        let selection = Binding<Int>(
+            get: { selectedTab },
+            set: {
+                if $0 == 0 && selectedTab == 0 { entriesScrollToTopID = UUID() }
+                selectedTab = $0
+            }
+        )
+        return TabView(selection: selection) {
+            EntriesTabView(navResetID: entriesNavResetID, scrollToTopID: entriesScrollToTopID, deepLinkEntryID: $deepLinkEntryID)
                 .tabItem { Label(displayMode == .sentinel ? "Log" : "Entries", systemImage: displayMode == .sentinel ? "viewfinder" : "book.closed") }
                 .tag(0)
 
