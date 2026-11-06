@@ -2773,6 +2773,70 @@
         }
       }
     },
+    "Allow MirrorNotes to write State of Mind in the Health app › Sharing › Apps, then turn this on again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Erlaube MirrorNotes in der Health-App › Teilen › Apps, Gemütszustand zu schreiben, und schalte dies dann wieder ein."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow MirrorNotes to write State of Mind in the Health app › Sharing › Apps, then turn this on again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Permite que MirrorNotes escriba el estado de ánimo en la app Salud › Compartir › Apps y vuelve a activar esto."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Autorisez MirrorNotes à écrire l’état d’esprit dans l’app Santé › Partage › Apps, puis réactivez cette option."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Consenti a MirrorNotes di scrivere lo stato d’animo nell’app Salute › Condivisione › App, poi riattiva questa opzione."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ヘルスケアApp › 共有 › AppでMirrorNotesに「心の状態」の書き込みを許可してから、もう一度オンにしてください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "건강 앱 › 공유 › 앱에서 MirrorNotes가 마음 상태를 기록하도록 허용한 다음 다시 켜세요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Permita que o MirrorNotes registre o estado de espírito no app Saúde › Compartilhamento › Apps e ative de novo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Разрешите MirrorNotes записывать состояние духа в приложении «Здоровье» › «Доступ» › «Приложения», затем включите снова."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "在“健康”App › 共享 › App 中允许 MirrorNotes 写入心理状态，然后重新开启。"
+          }
+        }
+      }
+    },
     "Also" : {
       "localizations" : {
         "de" : {
@@ -3221,6 +3285,70 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "APPLE FOUNDATION MODELS · 设备端"
+          }
+        }
+      }
+    },
+    "Apple Health" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Apple Health"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Health"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Salud de Apple"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Apple Santé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Apple Salute"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Appleヘルスケア"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Apple 건강"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Apple Saúde"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Apple Здоровье"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Apple 健康"
           }
         }
       }
@@ -7729,6 +7857,70 @@
         }
       }
     },
+    "Each mood check-in logged on this iPhone is saved to Health as a State of Mind. MirrorNotes never reads from Health, and your entries are never sent there." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Jede auf diesem iPhone eingetragene Stimmungsabfrage wird in Health als Gemütszustand gesichert. MirrorNotes liest nie aus Health, und deine Einträge werden nie dorthin gesendet."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Each mood check-in logged on this iPhone is saved to Health as a State of Mind. MirrorNotes never reads from Health, and your entries are never sent there."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Cada registro de ánimo hecho en este iPhone se guarda en Salud como estado de ánimo. MirrorNotes nunca lee de Salud y tus entradas nunca se envían allí."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Chaque relevé d’humeur noté sur cet iPhone est enregistré dans Santé comme état d’esprit. MirrorNotes ne lit jamais Santé, et vos entrées n’y sont jamais envoyées."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ogni check-in dell’umore registrato su questo iPhone viene salvato in Salute come stato d’animo. MirrorNotes non legge mai da Salute e le tue voci non vengono mai inviate lì."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "このiPhoneで記録した気分チェックインは、ヘルスケアに「心の状態」として保存されます。MirrorNotesがヘルスケアから読み取ることはなく、エントリーが送られることもありません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "이 iPhone에서 기록한 기분 체크인은 건강 앱에 마음 상태로 저장됩니다. MirrorNotes는 건강 앱에서 읽지 않으며, 항목이 그곳으로 전송되지 않습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Cada registro de humor feito neste iPhone é salvo no Saúde como estado de espírito. O MirrorNotes nunca lê do Saúde e suas entradas nunca são enviadas para lá."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Каждая отметка настроения на этом iPhone сохраняется в Здоровье как состояние духа. MirrorNotes ничего не читает из Здоровья, и записи туда не отправляются."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "在这台 iPhone 上记录的每次情绪打卡都会作为心理状态存入健康。MirrorNotes 从不读取健康数据，你的条目也不会被发送到那里。"
+          }
+        }
+      }
+    },
     "EARLIER" : {
       "comment" : "\"How this was generated\" sheet (Sentinel provenance HUD). Row label: entries from before this week/month.",
       "extractionState" : "manual",
@@ -10496,6 +10688,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "健康"
+          }
+        }
+      }
+    },
+    "Health access is off" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Zugriff auf Health ist aus"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Health access is off"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "El acceso a Salud está desactivado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "L’accès à Santé est désactivé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "L’accesso a Salute è disattivato"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ヘルスケアへのアクセスがオフです"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "건강 앱 접근이 꺼져 있습니다"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "O acesso ao Saúde está desativado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Доступ к Здоровью выключен"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "健康访问已关闭"
           }
         }
       }
@@ -18551,6 +18807,70 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "仍然保存"
+          }
+        }
+      }
+    },
+    "Save mood check-ins to Health" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Stimmungsabfragen in Health sichern"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save mood check-ins to Health"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Guardar registros de ánimo en Salud"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Enregistrer les relevés d’humeur dans Santé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Salva i check-in dell’umore in Salute"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "気分チェックインをヘルスケアに保存"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "기분 체크인을 건강 앱에 저장"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Salvar registros de humor no Saúde"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Сохранять отметки настроения в Здоровье"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "将情绪打卡存入健康"
           }
         }
       }

@@ -18,6 +18,8 @@ struct ProtocolSettingsView: View {
     // snippet is AI content derived from journal text even though it isn't the journal text
     // itself. Opt-in only.
     @AppStorage("nudgePreviewEnabled") private var nudgePreviewEnabled: Bool = false
+    @AppStorage(HealthMoodWriter.enabledKey) private var healthWritesMoods = false
+    @State private var healthAccessDenied = false
 
     // One unified daily reminder (replaces the old separate writing reminder).
     // On by default; tapping the notification opens the mood check-in sheet.
@@ -110,6 +112,19 @@ struct ProtocolSettingsView: View {
             .fixedSize()
     }
     #endif
+
+    private func setHealthWrites(_ on: Bool) {
+        guard on else { healthWritesMoods = false; return }
+        #if os(iOS)
+        if #available(iOS 18.0, *) {
+            Task {
+                let allowed = await HealthMoodWriter.requestAccess()
+                healthWritesMoods = allowed
+                healthAccessDenied = !allowed
+            }
+        }
+        #endif
+    }
 
     var body: some View {
         SettingsScroll {
@@ -362,6 +377,31 @@ struct ProtocolSettingsView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(.vertical, 2)
+                }
+
+                // Mood check-ins to Apple Health (owner: write only). iPhone with Health, iOS 18+.
+                if HealthMoodWriter.isAvailable {
+                    SettingsGroup(title: "Apple Health") {
+                        VStack(alignment: .leading, spacing: 0) {
+                            Toggle(isOn: Binding(get: { healthWritesMoods }, set: { on in setHealthWrites(on) })) {
+                                SettingsRowLabel(title: "Save mood check-ins to Health", systemImage: "heart.text.square", iconColor: .pink)
+                            }
+                            .tint(MirrorTheme.primary)
+                            .accessibilityIdentifier("settings.healthMoods")
+                            Text("Each mood check-in logged on this iPhone is saved to Health as a State of Mind. MirrorNotes never reads from Health, and your entries are never sent there.")
+                                .scaledFont(12.5)
+                                .foregroundStyle(MirrorTheme.textSecondary)
+                                .padding(.leading, 44)
+                                .padding(.top, -4)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(.vertical, 2)
+                    }
+                    .alert("Health access is off", isPresented: $healthAccessDenied) {
+                        Button("OK", role: .cancel) {}
+                    } message: {
+                        Text("Allow MirrorNotes to write State of Mind in the Health app › Sharing › Apps, then turn this on again.")
+                    }
                 }
 
                 SettingsGroup(title: "Input") {

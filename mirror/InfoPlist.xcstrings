@@ -198,6 +198,71 @@
         }
       }
     },
+    "NSHealthUpdateUsageDescription" : {
+      "comment" : "Privacy - Health Update Usage Description",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MirrorNotes sichert die Stimmungen deiner Check-ins in Health, wenn du das in den Einstellungen einschaltest. Es liest nie aus Health."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes saves the moods you log in a check-in to Health, if you turn this on in Settings. It never reads from Health."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MirrorNotes guarda en Salud los estados de ánimo de tus registros si lo activas en Ajustes. Nunca lee de Salud."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MirrorNotes enregistre dans Santé les humeurs de vos relevés si vous l’activez dans les réglages. Il ne lit jamais Santé."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MirrorNotes salva in Salute gli stati d’animo dei tuoi check-in, se lo attivi nelle impostazioni. Non legge mai da Salute."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "設定でオンにすると、MirrorNotesはチェックインで記録した気分をヘルスケアに保存します。ヘルスケアから読み取ることはありません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "설정에서 켜면 MirrorNotes가 체크인에서 기록한 기분을 건강 앱에 저장합니다. 건강 앱에서 읽지는 않습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "O MirrorNotes salva no Saúde os humores dos seus registros, se você ativar isso nos Ajustes. Ele nunca lê do Saúde."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Если включить это в настройках, MirrorNotes сохраняет настроение из отметок в Здоровье. Из Здоровья он ничего не читает."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "在设置中开启后，MirrorNotes 会把你打卡记录的情绪存入健康。它从不读取健康数据。"
+          }
+        }
+      }
+    },
     "NSMicrophoneUsageDescription" : {
       "comment" : "Privacy - Microphone Usage Description",
       "localizations" : {

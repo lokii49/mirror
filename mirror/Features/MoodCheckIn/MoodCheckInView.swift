@@ -49,6 +49,8 @@ struct MoodCheckInView: View {
         guard MirrorEncryption.canEncrypt(creatingIfNeeded: true) else { return }
         modelContext.insert(MoodCheckIn(mood: mood))
         try? modelContext.save()
+        // To Apple Health when turned on: only from here, never when a check-in syncs in.
+        HealthMoodWriter.writeCheckIn(mood: mood)
         // Rebuild the widget mood-map blob (entries + check-ins) and refresh so
         // the Mood Map widget reflects today's check-in right away.
         mirrorApp.updateWidgetHeatmaps(context: modelContext)
