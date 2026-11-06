@@ -666,7 +666,9 @@ struct mirrorApp: App {
     @MainActor
     static func anotherReflectionAllowed(after newestToday: Insight, context: ModelContext) -> Bool {
         let startOfToday = DateHelpers.journalDayStart(for: Date())
-        let todayEntries = (try? context.fetch(FetchDescriptor<Entry>(predicate: #Predicate { $0.createdAt >= startOfToday }))) ?? []
+        // Notes in a collection kept out of insights don't call for another reflection.
+        let todayEntries = InsightScope(context: context)
+            .filter((try? context.fetch(FetchDescriptor<Entry>(predicate: #Predicate { $0.createdAt >= startOfToday }))) ?? [])
         return InsightService.allowsAnotherReflectionToday(
             todaysReflectionAt: newestToday.generatedAt,
             todayEntryDates: todayEntries.filter(InsightService.hasReadableContext).map(\.createdAt),
@@ -746,7 +748,9 @@ struct mirrorApp: App {
         // on which entries count as "readable" (a photo-only or failed-voice-transcription entry
         // isn't a decryption failure but is just as unreadable). Filtered before the count gate so
         // unreadable entries don't count toward "enough to generate from" either.
-        let entries = ((try? context.fetch(entryDescriptor)) ?? []).filter(InsightService.hasReadableContext)
+        // Collections kept out of insights (Scratch) are left out before anything counts or reads them.
+        let entries = InsightScope(context: context)
+            .filter((try? context.fetch(entryDescriptor)) ?? []).filter(InsightService.hasReadableContext)
         guard entries.count >= 3 else {
             #if DEBUG
             print("[nudge] blocked: entries<3")
@@ -997,8 +1001,10 @@ struct mirrorApp: App {
         let entryDescriptor = FetchDescriptor<Entry>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
-        // Same locked-device decrypt-failure guard as runDailyNudgeIfNeeded — see its comment.
-        let entries = ((try? context.fetch(entryDescriptor)) ?? []).filter(InsightService.hasReadableContext)
+        // Same locked-device decrypt-failure guard as runDailyNudgeIfNeeded — see its comment —
+        // and the same kept-out collections.
+        let entries = InsightScope(context: context)
+            .filter((try? context.fetch(entryDescriptor)) ?? []).filter(InsightService.hasReadableContext)
         // Digest covers the current week only — gate on this week's entries, not lifetime.
         let weekEntries = entries.filter { DateHelpers.digestWeekIdentifier(for: $0.createdAt) == thisWeek }
         guard weekEntries.count >= InsightService.weeklyDigestMinimumWeekEntries,
@@ -1064,8 +1070,10 @@ struct mirrorApp: App {
         let entryDescriptor = FetchDescriptor<Entry>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
-        // Same locked-device decrypt-failure guard as runDailyNudgeIfNeeded — see its comment.
-        let allEntries = ((try? context.fetch(entryDescriptor)) ?? []).filter(InsightService.hasReadableContext)
+        // Same locked-device decrypt-failure guard as runDailyNudgeIfNeeded — see its comment —
+        // and the same kept-out collections.
+        let allEntries = InsightScope(context: context)
+            .filter((try? context.fetch(entryDescriptor)) ?? []).filter(InsightService.hasReadableContext)
         let cal = Calendar.current
         let now = DateHelpers.now()
         let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: now)) ?? now
@@ -1175,7 +1183,8 @@ struct mirrorApp: App {
         let descriptor = FetchDescriptor<Entry>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
-        let entries = (try? context.fetch(descriptor)) ?? []
+        // A note in a collection kept out of insights carries no mood reading here.
+        let entries = InsightScope(context: context).filter((try? context.fetch(descriptor)) ?? [])
 
         // Recent negative mood-*days* (entry moods + check-ins merged, latest of
         // the day wins) — not consecutive entries, which three low entries in
@@ -1288,8 +1297,9 @@ struct mirrorApp: App {
         if let last = widgetHeatmapsBuiltFor, last.container == builtFor.container,
            last.revision == builtFor.revision, last.day == builtFor.day { return }
         var descriptor = FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt)])
-        descriptor.propertiesToFetch = [\.id, \.createdAt, \.encryptedMood]
+        descriptor.propertiesToFetch = [\.id, \.createdAt, \.encryptedMood, \.collectionID]
         guard let entries = try? context.fetch(descriptor) else { return }
+        let scope = InsightScope(context: context)
 
         // Entry count per day drives the streak + wrote-today flags below. Stays
         // entry-only — a mood check-in isn't "writing an entry".
@@ -1302,7 +1312,8 @@ struct mirrorApp: App {
         // of the day wins. Single merge rule, shared with every other surface.
         let checkIns = (try? context.fetch(FetchDescriptor<MoodCheckIn>())) ?? []
         var moodByDay: [String: String] = [:]
-        for (day, event) in MoodLog.dailyMoods(entries: entries, checkIns: checkIns) {
+        // Notes kept out of insights still count as writing above, but their moods don't colour a day.
+        for (day, event) in MoodLog.dailyMoods(entries: scope.filter(entries), checkIns: checkIns) {
             moodByDay[widgetDayFormatter.string(from: day)] = event.mood
         }
 
@@ -1378,14 +1389,15 @@ struct mirrorApp: App {
         // the latest few first; only a run of unreadable entries needs the whole journal (this
         // fetched every entry, with text and photos, on every foreground).
         let generatedAt = nudge.generatedAt
+        let scope = InsightScope(context: context)
         var aboutDescriptor = FetchDescriptor<Entry>(predicate: #Predicate { $0.createdAt <= generatedAt },
                                                      sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
         aboutDescriptor.fetchLimit = 40
-        let recent = (try? context.fetch(aboutDescriptor)) ?? []
-        var aboutDay = InsightService.reflectedDay(of: nudge, entriesNewestFirst: recent)
-        if aboutDay == nil, recent.count == aboutDescriptor.fetchLimit {
+        let fetchedRecent = (try? context.fetch(aboutDescriptor)) ?? []
+        var aboutDay = InsightService.reflectedDay(of: nudge, entriesNewestFirst: scope.filter(fetchedRecent))
+        if aboutDay == nil, fetchedRecent.count == aboutDescriptor.fetchLimit {
             aboutDescriptor.fetchLimit = nil
-            aboutDay = InsightService.reflectedDay(of: nudge, entriesNewestFirst: (try? context.fetch(aboutDescriptor)) ?? [])
+            aboutDay = InsightService.reflectedDay(of: nudge, entriesNewestFirst: scope.filter((try? context.fetch(aboutDescriptor)) ?? []))
         }
         defaults?.set(aboutDay.map { DateHelpers.dayIdentifier(for: $0) }, forKey: "widget.nudge.aboutDate")
         // Today's mood: the newest entry of today's journal day (from 4 AM).
@@ -1393,8 +1405,9 @@ struct mirrorApp: App {
         let journalDayEnd = Calendar.current.date(byAdding: .day, value: 1, to: journalDayStart) ?? .distantFuture
         var todayDescriptor = FetchDescriptor<Entry>(predicate: #Predicate { $0.createdAt >= journalDayStart && $0.createdAt < journalDayEnd },
                                                      sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
-        todayDescriptor.fetchLimit = 1
-        let todaysEntries = (try? context.fetch(todayDescriptor)) ?? []
+        // The newest one that isn't kept out of insights (one fetch when nothing is).
+        todayDescriptor.fetchLimit = scope.excludesNothing ? 1 : nil
+        let todaysEntries = scope.filter((try? context.fetch(todayDescriptor)) ?? [])
         if let todaysMood = journalDayMood(entriesNewestFirst: todaysEntries) {
             defaults?.set(todaysMood, forKey: "widget.nudge.mood")
         } else {

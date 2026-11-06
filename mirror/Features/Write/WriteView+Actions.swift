@@ -520,6 +520,11 @@ extension WriteView {
         followUpTask = Task { @MainActor in
             try? await Task.sleep(for: .seconds(6))
             guard !Task.isCancelled, snapshot == viewModel.text else { return }
+            // A note going into a collection kept out of insights gets no model-written question.
+            guard InsightScope(context: modelContext).includes(collectionID: entryCollectionID) else {
+                followUpTask = nil
+                return
+            }
             // Skip this attempt entirely rather than queue behind whatever's already running —
             // this is an ambient, opportunistic suggestion nobody explicitly asked for right
             // now, and it shouldn't add latency to a save-time mood detect, an explicit Ask, or

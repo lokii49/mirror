@@ -35,6 +35,8 @@ final class MoodAutoDetector {
         guard MirrorEncryption.canEncrypt(creatingIfNeeded: false) else { return nil }
         let text = entry.insightContext.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return nil }
+        // No model reads an entry in a collection kept out of insights (Scratch).
+        guard InsightScope(context: context).includes(entry) else { return nil }
 
         let id = entry.id
         let task = Task { @MainActor [weak self] () -> Bool in

@@ -5,7 +5,11 @@ struct MonthlyReportView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var hSizeClass
     @Environment(\.appDisplayMode) private var displayMode
-    @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
+    /// The whole journal. Read `entries`, which leaves out collections kept out of insights.
+    @Query(sort: \Entry.createdAt, order: .reverse) private var journalEntries: [Entry]
+    @Query private var scopeCollections: [JournalCollection]
+    @State private var insightEntries = InsightEntriesMemo()
+    private var entries: [Entry] { insightEntries.entries(journalEntries, collections: scopeCollections) }
     @Query private var insights: [Insight]
 
     @State private var showPaywall = false

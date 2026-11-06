@@ -11,7 +11,11 @@ import SwiftData
 /// thread it through.
 struct InsightSourceSheet: View {
     let insight: Insight
-    @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
+    /// The whole journal. Read `entries`, which leaves out collections kept out of insights.
+    @Query(sort: \Entry.createdAt, order: .reverse) private var journalEntries: [Entry]
+    @Query private var scopeCollections: [JournalCollection]
+    @State private var insightEntries = InsightEntriesMemo()
+    private var entries: [Entry] { insightEntries.entries(journalEntries, collections: scopeCollections) }
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {

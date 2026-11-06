@@ -231,9 +231,10 @@ struct ContentView: View {
             let checkIns = (try? modelContext.fetch(
                 FetchDescriptor<MoodCheckIn>(predicate: #Predicate { $0.createdAt >= startOfDay })
             )) ?? []
-            let todaysEntries = (try? modelContext.fetch(
+            // A note kept out of insights doesn't answer "how are you today?".
+            let todaysEntries = InsightScope(context: modelContext).filter((try? modelContext.fetch(
                 FetchDescriptor<Entry>(predicate: #Predicate { $0.createdAt >= startOfDay })
-            )) ?? []
+            )) ?? [])
             // Single "what was the mood, and when" rule — merges both sources.
             let byDay = MoodLog.dailyMoods(entries: todaysEntries, checkIns: checkIns, calendar: cal)
             guard byDay[startOfDay] == nil else { return }

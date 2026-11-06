@@ -10,6 +10,10 @@ struct EntryDetailView: View {
     /// The Mac pane's reflection and related entries read across the journal. iOS doesn't hold it:
     /// opening an entry loaded every entry just for On This Day (audit 2026-11-04).
     @Query(sort: \Entry.createdAt, order: .reverse) private var allEntries: [Entry]
+    @Query private var scopeCollections: [JournalCollection]
+    @State private var insightEntriesMemo = InsightEntriesMemo()
+    /// What reflections read: the journal without collections kept out of insights.
+    private var insightEntries: [Entry] { insightEntriesMemo.entries(allEntries, collections: scopeCollections) }
     #endif
     @Query private var collections: [JournalCollection]
     /// "Move to > New collection…" in the More menu.
@@ -489,7 +493,7 @@ struct EntryDetailView: View {
             .first { insight in
                 !InsightService.isUngroundedFallback(insight.content)
                     && !InsightService.isUnsupportedLanguageNotice(insight.content)
-                    && InsightService.reflectedDay(of: insight, entriesNewestFirst: allEntries) == day
+                    && InsightService.reflectedDay(of: insight, entriesNewestFirst: insightEntries) == day
             }
     }
 
@@ -552,7 +556,7 @@ struct EntryDetailView: View {
     /// The reflection in the Insights cards' grammar, with the entry's own sentence highlighted
     /// as the Today board shows it. Display-time second quote and style, like everywhere else.
     private func macReflectionCard(_ insight: Insight) -> some View {
-        let shown = InsightService.reflectionForDisplay(insight.content, entries: allEntries, generatedAt: insight.generatedAt, style: ReflectionStyle.current)
+        let shown = InsightService.reflectionForDisplay(insight.content, entries: insightEntries, generatedAt: insight.generatedAt, style: ReflectionStyle.current)
         let parts = InsightService.isGrammarGrounded(insight.content) ? shown.parts : nil
         return VStack(alignment: .leading, spacing: 14) {
             InsightCardHeader("Daily Reflection", icon: "sparkles", trailing: {
