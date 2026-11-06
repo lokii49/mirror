@@ -248,6 +248,11 @@ final class MirrorLayoutManager: NSLayoutManager {
 final class MirrorNSTextView: NSTextView {
     var placeholder = String(localized: "What's on your mind?")
     var onToggleChecklist: ((Int) -> Void)?
+    /// Dragging a checklist circle moves its line (owner, 2026-11-06: as on iPhone): the
+    /// paragraph start, and the character index under the pointer on release.
+    var onMoveChecklist: ((Int, Int) -> Void)?
+    /// Where a dragged line would land, drawn as an accent line.
+    private var dropIndicatorY: CGFloat?
     /// The checklist item at the caret (its paragraph start and whether it is checked), if any.
     var checklistItemAtCaret: (() -> (start: Int, checked: Bool)?)?
 
@@ -289,15 +294,56 @@ final class MirrorNSTextView: NSTextView {
             let local = convert(event.locationInWindow, from: nil)
             let point = NSPoint(x: local.x - textContainerOrigin.x, y: local.y - textContainerOrigin.y)
             if let start = layout.checklistParagraphStart(at: point) {
-                onToggleChecklist?(start)
+                // A click ticks it; a drag of a few points moves the line instead.
+                var dragging = false
+                while let next = window?.nextEvent(matching: [.leftMouseDragged, .leftMouseUp]) {
+                    let location = convert(next.locationInWindow, from: nil)
+                    if next.type == .leftMouseDragged {
+                        if !dragging, abs(location.y - local.y) > 6 {
+                            dragging = true
+                            NSCursor.closedHand.push()
+                        }
+                        if dragging {
+                            dropIndicatorY = dropLineY(at: location)
+                            needsDisplay = true
+                            autoscroll(with: next)
+                        }
+                    } else {
+                        if dragging {
+                            NSCursor.pop()
+                            dropIndicatorY = nil
+                            needsDisplay = true
+                            onMoveChecklist?(start, characterIndexForInsertion(at: location))
+                        } else {
+                            onToggleChecklist?(start)
+                        }
+                        break
+                    }
+                }
                 return
             }
         }
         super.mouseDown(with: event)
     }
 
+    /// The top edge of the line under `point`, where a dragged line would be inserted.
+    private func dropLineY(at point: NSPoint) -> CGFloat? {
+        guard let layoutManager, let textContainer else { return nil }
+        let index = characterIndexForInsertion(at: point)
+        let text = string as NSString
+        guard text.length > 0 else { return nil }
+        let paragraph = text.paragraphRange(for: NSRange(location: min(index, text.length - 1), length: 0))
+        let glyphs = layoutManager.glyphRange(forCharacterRange: NSRange(location: paragraph.location, length: 1), actualCharacterRange: nil)
+        let rect = layoutManager.boundingRect(forGlyphRange: glyphs, in: textContainer)
+        return rect.minY + textContainerOrigin.y
+    }
+
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
+        if let dropIndicatorY {
+            NSColor.controlAccentColor.setFill()
+            NSRect(x: textContainerOrigin.x, y: dropIndicatorY - 1, width: bounds.width - textContainerOrigin.x * 2, height: 2).fill()
+        }
         guard string.isEmpty else { return }
         let origin = textContainerOrigin
         let attributes: [NSAttributedString.Key: Any] = [
@@ -381,6 +427,7 @@ struct NoteEditorTextView: NSViewRepresentable {
             textView.allowedWritingToolsResultOptions = [.plainText]
         }
         textView.onToggleChecklist = { [weak coordinator] start in coordinator?.toggleChecklist(at: start) }
+        textView.onMoveChecklist = { [weak coordinator] start, target in coordinator?.moveParagraph(startingAt: start, toParagraphAt: target) }
         textView.checklistItemAtCaret = { [weak coordinator, weak textView] in
             guard let coordinator, let textView else { return nil }
             return coordinator.checklistItemAtCaret(in: textView)
@@ -1082,6 +1129,26 @@ struct NoteEditorTextView: NSViewRepresentable {
         }
 
         /// Clicking a checklist box flips that item between unchecked and checked.
+        /// Moves the paragraph that starts at `sourceStart` to the place of the paragraph containing
+        /// `targetLocation` (above it moving up, below it moving down). One undo step; inline styles
+        /// move with the line (`replaceDocument`).
+        func moveParagraph(startingAt sourceStart: Int, toParagraphAt targetLocation: Int) {
+            guard let textView, let storage = textView.textStorage, let rows = paragraphRows(in: textView) else { return }
+            let text = storage.string as NSString
+            let starts = NoteEditorCodec.paragraphStarts(in: text)
+            guard let from = starts.firstIndex(of: sourceStart) else { return }
+            var to = starts.lastIndex(where: { $0 <= targetLocation }) ?? 0
+            // Never below an empty last paragraph that isn't a list item (it has no line to hold).
+            if let last = rows.indices.last, to == last, rows[last].text.isEmpty, !NoteEditorCodec.isListStyle(rows[last].model.style) {
+                to = max(0, last - 1)
+            }
+            guard from != to, rows.indices.contains(to) else { return }
+            var order = Array(rows.indices)
+            let moved = order.remove(at: from)
+            order.insert(moved, at: to)
+            replaceDocument(with: order.map { rows[$0] }, rowOrder: order, in: textView)
+        }
+
         func toggleChecklist(at paragraphStart: Int) {
             guard let textView, let storage = textView.textStorage else { return }
             let text = storage.string as NSString

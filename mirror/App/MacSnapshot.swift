@@ -990,6 +990,22 @@ enum MacEditorSelfTest {
             check("text unchanged by styling", box.text == "Title line\nsecond", box.text)
         }
 
+        // 1b. Dragging a checklist line (owner, 2026-11-06): down past the next line, then back up.
+        do {
+            let style = NoteEditorCodec.encodeTextStyleData(models: [
+                .init(style: .checklistUnchecked), .init(style: .checklistUnchecked), .init(style: .checklistChecked),
+            ], entryFont: .system)
+            let box = Box(text: "Milk\nEggs\nBread", style: style)
+            let (_, c) = makeEditor(box)
+            c.moveParagraph(startingAt: 0, toParagraphAt: 11)          // Milk onto Bread's line
+            check("drag moves the line down", box.text == "Eggs\nBread\nMilk", box.text)
+            check("its checklist state moves with it", styles(box.style) == ["checklistUnchecked", "checklistChecked", "checklistUnchecked"], "\(styles(box.style))")
+            c.moveParagraph(startingAt: 11, toParagraphAt: 0)          // and back to the top
+            check("drag moves the line up", box.text == "Milk\nEggs\nBread", box.text)
+            c.moveParagraph(startingAt: 0, toParagraphAt: 2)           // onto itself: nothing
+            check("a drop on its own line changes nothing", box.text == "Milk\nEggs\nBread", box.text)
+        }
+
         // 2. Inline bold on a selection is saved as a logical range; toggling again removes it.
         do {
             let box = Box(text: "Title line\nsecond")
