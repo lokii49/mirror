@@ -70,7 +70,7 @@ struct PatternsView: View {
                         section("By collection", rows: result.collections) { collectionNames[$0] ?? String(localized: "Missing collection") }
                         section("By entry length", rows: result.lengths, label: lengthLabel)
                     }
-                    Text("Counted from the moods you picked and your check-ins. A pattern shows what came together, not why. Groups with fewer than 3 moods are left out, and so are collections kept out of reflections.")
+                    Text("Counted from the moods you picked and your check-ins. A pattern shows what came together, not why. A group shows only with at least 3 moods and one mood that came up twice. Collections kept out of reflections aren't counted.")
                         .scaledFont(12)
                         .foregroundStyle(MirrorTheme.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)

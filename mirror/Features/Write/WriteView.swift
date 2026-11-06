@@ -857,6 +857,7 @@ struct WriteView: View {
             Text("Checked items are removed from this entry.")
         }
         .alert(linkEditorHasExisting ? "Edit Link" : "Add Link", isPresented: $showLinkEditor) {
+            if linkEditorHasExisting || panelState.hasTextSelection {
             TextField("https://example.com", text: $linkEditorURLText)
                 .keyboardType(.URL)
                 .textInputAutocapitalization(.never)
@@ -870,6 +871,14 @@ struct WriteView: View {
                 Button("Remove Link", role: .destructive) { applyTextCommand(.link(url: nil)) }
             }
             Button("Cancel", role: .cancel) {}
+            } else {
+                // Nothing to put the link on: it used to save and silently do nothing.
+                Button("OK", role: .cancel) {}
+            }
+        } message: {
+            if !(linkEditorHasExisting || panelState.hasTextSelection) {
+                Text("Select the words to link first.")
+            }
         }
         .onReceive(recElapsedTimer) { _ in
             if isRecordingInline { voiceRecorder.refreshElapsed() }

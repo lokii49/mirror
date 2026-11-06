@@ -599,6 +599,9 @@ struct NoteEditorTextView: NSViewRepresentable {
 
         func textViewDidChangeSelection(_ notification: Notification) {
             guard !isApplying, let textView else { return }
+            if parent.panelState.hasTextSelection != (textView.selectedRange().length > 0) {
+                parent.panelState.hasTextSelection = textView.selectedRange().length > 0
+            }
             captureTrailingModel(from: textView)
             publishActiveState(in: textView)
             if textView.window?.firstResponder === textView, !parent.isFocused {

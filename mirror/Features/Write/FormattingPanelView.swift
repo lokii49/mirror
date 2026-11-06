@@ -92,6 +92,8 @@ enum TextColorPalette {
     /// Non-nil when the cursor sits inside an existing link — drives the Link
     /// button's active state and prefills the URL editor for editing it.
     var activeLinkURL: String? = nil
+    /// Whether words are selected: Add Link needs some (or an existing link) to put the link on.
+    var hasTextSelection = false
     var onCommand: ((NoteTextCommand) -> Void)?
     /// Tapping Link needs a URL from the user before a command can be dispatched
     /// — the panel can't own that alert (it doesn't know the current selection),

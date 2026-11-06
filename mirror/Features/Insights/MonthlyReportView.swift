@@ -68,6 +68,20 @@ struct MonthlyReportView: View {
             VStack(alignment: .leading, spacing: 16) {
                 heroCard
                 reportContent
+                // The month in numbers (Deep, app-counted): Year in Review's month view.
+                if SubscriptionService.shared.isDeep {
+                    NavigationLink {
+                        ReviewView(span: .month, anchor: selectedMonth)
+                    } label: {
+                        Label("This month in numbers", systemImage: "calendar.badge.checkmark")
+                            .scaledFont(15, weight: .semibold)
+                            .foregroundStyle(MirrorTheme.violet)
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("report.monthInNumbers")
+                }
             }
             .padding(16)
             .padding(.bottom, 24)

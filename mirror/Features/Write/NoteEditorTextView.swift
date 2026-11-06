@@ -1207,6 +1207,9 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         func textViewDidChangeSelection(_ textView: UITextView) {
+            if parent.panelState.hasTextSelection != (textView.selectedRange.length > 0) {
+                parent.panelState.hasTextSelection = textView.selectedRange.length > 0
+            }
             guard !isApplyingStyledText, textView.isFirstResponder else { return }
             lastKnownCursorLocation = textView.selectedRange.location
             // The caret moves inside the composition; clamping it or rewriting typing attributes

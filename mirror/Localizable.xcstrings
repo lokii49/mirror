@@ -5746,66 +5746,66 @@
         }
       }
     },
-    "Counted from the moods you picked and your check-ins. A pattern shows what came together, not why. Groups with fewer than 3 moods are left out, and so are collections kept out of reflections." : {
+    "Counted from the moods you picked and your check-ins. A pattern shows what came together, not why. A group shows only with at least 3 moods and one mood that came up twice. Collections kept out of reflections aren't counted." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Gezählt aus den Stimmungen, die du gewählt hast, und deinen Check-ins. Ein Muster zeigt, was zusammenkam, nicht warum. Gruppen mit weniger als 3 Stimmungen fehlen, ebenso Sammlungen, die aus Reflexionen herausgehalten werden."
+            "value" : "Gezählt aus den Stimmungen, die du gewählt hast, und deinen Check-ins. Ein Muster zeigt, was zusammenkam, nicht warum. Eine Gruppe erscheint erst mit mindestens 3 Stimmungen, von denen eine zweimal vorkam. Sammlungen, die aus Reflexionen herausgehalten werden, zählen nicht."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Counted from the moods you picked and your check-ins. A pattern shows what came together, not why. Groups with fewer than 3 moods are left out, and so are collections kept out of reflections."
+            "value" : "Counted from the moods you picked and your check-ins. A pattern shows what came together, not why. A group shows only with at least 3 moods and one mood that came up twice. Collections kept out of reflections aren't counted."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Contado a partir de los estados de ánimo que elegiste y tus registros. Un patrón muestra qué coincidió, no por qué. Se omiten los grupos con menos de 3 estados de ánimo y las colecciones excluidas de las reflexiones."
+            "value" : "Contado a partir de los estados de ánimo que elegiste y tus registros. Un patrón muestra qué coincidió, no por qué. Un grupo aparece solo con al menos 3 estados de ánimo y uno que se repita dos veces. Las colecciones excluidas de las reflexiones no se cuentan."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Compté à partir des humeurs que vous avez choisies et de vos relevés. Une tendance montre ce qui allait ensemble, pas pourquoi. Les groupes de moins de 3 humeurs sont omis, tout comme les collections exclues des réflexions."
+            "value" : "Compté à partir des humeurs que vous avez choisies et de vos relevés. Une tendance montre ce qui allait ensemble, pas pourquoi. Un groupe n’apparaît qu’avec au moins 3 humeurs, dont une revenue deux fois. Les collections exclues des réflexions ne sont pas comptées."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Contato dagli stati d’animo che hai scelto e dai tuoi check-in. Uno schema mostra cosa si è presentato insieme, non perché. I gruppi con meno di 3 stati d’animo sono esclusi, così come le raccolte escluse dalle riflessioni."
+            "value" : "Contato dagli stati d’animo che hai scelto e dai tuoi check-in. Uno schema mostra cosa si è presentato insieme, non perché. Un gruppo compare solo con almeno 3 stati d’animo, di cui uno ripetuto due volte. Le raccolte escluse dalle riflessioni non sono contate."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "選んだ気分とチェックインから数えています。パターンは何が一緒に起きたかを示すもので、理由ではありません。気分が3つ未満のグループと、リフレクションに使わないコレクションは含みません。"
+            "value" : "選んだ気分とチェックインから数えています。パターンは何が一緒に起きたかを示すもので、理由ではありません。気分が3つ以上あり、そのうち1つが2回以上出たグループだけを表示します。リフレクションに使わないコレクションは数えません。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "직접 고른 기분과 체크인으로 셉니다. 패턴은 무엇이 함께 나타났는지를 보여줄 뿐, 이유는 아닙니다. 기분이 3개 미만인 그룹과 리플렉션에서 제외한 컬렉션은 빠집니다."
+            "value" : "직접 고른 기분과 체크인으로 셉니다. 패턴은 무엇이 함께 나타났는지를 보여줄 뿐, 이유는 아닙니다. 기분이 3개 이상이고 그중 하나가 두 번 이상 나온 그룹만 보입니다. 리플렉션에서 제외한 컬렉션은 세지 않습니다."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Contado a partir dos humores que você escolheu e dos seus registros. Um padrão mostra o que veio junto, não o porquê. Grupos com menos de 3 humores ficam de fora, assim como coleções fora das reflexões."
+            "value" : "Contado a partir dos humores que você escolheu e dos seus registros. Um padrão mostra o que veio junto, não o porquê. Um grupo só aparece com pelo menos 3 humores e um que tenha se repetido duas vezes. Coleções fora das reflexões não contam."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Считается по выбранному вами настроению и отметкам. Закономерность показывает, что совпало, а не почему. Группы, где меньше 3 отметок, и коллекции, исключённые из размышлений, не учитываются."
+            "value" : "Считается по выбранному вами настроению и отметкам. Закономерность показывает, что совпало, а не почему. Группа видна, только если в ней не меньше 3 отметок и одно настроение повторилось дважды. Коллекции, исключённые из размышлений, не учитываются."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "根据你选择的情绪和打卡统计。规律只说明哪些同时出现，不说明原因。情绪少于 3 次的分组，以及不用于回顾的合集，都不计入。"
+            "value" : "根据你选择的情绪和打卡统计。规律只说明哪些同时出现，不说明原因。一个分组至少有 3 次情绪且其中一种出现两次，才会显示。不用于回顾的合集不计入。"
           }
         }
       }
@@ -19904,6 +19904,70 @@
         }
       }
     },
+    "Select the words to link first." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Wähle zuerst die Wörter aus, die du verlinken willst."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select the words to link first."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Primero selecciona las palabras que quieres enlazar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Sélectionnez d’abord les mots à lier."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Seleziona prima le parole da collegare."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "先にリンクする言葉を選択してください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "먼저 링크할 단어를 선택하세요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Primeiro selecione as palavras para vincular."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Сначала выделите слова для ссылки."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "请先选择要添加链接的文字。"
+          }
+        }
+      }
+    },
     "Show all (%lld)" : {
       "localizations" : {
         "de" : {
@@ -22625,6 +22689,70 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "本月"
+          }
+        }
+      }
+    },
+    "This month in numbers" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Dieser Monat in Zahlen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This month in numbers"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Este mes en cifras"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ce mois-ci en chiffres"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Questo mese in numeri"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "今月を数字で"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "이번 달을 숫자로"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Este mês em números"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Этот месяц в цифрах"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "用数字看本月"
           }
         }
       }
