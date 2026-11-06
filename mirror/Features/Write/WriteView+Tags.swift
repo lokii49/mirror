@@ -85,6 +85,14 @@ extension WriteView {
                             .buttonStyle(.plain)
                         }
                     }
+                } else if displayMode != .sentinel {
+                    // Option A (owner 2026-11-06): the second row is quiet text, not more pills.
+                    Button {
+                        showTagInput = true
+                    } label: {
+                        WriteHeaderTextLabel(title: "Add tag", systemImage: "number")
+                    }
+                    .buttonStyle(.plain)
                 } else {
                     Button {
                         showTagInput = true
@@ -93,7 +101,7 @@ extension WriteView {
                             Image(systemName: "plus")
                                 .scaledFont(10, weight: .semibold)
                             Text("tag")
-                                .scaledFont(displayMode == .sentinel ? 11 : 12, weight: displayMode == .sentinel ? .semibold : .medium, design: displayMode == .sentinel ? .monospaced : .default)
+                                .scaledFont(11, weight: .semibold, design: .monospaced)
                         }
                         // Same pill as the date and Mood buttons above it: it used to be a grey
                         // fill with tertiary text, which read as disabled.

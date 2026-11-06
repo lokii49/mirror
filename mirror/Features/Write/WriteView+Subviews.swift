@@ -19,37 +19,11 @@ extension WriteView {
             Button {
                 showDatePicker = true
             } label: {
-                HStack(spacing: 5) {
-                    if displayMode == .sentinel {
-                        Text(noteDate.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)).uppercased())
-                            .scaledFont(11.5, weight: .semibold, design: .monospaced)
-                            .foregroundStyle(MirrorTheme.textSecondary)
-                            .kerning(0.4)
-                    } else {
-                        Text(noteDate, format: Self.headerDateFormat(for: noteDate))
-                            .scaledFont(14, weight: .medium)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                    Image(systemName: "chevron.down")
-                        .scaledFont(9, weight: .semibold)
-                        .foregroundStyle(MirrorTheme.textSecondary)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(
-                    displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(MirrorTheme.inkRaised),
-                    in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 5, style: .continuous)) : AnyShape(Capsule())
-                )
-                .overlay {
-                    if displayMode == .sentinel {
-                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                            .stroke(MirrorTheme.inkBorder, lineWidth: 1)
-                    } else {
-                        Capsule().stroke(MirrorTheme.inkBorder, lineWidth: 1)
-                    }
-                }
+                // The date as the page's title (option A, owner 2026-11-06).
+                WriteDateTitle(date: noteDate, isSentinel: displayMode == .sentinel)
+                    .contentShape(Rectangle())
             }
+            .accessibilityHint("Changes the entry's date and time")
             .buttonStyle(.plain)
 
 
@@ -189,7 +163,19 @@ extension WriteView {
         }
     }
 
+    @ViewBuilder
     var signalLabel: some View {
+        if displayMode == .sentinel {
+            sentinelSignalLabel
+        } else {
+            // Option A (owner 2026-11-06): an empty mood is an invitation (dashed accent pill
+            // with a face), a picked one shows its colour and name. Its own struct: the header
+            // sits at the Debug stack limit.
+            WriteMoodPill(mood: viewModel.selectedMood, isDetecting: isDetectingMood)
+        }
+    }
+
+    var sentinelSignalLabel: some View {
         Group {
             HStack(spacing: 6) {
                 if isDetectingMood {
@@ -201,28 +187,22 @@ extension WriteView {
                         Circle()
                             .fill(MirrorTheme.moodColor(for: selectedMood))
                             .frame(width: 8, height: 8)
-                    } else if displayMode == .sentinel {
+                    } else {
                         Image(systemName: "waveform")
                             .scaledFont(10, weight: .semibold)
                             .foregroundStyle(MirrorTheme.ember)
                     }
                     Group {
                         if let selectedMood = viewModel.selectedMood {
-                            Text(displayMode == .sentinel
-                                 ? MirrorTheme.localizedMoodName(for: selectedMood).uppercased()
-                                 : MirrorTheme.localizedMoodName(for: selectedMood))
+                            Text(MirrorTheme.localizedMoodName(for: selectedMood).uppercased())
                         } else {
-                            Text(displayMode == .sentinel ? "SIGNAL" : "Mood")
+                            Text("SIGNAL")
                         }
                     }
-                        .scaledFont(displayMode == .sentinel ? 11.5 : 13, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
-                        .kerning(displayMode == .sentinel ? 0.4 : 0)
+                        .scaledFont(11.5, weight: .semibold, design: .monospaced)
+                        .kerning(0.4)
                         .lineLimit(1)
-                        .foregroundStyle(
-                            viewModel.selectedMood == nil
-                                ? (displayMode == .sentinel ? MirrorTheme.ember : Color.secondary)
-                                : MirrorTheme.moodColor(for: viewModel.selectedMood ?? "")
-                        )
+                        .foregroundStyle(viewModel.selectedMood == nil ? MirrorTheme.ember : MirrorTheme.moodColor(for: viewModel.selectedMood ?? ""))
                 }
                 Image(systemName: "chevron.down")
                     .scaledFont(10, weight: .semibold)
@@ -231,21 +211,15 @@ extension WriteView {
             .padding(.horizontal, 11)
             .padding(.vertical, 7)
             .background(
-                displayMode == .sentinel
-                    ? AnyShapeStyle(viewModel.selectedMood == nil ? MirrorTheme.ember.opacity(0.10) : MirrorTheme.moodColor(for: viewModel.selectedMood ?? "").opacity(0.14))
-                    : AnyShapeStyle(viewModel.selectedMood == nil && !isDetectingMood ? MirrorTheme.inkRaised : MirrorTheme.moodColor(for: viewModel.selectedMood ?? "").opacity(0.12)),
-                in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 5, style: .continuous)) : AnyShape(Capsule())
+                viewModel.selectedMood == nil ? MirrorTheme.ember.opacity(0.10) : MirrorTheme.moodColor(for: viewModel.selectedMood ?? "").opacity(0.14),
+                in: RoundedRectangle(cornerRadius: 5, style: .continuous)
             )
             .overlay {
-                if displayMode == .sentinel {
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .stroke(
-                            viewModel.selectedMood == nil ? MirrorTheme.ember.opacity(0.35) : MirrorTheme.moodColor(for: viewModel.selectedMood ?? "").opacity(0.4),
-                            lineWidth: 1
-                        )
-                } else if viewModel.selectedMood == nil && !isDetectingMood {
-                    Capsule().stroke(MirrorTheme.inkBorder, lineWidth: 1)
-                }
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .stroke(
+                        viewModel.selectedMood == nil ? MirrorTheme.ember.opacity(0.35) : MirrorTheme.moodColor(for: viewModel.selectedMood ?? "").opacity(0.4),
+                        lineWidth: 1
+                    )
             }
         }
         .animation(.easeInOut(duration: 0.2), value: viewModel.selectedMood)
@@ -686,6 +660,29 @@ struct WritingStarterChip: View {
                 }
             }
         } label: {
+            if isSentinel {
+                sentinelLabel
+            } else {
+                // Option A (owner 2026-11-06): one quiet line, not a card above the page.
+                HStack(spacing: 6) {
+                    Image(systemName: "sparkles")
+                        .scaledFont(13, weight: .semibold)
+                    Text("Need a starting point?")
+                        .scaledFont(14, weight: .medium)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                }
+                .foregroundStyle(accent)
+                .frame(minHeight: 32)
+                .contentShape(Rectangle())
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(showsTalkItOut ? "Need a starting point? Talk it out, or use a template" : "Need a starting point?")
+    }
+
+    private var sentinelLabel: some View {
             HStack(spacing: 10) {
                 Image(systemName: "bubble.left.and.text.bubble.right")
                     .scaledFont(14, weight: .semibold)
@@ -711,9 +708,6 @@ struct WritingStarterChip: View {
                     .stroke(accent.opacity(isSentinel ? 0.3 : 0.2), lineWidth: 1)
             }
             .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(showsTalkItOut ? "Need a starting point? Talk it out, or use a template" : "Need a starting point?")
     }
 }
 
@@ -732,5 +726,51 @@ private struct WordGoalRing: View {
         .frame(width: 11, height: 11)
         .animation(.easeOut(duration: 0.25), value: progress)
         .accessibilityHidden(true)
+    }
+}
+
+/// The classic Write header's mood button (option A): a dashed accent pill with a face while no
+/// mood is set, the mood's colour and name once one is.
+struct WriteMoodPill: View {
+    let mood: String?
+    let isDetecting: Bool
+
+    var body: some View {
+        let accent = MirrorTheme.violet
+        let tint = mood.map { MirrorTheme.moodColor(for: $0) } ?? accent
+        HStack(spacing: 7) {
+            if isDetecting {
+                ProgressView()
+                    .scaleEffect(0.7)
+                    .frame(width: 16, height: 16)
+            } else if let mood {
+                Circle()
+                    .fill(tint)
+                    .frame(width: 10, height: 10)
+                Text(MirrorTheme.localizedMoodName(for: mood))
+                    .foregroundStyle(tint)
+            } else {
+                Image(systemName: "face.smiling")
+                    .scaledFont(16, weight: .medium)
+                    .foregroundStyle(accent)
+            }
+            if mood == nil {
+                Text("Mood")
+                    .foregroundStyle(accent)
+            }
+        }
+        .scaledFont(15, weight: .semibold)
+        .lineLimit(1)
+        .padding(.horizontal, 13)
+        .padding(.vertical, 9)
+        .background(mood == nil ? Color.clear : tint.opacity(0.12), in: Capsule())
+        .overlay {
+            if mood == nil {
+                Capsule().strokeBorder(accent.opacity(0.45), style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+            }
+        }
+        .contentShape(Capsule())
+        .animation(.easeInOut(duration: 0.2), value: mood)
+        .animation(.easeInOut(duration: 0.2), value: isDetecting)
     }
 }

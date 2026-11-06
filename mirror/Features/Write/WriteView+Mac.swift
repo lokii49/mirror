@@ -232,15 +232,10 @@ extension WriteView {
 
     // MARK: - Editor column
 
-    /// "WEDNESDAY · 30 SEPTEMBER · 9:42 AM"
+    /// "Wednesday" over "30 September · 9:42 AM": the iPhone's date title (option A, owner
+    /// 2026-11-06). The toolbar's date button changes it, so no chevron here.
     var macDateLine: some View {
-        let weekday = noteDate.formatted(.dateTime.weekday(.wide))
-        let dayMonth = noteDate.formatted(.dateTime.day().month(.wide))
-        let time = noteDate.formatted(.dateTime.hour().minute())
-        return Text("\(weekday) · \(dayMonth) · \(time)".uppercased())
-            .font(.system(size: 11.5, weight: .semibold))
-            .tracking(0.8)
-            .foregroundStyle(MacTokens.secondaryInk)
+        WriteDateTitle(date: noteDate, showsChevron: false, primary: MacTokens.ink, secondary: MacTokens.secondaryInk)
             .padding(.horizontal, 20)
             .padding(.top, 56)
             .padding(.bottom, 22)

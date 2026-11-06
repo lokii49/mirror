@@ -456,6 +456,15 @@ enum MacSnapshot {
             NSApp.terminate(nil)
             return
         }
+        // The Write screen's header (date title, option A).
+        if CommandLine.arguments.contains("--macSnapshotWriteOnly") {
+            go("write")
+            try? await Task.sleep(for: .seconds(2))
+            capture(mainWindow(), name: "write-header")
+            NSApp.terminate(nil)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { exit(0) }
+            return
+        }
         // The quick note into Scratch: the sheet as File › New Scratch Note opens it, then saved.
         if CommandLine.arguments.contains("--macSnapshotScratchNoteOnly") {
             go("entries")

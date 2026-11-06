@@ -205,20 +205,28 @@ final class mirrorUITests: XCTestCase {
 
     // MARK: - Top Bar Toolbar: New Draft (entry == nil)
 
+    /// Option A (2026-11-06): Discard draft / Delete entry and Focus mode live in the More menu.
+    @MainActor
+    private func openMoreMenu(in app: XCUIApplication) {
+        let more = app.buttons["write.more"].firstMatch
+        XCTAssertTrue(more.waitForExistence(timeout: 5), "More menu must exist")
+        more.tap()
+    }
+
     /// Empty draft → both "Discard draft" and "Save entry" are disabled.
     @MainActor
     func testToolbar_newDraft_emptyState_bothButtonsDisabled() throws {
         let app = launchApp()
         tapWriteTab(in: app)
 
-        let discardBtn = app.buttons["Discard draft"]
         let saveBtn    = app.buttons["Save entry"]
-
-        XCTAssertTrue(discardBtn.waitForExistence(timeout: 5), "Discard draft must exist in new draft mode")
         XCTAssertTrue(saveBtn.waitForExistence(timeout: 5),    "Save entry must exist")
-
-        XCTAssertFalse(discardBtn.isEnabled, "Discard draft must be disabled when no draft content")
         XCTAssertFalse(saveBtn.isEnabled,    "Save entry must be disabled when no draft content")
+
+        openMoreMenu(in: app)
+        let discardBtn = app.buttons["Discard draft"]
+        XCTAssertTrue(discardBtn.waitForExistence(timeout: 5), "Discard draft must exist in new draft mode")
+        XCTAssertFalse(discardBtn.isEnabled, "Discard draft must be disabled when no draft content")
 
         snapshot(app, name: "toolbar_newdraft_empty")
     }
@@ -233,11 +241,13 @@ final class mirrorUITests: XCTestCase {
         tv.typeText("Today was a good day")
         Thread.sleep(forTimeInterval: 0.5)
 
-        let discardBtn = app.buttons["Discard draft"]
         let saveBtn    = app.buttons["Save entry"]
-
-        XCTAssertTrue(discardBtn.isEnabled, "Discard draft must be enabled when draft has content")
         XCTAssertTrue(saveBtn.isEnabled,    "Save entry must be enabled when draft has content")
+
+        openMoreMenu(in: app)
+        let discardBtn = app.buttons["Discard draft"]
+        XCTAssertTrue(discardBtn.waitForExistence(timeout: 5))
+        XCTAssertTrue(discardBtn.isEnabled, "Discard draft must be enabled when draft has content")
 
         snapshot(app, name: "toolbar_newdraft_with_content")
     }
@@ -255,6 +265,7 @@ final class mirrorUITests: XCTestCase {
         tv.typeText("Text to discard")
         Thread.sleep(forTimeInterval: 0.5)
 
+        openMoreMenu(in: app)
         app.buttons["Discard draft"].tap()
         Thread.sleep(forTimeInterval: 1.0)
 
@@ -286,6 +297,7 @@ final class mirrorUITests: XCTestCase {
         openEntryForEditing(in: app, textFragment: "edit toolbar test")
 
         // In edit mode: "Delete entry" replaces "Discard draft"
+        openMoreMenu(in: app)
         let deleteEntry  = app.buttons["Delete entry"]
         let discardDraft = app.buttons["Discard draft"]
 
@@ -314,6 +326,7 @@ final class mirrorUITests: XCTestCase {
 
         openEntryForEditing(in: app, textFragment: "Entry to delete")
 
+        openMoreMenu(in: app)
         app.buttons["Delete entry"].tap()
         Thread.sleep(forTimeInterval: 0.5)
 

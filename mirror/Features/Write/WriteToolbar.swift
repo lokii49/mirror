@@ -26,109 +26,43 @@ struct WriteToolbar: ToolbarContent {
     let toggleFocus: () -> Void
 
     var body: some ToolbarContent {
-        if !focusMode {
+        if focusMode {
+            // Focus mode is the text and one way out.
+            focusItem
+        } else {
             entryItems
         }
-        focusItem
     }
 
     @ToolbarContentBuilder
     private var entryItems: some ToolbarContent {
-        if isExistingEntry {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    delete()
-                } label: {
-                    Image(systemName: "trash")
-                        .scaledFont(18, weight: .semibold)
-                        .foregroundStyle(pendingDelete ? (isSentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor)) : AnyShapeStyle(.secondary))
-                        // The lid lifts as the entry goes to the undo countdown.
-                        .glyphBounce(whenTurnsOn: pendingDelete, byLayer: true)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Delete entry")
-            }
-            .preferringVerticalBar()
-
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    save()
-                } label: {
-                    Image(systemName: "checkmark.circle.fill")
-                        .scaledFont(22, weight: .semibold)
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(isSentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor))
-                }
-                .buttonStyle(.plain)
-                // Save anyway while a voice note is still transcribing (1.4) —
-                // continueTranscriptionAfterSaveAnyway hands the in-flight pass
-                // off to write straight into the saved entry once it finishes.
-                #if os(macOS)
-                .keyboardShortcut(.return, modifiers: .command)
-                #endif
-                .accessibilityLabel("Save entry")
-            }
-            .preferringVerticalBar()
-        } else {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    delete()
-                } label: {
-                    Image(systemName: "trash")
-                        .scaledFont(18, weight: .semibold)
-                        .foregroundStyle(
-                            pendingDelete
-                                ? (isSentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor))
-                                : (hasDraftContent ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
-                        )
-                        .glyphBounce(whenTurnsOn: pendingDelete, byLayer: true)
-                }
-                .buttonStyle(.plain)
-                .disabled(!hasDraftContent && !pendingDelete)
-                .accessibilityLabel("Discard draft")
-            }
-            .preferringVerticalBar()
-
+        // Option A (owner 2026-11-06): Drafts and a More menu on the leading side (focus mode and
+        // the destructive delete/discard live in the menu, not as the bar's most prominent
+        // glyph); Save as a clear text button on the trailing side.
+        if !isExistingEntry && takesSavedDrafts {
             // Save to Drafts, the newest drafts to continue, All Drafts…. Only the main editor:
             // a prefilled one (widget prompt, Talk It Out) keeps its own text.
-            if takesSavedDrafts {
-                ToolbarItem(placement: .topBarLeading) {
-                    WriteDraftsMenu(canSave: hasDraftContent && !pendingDelete, save: saveToDrafts,
-                                    resume: continueSavedDraft)
-                }
-                .preferringVerticalBar()
-            }
-
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    save()
-                } label: {
-                    Image(systemName: "checkmark.circle.fill")
-                        .scaledFont(22, weight: .semibold)
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(
-                            hasDraftContent
-                                ? (isSentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor))
-                                : AnyShapeStyle(Color.secondary)
-                        )
-                        // One bounce when the first words make the entry saveable. Driven from
-                        // WriteView state a beat after the button enables: a bounce started in
-                        // the same update as the enable never shows (sim recording, 2026-10-16).
-                        .symbolEffect(.bounce, value: saveGlyphBounces)
-                }
-                .accessibilityLabel("Save entry")
-                .buttonStyle(.plain)
-                // Save anyway while a voice note is still transcribing (1.4) —
-                // continueTranscriptionAfterSaveAnyway hands the in-flight pass
-                // off to write straight into the saved entry once it finishes.
-                .disabled(!hasDraftContent)
-                #if os(macOS)
-                .keyboardShortcut(.return, modifiers: .command)
-                #endif
-                .accessibilityLabel("Save entry")
+            ToolbarItem(placement: .topBarLeading) {
+                WriteDraftsMenu(canSave: hasDraftContent && !pendingDelete, save: saveToDrafts,
+                                resume: continueSavedDraft)
             }
             .preferringVerticalBar()
         }
+
+        ToolbarItem(placement: .topBarLeading) {
+            WriteMoreMenu(isExistingEntry: isExistingEntry,
+                          canDiscard: isExistingEntry || hasDraftContent || pendingDelete,
+                          pendingDelete: pendingDelete,
+                          isSentinel: isSentinel,
+                          toggleFocus: toggleFocus,
+                          delete: delete)
+        }
+        .preferringVerticalBar()
+
+        ToolbarItem(placement: .topBarTrailing) {
+            WriteSaveButton(enabled: isExistingEntry || hasDraftContent, isSentinel: isSentinel, save: save)
+        }
+        .preferringVerticalBar()
     }
 
     @ToolbarContentBuilder
@@ -151,5 +85,76 @@ struct WriteToolbar: ToolbarContent {
             .accessibilityLabel(focusMode ? "Exit focus mode" : "Focus mode")
         }
         .preferringVerticalBar()
+    }
+}
+
+/// The Write toolbar's More menu: focus mode, then delete (an entry) or discard (a draft). Both
+/// destructive actions start the same undo countdown as the trash button did.
+struct WriteMoreMenu: View {
+    let isExistingEntry: Bool
+    let canDiscard: Bool
+    let pendingDelete: Bool
+    let isSentinel: Bool
+    let toggleFocus: () -> Void
+    let delete: () -> Void
+
+    var body: some View {
+        Menu {
+            Button(action: toggleFocus) {
+                Label("Focus mode", systemImage: "arrow.up.left.and.arrow.down.right")
+            }
+            Divider()
+            Button(role: .destructive, action: delete) {
+                Label(isExistingEntry ? "Delete entry" : "Discard draft", systemImage: "trash")
+            }
+            .disabled(!canDiscard || pendingDelete)
+        } label: {
+            Image(systemName: "ellipsis")
+                .scaledFont(17, weight: .semibold)
+                .foregroundStyle(pendingDelete
+                                 ? (isSentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor))
+                                 : AnyShapeStyle(MirrorTheme.textSecondary))
+                .frame(minWidth: 30, minHeight: 30)
+                .contentShape(Rectangle())
+        }
+        .menuIndicator(.hidden)
+        .accessibilityLabel("More")
+        .accessibilityIdentifier("write.more")
+    }
+}
+
+/// Save as words, not a glyph: filled in the accent when there's something to save, the system's
+/// disabled look otherwise (enough contrast in both themes and both appearances).
+struct WriteSaveButton: View {
+    let enabled: Bool
+    let isSentinel: Bool
+    let save: () -> Void
+
+    var body: some View {
+        // Prominent only when enabled: a disabled prominent button is white on light grey in the
+        // light appearance (14 Pro, 2026-11-06); the plain bordered style reads as off instead.
+        if enabled {
+            button.buttonStyle(.borderedProminent)
+        } else {
+            button.buttonStyle(.bordered)
+        }
+    }
+
+    private var button: some View {
+        Button(action: save) {
+            Text(isSentinel ? "SAVE" : "Save")
+                .scaledFont(isSentinel ? 13 : 16, weight: .semibold, design: isSentinel ? .monospaced : .default)
+                .padding(.horizontal, 4)
+        }
+        .buttonBorderShape(.capsule)
+        .tint(isSentinel ? MirrorTheme.ember : MirrorTheme.violet)
+        // Save anyway while a voice note is still transcribing (1.4):
+        // continueTranscriptionAfterSaveAnyway hands the in-flight pass off to the saved entry.
+        .disabled(!enabled)
+        #if os(macOS)
+        .keyboardShortcut(.return, modifiers: .command)
+        #endif
+        .accessibilityLabel("Save entry")
+        .accessibilityIdentifier("write.save")
     }
 }

@@ -68,6 +68,13 @@ struct WriteCollectionPicker: View {
     @ViewBuilder
     private var label: some View {
         switch style {
+        case .chip where displayMode != .sentinel:
+            // Option A (owner 2026-11-06): the collection by name, as quiet text like Add tag.
+            WriteHeaderTextLabel(title: selectedItem.map { LocalizedStringKey($0.name) } ?? "Unfiled",
+                                 systemImage: selectedItem?.icon ?? "folder",
+                                 isVerbatim: selectedItem != nil,
+                                 verbatim: selectedItem?.name,
+                                 tint: selectedItem == nil ? nil : MirrorTheme.violet)
         case .chip:
             let accent = displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary
             let filed = selectedItem != nil
@@ -142,5 +149,35 @@ enum WriteCollectionDefault {
         var descriptor = FetchDescriptor<JournalCollection>(predicate: #Predicate { $0.id == id })
         descriptor.fetchLimit = 1
         return ((try? context.fetchCount(descriptor)) ?? 0) > 0 ? id : nil
+    }
+}
+
+/// A quiet text button in the classic Write header's second row (collection, Add tag): icon and
+/// words in the secondary colour, no pill, a 32 pt target.
+struct WriteHeaderTextLabel: View {
+    var title: LocalizedStringKey
+    var systemImage: String
+    var isVerbatim = false
+    /// The user's own text (a collection name), shown as typed.
+    var verbatim: String? = nil
+    var tint: Color? = nil
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: systemImage)
+                .scaledFont(13, weight: .semibold)
+            Group {
+                if isVerbatim, let verbatim {
+                    Text(verbatim)
+                } else {
+                    Text(title)
+                }
+            }
+            .scaledFont(14, weight: .medium)
+            .lineLimit(1)
+        }
+        .foregroundStyle(tint.map { AnyShapeStyle($0) } ?? AnyShapeStyle(MirrorTheme.textSecondary))
+        .frame(minHeight: 32)
+        .contentShape(Rectangle())
     }
 }
