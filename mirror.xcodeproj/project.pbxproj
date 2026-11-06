@@ -788,6 +788,7 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSCameraUsageDescription = "MirrorNotes uses the camera to attach a photo to your journal entry.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "MirrorNotes uses Face ID to unlock your journal when App Lock is on.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "MirrorNotes doesn't read your Health data. It only saves the moods you log in a check-in, if you turn this on in Settings.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "MirrorNotes saves the moods you log in a check-in to Health, if you turn this on in Settings. It never reads from Health.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "MirrorNotes uses the microphone so you can dictate journal entries by voice.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "MirrorNotes saves photos from your journal entries to your photo library.";
@@ -849,6 +850,7 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSCameraUsageDescription = "MirrorNotes uses the camera to attach a photo to your journal entry.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "MirrorNotes uses Face ID to unlock your journal when App Lock is on.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "MirrorNotes doesn't read your Health data. It only saves the moods you log in a check-in, if you turn this on in Settings.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "MirrorNotes saves the moods you log in a check-in to Health, if you turn this on in Settings. It never reads from Health.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "MirrorNotes uses the microphone so you can dictate journal entries by voice.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "MirrorNotes saves photos from your journal entries to your photo library.";
