@@ -456,6 +456,20 @@ enum MacSnapshot {
             NSApp.terminate(nil)
             return
         }
+        // Your templates: the manager with one saved (sealed, this device), then its editor.
+        if CommandLine.arguments.contains("--macSnapshotTemplatesOnly") {
+            CustomTemplateStore.save([CustomTemplate(title: "Synthetic check-in", text: "How did today go?\n- ")])
+            let host = NSHostingController(rootView: TemplateManagerView())
+            let window = NSWindow(contentViewController: host)
+            window.setContentSize(NSSize(width: 480, height: 460))
+            window.center(); window.makeKeyAndOrderFront(nil)
+            try? await Task.sleep(for: .seconds(1.5))
+            capture(window, name: "templates-manager")
+            CustomTemplateStore.erase()
+            NSApp.terminate(nil)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { exit(0) }
+            return
+        }
         // The Write screen's header (date title, option A).
         if CommandLine.arguments.contains("--macSnapshotWriteOnly") {
             go("write")

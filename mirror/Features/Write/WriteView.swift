@@ -362,9 +362,9 @@ struct WriteView: View {
                             WritingStarterChip(
                                 showsTalkItOut: SubscriptionService.offersTalkItOut(for: SubscriptionService.shared.tier),
                                 onTalkItOut: { presentTalkItOut() },
-                                onUseTemplate: { template in
-                                    viewModel.text = template.seedText
-                                    applyTextCommand(.moveCursor(location: template.cursorOffset))
+                                onUseTemplate: { text, cursorOffset in
+                                    viewModel.text = text
+                                    applyTextCommand(.moveCursor(location: cursorOffset))
                                 }
                             )
                             .padding(.horizontal, 20)

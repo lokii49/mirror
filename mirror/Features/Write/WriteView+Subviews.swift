@@ -584,9 +584,11 @@ struct WritingStarterChip: View {
     /// False on Free: the menu offers only the templates (no paywall before the first nudge).
     var showsTalkItOut = true
     let onTalkItOut: () -> Void
-    let onUseTemplate: (WritingTemplate) -> Void
+    /// The text a template starts the entry with, and where the caret goes in it.
+    let onUseTemplate: (_ text: String, _ cursorOffset: Int) -> Void
 
     @Environment(\.appDisplayMode) private var displayMode
+    @State private var showTemplateManager = false
     private var isSentinel: Bool { displayMode == .sentinel }
     private var accent: Color { isSentinel ? MirrorTheme.ember : MirrorTheme.violet }
 
@@ -599,10 +601,22 @@ struct WritingStarterChip: View {
                 Divider()
             }
             ForEach(WritingTemplate.allCases) { template in
-                Button { onUseTemplate(template) } label: {
+                Button { onUseTemplate(template.seedText, template.cursorOffset) } label: {
                     Label(template.title, systemImage: template.icon)
                 }
             }
+            // Your own templates (this device only), then managing them.
+            let custom = CustomTemplateStore.readable()
+            if !custom.isEmpty {
+                Divider()
+                ForEach(custom) { template in
+                    Button { onUseTemplate(template.text, .max) } label: {
+                        Label(template.title, systemImage: "doc.text")
+                    }
+                }
+            }
+            Divider()
+            Button("Manage Templates…", systemImage: "slider.horizontal.3") { showTemplateManager = true }
         } label: {
             // Option A (owner 2026-11-06): one quiet line, not a card above the page, in both themes.
             HStack(spacing: 6) {
@@ -621,6 +635,9 @@ struct WritingStarterChip: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(showsTalkItOut ? "Need a starting point? Talk it out, or use a template" : "Need a starting point?")
+        .accessibilityIdentifier("write.starter")
+        // Inside this struct, not on WriteView.body (Debug stack limit).
+        .sheet(isPresented: $showTemplateManager) { TemplateManagerView() }
     }
 }
 

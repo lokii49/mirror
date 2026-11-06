@@ -583,6 +583,136 @@
       "comment" : "3 Wins entry template seed text, after the cursor",
       "shouldTranslate" : false
     },
+    "\n\nPeople I want to see:\n\n\nOne thing to let go of:\n" : {
+      "comment" : "Weekly plan entry template seed text, after the cursor",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "\n\nMenschen, die ich sehen möchte:\n\n\nEine Sache, die ich loslassen will:\n"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\n\nPeople I want to see:\n\n\nOne thing to let go of:\n"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "\n\nPersonas que quiero ver:\n\n\nAlgo que quiero soltar:\n"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "\n\nLes personnes que je veux voir :\n\n\nUne chose à lâcher :\n"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "\n\nPersone che voglio vedere:\n\n\nUna cosa da lasciar andare:\n"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "\n\n会いたい人：\n\n\n手放したいこと：\n"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "\n\n만나고 싶은 사람:\n\n\n내려놓을 한 가지:\n"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "\n\nPessoas que quero ver:\n\n\nUma coisa para deixar ir:\n"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "\n\nС кем хочу увидеться:\n\n\nОт чего хочу отказаться:\n"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "\n\n想见的人：\n\n\n想放下的一件事：\n"
+          }
+        }
+      }
+    },
+    "\n\nWhat was hard?\n\n\nWhat do I want to remember?\n" : {
+      "comment" : "Evening review entry template seed text, after the cursor",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "\n\nWas war schwer?\n\n\nWas möchte ich mir merken?\n"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\n\nWhat was hard?\n\n\nWhat do I want to remember?\n"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "\n\n¿Qué fue difícil?\n\n\n¿Qué quiero recordar?\n"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "\n\nQu’est-ce qui a été difficile ?\n\n\nQue veux-je retenir ?\n"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "\n\nCosa è stato difficile?\n\n\nCosa voglio ricordare?\n"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "\n\n大変だったことは？\n\n\n覚えておきたいことは？\n"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "\n\n힘들었던 일은?\n\n\n기억하고 싶은 것은?\n"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "\n\nO que foi difícil?\n\n\nO que quero lembrar?\n"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "\n\nЧто было трудно?\n\n\nЧто хочу запомнить?\n"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "\n\n有什么难处？\n\n\n我想记住什么？\n"
+          }
+        }
+      }
+    },
     "%@ / year" : {
       "localizations" : {
         "de" : {
@@ -7146,6 +7276,135 @@
         }
       }
     },
+    "Evening check-in" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Abendlicher Check-in"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Evening check-in"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Repaso nocturno"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Point du soir"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Check-in serale"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "夜のチェックイン"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "저녁 점검"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Check-in da noite"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Вечерняя проверка"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "晚间小结"
+          }
+        }
+      }
+    },
+    "Evening Review" : {
+      "comment" : "Entry template name",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Abendrückblick"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Evening Review"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Repaso de la tarde"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Bilan du soir"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Riepilogo serale"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "夜の振り返り"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "저녁 돌아보기"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Revisão da noite"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Вечерний обзор"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "晚间回顾"
+          }
+        }
+      }
+    },
     "Every daily reflection, weekly digest and monthly report already made for you stays readable on every plan, in the app and in widgets, including after paid plans start on %@. New ones need Core or Deep." : {
       "localizations" : {
         "de" : {
@@ -10283,6 +10542,70 @@
         }
       }
     },
+    "Kept on this device only." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Nur auf diesem Gerät gespeichert."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kept on this device only."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Solo se guarda en este dispositivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Conservé uniquement sur cet appareil."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Conservato solo su questo dispositivo."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "このデバイスにのみ保存されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "이 기기에만 보관됩니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Mantido somente neste dispositivo."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Хранится только на этом устройстве."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "仅保存在此设备上。"
+          }
+        }
+      }
+    },
     "Kept out of reflections" : {
       "localizations" : {
         "de" : {
@@ -10843,6 +11166,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "最低：%2$@的%1$@。"
+          }
+        }
+      }
+    },
+    "Manage Templates…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Vorlagen verwalten …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manage Templates…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Gestionar plantillas…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Gérer les modèles…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Gestisci modelli…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "テンプレートを管理…"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "템플릿 관리…"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Gerenciar modelos…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Управлять шаблонами…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "管理模板…"
           }
         }
       }
@@ -11727,6 +12114,136 @@
         }
       }
     },
+    "Morning Pages" : {
+      "comment" : "Entry template name",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Morgenseiten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Morning Pages"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Páginas matutinas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Pages du matin"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Pagine del mattino"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "モーニングページ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "모닝 페이지"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Páginas matinais"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Утренние страницы"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "晨间书写"
+          }
+        }
+      }
+    },
+    "Morning pages: write whatever comes, without stopping.\n\n" : {
+      "comment" : "Morning pages entry template seed text, before the cursor",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Morgenseiten: Schreib, was kommt, ohne anzuhalten.\n\n"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Morning pages: write whatever comes, without stopping.\n\n"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Páginas matutinas: escribe lo que venga, sin parar.\n\n"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Pages du matin : écrivez ce qui vient, sans vous arrêter.\n\n"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Pagine del mattino: scrivi quello che viene, senza fermarti.\n\n"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "モーニングページ：浮かんだことを止まらずに書きましょう。\n\n"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "모닝 페이지: 떠오르는 대로 멈추지 말고 쓰세요.\n\n"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Páginas matinais: escreva o que vier, sem parar.\n\n"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Утренние страницы: пишите всё, что приходит в голову, не останавливаясь.\n\n"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "晨间书写：想到什么就写什么，不要停。\n\n"
+          }
+        }
+      }
+    },
     "Most often %@." : {
       "localizations" : {
         "de" : {
@@ -12102,6 +12619,70 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "新建随手记"
+          }
+        }
+      }
+    },
+    "New Template" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Neue Vorlage"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Template"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Nueva plantilla"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Nouveau modèle"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Nuovo modello"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "新規テンプレート"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "새 템플릿"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Novo modelo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Новый шаблон"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "新建模板"
           }
         }
       }
@@ -17187,6 +17768,70 @@
         }
       }
     },
+    "Starts with" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Beginnt mit"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starts with"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Empieza con"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Commence par"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Inizia con"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "書き出し"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "시작 내용"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Começa com"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Начинается с"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "开头内容"
+          }
+        }
+      }
+    },
     "Status" : {
       "localizations" : {
         "de" : {
@@ -17938,6 +18583,70 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "轻点标签旁的文件夹，选择这篇日记放到哪里，或在那里新建合集。"
+          }
+        }
+      }
+    },
+    "Templates" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Vorlagen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Templates"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Plantillas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Modèles"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Modelli"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "テンプレート"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "템플릿"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Modelos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Шаблоны"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "模板"
           }
         }
       }
@@ -18914,6 +19623,71 @@
         }
       }
     },
+    "This week I want to…\n" : {
+      "comment" : "Weekly plan entry template seed text, before the cursor",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Diese Woche möchte ich …\n"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This week I want to…\n"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Esta semana quiero…\n"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Cette semaine, je veux…\n"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Questa settimana voglio…\n"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "今週やりたいこと…\n"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "이번 주에 하고 싶은 것…\n"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Esta semana quero…\n"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "На этой неделе я хочу…\n"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "这周我想…\n"
+          }
+        }
+      }
+    },
     "Tick" : {
       "localizations" : {
         "de" : {
@@ -19782,6 +20556,136 @@
         }
       }
     },
+    "Weekly Plan" : {
+      "comment" : "Entry template name",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Wochenplan"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weekly Plan"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Plan semanal"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Plan de la semaine"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Piano settimanale"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "週の計画"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "주간 계획"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Plano semanal"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "План на неделю"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "每周计划"
+          }
+        }
+      }
+    },
+    "What went well today?\n" : {
+      "comment" : "Evening review entry template seed text, before the cursor",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Was lief heute gut?\n"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What went well today?\n"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "¿Qué salió bien hoy?\n"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Qu’est-ce qui s’est bien passé aujourd’hui ?\n"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Cosa è andato bene oggi?\n"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "今日うまくいったことは？\n"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "오늘 잘된 일은?\n"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "O que deu certo hoje?\n"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Что сегодня получилось?\n"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "今天有什么顺利的事？\n"
+          }
+        }
+      }
+    },
     "What's made for you stays yours" : {
       "localizations" : {
         "de" : {
@@ -20208,6 +21112,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "写下来，和它拉开一点距离。"
+          }
+        }
+      }
+    },
+    "Write the start of an entry you use often, like a checklist or a set of questions." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Schreib den Anfang eines Eintrags, den du oft nutzt, etwa eine Checkliste oder ein paar Fragen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Write the start of an entry you use often, like a checklist or a set of questions."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Escribe el comienzo de una entrada que uses a menudo, como una lista o unas preguntas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Écrivez le début d’une entrée que vous utilisez souvent, comme une liste ou des questions."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Scrivi l’inizio di una voce che usi spesso, come una lista o alcune domande."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "よく使うエントリーの書き出しを作りましょう。チェックリストや質問など。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "자주 쓰는 항목의 시작 부분을 적어 두세요. 체크리스트나 질문 목록처럼요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Escreva o começo de uma entrada que você usa com frequência, como uma lista ou perguntas."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Напишите начало записи, которой пользуетесь часто, например список или вопросы."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "写下你常用的条目开头，比如一份清单或几个问题。"
           }
         }
       }
@@ -20763,6 +21731,70 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "你最近的更改只保存在这台 Mac 上。释放 iCloud 储存空间后，它们会自动上传。在此之前，请不要为 MirrorNotes 关闭 iCloud 或退出 iCloud：这会删除这台 Mac 上的副本。"
+          }
+        }
+      }
+    },
+    "Your templates can't be read until this device is unlocked." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Deine Vorlagen können erst gelesen werden, wenn dieses Gerät entsperrt ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your templates can't be read until this device is unlocked."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tus plantillas no se pueden leer hasta que desbloquees este dispositivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Vos modèles ne peuvent pas être lus tant que cet appareil n’est pas déverrouillé."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "I tuoi modelli non si possono leggere finché il dispositivo non è sbloccato."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "このデバイスのロックを解除するまでテンプレートを読み込めません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "이 기기의 잠금을 해제해야 템플릿을 읽을 수 있습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Seus modelos só podem ser lidos depois que este dispositivo for desbloqueado."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Шаблоны нельзя прочитать, пока устройство не разблокировано."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "设备解锁后才能读取你的模板。"
           }
         }
       }
