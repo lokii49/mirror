@@ -9,4 +9,10 @@ Además en esta actualización
 • Las reflexiones pasadas del panel tienen Leer más, y las reflexiones pasadas y los resúmenes anteriores terminan con Mostrar todo.
 • Al tocar un día en el calendario de Entradas, ese día sigue a la vista en lugar de volver a hoy.
 • En Organizar puedes añadir la colección Apuntes para notas rápidas, listas y números. Las reflexiones, Preguntar, los gráficos de ánimo y las alertas de ánimo no la leen, y cualquier colección se puede excluir del mismo modo.
+• Graba notas de voz como en el iPhone: pausa, escucha y añade.
+• Al escribir: modo concentración, objetivo diario de palabras y sugerencias de etiquetas.
+• Arrastra líneas de lista para reordenarlas; lo marcado puede bajar al final.
+• Archivo › Importar desde dispositivo: foto o escaneo con el iPhone.
+• Plantillas, Pendientes, enlaces entre entradas, Patrones y Resumen del año.
+• Canjear código en la pantalla de planes y en Ajustes.
 • Los diarios grandes van más rápido: la lista de Entradas, la búsqueda y Perspectivas ya no vuelven a leer todas las entradas cada vez que cambia la ventana.

@@ -51,11 +51,13 @@ struct FeatureCardVersionTests {
 
     /// 3.1.8: paid plans and Show all everywhere; Redeem Code and focus mode only on iPhone and iPad.
     @Test func release318ShowsPaidPlansAndRedeemCode() {
-        let iOS318 = ["paid-plans-318", "redeem-code-318", "focus-mode-318", "show-all-318", "faster-318", "scratch-318"]
+        let iOS318 = ["paid-plans-318", "redeem-code-318", "focus-mode-318", "show-all-318", "faster-318", "scratch-318",
+                      "write-318", "still-open-318", "links-318", "patterns-318", "watch-318", "health-318"]
         #expect(FeatureCardService.iOSWhatsNewCards(lastSeen: "3.1.7", current: "3.1.8").map(\.id) == iOS318)
         #expect(FeatureCardService.iOSWhatsNewCards(lastSeen: "3.1.5", current: "3.1.8").map(\.id) == iOS318)
         #expect(FeatureCardService.macHasUnseenCards(lastSeen: "1.1.7", current: "1.1.8"))
-        #expect(FeatureCardService.macWhatsNewCards(lastSeen: "1.1.7", current: "1.1.8").map(\.id) == ["paid-plans-318", "show-all-318", "faster-318", "scratch-318"])
+        #expect(FeatureCardService.macWhatsNewCards(lastSeen: "1.1.7", current: "1.1.8").map(\.id) == ["paid-plans-318", "show-all-318", "faster-318", "scratch-318",
+                                                                                     "still-open-318", "links-318", "patterns-318"])
     }
 
     @Test func noCardsMeansNoPages() {

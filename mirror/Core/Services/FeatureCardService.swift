@@ -490,6 +490,69 @@ enum FeatureCardRegistry {
             sinceVersion: "3.1.8",
             showInFeatureGuide: false
         ),
+        .init(
+            id: "write-318",
+            title: "A calmer Write screen",
+            body: "The date is the title, Mood sits beside it, and Delete and focus mode moved into the ⋯ menu. Need a start? Pick a template, write your own, or try Suggestions from your day.",
+            symbolName: "square.and.pencil",
+            accentColor: MirrorTheme.violet,
+            tier: .free,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false,
+            iOSOnly: true
+        ),
+        .init(
+            id: "still-open-318",
+            title: "Still Open",
+            body: "Every checklist item you haven't ticked, from all your entries, in one list. Tick it there or open its entry. It's in the Entries menu beside your saved views.",
+            symbolName: "checklist.unchecked",
+            accentColor: .green,
+            tier: .free,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false
+        ),
+        .init(
+            id: "links-318",
+            title: "Link your entries",
+            body: "Select a few words, choose Add Link, then Link to an Entry. Under each entry, Linked from shows the entries that point to it.",
+            symbolName: "link",
+            accentColor: .blue,
+            tier: .free,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false
+        ),
+        .init(
+            id: "patterns-318",
+            title: "Patterns and Year in Review",
+            body: "See which moods come with your days, times and tags, and your year in numbers. Counted by the app from your own moods, so nothing is guessed.",
+            symbolName: "square.grid.3x3.topleft.filled",
+            accentColor: .pink,
+            tier: .deep,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false
+        ),
+        .init(
+            id: "watch-318",
+            title: "MirrorNotes on Apple Watch",
+            body: "Log a mood or a quick note from your wrist. It's saved in MirrorNotes on your iPhone, which keeps your journal's key.",
+            symbolName: "applewatch",
+            accentColor: .orange,
+            tier: .free,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false,
+            iOSOnly: true
+        ),
+        .init(
+            id: "health-318",
+            title: "Moods in Apple Health",
+            body: "Turn on Settings › Journal › Save mood check-ins to Health, and each check-in is saved as a State of Mind. MirrorNotes never reads from Health.",
+            symbolName: "heart.text.square",
+            accentColor: .red,
+            tier: .free,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false,
+            iOSOnly: true
+        ),
     ]
 
     /// 15 November 2026, the paid-plans cutover, in the reader's own date format.

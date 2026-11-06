@@ -14,6 +14,15 @@ Außerdem in diesem Update
 • Frühere Reflexionen und Zusammenfassungen enden mit „Alle anzeigen“, damit du jede lesen kannst.
 • Unter „Ordnen“ kannst du die Sammlung „Notizen“ für schnelle Notizen, Listen und Nummern anlegen. Reflexionen, Fragen, Stimmungsdiagramme und Stimmungswarnungen lesen sie nicht, und jede Sammlung lässt sich genauso heraushalten.
 • Erneutes Tippen auf „Einträge“ scrollt die Liste wieder nach oben.
+• Neuer Kopf beim Schreiben: das Datum als Titel, die Stimmung daneben, Sichern als Taste, Löschen und Fokusmodus im ⋯-Menü.
+• Neue Notiz aus dem Kontrollzentrum, mit Siri oder im Einträge-Menü.
+• Vorlagen: Abendrückblick, Wochenplan und Morgenseiten, dazu eigene, nur auf diesem Gerät.
+• Vorschläge aus deinem Tag: Apples Journaling-Vorschläge als Startpunkt.
+• „Noch offen“ zeigt alle nicht abgehakten Checklisten-Punkte deiner Einträge.
+• Verlinke Einträge miteinander und sieh unter „Verlinkt von“, was hierher verweist.
+• Muster und Jahresrückblick (Deep): welche Stimmungen zu Tagen, Uhrzeiten und Tags gehören, und dein Jahr in Zahlen.
+• MirrorNotes auf der Apple Watch: Stimmung oder schnelle Notiz eintragen.
+• Stimmungsabfragen auf Wunsch in Apple Health sichern (Einstellungen › Journal).
 • Große Tagebücher sind schneller: Die Eintragsliste, die Suche, Einblicke, der Stimmungsverlauf und der Kalender lesen nicht mehr bei jeder Änderung auf dem Bildschirm alle Einträge neu, und das Öffnen eines Eintrags lädt nicht mehr das ganze Tagebuch.
 • MirrorNotes startet etwas schneller und braucht weniger Arbeitsspeicher.
 • Einträge zeigen die Wortzahl ausgeschrieben („52 Wörter“ statt „52 W“).

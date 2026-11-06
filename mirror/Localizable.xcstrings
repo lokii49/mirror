@@ -1876,6 +1876,70 @@
         }
       }
     },
+    "A calmer Write screen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ein ruhigerer Schreibbildschirm"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A calmer Write screen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Una pantalla de escritura más tranquila"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Un écran d’écriture plus calme"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Una schermata di scrittura più calma"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "すっきりした書く画面"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "더 차분해진 글쓰기 화면"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Uma tela de escrita mais calma"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Спокойнее экран записи"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "更清爽的写作页"
+          }
+        }
+      }
+    },
     "A clearer format panel" : {
       "localizations" : {
         "de" : {
@@ -8813,6 +8877,70 @@
         }
       }
     },
+    "Every checklist item you haven't ticked, from all your entries, in one list. Tick it there or open its entry. It's in the Entries menu beside your saved views." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Alle nicht abgehakten Checklisten-Punkte aus deinen Einträgen in einer Liste. Hak sie dort ab oder öffne den Eintrag. Zu finden im Einträge-Menü bei deinen gesicherten Ansichten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Every checklist item you haven't ticked, from all your entries, in one list. Tick it there or open its entry. It's in the Entries menu beside your saved views."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Todos los elementos de lista sin marcar de tus entradas, en una sola lista. Márcalos ahí o abre su entrada. Está en el menú de Entradas, junto a tus vistas guardadas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tous les éléments de liste non cochés de vos entrées, dans une seule liste. Cochez-les là ou ouvrez leur entrée. C’est dans le menu des entrées, à côté de vos vues enregistrées."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tutte le voci delle liste non spuntate, da tutte le tue voci, in un’unica lista. Spuntale lì o apri la loro voce. Si trova nel menu delle voci, accanto alle viste salvate."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "すべてのエントリーのチェックしていない項目を1つのリストに。そこでチェックするか、エントリーを開けます。エントリーのメニュー、保存した表示の横にあります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "모든 항목의 체크하지 않은 체크리스트를 한 목록에서 봅니다. 거기서 체크하거나 항목을 열 수 있습니다. 항목 메뉴의 저장된 보기 옆에 있습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Todos os itens de lista não marcados das suas entradas, em uma só lista. Marque ali ou abra a entrada. Fica no menu de Entradas, ao lado das visualizações salvas."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Все неотмеченные пункты списков из ваших записей в одном списке. Отметьте их там или откройте запись. Это в меню записей, рядом с сохранёнными видами."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "所有条目中未勾选的清单项目汇集成一个列表。可以直接勾选，或打开所在条目。在条目菜单中，已存视图旁边。"
+          }
+        }
+      }
+    },
     "Every daily reflection, weekly digest and monthly report already made for you stays readable on every plan, in the app and in widgets, including after paid plans start on %@. New ones need Core or Deep." : {
       "localizations" : {
         "de" : {
@@ -12520,6 +12648,70 @@
         }
       }
     },
+    "Link your entries" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Verlinke deine Einträge"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Link your entries"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Enlaza tus entradas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Liez vos entrées"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Collega le tue voci"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "エントリーをリンク"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "항목을 서로 연결하세요"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Vincule suas entradas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Связывайте записи"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "链接你的条目"
+          }
+        }
+      }
+    },
     "Linked from" : {
       "localizations" : {
         "de" : {
@@ -12836,6 +13028,70 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "清单、号码、提醒…"
+          }
+        }
+      }
+    },
+    "Log a mood or a quick note from your wrist. It's saved in MirrorNotes on your iPhone, which keeps your journal's key." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Trag eine Stimmung oder schnelle Notiz am Handgelenk ein. Sie wird in MirrorNotes auf deinem iPhone gesichert, das den Schlüssel deines Journals hat."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log a mood or a quick note from your wrist. It's saved in MirrorNotes on your iPhone, which keeps your journal's key."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Registra tu ánimo o una nota rápida desde la muñeca. Se guarda en MirrorNotes en tu iPhone, que guarda la clave de tu diario."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Notez une humeur ou une note rapide depuis votre poignet. Elle est enregistrée dans MirrorNotes sur votre iPhone, qui garde la clé de votre journal."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Registra l’umore o una nota veloce dal polso. Viene salvata in MirrorNotes sul tuo iPhone, che custodisce la chiave del diario."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "手首から気分やクイックメモを記録。ジャーナルの鍵を持つiPhoneのMirrorNotesに保存されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "손목에서 기분이나 빠른 메모를 기록하세요. 저널 키를 가진 iPhone의 MirrorNotes에 저장됩니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Registre um humor ou uma nota rápida pelo pulso. Fica salvo no MirrorNotes do seu iPhone, que guarda a chave do seu diário."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Отмечайте настроение или быструю заметку на запястье. Всё сохраняется в MirrorNotes на iPhone, где хранится ключ дневника."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "在手腕上记录情绪或快速笔记。它会保存在你 iPhone 上的 MirrorNotes 中，日记的密钥也只在那里。"
           }
         }
       }
@@ -13530,6 +13786,70 @@
         }
       }
     },
+    "MirrorNotes on Apple Watch" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MirrorNotes auf der Apple Watch"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MirrorNotes on Apple Watch"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MirrorNotes en el Apple Watch"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MirrorNotes sur Apple Watch"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MirrorNotes su Apple Watch"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Apple WatchのMirrorNotes"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Apple Watch용 MirrorNotes"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MirrorNotes no Apple Watch"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "MirrorNotes на Apple Watch"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Apple Watch 上的 MirrorNotes"
+          }
+        }
+      }
+    },
     "mixed days" : {
       "localizations" : {
         "de" : {
@@ -14030,6 +14350,70 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "按日期、时段和标签看情绪"
+          }
+        }
+      }
+    },
+    "Moods in Apple Health" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Stimmungen in Apple Health"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moods in Apple Health"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ánimo en Salud de Apple"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Humeurs dans Apple Santé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Umore in Apple Salute"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Appleヘルスケアに気分を"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Apple 건강에 기분 저장"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Humor no Apple Saúde"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Настроение в «Здоровье»"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "情绪存入 Apple 健康"
           }
         }
       }
@@ -16973,6 +17357,70 @@
         }
       }
     },
+    "Patterns and Year in Review" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Muster und Jahresrückblick"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Patterns and Year in Review"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Patrones y Resumen del año"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tendances et Bilan de l’année"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Schemi e Anno in rassegna"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "パターンと1年の振り返り"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "패턴과 올해 돌아보기"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Padrões e Retrospectiva do ano"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Закономерности и итоги года"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "规律与年度回顾"
+          }
+        }
+      }
+    },
     "Pause recording" : {
       "localizations" : {
         "de" : {
@@ -19709,6 +20157,134 @@
         }
       }
     },
+    "See which moods come with your days, times and tags, and your year in numbers. Counted by the app from your own moods, so nothing is guessed." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Sieh, welche Stimmungen zu deinen Tagen, Uhrzeiten und Tags gehören, und dein Jahr in Zahlen. Von der App aus deinen eigenen Stimmungen gezählt, nichts wird geraten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "See which moods come with your days, times and tags, and your year in numbers. Counted by the app from your own moods, so nothing is guessed."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Mira qué estados de ánimo van con tus días, horas y etiquetas, y tu año en cifras. La app los cuenta a partir de tus propios estados de ánimo: nada se adivina."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Voyez quelles humeurs accompagnent vos jours, heures et tags, et votre année en chiffres. L’app compte à partir de vos propres humeurs : rien n’est deviné."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Scopri quali stati d’animo accompagnano giorni, orari e tag, e il tuo anno in numeri. L’app conta dai tuoi stati d’animo: niente viene indovinato."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "曜日・時間・タグと気分の関係、そして1年を数字で。アプリがあなた自身の気分から数えるので、推測はありません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "요일·시간·태그와 함께 나타나는 기분, 그리고 한 해를 숫자로 확인하세요. 앱이 직접 기록한 기분으로 세기 때문에 추측은 없습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Veja quais humores acompanham seus dias, horários e tags, e seu ano em números. O app conta a partir dos seus próprios humores, então nada é adivinhado."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Узнайте, какое настроение приходится на ваши дни, время и теги, и посмотрите год в цифрах. Приложение считает по вашим отметкам — ничего не угадывает."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "看看哪些情绪与你的日子、时段和标签相伴，以及用数字看你的一年。由 App 根据你自己的情绪统计，不做任何猜测。"
+          }
+        }
+      }
+    },
+    "Select a few words, choose Add Link, then Link to an Entry. Under each entry, Linked from shows the entries that point to it." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Markiere ein paar Wörter, wähle „Link hinzufügen“ und dann „Mit Eintrag verlinken“. Unter jedem Eintrag zeigt „Verlinkt von“, welche Einträge darauf verweisen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select a few words, choose Add Link, then Link to an Entry. Under each entry, Linked from shows the entries that point to it."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Selecciona unas palabras, elige Añadir enlace y luego Enlazar a una entrada. Bajo cada entrada, «Enlazada desde» muestra las entradas que apuntan a ella."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Sélectionnez quelques mots, choisissez Ajouter un lien, puis Lier à une entrée. Sous chaque entrée, « Liée depuis » montre les entrées qui y renvoient."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Seleziona qualche parola, scegli Aggiungi link e poi Collega a una voce. Sotto ogni voce, «Collegata da» mostra le voci che rimandano lì."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "言葉を選んで「リンクを追加」から「エントリーにリンク」を選びます。各エントリーの下の「リンク元」に、そこを参照するエントリーが表示されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "단어를 선택하고 링크 추가에서 항목에 링크를 고르세요. 각 항목 아래 연결한 항목에 그 항목을 가리키는 항목이 표시됩니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Selecione algumas palavras, escolha Adicionar link e depois Vincular a uma entrada. Abaixo de cada entrada, «Vinculada de» mostra as entradas que apontam para ela."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Выделите несколько слов, выберите «Добавить ссылку», затем «Ссылка на запись». Под каждой записью в «Ссылаются» видно, какие записи ведут к ней."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "选中几个字，选择“添加链接”，再选“链接到条目”。每个条目下方的“链接来源”会显示指向它的条目。"
+          }
+        }
+      }
+    },
     "Select All" : {
       "comment" : "3.1.4 paid-plans notice, Undo, select mode, duplicate warning, retention. Model-translated; native review pending.",
       "localizations" : {
@@ -21915,6 +22491,70 @@
         }
       }
     },
+    "The date is the title, Mood sits beside it, and Delete and focus mode moved into the ⋯ menu. Need a start? Pick a template, write your own, or try Suggestions from your day." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Das Datum ist der Titel, die Stimmung steht daneben, Löschen und Fokusmodus sind ins ⋯-Menü gezogen. Brauchst du einen Anfang? Nimm eine Vorlage, schreib eine eigene oder probier Vorschläge aus deinem Tag."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The date is the title, Mood sits beside it, and Delete and focus mode moved into the ⋯ menu. Need a start? Pick a template, write your own, or try Suggestions from your day."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "La fecha es el título, el ánimo está al lado, y Eliminar y el modo concentración pasaron al menú ⋯. ¿Necesitas empezar? Elige una plantilla, crea la tuya o prueba Sugerencias de tu día."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "La date sert de titre, l’humeur est à côté, et Supprimer et le mode concentration sont dans le menu ⋯. Besoin d’un départ ? Choisissez un modèle, créez le vôtre ou essayez Suggestions de votre journée."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "La data è il titolo, l’umore è accanto, ed Elimina e la modalità concentrazione sono nel menu ⋯. Ti serve un inizio? Scegli un modello, crea il tuo o prova Suggerimenti dalla tua giornata."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "日付がタイトルになり、気分はその横に。削除と集中モードは⋯メニューに移りました。書き出しに迷ったら、テンプレートや自作のもの、今日の提案を。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "날짜가 제목이 되고 기분은 그 옆에, 삭제와 집중 모드는 ⋯ 메뉴로 옮겼습니다. 시작이 막막하면 템플릿이나 직접 만든 템플릿, 오늘의 제안을 써 보세요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "A data é o título, o humor fica ao lado, e Apagar e o modo foco foram para o menu ⋯. Precisa de um começo? Escolha um modelo, crie o seu ou experimente Sugestões do seu dia."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Дата стала заголовком, настроение — рядом, а удаление и режим фокуса переехали в меню ⋯. Нужно начало? Выберите шаблон, создайте свой или откройте подсказки из вашего дня."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "日期成为标题，情绪在旁边，删除和专注模式移到了 ⋯ 菜单。不知从何写起？选一个模板、自己建一个，或试试来自今天的建议。"
+          }
+        }
+      }
+    },
     "The Entries list, search and Insights no longer re-read every entry whenever the screen changes, so years of writing stay quick." : {
       "localizations" : {
         "de" : {
@@ -23186,6 +23826,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "旅行"
+          }
+        }
+      }
+    },
+    "Turn on Settings › Journal › Save mood check-ins to Health, and each check-in is saved as a State of Mind. MirrorNotes never reads from Health." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Schalte Einstellungen › Journal › Stimmungsabfragen in Health sichern ein, dann wird jede Abfrage als Gemütszustand gesichert. MirrorNotes liest nie aus Health."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn on Settings › Journal › Save mood check-ins to Health, and each check-in is saved as a State of Mind. MirrorNotes never reads from Health."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Activa Ajustes › Diario › Guardar registros de ánimo en Salud y cada registro se guarda como estado de ánimo. MirrorNotes nunca lee de Salud."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Activez Réglages › Journal › Enregistrer les relevés d’humeur dans Santé, et chaque relevé est enregistré comme état d’esprit. MirrorNotes ne lit jamais Santé."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Attiva Impostazioni › Diario › Salva i check-in dell’umore in Salute e ogni check-in viene salvato come stato d’animo. MirrorNotes non legge mai da Salute."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "設定 › ジャーナル › 気分チェックインをヘルスケアに保存をオンにすると、チェックインが「心の状態」として保存されます。MirrorNotesがヘルスケアから読み取ることはありません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "설정 › 저널 › 기분 체크인을 건강 앱에 저장을 켜면 각 체크인이 마음 상태로 저장됩니다. MirrorNotes는 건강 앱에서 읽지 않습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ative Ajustes › Diário › Salvar registros de humor no Saúde e cada registro é salvo como estado de espírito. O MirrorNotes nunca lê do Saúde."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Включите «Настройки › Дневник › Сохранять отметки настроения в Здоровье», и каждая отметка сохранится как состояние духа. MirrorNotes ничего не читает из Здоровья."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "开启“设置 › 日记 › 将情绪打卡存入健康”，每次打卡都会作为心理状态保存。MirrorNotes 从不读取健康数据。"
           }
         }
       }

@@ -14,6 +14,15 @@ Also in this update
 • Past reflections and digests end with Show all, so you can read every one.
 • Organize can add a Scratch collection for quick notes, lists and numbers. Reflections, Ask, mood charts and mood alerts don't read it, and any collection can be kept out of them the same way.
 • Tapping Entries again scrolls the list back to the top.
+• Write has a new header: the date as a title, Mood beside it, Save as a button, and Delete and focus mode in the ⋯ menu.
+• New Scratch Note from Control Center, Siri or the Entries menu.
+• Templates: Evening Review, Weekly Plan and Morning Pages, plus your own, kept on this device.
+• Suggestions from your day: Apple's Journaling Suggestions as a starting point.
+• Still Open lists every unticked checklist item across your entries.
+• Link an entry to another, and see what links to it under Linked from.
+• Patterns and Year in Review (Deep): the moods that come with your days, times and tags, and your year in numbers.
+• MirrorNotes on Apple Watch: log a mood or a quick note.
+• Save mood check-ins to Apple Health if you choose (Settings › Journal).
 • Big journals are faster: the Entries list, search, Insights, the mood timeline and the calendar no longer re-read every entry whenever the screen changes, and opening an entry no longer loads the whole journal.
 • MirrorNotes opens a little faster and uses less memory.
 • Entry rows spell out the word count ("52 words" instead of "52w").

@@ -9,4 +9,10 @@ Außerdem in diesem Update
 • Frühere Reflexionen auf der Übersicht haben „Mehr lesen“, und frühere Reflexionen und Zusammenfassungen enden mit „Alle anzeigen“.
 • Ein Tippen auf einen Tag im Kalender unter „Einträge“ lässt diesen Tag im Blick, statt zurück zu heute zu springen.
 • Unter „Ordnen“ kannst du die Sammlung „Notizen“ für schnelle Notizen, Listen und Nummern anlegen. Reflexionen, Fragen, Stimmungsdiagramme und Stimmungswarnungen lesen sie nicht, und jede Sammlung lässt sich genauso heraushalten.
+• Sprachnotizen wie auf dem iPhone: pausieren, anhören, dann hinzufügen.
+• Beim Schreiben: Fokusmodus, Tagesziel für Wörter und Tag-Vorschläge.
+• Checklisten-Zeilen per Ziehen umsortieren; abgehakte Punkte können nach unten wandern.
+• Ablage › Von Gerät importieren: Foto oder Scan mit dem iPhone.
+• Vorlagen, Noch offen, Verlinkungen, Muster und Jahresrückblick.
+• Code einlösen im Abo-Bildschirm und in den Einstellungen.
 • Große Tagebücher sind schneller: Die Eintragsliste, die Suche und Einblicke lesen nicht mehr bei jeder Änderung im Fenster alle Einträge neu.

@@ -14,6 +14,15 @@ Também nesta atualização
 • Reflexões anteriores e resumos anteriores terminam com Mostrar tudo, para você ler todos.
 • Em Organizar, você pode adicionar a coleção Anotações para notas rápidas, listas e números. Reflexões, Perguntar, gráficos de humor e alertas de humor não a leem, e qualquer coleção pode ficar de fora do mesmo jeito.
 • Tocar em Entradas de novo leva a lista de volta ao topo.
+• Novo topo ao escrever: a data como título, o humor ao lado, Salvar como botão, e Apagar e o modo foco no menu ⋯.
+• Nova anotação pela Central de Controle, pela Siri ou pelo menu de Entradas.
+• Modelos: Revisão da noite, Plano semanal e Páginas matinais, além dos seus, só neste dispositivo.
+• Sugestões do seu dia: as sugestões de diário da Apple como ponto de partida.
+• Em aberto reúne todos os itens de lista não marcados das suas entradas.
+• Vincule uma entrada a outra e veja em «Vinculada de» o que aponta para ela.
+• Padrões e Retrospectiva do ano (Deep): os humores ligados aos seus dias, horários e tags, e seu ano em números.
+• MirrorNotes no Apple Watch: registre um humor ou uma nota rápida.
+• Salve seus registros de humor no Apple Saúde, se quiser (Ajustes › Diário).
 • Diários grandes estão mais rápidos: a lista de Entradas, a busca, as Percepções, a linha do tempo de humor e o calendário não releem mais todas as entradas a cada mudança de tela, e abrir uma entrada não carrega mais o diário inteiro.
 • O MirrorNotes abre um pouco mais rápido e usa menos memória.
 • As entradas mostram o número de palavras por extenso (“52 palavras” em vez de “52 p”).
