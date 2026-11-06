@@ -8,4 +8,5 @@ Também nesta atualização
 • Se os planos não carregarem, Assinatura oferece Tentar novamente em vez de ficar carregando.
 • As reflexões anteriores do painel têm Ler mais, e reflexões anteriores e resumos anteriores terminam com Mostrar tudo.
 • Tocar em um dia no calendário de Entradas mantém esse dia à vista em vez de voltar para hoje.
+• Em Organizar, você pode adicionar a coleção Anotações para notas rápidas, listas e números. Reflexões, Perguntar, gráficos de humor e alertas de humor não a leem, e qualquer coleção pode ficar de fora do mesmo jeito.
 • Diários grandes estão mais rápidos: a lista de Entradas, a busca e as Percepções não releem mais todas as entradas a cada mudança na janela.

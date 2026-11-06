@@ -12,6 +12,8 @@ Core et Deep sont là
 • La première fois que le clavier s’ouvre, une astuce montre qu’un balayage vers le bas sur la page le masque.
 • Toucher un jour dans le calendrier des Entrées garde ce jour à l’écran au lieu de revenir à aujourd’hui.
 • Les réflexions passées et les résumés précédents se terminent par Tout afficher, pour pouvoir tous les lire.
+• Organiser peut ajouter une collection Pense-bête pour les notes rapides, listes et numéros. Les réflexions, Demander, les graphiques d’humeur et les alertes d’humeur ne la lisent pas, et toute collection peut en être exclue de la même façon.
+• Toucher de nouveau Entrées ramène la liste en haut.
 • Les grands journaux sont plus rapides : la liste des Entrées, la recherche, les Aperçus, la chronologie de l’humeur et le calendrier ne relisent plus toutes les entrées à chaque changement d’écran, et ouvrir une entrée ne charge plus tout le journal.
 • MirrorNotes s’ouvre un peu plus vite et utilise moins de mémoire.
 • Les entrées affichent le nombre de mots en entier (« 52 mots » au lieu de « 52 m »).

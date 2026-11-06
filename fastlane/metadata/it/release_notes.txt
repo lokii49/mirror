@@ -12,6 +12,8 @@ Inoltre in questo aggiornamento
 • La prima volta che si apre la tastiera, un suggerimento mostra che scorrendo verso il basso sulla pagina la nascondi.
 • Toccando un giorno nel calendario delle Voci, quel giorno resta in vista invece di tornare a oggi.
 • Le riflessioni passate e i riepiloghi precedenti finiscono con Mostra tutto, così puoi leggerli tutti.
+• In Organizza puoi aggiungere la raccolta Appunti per note veloci, liste e numeri. Riflessioni, Chiedi, grafici dell’umore e avvisi sull’umore non la leggono, e qualsiasi raccolta si può escludere allo stesso modo.
+• Toccando di nuovo Voci, l’elenco torna in cima.
 • I diari grandi sono più veloci: l’elenco delle Voci, la ricerca, gli Approfondimenti, la cronologia dell’umore e il calendario non rileggono più tutte le voci a ogni cambio di schermata, e aprire una voce non carica più l’intero diario.
 • MirrorNotes si apre un po’ più in fretta e usa meno memoria.
 • Le voci mostrano il numero di parole per esteso («52 parole» invece di «52 p»).
