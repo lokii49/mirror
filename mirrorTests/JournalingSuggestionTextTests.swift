@@ -79,11 +79,8 @@ struct JournalingSuggestionTextTests {
         #expect(SuggestionLines.trimmedRoute([]) == nil)
     }
 
-    @Test func onlyANamedPlaceThatIsntWorkGetsAMap() {
-        #expect(SuggestionLines.placeGetsMap(name: "Blue Door Café", isWork: nil))
-        #expect(SuggestionLines.placeGetsMap(name: "Blue Door Café", isWork: false))
-        #expect(!SuggestionLines.placeGetsMap(name: "Office", isWork: true), "work never gets a map")
-        #expect(!SuggestionLines.placeGetsMap(name: nil, isWork: nil), "an unnamed spot (maybe home) keeps its text only")
-        #expect(!SuggestionLines.placeGetsMap(name: "  ", isWork: false))
+    @Test func anyPlaceWithALocationGetsAMap() {
+        #expect(SuggestionLines.placeGetsMap(hasLocation: true), "home and work included (owner, 2026-11-06)")
+        #expect(!SuggestionLines.placeGetsMap(hasLocation: false))
     }
 }

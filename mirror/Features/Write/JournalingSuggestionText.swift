@@ -130,13 +130,9 @@ enum SuggestionLines {
         return kept.count >= 2 ? kept : nil
     }
 
-    /// Whether a place gets a map with a pin: only a named place (a café, a park), never one Apple
-    /// marks as work. A bare city or an unnamed spot keeps its text line only; Apple doesn't mark
-    /// home, so needing a name is what keeps a home address off the map (owner, 2026-11-06).
-    static func placeGetsMap(name: String?, isWork: Bool?) -> Bool {
-        guard isWork != true else { return false }
-        return cleaned(name) != nil
-    }
+    /// Whether a place gets a map with a pin: any place with a location, home and work included
+    /// (owner, 2026-11-06).
+    static func placeGetsMap(hasLocation: Bool) -> Bool { hasLocation }
 
     private static func joined(_ symbol: String, _ first: String?, _ second: String?) -> String? {
         let bits = [cleaned(first), cleaned(second)].compactMap { $0 }
@@ -356,9 +352,7 @@ extension SuggestionInsert {
     }
 
     private static func mapsPlace(_ location: JournalingSuggestion.Location) -> Bool {
-        var isWork: Bool?
-        if #available(iOS 26.0, *) { isWork = location.isWorkLocation }
-        return location.location != nil && SuggestionLines.placeGetsMap(name: location.place, isWork: isWork)
+        SuggestionLines.placeGetsMap(hasLocation: location.location != nil)
     }
 
     private static func workoutLine(_ workout: JournalingSuggestion.Workout) -> String {
