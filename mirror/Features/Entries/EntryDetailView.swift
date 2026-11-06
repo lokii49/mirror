@@ -276,10 +276,14 @@ struct EntryDetailView: View {
                 if !onThisDayEntries.isEmpty {
                     OnThisDaySection(entries: onThisDayEntries, referenceDate: entry.createdAt)
                 }
+
+                // Entries that link here (only links the person made).
+                LinkedFromSection(entryID: entry.id)
             }
             .padding(16)
             .padding(.bottom, 32)
         }
+        .modifier(EntryLinkRouting())
         .modifier(ReaderMatchScrolling(matches: searchMatches, index: $matchIndex))
         .background(MirrorTheme.bgBase)
         .task(id: MatchKey(entryID: entry.id, terms: searchHighlight.terms, text: entry.text)) { locateMatches() }
@@ -446,6 +450,8 @@ struct EntryDetailView: View {
                         OnThisDaySection(entries: onThisDayEntries, referenceDate: entry.createdAt)
                             .padding(.top, 30)
                     }
+                    LinkedFromSection(entryID: entry.id)
+                        .padding(.top, 30)
                 }
                 .frame(maxWidth: MacPrefs.lineWidth(lineWidthPreference).readerColumn, alignment: .leading)
                 .padding(.horizontal, 20)
@@ -455,6 +461,7 @@ struct EntryDetailView: View {
             }
             .modifier(MacNoScrollEdgeEffect())
             .modifier(ReaderMatchScrolling(matches: searchMatches, index: $matchIndex))
+            .modifier(EntryLinkRouting())
         }
         .background(MirrorTheme.bgBase)
         .task(id: MatchKey(entryID: entry.id, terms: searchHighlight.terms, text: entry.text)) { locateMatches() }

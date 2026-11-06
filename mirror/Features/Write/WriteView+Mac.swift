@@ -187,6 +187,10 @@ extension WriteView {
         .padding(.horizontal, 16)
         .frame(height: MacTokens.chromeHeight)
         .background(MacTokens.windowBackground)
+        // Add Link › Link to an Entry… (the Mac's toolbar hosts it, as iOS's More menu does).
+        .sheet(isPresented: $showEntryLinkPicker) {
+            EntryLinkPicker(excluding: entry?.id) { applyTextCommand(.link(url: EntryLinks.urlString(for: $0))) }
+        }
         .overlay(alignment: .bottom) { Rectangle().fill(MacTokens.divider).frame(height: 1) }
     }
 

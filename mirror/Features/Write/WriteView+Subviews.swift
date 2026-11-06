@@ -292,7 +292,10 @@ extension WriteView {
             toggleFocus: {
                 withAnimation(.easeInOut(duration: 0.2)) { focusMode.toggle() }
                 if focusMode { editorFocused = true }
-            }
+            },
+            entryLinkPicker: $showEntryLinkPicker,
+            linkingEntryID: entry?.id,
+            linkToEntry: { applyTextCommand(.link(url: EntryLinks.urlString(for: $0))) }
         )
     }
 

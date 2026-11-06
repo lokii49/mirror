@@ -24,6 +24,10 @@ struct WriteToolbar: ToolbarContent {
     let saveToDrafts: () -> Void
     let continueSavedDraft: (UUID) -> Void
     let toggleFocus: () -> Void
+    /// Add Link › Link to an Entry…: hosted by the More menu so WriteView.body gains no modifier.
+    var entryLinkPicker: Binding<Bool> = .constant(false)
+    var linkingEntryID: UUID? = nil
+    var linkToEntry: (UUID) -> Void = { _ in }
 
     var body: some ToolbarContent {
         if focusMode {
@@ -56,6 +60,9 @@ struct WriteToolbar: ToolbarContent {
                           isSentinel: isSentinel,
                           toggleFocus: toggleFocus,
                           delete: delete)
+                .sheet(isPresented: entryLinkPicker) {
+                    EntryLinkPicker(excluding: linkingEntryID, onPick: linkToEntry)
+                }
         }
         .preferringVerticalBar()
 

@@ -219,6 +219,8 @@ struct WriteView: View {
     @State var showTagInput = false
     @State var existingTagSuggestions: [String] = []
     @State var showLinkEditor = false
+    /// "Link to an Entry…" from Add Link; the picker is hosted by the toolbar (no new body modifier).
+    @State var showEntryLinkPicker = false
     @State var linkEditorURLText = ""
     @State var linkEditorHasExisting = false
     @AppStorage("dailyWordGoal") var dailyWordGoal: Int = 200
@@ -850,6 +852,10 @@ struct WriteView: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
             Button("Save") { applyTextCommand(.link(url: linkEditorURLText)) }
+            Button("Link to an Entry…") {
+                // After the alert has gone, or the sheet is dropped.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { showEntryLinkPicker = true }
+            }
             if linkEditorHasExisting {
                 Button("Remove Link", role: .destructive) { applyTextCommand(.link(url: nil)) }
             }

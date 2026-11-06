@@ -456,6 +456,32 @@ enum MacSnapshot {
             NSApp.terminate(nil)
             return
         }
+        // Entry links: the second-newest entry links to the newest, whose reader shows Linked from.
+        if CommandLine.arguments.contains("--macSnapshotLinksOnly") {
+            let all = (try? context.fetch(FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)]))) ?? []
+            // The oldest entry links to the six newest and every pinned one, so whichever the list
+            // opens first shows Linked from.
+            if let source = all.last {
+                let targets = (Array(all.prefix(6)) + all.filter(\.isPinned)).filter { $0.id != source.id }
+                let length = (source.text as NSString).length
+                let ranges = targets.enumerated().map { index, target in
+                    InlineStyleRange(location: min(index, max(0, length - 1)), length: 1, bold: false, italic: false,
+                                     underline: false, strikethrough: false, highlightIndex: nil,
+                                     linkURL: EntryLinks.urlString(for: target.id))
+                }
+                source.inlineStyleData = try? JSONEncoder().encode(InlineStyleDocument(ranges: ranges))
+                try? context.save()
+                NSLog("MacSnapshot: links from 1 entry to %d", ranges.count)
+            }
+            go("entries")
+            try? await Task.sleep(for: .seconds(1.5))
+            NotificationCenter.default.post(name: .mirrorMacDebugSelectFirstEntry, object: nil)
+            try? await Task.sleep(for: .seconds(2.5))
+            capture(mainWindow(), name: "links-target")
+            NSApp.terminate(nil)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { exit(0) }
+            return
+        }
         // Patterns and Year in Review over the sample journal.
         if CommandLine.arguments.contains("--macSnapshotPatternsOnly") {
             go("patterns")

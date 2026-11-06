@@ -233,6 +233,13 @@ nonisolated func textWithPhotoTokensReplaced(_ text: String, placeholder: String
 nonisolated func validatedLinkURL(from urlString: String?) -> URL? {
     var trimmed = urlString?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     guard !trimmed.isEmpty else { return nil }
+    // A link to another entry (EntryLinks): mirror://entry/<uuid>, nothing else on that scheme.
+    if trimmed.lowercased().hasPrefix("mirror://") {
+        guard let url = URL(string: trimmed), url.host?.lowercased() == "entry",
+              let id = url.pathComponents.dropFirst().first, UUID(uuidString: id) != nil,
+              url.pathComponents.count == 2 else { return nil }
+        return url
+    }
     if !trimmed.contains("://") { trimmed = "https://" + trimmed }
     guard let url = URL(string: trimmed),
           let scheme = url.scheme?.lowercased(),
