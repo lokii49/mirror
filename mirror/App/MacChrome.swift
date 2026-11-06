@@ -89,7 +89,7 @@ struct MacHoverButtonStyle: ButtonStyle {
 /// Every place the sidebar can go. The sidebar lists them in this order.
 enum MacDestination: String, CaseIterable, Hashable {
     case write, entries
-    case today, digest, report, mood, ask, brain
+    case today, digest, report, mood, patterns, review, ask, brain
 
     var title: LocalizedStringKey {
         switch self {
@@ -99,6 +99,8 @@ enum MacDestination: String, CaseIterable, Hashable {
         case .digest: return "Weekly digest"
         case .report: return "Monthly report"
         case .mood: return "Mood timeline"
+        case .patterns: return "Patterns"
+        case .review: return "Year in Review"
         case .ask: return "Ask"
         case .brain: return "Brain View"
         }
@@ -113,6 +115,8 @@ enum MacDestination: String, CaseIterable, Hashable {
         case .digest: return String(localized: "Weekly digest")
         case .report: return String(localized: "Monthly report")
         case .mood: return String(localized: "Mood timeline")
+        case .patterns: return String(localized: "Patterns")
+        case .review: return String(localized: "Year in Review")
         case .ask: return String(localized: "Ask")
         case .brain: return String(localized: "Brain View")
         }
@@ -126,6 +130,8 @@ enum MacDestination: String, CaseIterable, Hashable {
         case .digest: return "doc"
         case .report: return "bars"
         case .mood: return "chart"
+        case .patterns: return "pulse"
+        case .review: return "card"
         case .ask: return "chat"
         case .brain: return "constellation"
         }
@@ -136,7 +142,7 @@ enum MacDestination: String, CaseIterable, Hashable {
         switch self {
         case .write, .entries: return false
         case .today, .digest, .ask: return tier == .free
-        case .report, .mood, .brain: return tier != .deep
+        case .report, .mood, .patterns, .review, .brain: return tier != .deep
         }
     }
 }
@@ -183,6 +189,8 @@ struct MacSidebar: View {
                 row(.digest)
                 row(.report)
                 row(.mood)
+                row(.patterns)
+                row(.review)
                 row(.ask, trailing: asksLeft.map { String(localized: "\($0) left") })
                 row(.brain)
             }

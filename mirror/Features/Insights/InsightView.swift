@@ -727,6 +727,40 @@ struct InsightView: View {
         .buttonStyle(.plain)
     }
 
+    // MARK: - Patterns and Year in Review (Deep, app-counted)
+
+    private var patternsSection: some View {
+        NavigationLink {
+            PatternsView()
+        } label: {
+            ExplorationTile(
+                title: displayMode == .sentinel ? "Patterns" : "Patterns",
+                subtitle: "Moods by day, time and tag",
+                icon: "square.grid.3x3.topleft.filled",
+                color: .pink,
+                badge: SubscriptionService.shared.isDeep ? nil : "Deep"
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("explore.patterns")
+    }
+
+    private var reviewSection: some View {
+        NavigationLink {
+            ReviewView()
+        } label: {
+            ExplorationTile(
+                title: displayMode == .sentinel ? "Debrief" : "Year in Review",
+                subtitle: ReviewStatsService.isReviewWeek() ? "Your last year in numbers" : "Your year so far",
+                icon: "calendar.badge.checkmark",
+                color: .mint,
+                badge: SubscriptionService.shared.isDeep ? nil : "Deep"
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("explore.review")
+    }
+
     // MARK: - Brain View
 
     private var brainSection: some View {
@@ -908,6 +942,8 @@ struct InsightView: View {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 2), spacing: 12) {
                 askSection
                 moodTimelineSection
+                patternsSection
+                reviewSection
             }
             brainSection
         }

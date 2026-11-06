@@ -708,6 +708,10 @@ struct ContentView: View {
             NavigationStack { MonthlyReportView(viewModel: insightViewModel) }
         case .mood:
             NavigationStack { MoodTimelineView() }
+        case .patterns:
+            NavigationStack { PatternsView() }
+        case .review:
+            NavigationStack { ReviewView() }
         case .ask:
             NavigationStack { AskView(viewModel: insightViewModel) }
         case .brain:

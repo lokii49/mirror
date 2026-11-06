@@ -456,6 +456,18 @@ enum MacSnapshot {
             NSApp.terminate(nil)
             return
         }
+        // Patterns and Year in Review over the sample journal.
+        if CommandLine.arguments.contains("--macSnapshotPatternsOnly") {
+            go("patterns")
+            try? await Task.sleep(for: .seconds(2.5))
+            capture(mainWindow(), name: "patterns")
+            go("review")
+            try? await Task.sleep(for: .seconds(2.5))
+            capture(mainWindow(), name: "review")
+            NSApp.terminate(nil)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { exit(0) }
+            return
+        }
         // Your templates: the manager with one saved (sealed, this device), then its editor.
         if CommandLine.arguments.contains("--macSnapshotTemplatesOnly") {
             CustomTemplateStore.save([CustomTemplate(title: "Synthetic check-in", text: "How did today go?\n- ")])
