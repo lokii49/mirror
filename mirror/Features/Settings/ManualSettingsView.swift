@@ -21,7 +21,9 @@ struct ManualSettingsView: View {
                     }
                     .buttonStyle(.plain)
 
-                    if FeatureCardService.shared.shouldShowWhatsNew {
+                    // Always there while this release has pages, seen or not: testers and anyone who
+                    // swiped the sheet away can open it again (owner, 2026-11-06).
+                    if !FeatureCardService.shared.whatsNewCards.isEmpty {
                         SettingsDivider()
 
                         Button { showFeatureGuide = true } label: {

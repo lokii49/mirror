@@ -322,6 +322,136 @@
         }
       }
     },
+    "Also save check-ins to Apple Health?" : {
+      "comment" : "One-time offer after a mood check-in",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Check-ins auch in Apple Health sichern?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Also save check-ins to Apple Health?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "¿Guardar también los registros en Salud?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Enregistrer aussi les relevés dans Santé ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Salvare i check-in anche in Salute?"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "チェックインをヘルスケアにも保存しますか？"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "체크인을 건강 앱에도 저장할까요?"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Salvar os registros também no Saúde?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Сохранять отметки и в Здоровье?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "也把打卡存入健康？"
+          }
+        }
+      }
+    },
+    "Apple's Journaling Suggestions" : {
+      "comment" : "Settings row title: Apple's Journaling Suggestions",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Apples Journaling-Vorschläge"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple's Journaling Suggestions"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Sugerencias para el diario de Apple"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Suggestions pour le journal d’Apple"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Suggerimenti per il diario di Apple"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Appleのジャーナリングの提案"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Apple 일기 쓰기 제안"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Sugestões para Diário da Apple"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Предложения для дневника от Apple"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Apple 日记建议"
+          }
+        }
+      }
+    },
     "Call the dentist" : {
       "comment" : "Sample checklist item in the What's New Still Open demo",
       "localizations" : {
@@ -383,6 +513,201 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "给牙医打电话"
+          }
+        }
+      }
+    },
+    "Each check-in becomes a State of Mind in Health. MirrorNotes never reads from Health." : {
+      "comment" : "One-time Health offer after a check-in",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Jede Stimmungsabfrage wird in Health als Gemütszustand gesichert. MirrorNotes liest nie aus Health."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Each check-in becomes a State of Mind in Health. MirrorNotes never reads from Health."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Cada registro se guarda en Salud como estado de ánimo. MirrorNotes nunca lee de Salud."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Chaque relevé devient un état d’esprit dans Santé. MirrorNotes ne lit jamais Santé."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ogni check-in diventa uno stato d’animo in Salute. MirrorNotes non legge mai da Salute."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "チェックインはヘルスケアに「心の状態」として保存されます。MirrorNotesがヘルスケアから読み取ることはありません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "각 체크인은 건강 앱에 마음 상태로 저장됩니다. MirrorNotes는 건강 앱에서 읽지 않습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Cada registro vira um estado de espírito no Saúde. O MirrorNotes nunca lê do Saúde."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Каждая отметка сохраняется в Здоровье как состояние духа. MirrorNotes ничего не читает из Здоровья."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "每次打卡都会作为心理状态存入健康。MirrorNotes 从不读取健康数据。"
+          }
+        }
+      }
+    },
+    "Health didn't allow it. You can change that in the Health app under Sharing." : {
+      "comment" : "Health offer result when access is refused",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Health hat es nicht erlaubt. Du kannst das in der Health-App unter „Teilen“ ändern."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Health didn't allow it. You can change that in the Health app under Sharing."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Salud no lo permitió. Puedes cambiarlo en la app Salud, en Compartir."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Santé ne l’a pas autorisé. Vous pouvez changer cela dans l’app Santé, sous Partage."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Salute non l’ha consentito. Puoi cambiarlo nell’app Salute, in Condivisione."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ヘルスケアで許可されませんでした。ヘルスケアAppの「共有」で変更できます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "건강 앱이 허용하지 않았습니다. 건강 앱의 공유에서 변경할 수 있습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "O Saúde não permitiu. Você pode mudar isso no app Saúde, em Compartilhamento."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Здоровье не разрешило. Это можно изменить в приложении «Здоровье» в разделе «Доступ»."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "健康未允许。你可以在健康 App 的“共享”中更改。"
+          }
+        }
+      }
+    },
+    "In Write, Suggestions from your day opens Apple's own sheet of photos, workouts and places from your day. MirrorNotes sees only the one you pick, to start that entry, and nothing else. Which suggestions appear is set in Settings › Privacy & Security › Journaling Suggestions." : {
+      "comment" : "Settings explanation of Suggestions from your day",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "In „Schreiben“ öffnet „Vorschläge aus deinem Tag“ Apples eigenes Fenster mit Fotos, Trainings und Orten aus deinem Tag. MirrorNotes sieht nur, was du auswählst, um damit den Eintrag zu beginnen, sonst nichts. Welche Vorschläge erscheinen, legst du in Einstellungen › Datenschutz & Sicherheit › Journaling-Vorschläge fest."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In Write, Suggestions from your day opens Apple's own sheet of photos, workouts and places from your day. MirrorNotes sees only the one you pick, to start that entry, and nothing else. Which suggestions appear is set in Settings › Privacy & Security › Journaling Suggestions."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "En Escribir, Sugerencias de tu día abre la propia hoja de Apple con fotos, entrenamientos y lugares de tu día. MirrorNotes solo ve la que eliges, para empezar esa entrada, y nada más. Qué sugerencias aparecen se ajusta en Ajustes › Privacidad y seguridad › Sugerencias para el diario."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Dans Écrire, Suggestions de votre journée ouvre la fenêtre d’Apple avec les photos, entraînements et lieux de votre journée. MirrorNotes ne voit que celle que vous choisissez, pour commencer cette entrée, et rien d’autre. Les suggestions proposées se règlent dans Réglages › Confidentialité et sécurité › Suggestions pour le journal."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "In Scrivi, Suggerimenti dalla tua giornata apre la finestra di Apple con foto, allenamenti e luoghi della tua giornata. MirrorNotes vede solo quello che scegli, per iniziare quella voce, e nient’altro. Quali suggerimenti compaiono si imposta in Impostazioni › Privacy e sicurezza › Suggerimenti per il diario."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "「書く」の「今日の提案」は、今日の写真・ワークアウト・場所を並べたApple自身の画面を開きます。MirrorNotesが受け取るのは、そのエントリーを始めるために選んだものだけです。表示される提案は 設定 › プライバシーとセキュリティ › ジャーナリングの提案 で設定できます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "쓰기의 '오늘의 제안'은 오늘의 사진, 운동, 장소를 보여 주는 Apple의 화면을 엽니다. MirrorNotes는 그 항목을 시작하려고 고른 것만 보며, 다른 것은 보지 않습니다. 어떤 제안이 나타날지는 설정 › 개인정보 보호 및 보안 › 일기 쓰기 제안에서 정합니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Em Escrever, Sugestões do seu dia abre a tela da própria Apple com fotos, treinos e lugares do seu dia. O MirrorNotes vê só o que você escolhe, para começar aquela entrada, e nada mais. Quais sugestões aparecem é definido em Ajustes › Privacidade e Segurança › Sugestões para Diário."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "В «Записи» кнопка «Подсказки из вашего дня» открывает окно самой Apple с фото, тренировками и местами за день. MirrorNotes видит только то, что вы выбрали, чтобы начать эту запись, и больше ничего. Какие подсказки показывать, настраивается в Настройках › Конфиденциальность и безопасность › Предложения для дневника."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "在“写作”中，“来自今天的建议”会打开 Apple 自己的界面，显示今天的照片、体能训练和地点。MirrorNotes 只会看到你为开始这条记录而选的那一项，别无其他。显示哪些建议可在 设置 › 隐私与安全性 › 日记建议 中设置。"
           }
         }
       }
@@ -452,6 +777,136 @@
         }
       }
     },
+    "Photos, workouts and places from your day, picked in Apple's own sheet. Nothing reaches MirrorNotes until you choose one." : {
+      "comment" : "One-time tip under Suggestions from your day in Write",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Fotos, Trainings und Orte aus deinem Tag, ausgewählt in Apples eigenem Fenster. Nichts erreicht MirrorNotes, bis du etwas auswählst."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photos, workouts and places from your day, picked in Apple's own sheet. Nothing reaches MirrorNotes until you choose one."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Fotos, entrenamientos y lugares de tu día, elegidos en la propia hoja de Apple. Nada llega a MirrorNotes hasta que eliges uno."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Photos, entraînements et lieux de votre journée, choisis dans la fenêtre d’Apple. Rien n’arrive à MirrorNotes avant que vous en choisissiez un."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Foto, allenamenti e luoghi della tua giornata, scelti nella finestra di Apple. Nulla arriva a MirrorNotes finché non ne scegli uno."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "今日の写真、ワークアウト、場所をApple自身の画面から選べます。選ぶまでMirrorNotesには何も渡りません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "오늘의 사진, 운동, 장소를 Apple의 화면에서 고릅니다. 하나를 고르기 전에는 MirrorNotes에 아무것도 전달되지 않습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Fotos, treinos e lugares do seu dia, escolhidos na tela da própria Apple. Nada chega ao MirrorNotes até você escolher um."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Фото, тренировки и места из вашего дня, выбранные в окне самой Apple. Пока вы что-то не выберете, MirrorNotes ничего не получает."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "来自今天的照片、体能训练和地点，在 Apple 自己的界面中选择。在你选择之前，MirrorNotes 不会收到任何内容。"
+          }
+        }
+      }
+    },
+    "Record a voice note, type a quick note or log a mood from your wrist. Each one is saved in MirrorNotes on your iPhone, which keeps your journal's key." : {
+      "comment" : "What's New: MirrorNotes on Apple Watch (voice notes first)",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Nimm eine Sprachnotiz auf, tippe eine kurze Notiz oder trage eine Stimmung ein, direkt am Handgelenk. Alles wird in MirrorNotes auf deinem iPhone gesichert, das den Schlüssel deines Journals hat."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record a voice note, type a quick note or log a mood from your wrist. Each one is saved in MirrorNotes on your iPhone, which keeps your journal's key."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Graba una nota de voz, escribe una nota rápida o registra tu ánimo desde la muñeca. Todo se guarda en MirrorNotes en tu iPhone, que tiene la llave de tu diario."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Enregistrez une note vocale, tapez une note rapide ou notez votre humeur depuis votre poignet. Tout est enregistré dans MirrorNotes sur votre iPhone, qui garde la clé de votre journal."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Registra una nota vocale, scrivi una nota veloce o annota l’umore dal polso. Tutto viene salvato in MirrorNotes sul tuo iPhone, che custodisce la chiave del tuo diario."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "手首からボイスメモを録音したり、クイックメモを入力したり、気分を記録したりできます。どれも日記の鍵を持つiPhoneのMirrorNotesに保存されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "손목에서 음성 메모를 녹음하고, 빠른 메모를 입력하거나 기분을 기록하세요. 모두 일기의 키를 가진 iPhone의 MirrorNotes에 저장됩니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Grave uma nota de voz, digite uma nota rápida ou registre o humor pelo pulso. Tudo fica salvo no MirrorNotes do seu iPhone, que guarda a chave do seu diário."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Запишите голосовую заметку, напечатайте короткую заметку или отметьте настроение прямо с запястья. Всё сохраняется в MirrorNotes на iPhone, где хранится ключ вашего дневника."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "在手腕上录一条语音笔记、输入一条快速笔记或记录心情。它们都会保存到你 iPhone 上的 MirrorNotes 中，日记的密钥就在那里。"
+          }
+        }
+      }
+    },
     "Return the library books" : {
       "comment" : "Sample checklist item in the What's New Still Open demo",
       "localizations" : {
@@ -517,6 +972,71 @@
         }
       }
     },
+    "Saved to Apple Health. New check-ins will be too." : {
+      "comment" : "Health offer result",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "In Apple Health gesichert. Neue Check-ins ebenfalls."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saved to Apple Health. New check-ins will be too."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Guardado en Salud. Los nuevos registros también."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Enregistré dans Santé. Les prochains relevés le seront aussi."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Salvato in Salute. Anche i prossimi check-in."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ヘルスケアに保存しました。今後のチェックインも保存されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "건강 앱에 저장했습니다. 새 체크인도 저장됩니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Salvo no Saúde. Os próximos registros também."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Сохранено в Здоровье. Новые отметки тоже будут сохраняться."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "已存入健康。之后的打卡也会存入。"
+          }
+        }
+      }
+    },
     "Send the photos" : {
       "comment" : "Sample checklist item in the What's New Still Open demo",
       "localizations" : {
@@ -578,6 +1098,201 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "把照片发过去"
+          }
+        }
+      }
+    },
+    "Turn On" : {
+      "comment" : "Button: turn on saving check-ins to Health",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Einschalten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn On"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Activar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Activer"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Attiva"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "オンにする"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "켜기"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ativar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Включить"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "打开"
+          }
+        }
+      }
+    },
+    "Turning this off stops new check-ins from going to Health; the ones already saved stay in Health, where you can see or delete them." : {
+      "comment" : "Settings › Apple Health footer, second line",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Wenn du das ausschaltest, gehen neue Check-ins nicht mehr an Health; bereits gesicherte bleiben in Health, wo du sie ansehen oder löschen kannst."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turning this off stops new check-ins from going to Health; the ones already saved stay in Health, where you can see or delete them."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Al desactivarlo, los nuevos registros dejan de ir a Salud; los ya guardados siguen en Salud, donde puedes verlos o eliminarlos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Désactiver ceci arrête l’envoi des nouveaux relevés vers Santé ; ceux déjà enregistrés restent dans Santé, où vous pouvez les voir ou les supprimer."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Disattivandolo, i nuovi check-in non vanno più in Salute; quelli già salvati restano in Salute, dove puoi vederli o eliminarli."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "オフにすると新しいチェックインはヘルスケアに送られなくなります。保存済みのものはヘルスケアに残り、そこで確認や削除ができます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "끄면 새 체크인은 건강 앱으로 가지 않습니다. 이미 저장된 항목은 건강 앱에 남아 있으며 그곳에서 보거나 삭제할 수 있습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ao desativar, novos registros deixam de ir para o Saúde; os já salvos ficam no Saúde, onde você pode vê-los ou apagá-los."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Если выключить, новые отметки перестанут попадать в Здоровье; уже сохранённые останутся там, где их можно посмотреть или удалить."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "关闭后，新的打卡不再存入健康；已保存的仍留在健康中，你可以在那里查看或删除。"
+          }
+        }
+      }
+    },
+    "You can turn it on later in Settings › Journal." : {
+      "comment" : "After Not now on the Health offer",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Du kannst es später unter Einstellungen › Journal einschalten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can turn it on later in Settings › Journal."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Puedes activarlo más tarde en Ajustes › Diario."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Vous pourrez l’activer plus tard dans Réglages › Journal."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Puoi attivarlo più tardi in Impostazioni › Diario."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "あとで設定 › 日記からオンにできます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "나중에 설정 › 일기에서 켤 수 있습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Você pode ativar depois em Ajustes › Diário."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Это можно включить позже в Настройках › Дневник."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "你可以稍后在设置 › 日记中打开。"
           }
         }
       }

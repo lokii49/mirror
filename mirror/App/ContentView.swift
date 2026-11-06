@@ -51,6 +51,9 @@ struct ContentView: View {
     /// inside the split view's stack, where the system doesn't find it.
     @State private var entriesScrollToTopID = UUID()
     @State private var showWhatsNew = false
+    /// What's New was due but another sheet held the screen: it opens once the screen is clear
+    /// (build 43 skipped it for the whole launch instead, so an update could show nothing).
+    @State private var whatsNewWaiting = false
     /// The paid-plans notice on its own, for installs that never get it in What's New.
     @State private var showRatePrompt = false
     @State private var reviewPromptCoordinator = ReviewPromptCoordinator.shared
@@ -130,6 +133,27 @@ struct ContentView: View {
     }
 
     /// DEBUG `--showRatePrompt`; always false in a Release build.
+    /// DEBUG `--testWhatsNew`: What's New opens under `--uitesting` too, so the device test copy
+    /// (which needs `--uitesting`) can show it. Pair with `-mirror.whatsNew.lastSeenVersion 3.1.7`.
+    private static var isWhatsNewTestLaunch: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("--testWhatsNew")
+        #else
+        return false
+        #endif
+    }
+
+    /// Opens What's New now if the screen is clear, else as soon as it is.
+    private func presentWhatsNewWhenClear() {
+        guard featureCardService.shouldShowWhatsNew, !showWhatsNew else { return }
+        if canPresentWhatsNew {
+            whatsNewWaiting = false
+            showWhatsNew = true
+        } else {
+            whatsNewWaiting = true
+        }
+    }
+
     private static var isRatePromptLaunch: Bool {
         #if DEBUG
         return ProcessInfo.processInfo.arguments.contains("--showRatePrompt")
@@ -409,9 +433,7 @@ struct ContentView: View {
                 selectedSidebarItem = .write
                 Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 800_000_000)
-                    if featureCardService.shouldShowWhatsNew && canPresentWhatsNew {
-                        showWhatsNew = true
-                    }
+                    presentWhatsNewWhenClear()
                 }
             }
         }
@@ -434,11 +456,20 @@ struct ContentView: View {
                 }
             }
             #endif
-            if onboardingComplete && !isUITesting && featureCardService.shouldShowWhatsNew {
+            if onboardingComplete && (!isUITesting || Self.isWhatsNewTestLaunch) && featureCardService.shouldShowWhatsNew {
                 Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 500_000_000)
-                    if canPresentWhatsNew { showWhatsNew = true }
+                    presentWhatsNewWhenClear()
                 }
+            }
+        }
+        // A What's New that waited for another sheet opens once that sheet is gone.
+        .onChange(of: canPresentWhatsNew) { _, clear in
+            guard clear, whatsNewWaiting else { return }
+            Task { @MainActor in
+                // Let the closing sheet finish its animation first: two at once drops one.
+                try? await Task.sleep(nanoseconds: 600_000_000)
+                if whatsNewWaiting { presentWhatsNewWhenClear() }
             }
         }
         // Drafts > Continue writing: the Write editor takes the draft (SavedDraftStore).

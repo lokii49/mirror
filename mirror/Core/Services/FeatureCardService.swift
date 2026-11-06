@@ -592,7 +592,7 @@ enum FeatureCardRegistry {
         .init(
             id: "watch-318",
             title: "MirrorNotes on Apple Watch",
-            body: "Log a mood or a quick note from your wrist. It's saved in MirrorNotes on your iPhone, which keeps your journal's key.",
+            body: "Record a voice note, type a quick note or log a mood from your wrist. Each one is saved in MirrorNotes on your iPhone, which keeps your journal's key.",
             symbolName: "applewatch",
             accentColor: .orange,
             tier: .free,
