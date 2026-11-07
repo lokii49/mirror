@@ -616,11 +616,64 @@ struct WritingStarterChip: View {
     private var isSentinel: Bool { displayMode == .sentinel }
     private var accent: Color { isSentinel ? MirrorTheme.ember : MirrorTheme.violet }
 
+    /// Today's prompt, then another on ↻ (option B, owner 2026-11-07).
+    @State private var promptIndex = WritingPrompts.indexForToday()
+    /// Apple's Journaling Suggestions sheet, opened from "More ways to start".
+    @State private var showSuggestionsSheet = false
+
+    private var prompt: String { WritingPrompts.all[promptIndex % WritingPrompts.all.count] }
+
+    /// Option B (owner 2026-11-07, UI checklist §2): one inline prompt is the invitation; Talk it
+    /// out, templates and Suggestions from your day sit one tap away under "More ways to start".
+    /// Folds away once there's text (WriteView shows it on a blank new entry only).
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            starterMenu
-            suggestionsPicker
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 8) {
+                Text(prompt)
+                    .scaledFont(19, design: .serif)
+                    .italic()
+                    .foregroundStyle(MirrorTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityLabel(Text("Prompt: \(prompt)"))
+                Button {
+                    withAnimation(.easeOut(duration: 0.2)) { promptIndex += 1 }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .scaledFont(15, weight: .semibold)
+                        .foregroundStyle(accent)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Another prompt")
+                .padding(.top, -8)
+            }
+            HStack(spacing: 18) {
+                if addingSuggestion {
+                    HStack(spacing: 6) {
+                        ProgressView().controlSize(.small).tint(accent)
+                        Text("Adding from your day…")
+                    }
+                } else {
+                    Button {
+                        let text = prompt + "\n"
+                        onUseTemplate(text, .max)
+                    } label: { Text("Use this prompt") }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("write.usePrompt")
+                    starterMenu
+                }
+                Spacer(minLength: 0)
+            }
+            .scaledFont(14.5, weight: .medium)
+            .foregroundStyle(accent)
+            .frame(minHeight: 32)
         }
+        .modifier(SuggestionsPickerPresenter(isPresented: $showSuggestionsSheet, isAdding: $addingSuggestion) { insert in
+            suggestionsTipShown = true
+            onSuggestion?(insert)
+        })
         #if DEBUG && os(iOS) && canImport(JournalingSuggestions)
         .task {
             // `--demoSuggestion=run|music|place`: applies a synthetic suggestion once, as a pick would.
@@ -630,67 +683,14 @@ struct WritingStarterChip: View {
         #endif
     }
 
-    /// Apple's Journaling Suggestions (photos, workouts, places from your day), chosen in Apple's
-    /// own sheet; nothing reaches the app until the person picks one (3.1.8, item 7).
-    @ViewBuilder
-    private var suggestionsPicker: some View {
-        #if os(iOS) && canImport(JournalingSuggestions)
-        if let onSuggestion, #available(iOS 17.2, *), DeviceFeature.journalingSuggestionsAvailable {
-            JournalingSuggestionsPicker {
-                HStack(spacing: 6) {
-                    if addingSuggestion {
-                        ProgressView().controlSize(.small).tint(accent)
-                    } else {
-                        Image(systemName: "photo.on.rectangle.angled")
-                            .scaledFont(13, weight: .semibold)
-                    }
-                    Text(addingSuggestion ? "Adding from your day…" : (isSentinel ? "SUGGESTIONS FROM YOUR DAY" : "Suggestions from your day"))
-                        .scaledFont(isSentinel ? 12.5 : 14, weight: isSentinel ? .semibold : .medium, design: isSentinel ? .monospaced : .default)
-                        .kerning(isSentinel ? 0.4 : 0)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
-                }
-                .foregroundStyle(accent)
-                .frame(minHeight: 32)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-            } onCompletion: { suggestion in
-                await MainActor.run { addingSuggestion = true }
-                let insert = await SuggestionInsert.read(suggestion)
-                await MainActor.run {
-                    suggestionsTipShown = true
-                    addingSuggestion = false
-                    onSuggestion(insert)
-                }
-            }
-            .disabled(addingSuggestion)
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("write.suggestions")
-            if !suggestionsTipShown {
-                HStack(alignment: .top, spacing: 8) {
-                    Text("Photos, workouts and places from your day, picked in Apple's own sheet. Nothing reaches MirrorNotes until you choose one.")
-                        .scaledFont(12.5)
-                        .foregroundStyle(MirrorTheme.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Button { suggestionsTipShown = true } label: {
-                        Image(systemName: "xmark")
-                            .scaledFont(11, weight: .bold)
-                            .foregroundStyle(MirrorTheme.textTertiary)
-                            .frame(width: 28, height: 28)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Dismiss")
-                }
-                .padding(.leading, 22)
-                .padding(.bottom, 4)
-            }
-        }
-        #endif
-    }
-
     private var starterMenu: some View {
         Menu {
+            if onSuggestion != nil, DeviceFeature.journalingSuggestionsAvailable {
+                Button { showSuggestionsSheet = true } label: {
+                    Label("Suggestions from your day", systemImage: "photo.on.rectangle.angled")
+                }
+                .accessibilityIdentifier("write.suggestions")
+            }
             if showsTalkItOut {
                 Button(action: onTalkItOut) {
                     Label(isSentinel ? "TALK IT OUT" : "Talk it out", systemImage: "bubble.left.and.text.bubble.right")
@@ -714,23 +714,14 @@ struct WritingStarterChip: View {
             Divider()
             Button("Manage Templates…", systemImage: "slider.horizontal.3") { showTemplateManager = true }
         } label: {
-            // Option A (owner 2026-11-06): one quiet line, not a card above the page, in both themes.
-            HStack(spacing: 6) {
-                Image(systemName: "sparkles")
-                    .scaledFont(13, weight: .semibold)
-                Text(isSentinel ? "NEED A STARTING POINT?" : "Need a starting point?")
-                    .scaledFont(isSentinel ? 12.5 : 14, weight: isSentinel ? .semibold : .medium, design: isSentinel ? .monospaced : .default)
-                    .kerning(isSentinel ? 0.4 : 0)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
+            HStack(spacing: 4) {
+                Text("More ways to start")
+                Image(systemName: "chevron.down").scaledFont(11, weight: .semibold)
             }
-            .foregroundStyle(accent)
-            .frame(minHeight: 32)
             .contentShape(Rectangle())
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(showsTalkItOut ? "Need a starting point? Talk it out, or use a template" : "Need a starting point?")
+        .accessibilityLabel(showsTalkItOut ? "More ways to start: Talk it out, templates or Suggestions from your day" : "More ways to start")
         .accessibilityIdentifier("write.starter")
         // Inside this struct, not on WriteView.body (Debug stack limit).
         .sheet(isPresented: $showTemplateManager, onDismiss: { customTemplates = CustomTemplateStore.readable() }) {

@@ -82,6 +82,9 @@ enum TextColorPalette {
 }
 
 @Observable final class FormattingPanelState {
+    /// The paragraph the cursor is in (0-based, by line breaks), so Suggestions from your day can go
+    /// in after it. Counted only when asked (a pick), never on each cursor move. Not observed.
+    @ObservationIgnored var caretParagraph: (() -> Int?)?
     var activeParagraphStyle: NoteParagraphTextStyle = .body
     var activeInlineStyles = InlineStyleSet()
     var activeHighlightIndex: Int? = nil

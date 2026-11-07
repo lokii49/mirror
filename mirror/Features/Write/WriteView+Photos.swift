@@ -68,12 +68,20 @@ extension WriteView {
         guard !insert.text(withPhotoTokens: tokens).isEmpty else { return }
         let existingStyles = viewModel.textStyleData.flatMap { try? JSONDecoder().decode(NoteTextStyleDocument.self, from: $0) }
         let existingInline = inlineStyleData.flatMap { try? JSONDecoder().decode(InlineStyleDocument.self, from: $0) }?.ranges ?? []
-        let result = insert.appended(to: viewModel.text, existingStyles: existingStyles, existingInline: existingInline,
-                                     tokens: tokens, mapLeads: mapLeads, entryFont: entryFontChoiceRaw)
+        // After the paragraph the cursor is in (UI checklist 2026-11-07); the end when there's none.
+        let afterParagraph = panelState.caretParagraph?()
+        let result = insert.inserted(into: viewModel.text, afterParagraph: afterParagraph, existingStyles: existingStyles,
+                                     existingInline: existingInline, tokens: tokens, mapLeads: mapLeads, entryFont: entryFontChoiceRaw)
         viewModel.text = result.text
         if let styles = result.styles { viewModel.textStyleData = try? JSONEncoder().encode(styles) }
         inlineStyleData = result.inline.isEmpty ? nil : try? JSONEncoder().encode(InlineStyleDocument(ranges: result.inline))
-        applyTextCommand(.moveCursor(location: .max))
+        // Added at the end: the cursor follows it. In the middle: the cursor stays where it was, just
+        // above the new block (nothing before it moved).
+        var ending = result.text
+        while let last = ending.last, last.isNewline { ending.removeLast() }
+        var added = insert.text(withPhotoTokens: tokens)
+        while let last = added.last, last.isNewline { added.removeLast() }
+        if ending.hasSuffix(added) { applyTextCommand(.moveCursor(location: .max)) }
     }
 }
 

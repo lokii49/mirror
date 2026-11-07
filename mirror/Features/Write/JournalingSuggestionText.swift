@@ -74,47 +74,88 @@ struct SuggestionInsert: Equatable {
         return ranges.sorted { $0.location < $1.location }
     }
 
-    /// The entry after this suggestion is added (Write, 3.1.8): on a blank entry the suggestion is
-    /// the whole text; after existing writing it goes at the end, after a blank line, and the
-    /// existing paragraph styles and links are kept. Returns the text, the paragraph-style
-    /// document (nil when nothing needs one) and every inline range (existing + the new links,
-    /// shifted past the existing text; a photo counts as one character there).
+    /// The entry after this suggestion is added at the end (Write, 3.1.8). See `inserted`.
     func appended(to existingText: String, existingStyles: NoteTextStyleDocument?, existingInline: [InlineStyleRange],
                   tokens: [String], mapLeads: Bool, entryFont: String) -> (text: String, styles: NoteTextStyleDocument?, inline: [InlineStyleRange]) {
+        inserted(into: existingText, afterParagraph: nil, existingStyles: existingStyles, existingInline: existingInline,
+                 tokens: tokens, mapLeads: mapLeads, entryFont: entryFont)
+    }
+
+    /// The entry after this suggestion goes in (Write, 3.1.8). On a blank entry the suggestion is the
+    /// whole text. Otherwise it goes after paragraph `afterParagraph` (the one the cursor is in; nil
+    /// or the last one = the end), with a blank line before it and, when text follows, after it. It
+    /// never splits a paragraph. The entry's paragraph styles, fonts, indents and links are kept:
+    /// styles are spliced in at that point, ranges after it move by the inserted length, and the
+    /// new links land on the new lines (inline coordinates count a photo as one character).
+    func inserted(into existingText: String, afterParagraph: Int?, existingStyles: NoteTextStyleDocument?,
+                  existingInline: [InlineStyleRange], tokens: [String], mapLeads: Bool,
+                  entryFont: String) -> (text: String, styles: NoteTextStyleDocument?, inline: [InlineStyleRange]) {
         let block = text(withPhotoTokens: tokens)
+        var blockLines = block.components(separatedBy: "\n")
+        while blockLines.last == "" { blockLines.removeLast() }
+
         var base = existingText
         while let last = base.last, last.isNewline { base.removeLast() }
         let hasBase = !base.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        let prefix = hasBase ? base + "\n\n" : ""
-        let combined = prefix + block
+        guard hasBase else {
+            // A blank entry: the suggestion is the text, its title a Heading.
+            let count = block.components(separatedBy: "\n").count
+            let styles = leadsWithTitle
+                ? NoteTextStyleDocument(paragraphStyles: [.heading] + Array(repeating: .body, count: max(0, count - 1)),
+                                        indentLevels: nil, fontChoices: Array(repeating: entryFont, count: count))
+                : nil
+            return (block, styles, linkRanges(in: block, mapLeads: mapLeads))
+        }
+        let lines = base.components(separatedBy: "\n")
+        let at = min(afterParagraph ?? (lines.count - 1), lines.count - 1)   // last paragraph kept before
+        let before = hasBase ? Array(lines[0...max(at, 0)]) : []
+        let after = hasBase && at + 1 < lines.count ? Array(lines[(at + 1)...]) : []
+        let gapAfter = !after.isEmpty && after.first?.isEmpty == false
 
-        // Paragraph styles: the existing ones, padded to the existing paragraph count, then the blank
-        // line and the block (its title as a Heading). Every paragraph gets an explicit entry: one
-        // without falls back to legacy "# " parsing.
-        let baseCount = hasBase ? base.components(separatedBy: "\n").count + 1 : 0
-        let blockCount = combined.components(separatedBy: "\n").count - baseCount
+        // prefix (through the paragraph before) + inserted + suffix (the rest).
+        let prefix = hasBase ? before.joined(separator: "\n") + "\n" : ""
+        let inserted = (hasBase ? "\n" : "") + blockLines.map { $0 + "\n" }.joined() + (gapAfter ? "\n" : "")
+        let suffix = after.joined(separator: "\n")
+        let combined = prefix + inserted + suffix
+
+        // Paragraph styles, spliced: [before][blank][block…][blank?][after].
         var styles: NoteTextStyleDocument?
         if leadsWithTitle || existingStyles != nil {
-            var paragraph = Array((existingStyles?.paragraphStyles ?? []).prefix(baseCount))
-            paragraph += Array(repeating: .body, count: baseCount - paragraph.count)
-            paragraph += (leadsWithTitle ? [.heading] : [.body]) + Array(repeating: NoteParagraphTextStyle.body, count: max(0, blockCount - 1))
-            var fonts = Array((existingStyles?.fontChoices ?? []).prefix(baseCount))
-            fonts += Array(repeating: entryFont, count: paragraph.count - fonts.count)
-            var indents: [Int]? = nil
-            if let existing = existingStyles?.indentLevels {
-                indents = Array(existing.prefix(baseCount)) + Array(repeating: 0, count: paragraph.count - min(existing.count, baseCount))
+            let oldCount = lines.count
+            func padded<T>(_ values: [T]?, _ filler: T) -> [T] {
+                let v = Array((values ?? []).prefix(oldCount)); return v + Array(repeating: filler, count: oldCount - v.count)
             }
+            let oldStyles = padded(existingStyles?.paragraphStyles, NoteParagraphTextStyle.body)
+            let oldFonts = padded(existingStyles?.fontChoices, entryFont)
+            let oldIndents: [Int]? = existingStyles?.indentLevels.map { padded($0, 0) }
+            let keep = hasBase ? at + 1 : 0
+            let newCount = (hasBase ? 1 : 0) + blockLines.count + (gapAfter ? 1 : 0)
+            var newStyles = Array(repeating: NoteParagraphTextStyle.body, count: newCount)
+            if leadsWithTitle, !blockLines.isEmpty { newStyles[hasBase ? 1 : 0] = .heading }
+            // The text ends with a line break: one more (empty) paragraph after the block when it's last.
+            let tail = after.isEmpty ? 1 : 0
+            let paragraph = Array(oldStyles.prefix(keep)) + newStyles + Array(oldStyles.dropFirst(keep)) + Array(repeating: .body, count: tail)
+            let fonts = Array(oldFonts.prefix(keep)) + Array(repeating: entryFont, count: newCount) + Array(oldFonts.dropFirst(keep)) + Array(repeating: entryFont, count: tail)
+            let indents = oldIndents.map { Array($0.prefix(keep)) + Array(repeating: 0, count: newCount) + Array($0.dropFirst(keep)) + Array(repeating: 0, count: tail) }
             styles = NoteTextStyleDocument(paragraphStyles: paragraph, indentLevels: indents, fontChoices: fonts)
         }
 
-        // New links sit after the existing text: shift them by its length in inline coordinates.
-        let nsPrefix = prefix as NSString
-        let tokenChars = allPhotoTokens(in: prefix).reduce(0) { $0 + (NSRange($1.range, in: prefix).length - 1) }
-        let shift = nsPrefix.length - tokenChars
-        let added = linkRanges(in: block, mapLeads: mapLeads).map { range -> InlineStyleRange in
-            var r = range; r.location += shift; return r
+        // Inline coordinates: a photo token is one character.
+        func logicalLength(_ text: String) -> Int {
+            (text as NSString).length - allPhotoTokens(in: text).reduce(0) { $0 + (NSRange($1.range, in: text).length - 1) }
         }
-        return (combined, styles, (hasBase ? existingInline : []) + added)
+        let insertAt = logicalLength(prefix)
+        let insertedLength = logicalLength(inserted)
+        let kept = (hasBase ? existingInline : []).map { range -> InlineStyleRange in
+            var r = range
+            if r.location >= insertAt { r.location += insertedLength }
+            return r
+        }
+        let blockStart = insertAt + (hasBase ? 1 : 0)
+        let added = linkRanges(in: block, mapLeads: mapLeads).map { range -> InlineStyleRange in
+            var r = range; r.location += blockStart; return r
+        }
+        return (combined, styles, (kept + added).sorted { $0.location < $1.location })
     }
 
     /// The first line is the suggestion's title (shown as a Heading), not a reflection prompt.

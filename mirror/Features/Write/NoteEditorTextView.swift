@@ -1220,6 +1220,16 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
             guard !isApplyingStyledText, textView.isFirstResponder else { return }
             lastKnownCursorLocation = textView.selectedRange.location
+            // Photos are one attachment character on their own line, so line breaks before the
+            // caret count the same paragraphs as in the stored text. Counted only when asked.
+            parent.panelState.caretParagraph = { [weak textView] in
+                guard let textView else { return nil }
+                let shown = (textView.text ?? "") as NSString
+                let caret = min(textView.selectedRange.location, shown.length)
+                var paragraph = 0
+                for i in 0..<caret where shown.character(at: i) == 10 { paragraph += 1 }
+                return paragraph
+            }
             // The caret moves inside the composition; clamping it or rewriting typing attributes
             // there would break the input method.
             guard textView.markedTextRange == nil else { return }

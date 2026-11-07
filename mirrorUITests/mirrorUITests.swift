@@ -157,8 +157,8 @@ final class mirrorUITests: XCTestCase {
         let app = launchApp()
         tapWriteTab(in: app)
 
-        let starterChipLabel = "Need a starting point? Talk it out, or use a template"
-        let starterChip = app.buttons[starterChipLabel].exists ? app.buttons[starterChipLabel] : app.otherElements[starterChipLabel]
+        // "More ways to start" (prompt option B, 2026-11-07) holds Talk it out.
+        let starterChip = app.descendants(matching: .any)["write.starter"].firstMatch
         XCTAssertTrue(starterChip.waitForExistence(timeout: 5), "Starter chip must exist on a blank new entry")
         starterChip.tap()
         Thread.sleep(forTimeInterval: 0.5)

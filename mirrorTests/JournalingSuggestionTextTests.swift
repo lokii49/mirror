@@ -136,6 +136,30 @@ struct JournalingSuggestionTextTests {
         #expect(map.length == 1 && logical.character(at: map.location) == 0xFFFC, "the map link sits on the new picture")
     }
 
+    /// From the paperclip menu, the suggestion goes in after the paragraph the cursor is in.
+    @Test func insertingAfterTheCursorsParagraph() throws {
+        var insert = SuggestionInsert(title: "Songs on the drive home", lines: ["🎵 Low Tide · Marrow & Vine"])
+        let music = try #require(SuggestionLines.musicSearchURL(title: "Low Tide", artist: "Marrow & Vine"))
+        insert.lineLinks["🎵 Low Tide · Marrow & Vine"] = music
+        let existing = "Morning\nWalked to work.\nEvening\nCooked dinner."
+        let styles = NoteTextStyleDocument(paragraphStyles: [.heading, .body, .heading, .body], indentLevels: nil, fontChoices: nil)
+        // A bold range on "Cooked" (after the insertion point) has to move with its text.
+        let cooked = ("Morning\nWalked to work.\nEvening\n" as NSString).length
+        let bold = InlineStyleRange(location: cooked, length: 6, bold: true, italic: false, underline: false, strikethrough: false)
+        let r = insert.inserted(into: existing, afterParagraph: 1, existingStyles: styles, existingInline: [bold],
+                                tokens: [], mapLeads: false, entryFont: "system")
+        #expect(r.text == "Morning\nWalked to work.\n\nSongs on the drive home\n🎵 Low Tide · Marrow & Vine\n\nEvening\nCooked dinner.")
+        #expect(r.styles?.paragraphStyles == [.heading, .body, .body, .heading, .body, .body, .heading, .body])
+        let ns = r.text as NSString
+        let moved = try #require(r.inline.first { $0.bold })
+        #expect(ns.substring(with: NSRange(location: moved.location, length: moved.length)) == "Cooked")
+        let link = try #require(r.inline.first { $0.linkURL != nil })
+        #expect(ns.substring(with: NSRange(location: link.location, length: link.length)) == "🎵 Low Tide · Marrow & Vine")
+        // The last paragraph (or none given) means the end.
+        #expect(insert.inserted(into: existing, afterParagraph: 9, existingStyles: nil, existingInline: [], tokens: [],
+                                mapLeads: false, entryFont: "system").text.hasSuffix("Cooked dinner.\n\nSongs on the drive home\n🎵 Low Tide · Marrow & Vine\n"))
+    }
+
     @Test func appendingToABlankEntryIsTheSuggestionAlone() {
         let insert = SuggestionInsert(title: "Evening run", lines: ["👟 8,430 steps"])
         let r = insert.appended(to: "\n", existingStyles: nil, existingInline: [], tokens: [], mapLeads: false, entryFont: "system")
