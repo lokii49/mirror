@@ -58,7 +58,9 @@ enum MirrorTheme {
     // Accent text: 6.3:1 or better on every dark surface (violet was 3.6–4.3:1), 6.3:1 light.
     // It sits ≥ 9.9 (OKLab ΔE×100) from every mood colour and 11.1 from Sentinel's ember.
     static let violet      = hex(0xC98BC6, 0x8E3A6E)  // primary accent
-    static let violetLight = hex(0xD8A3D4, 0x9B4C85)  // secondary labels, tints (≥ 4.5:1 on violetDim)
+    // Light 9B4C85 → 8E437B (2026-11-07 accessibility audit): small plum labels measured under
+    // the line as rendered; now 6.4:1 on cards, 5.3:1 on violetDim chips.
+    static let violetLight = hex(0xD8A3D4, 0x8E437B)  // secondary labels, tints (≥ 5:1 on violetDim)
     static let violetDim   = hex(0x3A2238, 0xF4E4EE)  // tint backgrounds (chips, etc.)
     // ember — warm second accent. 3 uses only: paywall CTA, mood alert, first insight.
     static let ember       = hex(0xF97B8B, 0xE05470)

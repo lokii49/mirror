@@ -612,6 +612,7 @@ struct WritingStarterChip: View {
     private var isSentinel: Bool { displayMode == .sentinel }
     private var accent: Color { isSentinel ? MirrorTheme.ember : MirrorTheme.violet }
 
+    @Environment(\.dynamicTypeSize) private var typeSize
     /// Today's prompt, then another on ↻ (option B, owner 2026-11-07).
     @State private var promptIndex = WritingPrompts.indexForToday()
     /// Apple's Journaling Suggestions sheet, opened from "More ways to start".
@@ -645,7 +646,12 @@ struct WritingStarterChip: View {
                 .accessibilityLabel("Another prompt")
                 .padding(.top, -8)
             }
-            HStack(spacing: 18) {
+            // Side by side; one under the other at accessibility sizes, where German broke
+            // "Möglichkeiten" mid-word beside "Diese Anregung nutzen" (AX1, 2026-11-07).
+            let actionsLayout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 0))
+                : AnyLayout(HStackLayout(spacing: 18))
+            actionsLayout {
                 if addingSuggestion {
                     HStack(spacing: 6) {
                         ProgressView().controlSize(.small).tint(accent)
@@ -665,8 +671,8 @@ struct WritingStarterChip: View {
                     .accessibilityIdentifier("write.usePrompt")
                     starterMenu
                 }
-                Spacer(minLength: 0)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .scaledFont(14.5, weight: .medium)
             .foregroundStyle(accent)
             .frame(minHeight: 44)

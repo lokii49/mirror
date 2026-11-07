@@ -406,6 +406,8 @@ struct NoteEditorTextView: NSViewRepresentable {
 
         // A TextKit 1 text view (explicit layout manager), which the marker drawing relies on.
         let textView = MirrorNSTextView(frame: .zero, textContainer: container)
+        // VoiceOver names the field before reading it, as on iPhone (accessibility audit, 2026-11-07).
+        textView.setAccessibilityLabel(String(localized: "Entry"))
         textView.isRichText = true
         textView.allowsUndo = true
         textView.drawsBackground = false
