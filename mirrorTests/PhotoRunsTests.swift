@@ -38,3 +38,20 @@ struct PhotoRunsTests {
         #expect(result == [2, 3])
     }
 }
+
+/// Entries row titles (Paper & Ink option D, 2026-11-07).
+@Suite("Entry row title")
+struct EntryRowTextTests {
+    @Test func aShortFirstLineWithMoreBecomesTheTitle() {
+        let split = EntryRowText.split(["Dinner by the river", "📍 Blue Door Café, Lisbon", "👥 With Maya and Tom"])
+        #expect(split.title == "Dinner by the river")
+        #expect(split.body == "📍 Blue Door Café, Lisbon 👥 With Maya and Tom")
+    }
+
+    @Test func oneParagraphOrALongFirstLineHasNoTitle() {
+        #expect(EntryRowText.split(["Took the long way home on purpose."]).title == nil)
+        let long = String(repeating: "word ", count: 14)
+        #expect(EntryRowText.split([long, "more"]).title == nil)
+        #expect(EntryRowText.split([]).body.isEmpty)
+    }
+}

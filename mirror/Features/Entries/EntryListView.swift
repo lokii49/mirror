@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import Combine
+import ImageIO
 
 private let moodLabels = MirrorTheme.moodOptions
 
@@ -138,6 +139,11 @@ struct EntriesTabView: View {
         let hasVoiceNotes: Bool
         let textDecryptionFailed: Bool
         var isSearchMatch = false
+        /// Paper & Ink option D: a short first line shown as the row's title (`EntryRowText`).
+        var title: String? = nil
+        /// The text after the title, when there is one.
+        var snippet: Text? = nil
+        var tags: [String] = []
     }
 
     private struct EntryListSnapshot {
@@ -1219,8 +1225,10 @@ struct EntriesTabView: View {
             }
 
             ForEach(snapshot.groupedByMonth, id: \.date) { group in
+                let labels = dayLabels(for: group, ranked: snapshot.isRanked)
                 Section {
                     ForEach(group.rows) { row in
+                        if let label = labels[row.id] { dayLabelRow(label) }
                         entryRowView(row.entry, preview: snapshot.rowPreviews[row.id])
                     }
                 } header: {
@@ -1273,6 +1281,44 @@ struct EntriesTabView: View {
             }
         }
         }
+    }
+
+    /// Paper & Ink option D: in this month, newest first, a label before the first entry of each
+    /// stretch: Today, Yesterday, This week, Earlier. Not for Sentinel, other sorts or search.
+    private func dayLabels(for group: EntryMonthGroup, ranked: Bool) -> [UUID: LocalizedStringKey] {
+        guard displayMode != .sentinel, !ranked, sortOrder == .newestFirst,
+              let first = group.rows.first, Calendar.current.isDate(first.entry.createdAt, equalTo: Date(), toGranularity: .month)
+        else { return [:] }
+        let cal = Calendar.current
+        func bucket(_ date: Date) -> Int {
+            if cal.isDateInToday(date) { return 0 }
+            if cal.isDateInYesterday(date) { return 1 }
+            if cal.isDate(date, equalTo: Date(), toGranularity: .weekOfYear) { return 2 }
+            return 3
+        }
+        let names: [LocalizedStringKey] = ["Today", "Yesterday", "This week", "Earlier"]
+        var labels: [UUID: LocalizedStringKey] = [:]
+        var last = -1
+        for row in group.rows {
+            let b = bucket(row.entry.createdAt)
+            if b != last { labels[row.id] = names[b]; last = b }
+        }
+        // A month with only older entries needs no "Earlier" label.
+        if labels.count == 1, let only = labels.first, last == 3 { labels[only.key] = nil }
+        return labels
+    }
+
+    private func dayLabelRow(_ label: LocalizedStringKey) -> some View {
+        Text(label)
+            .scaledFont(11.5, weight: .semibold)
+            .kerning(0.8)
+            .textCase(.uppercase)
+            .foregroundStyle(MirrorTheme.violet)
+            .accessibilityAddTraits(.isHeader)
+            .padding(.top, 12)
+            .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
     }
 
     /// The heatmap row, the list's first row (scroll-to-top target).
@@ -1402,6 +1448,66 @@ struct SerifNavigationTitle: ViewModifier {
 }
 #endif
 
+/// Which first line becomes a row's title (Paper & Ink option D): a short first line (60 characters
+/// or less) with more text after it. One-paragraph entries keep their plain preview.
+enum EntryRowText {
+    static func split(_ lines: [String]) -> (title: String?, body: String) {
+        guard lines.count >= 2, let first = lines.first, first.count <= 60 else {
+            return (nil, lines.joined(separator: " "))
+        }
+        return (first, lines.dropFirst().joined(separator: " "))
+    }
+}
+
+/// An entry's first picture as a small square for its row, decrypted when the row shows and shrunk
+/// off the main thread; kept in memory for the session.
+private struct EntryThumbnail: View {
+    let entry: Entry
+    let side: CGFloat
+    @Environment(\.displayScale) private var displayScale
+    @State private var image: CGImage?
+
+    private static let cache = NSCache<NSString, CGImageBox>()
+    final class CGImageBox { let image: CGImage; init(_ image: CGImage) { self.image = image } }
+
+    private var key: String { "\(entry.id.uuidString)-\(entry.encryptedPhotoData?.count ?? 0)-\(Int(side))" }
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .fill(MirrorTheme.paperLine)
+            .overlay {
+                if let image {
+                    Image(decorative: image, scale: displayScale).resizable().scaledToFill()
+                }
+            }
+            .frame(width: side, height: side)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .accessibilityHidden(true)
+            .task(id: key) {
+                if let hit = Self.cache.object(forKey: key as NSString) { image = hit.image; return }
+                guard let data = entry.photoData else { return }
+                let pixels = Int(side * max(displayScale, 2))
+                let made = await Task.detached(priority: .utility) { Self.squareThumbnail(data, pixels: pixels) }.value
+                guard let made, !Task.isCancelled else { return }
+                Self.cache.setObject(CGImageBox(made), forKey: key as NSString)
+                image = made
+            }
+    }
+
+    nonisolated private static func squareThumbnail(_ data: Data, pixels: Int) -> CGImage? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: pixels * 2,
+        ]
+        guard let thumb = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+        let edge = min(thumb.width, thumb.height)
+        return thumb.cropping(to: CGRect(x: (thumb.width - edge) / 2, y: (thumb.height - edge) / 2, width: edge, height: edge))
+    }
+}
+
 private struct EntryRow: View {
     let entry: Entry
     @Environment(\.appDisplayMode) private var displayMode
@@ -1413,6 +1519,11 @@ private struct EntryRow: View {
     private let hasReadablePreview: Bool
     private let hasVoiceNotes: Bool
     private let decryptFailed: Bool
+    private let title: String?
+    private let snippet: Text?
+    private let tags: [String]
+    /// Search results show their matched excerpt, never a title split.
+    private let isSearchMatch: Bool
     // The list reads in one voice (2026-10-21 design review): a per-entry font (serif, mono,
     // rounded from the Aa panel) shows inside the entry, where the writing is, not in its row.
     // Before this the row used the entry's first paragraph's font, so a mono entry between a
@@ -1429,6 +1540,10 @@ private struct EntryRow: View {
             self.hasReadablePreview = rp.hasReadablePreview
             self.hasVoiceNotes = rp.hasVoiceNotes
             self.decryptFailed = rp.textDecryptionFailed
+            self.title = rp.title
+            self.snippet = rp.snippet
+            self.tags = rp.tags
+            self.isSearchMatch = rp.isSearchMatch
         } else {
             self.decryptFailed = entry.textDecryptionFailed
             self.moodLabel = entry.mood.flatMap { $0.isEmpty ? nil : $0 }
@@ -1437,6 +1552,11 @@ private struct EntryRow: View {
             self.displayWordCount = snapshot.wordCount
             self.hasReadablePreview = snapshot.hasReadablePreview
             self.hasVoiceNotes = snapshot.hasVoiceNotes
+            let titled = Self.titleAndSnippet(for: entry)
+            self.title = titled.title
+            self.snippet = titled.snippet
+            self.tags = []
+            self.isSearchMatch = false
         }
     }
 
@@ -1563,6 +1683,56 @@ private struct EntryRow: View {
         }
     }
 
+    /// Paper & Ink option D (owner 2026-11-07): a short first line as a serif title over a two-line
+    /// snippet, then time · words · mood · tags. A picture shows as the row's thumbnail.
+    private var paperContent: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if let title, !isSearchMatch {
+                Text(verbatim: title)
+                    .scaledFont(18, weight: .semibold, design: .serif)
+                    .foregroundStyle(MirrorTheme.textPrimary)
+                    .lineLimit(2)
+                if let snippet {
+                    snippet
+                        .scaledFont(15)
+                        .foregroundStyle(MirrorTheme.textPrimary.opacity(0.82))
+                        .lineLimit(2)
+                }
+            } else {
+                preview
+                    .scaledFont(16)
+                    .foregroundStyle(previewTextColor)
+                    .lineLimit(3)
+            }
+            paperMeta
+                .padding(.top, 2)
+        }
+        .multilineTextAlignment(.leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var paperMeta: some View {
+        var parts: [Text] = [Text(entry.createdAt, format: .dateTime.hour().minute())]
+        if displayWordCount > 0, title == nil || snippet != nil {
+            parts.append(Text(displayWordCount == 1 ? "1 word" : "\(displayWordCount) words"))
+        }
+        var line = parts.dropFirst().reduce(parts[0]) { $0 + Text(" · ") + $1 }
+        if let label = moodLabel {
+            line = line + Text(" · ") + Text("●").foregroundStyle(MirrorTheme.moodColor(for: label))
+                + Text(" " + MirrorTheme.localizedMoodName(for: label))
+        }
+        let shownTags = tags.prefix(2).map { "#" + MirrorTheme.localizedTagName(for: $0) }
+        if !shownTags.isEmpty {
+            line = line + Text(" · ") + Text(shownTags.joined(separator: " ")).foregroundStyle(MirrorTheme.violet)
+            if tags.count > 2 { line = line + Text(" +\(tags.count - 2)").foregroundStyle(MirrorTheme.violet) }
+        }
+        if hasVoiceNotes { line = line + Text("  ") + Text(Image(systemName: "waveform")) }
+        return line
+            .scaledFont(13)
+            .foregroundStyle(MirrorTheme.textSecondary)
+            .lineLimit(2)
+    }
+
     private var previewTextColor: Color {
         hasReadablePreview && !decryptFailed ? MirrorTheme.textPrimary : MirrorTheme.textSecondary
     }
@@ -1582,12 +1752,14 @@ private struct EntryRow: View {
             if typeSize.isAccessibilitySize {
                 VStack(alignment: .leading, spacing: 8) {
                     paperDate(stacked: false)
-                    contentColumn
+                    paperContent
+                    if entry.hasPhoto { EntryThumbnail(entry: entry, side: 72) }
                 }
             } else {
                 HStack(alignment: .top, spacing: 12) {
                     paperDate(stacked: true)
-                    contentColumn
+                    paperContent
+                    if entry.hasPhoto { EntryThumbnail(entry: entry, side: 56) }
                 }
             }
         }
@@ -1656,6 +1828,17 @@ private struct EntryRow: View {
             return String(trimmed.dropFirst(2))
         }
         return trimmed
+    }
+
+    /// The row's title and the text after it (option D), from the same stripped lines the preview uses.
+    fileprivate static func titleAndSnippet(for entry: Entry) -> (title: String?, snippet: Text?) {
+        guard !entry.textDecryptionFailed else { return (nil, nil) }
+        var stripped = entry.text
+        for (r, _) in allPhotoTokens(in: stripped).reversed() { stripped.removeSubrange(r) }
+        let lines = stripped.components(separatedBy: .newlines).map { strippedLine($0) }.filter { !$0.isEmpty }
+        let split = EntryRowText.split(lines)
+        guard let title = split.title else { return (nil, nil) }
+        return (title, split.body.isEmpty ? nil : Text(verbatim: split.body))
     }
 
     fileprivate static func makePreview(for entry: Entry) -> (preview: Text, wordCount: Int, hasReadablePreview: Bool, hasVoiceNotes: Bool) {
@@ -2271,14 +2454,20 @@ final class EntryDecryptCache {
             tags: tags,
             searchText: passages.map(\.text).joined(separator: "\n\n"),
             document: document,
-            preview: EntriesTabView.EntryRowPreview(
-                moodLabel: entry.mood.flatMap { $0.isEmpty ? nil : $0 },
-                preview: preview.preview,
-                wordCount: preview.wordCount,
-                hasReadablePreview: preview.hasReadablePreview,
-                hasVoiceNotes: preview.hasVoiceNotes,
-                textDecryptionFailed: failed
-            )
+            preview: {
+                let titled = EntryRow.titleAndSnippet(for: entry)
+                return EntriesTabView.EntryRowPreview(
+                    moodLabel: entry.mood.flatMap { $0.isEmpty ? nil : $0 },
+                    preview: preview.preview,
+                    wordCount: preview.wordCount,
+                    hasReadablePreview: preview.hasReadablePreview,
+                    hasVoiceNotes: preview.hasVoiceNotes,
+                    textDecryptionFailed: failed,
+                    title: titled.title,
+                    snippet: titled.snippet,
+                    tags: tags
+                )
+            }()
         )
         if !failed && searchReadable {
             items[entry.id] = item
