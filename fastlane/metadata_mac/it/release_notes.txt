@@ -5,7 +5,7 @@ Core e Deep sono arrivati
 
 Inoltre in questo aggiornamento
 
-• Un nuovo aspetto: pagine color carta calda e quasi nere con un accento prugna, più riposanti per gli occhi la sera e più vicine all’icona dell’app.
+• Un nuovo aspetto, Paper & Ink: pagine color carta calda con un accento prugna, titoli con grazie e la riflessione di oggi in cima. Le voci mostrano titoli, foto e tag a colpo d’occhio.
 • Se i piani non si caricano, Abbonamento offre Riprova invece di caricare all’infinito.
 • Le riflessioni passate nella bacheca hanno Leggi di più, e riflessioni passate e riepiloghi precedenti finiscono con Mostra tutto.
 • Toccando un giorno nel calendario delle Voci, quel giorno resta in vista invece di tornare a oggi.

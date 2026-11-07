@@ -308,7 +308,14 @@ struct ContentView: View {
         .environment(\.appDisplayMode, displayMode)
         #if os(iOS)
         // Bars made after a theme switch take its title font (open screens keep theirs until reopened).
-        .onChange(of: displayMode, initial: true) { _, mode in MirrorNavigationAppearance.apply(mode) }
+        .onChange(of: displayMode, initial: true) { _, mode in
+            MirrorNavigationAppearance.apply(mode)
+            // Sentinel was retired in 3.1.8: remember whether this device had it on, so What's New
+            // explains the change only to those people.
+            if profiles.contains(where: \.hadChosenSentinel) {
+                UserDefaults.standard.set(true, forKey: DeviceFeature.usedSentinelKey)
+            }
+        }
         #endif
         // App Lock: the real cover is a window of its own (iOS) or one over every window (Mac),
         // which also covers sheets. This one only guarantees the first frame never shows the journal.

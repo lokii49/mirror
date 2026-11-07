@@ -5,7 +5,7 @@ Core and Deep are here
 
 Also in this update
 
-• A new look: warm paper and off-black pages with a plum accent, easier on the eyes at night and closer to the app icon.
+• A new look, Paper & Ink: warm paper pages with a plum accent, serif titles and today's reflection on top. Entries show titles, photos, tags and Today / Yesterday labels. Sentinel mode has been retired, so everyone now gets this look.
 • Have an App Store offer code? Tap Redeem Code in Settings › Subscription or on the plans screen.
 • Settings has a Done button and a grab handle, so it's clear how to close it.
 • If plans can't load, Subscription offers Try Again instead of loading forever.
@@ -18,7 +18,7 @@ Also in this update
 • Write has a new header: the date as a title, Mood beside it, Save as a button, and Delete and focus mode in the ⋯ menu.
 • New Scratch Note from Control Center, Siri or the Entries menu.
 • Templates: Evening Review, Weekly Plan and Morning Pages, plus your own, kept on this device.
-• Suggestions from your day: start an entry from Apple's Journaling Suggestions. Songs, podcasts, workouts, places, people and steps come in as short lines, with photos, artwork and a map of your route or place.
+• Suggestions from your day: start an entry from Apple's Journaling Suggestions. Songs, podcasts, workouts, places, people and steps come in as short lines, with photos, artwork and a map of your route or place. Tap a place or its map to open it in Maps, or a song to find it in Apple Music.
 • Still Open lists every unticked checklist item across your entries.
 • Link an entry to another, and see what links to it under Linked from.
 • Patterns and Year in Review (Deep): the moods that come with your days, times and tags, and your year in numbers.

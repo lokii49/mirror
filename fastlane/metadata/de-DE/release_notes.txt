@@ -5,7 +5,7 @@ Core und Deep sind da
 
 Außerdem in diesem Update
 
-• Ein neuer Look: warmes Papier und fast schwarze Seiten mit einem Pflaumen-Akzent, abends angenehmer für die Augen und näher am App-Symbol.
+• Ein neuer Look, Paper & Ink: warme Papierseiten mit einem Pflaumen-Akzent, Überschriften in Serifenschrift und die heutige Reflexion ganz oben. Einträge zeigen Titel, Fotos, Tags und „Heute“/„Gestern“. Der Sentinel-Modus wurde eingestellt, daher sehen jetzt alle diesen Look.
 • Du hast einen App Store-Angebotscode? Tippe in Einstellungen › Abonnement oder auf dem Planbildschirm auf „Code einlösen“.
 • Die Einstellungen haben jetzt eine „Fertig“-Taste und einen Griff, damit klar ist, wie man sie schließt.
 • Wenn die Pläne nicht laden, bietet „Abonnement“ „Erneut versuchen“, statt endlos zu laden.
@@ -18,7 +18,7 @@ Außerdem in diesem Update
 • Neuer Kopf beim Schreiben: das Datum als Titel, die Stimmung daneben, Sichern als Taste, Löschen und Fokusmodus im ⋯-Menü.
 • Neue Notiz aus dem Kontrollzentrum, mit Siri oder im Einträge-Menü.
 • Vorlagen: Abendrückblick, Wochenplan und Morgenseiten, dazu eigene, nur auf diesem Gerät.
-• Vorschläge aus deinem Tag: Beginne einen Eintrag mit Apples Journaling-Vorschlägen. Songs, Podcasts, Trainings, Orte, Personen und Schritte kommen als kurze Zeilen, mit Fotos, Covern und einer Karte deiner Route oder deines Orts.
+• Vorschläge aus deinem Tag: Beginne einen Eintrag mit Apples Journaling-Vorschlägen. Songs, Podcasts, Trainings, Orte, Personen und Schritte kommen als kurze Zeilen, mit Fotos, Covern und einer Karte deiner Route oder deines Orts. Tippe auf einen Ort oder seine Karte, um ihn in Karten zu öffnen, oder auf einen Song, um ihn in Apple Music zu finden.
 • „Noch offen“ zeigt alle nicht abgehakten Checklisten-Punkte deiner Einträge.
 • Verlinke Einträge miteinander und sieh unter „Verlinkt von“, was hierher verweist.
 • Muster und Jahresrückblick (Deep): welche Stimmungen zu Tagen, Uhrzeiten und Tags gehören, und dein Jahr in Zahlen.

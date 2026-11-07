@@ -5,7 +5,7 @@ Ya llegan Core y Deep
 
 Además en esta actualización
 
-• Un aspecto nuevo: páginas de papel cálido y casi negras con un acento ciruela, más cómodas para la vista de noche y más cerca del icono de la app.
+• Un aspecto nuevo, Paper & Ink: páginas de papel cálido con un acento ciruela, títulos con serifa y la reflexión de hoy arriba del todo. Las entradas muestran títulos, fotos, etiquetas y «Hoy» / «Ayer». El modo Sentinel se ha retirado, así que ahora todos ven este aspecto.
 • ¿Tienes un código de oferta del App Store? Toca Canjear código en Ajustes › Suscripción o en la pantalla de planes.
 • Ajustes tiene un botón Listo y un tirador, para que quede claro cómo cerrarlo.
 • Si los planes no cargan, Suscripción ofrece Intentar de nuevo en lugar de quedarse cargando.
@@ -18,7 +18,7 @@ Además en esta actualización
 • Nueva cabecera al escribir: la fecha como título, el ánimo al lado, Guardar como botón, y Eliminar y el modo concentración en el menú ⋯.
 • Nuevo apunte desde el Centro de control, Siri o el menú de Entradas.
 • Plantillas: Repaso de la tarde, Plan semanal y Páginas matutinas, y las tuyas, solo en este dispositivo.
-• Sugerencias de tu día: empieza una entrada con las sugerencias de diario de Apple. Canciones, podcasts, entrenamientos, lugares, personas y pasos llegan como líneas breves, con fotos, carátulas y un mapa de tu ruta o del lugar.
+• Sugerencias de tu día: empieza una entrada con las sugerencias de diario de Apple. Canciones, podcasts, entrenamientos, lugares, personas y pasos llegan como líneas breves, con fotos, carátulas y un mapa de tu ruta o del lugar. Toca un lugar o su mapa para abrirlo en Mapas, o una canción para buscarla en Apple Music.
 • Pendientes reúne los elementos sin marcar de todas tus listas.
 • Enlaza una entrada con otra y mira en «Enlazada desde» qué apunta a ella.
 • Patrones y Resumen del año (Deep): qué estados de ánimo van con tus días, horas y etiquetas, y tu año en cifras.

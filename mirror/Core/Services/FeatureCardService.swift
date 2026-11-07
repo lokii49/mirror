@@ -100,9 +100,15 @@ struct FeatureCard: Identifiable {
 /// Device-dependent features a What's New card can promise.
 enum DeviceFeature {
     case appleHealth, appleWatch, journalingSuggestions
+    /// This device's profile had Sentinel mode chosen before 3.1.8 retired it (ContentView records it).
+    case usedSentinel
+
+    static let usedSentinelKey = "mirror.whatsNew.usedSentinel"
 
     var isAvailable: Bool {
         switch self {
+        case .usedSentinel:
+            return UserDefaults.standard.bool(forKey: Self.usedSentinelKey)
         case .appleHealth:
             return HealthMoodWriter.isAvailable
         case .appleWatch:
@@ -479,16 +485,30 @@ enum FeatureCardRegistry {
             sinceVersion: "3.1.8",
             showInFeatureGuide: false
         ),
-        // Plum & Paper (owner, 2026-11-06): the whole app's colours, on iPhone, iPad and Mac.
+        // Paper & Ink (owner, 2026-11-07; the colours since 2026-11-06): the whole app, iPhone, iPad
+        // and Mac. It also tells Sentinel users their mode was retired (3.1.8).
         .init(
             id: "theme-318",
-            title: "A warmer look",
-            body: "Warm paper and off-black pages with a plum accent: easier on the eyes when you write at night, and closer to the journal on the app icon.",
+            title: "A new look: Paper & Ink",
+            body: "Warm paper pages with a plum accent, serif titles, and today's reflection on top. Entries show titles, photos and tags at a glance.",
             symbolName: "paintpalette",
             accentColor: MirrorTheme.violet,
             tier: .free,
             sinceVersion: "3.1.8",
             showInFeatureGuide: false
+        ),
+        // Sentinel mode retired (owner, 2026-11-07). iPhone and iPad only: the Mac never had it.
+        .init(
+            id: "sentinel-retired-318",
+            title: "Sentinel mode has been retired",
+            body: "Everyone now gets Paper & Ink. To see how a reflection was made, turn on Settings › Diagnostics › \"Show how insights are made\".",
+            symbolName: "rectangle.on.rectangle.angled",
+            accentColor: MirrorTheme.violet,
+            tier: .free,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false,
+            iOSOnly: true,
+            requirement: .usedSentinel
         ),
         // Offer codes are redeemed through StoreKit's sheet, which the Mac app doesn't offer.
         .init(

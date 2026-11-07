@@ -5,7 +5,7 @@ Ya llegan Core y Deep
 
 Además en esta actualización
 
-• Un aspecto nuevo: páginas de papel cálido y casi negras con un acento ciruela, más cómodas para la vista de noche y más cerca del icono de la app.
+• Un aspecto nuevo, Paper & Ink: páginas de papel cálido con un acento ciruela, títulos con serifa y la reflexión de hoy arriba del todo. Las entradas muestran títulos, fotos y etiquetas de un vistazo.
 • Si los planes no cargan, Suscripción ofrece Intentar de nuevo en lugar de quedarse cargando.
 • Las reflexiones pasadas del panel tienen Leer más, y las reflexiones pasadas y los resúmenes anteriores terminan con Mostrar todo.
 • Al tocar un día en el calendario de Entradas, ese día sigue a la vista en lugar de volver a hoy.

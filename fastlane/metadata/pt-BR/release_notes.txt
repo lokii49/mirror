@@ -5,7 +5,7 @@ Core e Deep chegaram
 
 Também nesta atualização
 
-• Um visual novo: páginas cor de papel quente e quase pretas com um destaque ameixa, mais confortáveis para os olhos à noite e mais próximas do ícone do app.
+• Um visual novo, Paper & Ink: páginas cor de papel quente com um destaque ameixa, títulos com serifa e a reflexão de hoje no topo. As entradas mostram títulos, fotos, tags e “Hoje” / “Ontem”. O modo Sentinel foi aposentado, então agora todos veem este visual.
 • Tem um código de oferta da App Store? Toque em Resgatar código em Ajustes › Assinatura ou na tela de planos.
 • Ajustes tem um botão Concluído e uma alça, para deixar claro como fechar.
 • Se os planos não carregarem, Assinatura oferece Tentar novamente em vez de ficar carregando.
@@ -18,7 +18,7 @@ Também nesta atualização
 • Novo topo ao escrever: a data como título, o humor ao lado, Salvar como botão, e Apagar e o modo foco no menu ⋯.
 • Nova anotação pela Central de Controle, pela Siri ou pelo menu de Entradas.
 • Modelos: Revisão da noite, Plano semanal e Páginas matinais, além dos seus, só neste dispositivo.
-• Sugestões do seu dia: comece uma entrada com as sugestões de diário da Apple. Músicas, podcasts, treinos, lugares, pessoas e passos chegam como linhas curtas, com fotos, capas e um mapa do percurso ou do lugar.
+• Sugestões do seu dia: comece uma entrada com as sugestões de diário da Apple. Músicas, podcasts, treinos, lugares, pessoas e passos chegam como linhas curtas, com fotos, capas e um mapa do percurso ou do lugar. Toque num lugar ou no seu mapa para abri-lo no Mapas, ou numa música para encontrá-la no Apple Music.
 • Em aberto reúne todos os itens de lista não marcados das suas entradas.
 • Vincule uma entrada a outra e veja em «Vinculada de» o que aponta para ela.
 • Padrões e Retrospectiva do ano (Deep): os humores ligados aos seus dias, horários e tags, e seu ano em números.

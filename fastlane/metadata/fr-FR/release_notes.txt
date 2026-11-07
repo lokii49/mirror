@@ -5,7 +5,7 @@ Core et Deep sont là
 
 Également dans cette mise à jour
 
-• Un nouveau look : des pages couleur papier chaud et presque noires avec une touche prune, plus douces pour les yeux le soir et plus proches de l’icône de l’app.
+• Un nouveau look, Paper & Ink : des pages couleur papier chaud avec une touche prune, des titres à empattements et la réflexion du jour tout en haut. Les entrées affichent titres, photos, tags et « Aujourd’hui » / « Hier ». Le mode Sentinel a été retiré : tout le monde passe à ce look.
 • Vous avez un code d’offre de l’App Store ? Touchez « Utiliser un code » dans Réglages › Abonnement ou sur l’écran des formules.
 • Les Réglages ont un bouton Terminé et une poignée, pour savoir clairement comment les fermer.
 • Si les formules ne se chargent pas, Abonnement propose Réessayer au lieu de charger sans fin.
@@ -18,7 +18,7 @@ Core et Deep sont là
 • Nouvel en-tête pour écrire : la date en titre, l’humeur à côté, Enregistrer en bouton, Supprimer et le mode concentration dans le menu ⋯.
 • Nouveau pense-bête depuis le centre de contrôle, Siri ou le menu des entrées.
 • Modèles : Bilan du soir, Plan de la semaine et Pages du matin, plus les vôtres, sur cet appareil.
-• Suggestions de votre journée : commencez une entrée à partir des suggestions de journal d’Apple. Morceaux, podcasts, entraînements, lieux, personnes et pas arrivent en lignes courtes, avec photos, pochettes et une carte de votre parcours ou du lieu.
+• Suggestions de votre journée : commencez une entrée à partir des suggestions de journal d’Apple. Morceaux, podcasts, entraînements, lieux, personnes et pas arrivent en lignes courtes, avec photos, pochettes et une carte de votre parcours ou du lieu. Touchez un lieu ou sa carte pour l’ouvrir dans Plans, ou un morceau pour le trouver dans Apple Music.
 • Encore à faire liste tous les éléments non cochés de vos entrées.
 • Liez une entrée à une autre et voyez sous « Liée depuis » ce qui y renvoie.
 • Tendances et Bilan de l’année (Deep) : les humeurs liées à vos jours, heures et tags, et votre année en chiffres.

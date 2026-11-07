@@ -322,6 +322,70 @@
         }
       }
     },
+    "A new look: Paper & Ink" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein neuer Look: Paper & Ink"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A new look: Paper & Ink"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un aspecto nuevo: Paper & Ink"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un nouveau look : Paper & Ink"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un nuovo aspetto: Paper & Ink"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新しい見た目：Paper & Ink"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "새로운 모습: Paper & Ink"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um visual novo: Paper & Ink"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Новый облик: Paper & Ink"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全新外观：Paper & Ink"
+          }
+        }
+      }
+    },
     "Also save check-ins to Apple Health?" : {
       "comment" : "One-time offer after a mood check-in",
       "localizations" : {
@@ -578,6 +642,70 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "每次打卡都会作为心理状态存入健康。MirrorNotes 从不读取健康数据。"
+          }
+        }
+      }
+    },
+    "Everyone now gets Paper & Ink. To see how a reflection was made, turn on Settings › Diagnostics › \"Show how insights are made\"." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle sehen jetzt Paper & Ink. Wie eine Reflexion entstanden ist, zeigt Einstellungen › Diagnose › „Show how insights are made“."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Everyone now gets Paper & Ink. To see how a reflection was made, turn on Settings › Diagnostics › \"Show how insights are made\"."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ahora todos ven Paper & Ink. Para ver cómo se hizo una reflexión, activa Ajustes › Diagnóstico › «Show how insights are made»."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tout le monde passe à Paper & Ink. Pour voir comment une réflexion a été faite, activez Réglages › Diagnostics › « Show how insights are made »."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ora tutti vedono Paper & Ink. Per vedere come è nata una riflessione, attiva Impostazioni › Diagnostica › «Show how insights are made»."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "すべての方がPaper & Inkになりました。リフレクションの作られ方を見るには、設定 › 診断 ›「Show how insights are made」をオンにします。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이제 모두 Paper & Ink를 사용합니다. 리플렉션이 어떻게 만들어졌는지 보려면 설정 › 진단 › 'Show how insights are made'를 켜세요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agora todos veem o Paper & Ink. Para ver como uma reflexão foi feita, ative Ajustes › Diagnóstico › “Show how insights are made”."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Теперь у всех Paper & Ink. Чтобы увидеть, как была сделана рефлексия, включите Настройки › Диагностика › «Show how insights are made»."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "现在所有人都使用 Paper & Ink。想了解一条反思是如何生成的，请打开“设置 › 诊断 › Show how insights are made”。"
           }
         }
       }
@@ -1102,6 +1230,70 @@
         }
       }
     },
+    "Sentinel mode has been retired" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Sentinel-Modus wurde eingestellt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sentinel mode has been retired"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El modo Sentinel se ha retirado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le mode Sentinel a été retiré"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La modalità Sentinel è stata ritirata"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sentinelモードは終了しました"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sentinel 모드가 종료되었습니다"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O modo Sentinel foi aposentado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Режим Sentinel больше не поддерживается"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sentinel 模式已停用"
+          }
+        }
+      }
+    },
     "Turn On" : {
       "comment" : "Button: turn on saving check-ins to Health",
       "localizations" : {
@@ -1228,6 +1420,70 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "关闭后，新的打卡不再存入健康；已保存的仍留在健康中，你可以在那里查看或删除。"
+          }
+        }
+      }
+    },
+    "Warm paper pages with a plum accent, serif titles, and today's reflection on top. Entries show titles, photos and tags at a glance." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warme Papierseiten mit einem Pflaumen-Akzent, Überschriften in Serifenschrift und die heutige Reflexion ganz oben. Einträge zeigen Titel, Fotos und Tags auf einen Blick."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warm paper pages with a plum accent, serif titles, and today's reflection on top. Entries show titles, photos and tags at a glance."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Páginas de papel cálido con un acento ciruela, títulos con serifa y la reflexión de hoy arriba del todo. Las entradas muestran títulos, fotos y etiquetas de un vistazo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Des pages couleur papier chaud avec une touche prune, des titres à empattements et la réflexion du jour tout en haut. Les entrées montrent titres, photos et tags d’un coup d’œil."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pagine color carta calda con un accento prugna, titoli con grazie e la riflessione di oggi in cima. Le voci mostrano titoli, foto e tag a colpo d’occhio."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "温かみのある紙色のページにプラムのアクセント、セリフ体の見出し、そして今日のリフレクションをいちばん上に。エントリーはタイトル・写真・タグがひと目でわかります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "따뜻한 종이색 페이지에 자두색 포인트, 세리프 제목, 그리고 오늘의 리플렉션을 맨 위에. 항목에서 제목, 사진, 태그를 한눈에 볼 수 있습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Páginas cor de papel quente com um destaque ameixa, títulos com serifa e a reflexão de hoje no topo. As entradas mostram títulos, fotos e tags num relance."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тёплые бумажные страницы со сливовым акцентом, заголовки с засечками и сегодняшняя рефлексия наверху. Записи сразу показывают заголовки, фото и теги."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "温暖的纸色页面搭配梅子色点缀、衬线标题，今天的反思置于最上方。条目一眼可见标题、照片和标签。"
           }
         }
       }

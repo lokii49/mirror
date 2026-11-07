@@ -32,6 +32,9 @@ enum DisplayMode: String, Codable {
         set { displayModeRaw = newValue.rawValue }
     }
 
+    /// The profile had Sentinel chosen before it was retired (for the one-time What's New note).
+    var hadChosenSentinel: Bool { displayModeRaw == DisplayMode.sentinel.rawValue }
+
     /// Stored as encoded Data, not a native array — matches Entry.swift's
     /// pattern of avoiding raw array attributes for CloudKit-synced models.
     /// Badges are one-time unlock events (can't always be re-derived from
