@@ -1096,7 +1096,7 @@ enum InsightService {
     /// does not go through that seam.
     static var usesStructuredFMNudge: Bool {
         #if DEBUG
-        if LocalLLMService.generateInterceptForTesting != nil { return false }
+        if LocalLLMService.generateInterceptForTesting != nil || LocalLLMService.scopedInterceptForTesting != nil { return false }
         #endif
         return LocalLLMService.prefersFoundationModels
     }

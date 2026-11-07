@@ -30,23 +30,25 @@ extension SharedLLMState {
             NEXT WEEK: Plan a picnic near the old lighthouse.
             """
 
+        // Task-scoped intercepts: a global one also answered other suites running in parallel on
+        // Xcode Cloud, and their calls showed up in `box.calls` (6 instead of 2, run #42).
         @Test func cancelledDigestRetryThrowsInsteadOfReturningTheFallback() async {
             let box = Box()
             let invented = inventedDigest
-            LocalLLMService.generateInterceptForTesting = { _, _, _, _ in
+            let entries = week()
+            let result = await LocalLLMService.$scopedInterceptForTesting.withValue({ _, _, _, _ in
                 box.calls += 1
                 if box.calls == 1 { return (invented, .foundationModels) }
                 box.task?.cancel()
                 throw CancellationError()
+            }) {
+                // The unstructured task inherits the task-local intercept.
+                let task = Task { @MainActor in
+                    try await InsightService.generateWeeklyDigest(weekEntries: entries, allEntries: entries).text
+                }
+                box.task = task
+                return await task.result
             }
-            defer { LocalLLMService.generateInterceptForTesting = nil }
-
-            let entries = week()
-            let task = Task { @MainActor in
-                try await InsightService.generateWeeklyDigest(weekEntries: entries, allEntries: entries).text
-            }
-            box.task = task
-            let result = await task.result
 
             // Attempt 1 failed grounding, so the loop reached attempt 2 (where the cancel happened).
             #expect(box.calls == 2)
@@ -61,14 +63,14 @@ extension SharedLLMState {
         @Test func uncancelledFailureStillReturnsTheFallback() async throws {
             let box = Box()
             let invented = inventedDigest
-            LocalLLMService.generateInterceptForTesting = { _, _, _, _ in
+            let entries = week()
+            let (text, _) = try await LocalLLMService.$scopedInterceptForTesting.withValue({ _, _, _, _ in
                 box.calls += 1
                 if box.calls == 1 { return (invented, .foundationModels) }
                 throw LocalLLMError.contextExhausted
+            }) {
+                try await InsightService.generateWeeklyDigest(weekEntries: entries, allEntries: entries)
             }
-            defer { LocalLLMService.generateInterceptForTesting = nil }
-            let entries = week()
-            let (text, _) = try await InsightService.generateWeeklyDigest(weekEntries: entries, allEntries: entries)
             #expect(text == InsightService.weeklyDigestUngroundedFallback)
         }
     }
