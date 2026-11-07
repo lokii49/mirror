@@ -18,7 +18,7 @@ extension WriteView {
     }
 
     var dateHeader: some View {
-        HStack(alignment: .center, spacing: 10) {
+        WriteHeaderRow {
             Button {
                 showDatePicker = true
             } label: {
@@ -42,9 +42,7 @@ extension WriteView {
                         .kerning(0.5)
                 }
             }
-
-            Spacer(minLength: 0)
-
+        } trailing: {
             moodMenu
         }
         .padding(.horizontal, 18)
@@ -771,6 +769,39 @@ struct WordGoalRing: View {
     }
 }
 
+/// Write's date row: the date title, then the Mood pill at the trailing edge; at accessibility
+/// text sizes the pill goes on its own line under the date, where the two used to cut each other
+/// off ("7 Novemb…", "Energiege…", 2026-11-07 checks). Its own struct: Write's header sits at the
+/// Debug stack limit, where a ViewThatFits in the header overflowed it.
+struct WriteHeaderRow<Leading: View, Trailing: View>: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
+    private let leading: Leading
+    private let trailing: Trailing
+
+    init(@ViewBuilder leading: () -> Leading, @ViewBuilder trailing: () -> Trailing) {
+        self.leading = leading()
+        self.trailing = trailing()
+    }
+
+    var body: some View {
+        if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .center, spacing: 10) {
+                    leading
+                    Spacer(minLength: 0)
+                }
+                trailing
+            }
+        } else {
+            HStack(alignment: .center, spacing: 10) {
+                leading
+                Spacer(minLength: 0)
+                trailing
+            }
+        }
+    }
+}
+
 /// The classic Write header's mood button (option A): a dashed accent pill with a face while no
 /// mood is set, the mood's colour and name once one is.
 struct WriteMoodPill: View {
@@ -805,6 +836,8 @@ struct WriteMoodPill: View {
         .scaledFont(isSentinel ? 13.5 : 15, weight: .semibold, design: isSentinel ? .monospaced : .default)
         .kerning(isSentinel ? 0.4 : 0)
         .lineLimit(1)
+        // Shrinks before it truncates: "Настроен…" at xxxLarge, "M…" at AX5 (2026-11-07 checks).
+        .minimumScaleFactor(0.7)
         .padding(.horizontal, 13)
         .padding(.vertical, 9)
         .background(mood == nil ? Color.clear : tint.opacity(0.12), in: Capsule())
@@ -816,5 +849,7 @@ struct WriteMoodPill: View {
         .contentShape(Capsule())
         .animation(.easeInOut(duration: 0.2), value: mood)
         .animation(.easeInOut(duration: 0.2), value: isDetecting)
+        // Beside the date title, which stops at the same size (WriteDateTitle).
+        .dynamicTypeSize(...DynamicTypeSize.accessibility3)
     }
 }

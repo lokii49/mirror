@@ -37,6 +37,9 @@ struct WriteDateTitle: View {
             }
         }
         .accessibilityElement(children: .combine)
+        // At AX4–AX5 the title and the Mood pill beside it both truncated ("7 Nove…", "M…");
+        // the header stops at AX3, the entry text below keeps growing (2026-11-07 checks).
+        .dynamicTypeSize(...DynamicTypeSize.accessibility3)
     }
 
     private var weekday: String {
