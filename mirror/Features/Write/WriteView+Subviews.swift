@@ -681,6 +681,16 @@ struct WritingStarterChip: View {
             onSuggestion(demo)
         }
         #endif
+        #if DEBUG
+        .task {
+            // `--seedLongDraft` (with `--scratchDraftStorage`): fills the blank entry with 30
+            // synthetic lines, cursor at the end, so a plain screenshot shows whether the line
+            // being typed sits above the keyboard (UI checklist; devicectl can't type).
+            guard ProcessInfo.processInfo.arguments.contains("--seedLongDraft") else { return }
+            let lines = (1...30).map { "Line \($0) of a long synthetic entry about a quiet walk by the river." }
+            onUseTemplate(lines.joined(separator: "\n") + "\nLAST LINE HERE", .max)
+        }
+        #endif
     }
 
     private var starterMenu: some View {

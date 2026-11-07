@@ -5,7 +5,12 @@ extension WriteView {
     var tagsBar: some View {
         HStack(spacing: 0) {
             tagsScroller
+            // The word count and draft status stay at the default text size: at accessibility sizes
+            // they squeezed "Unfiled" to a sliver (AX3 pass, 2026-11-07). ViewThatFits here
+            // overflowed Write's Debug stack on launch, and a minimum width on the tags pushed
+            // German past the screen edge, so it's a cap only.
             writingStats
+                .dynamicTypeSize(...DynamicTypeSize.large)
                 .padding(.leading, 8)
                 .padding(.trailing, 20)
         }

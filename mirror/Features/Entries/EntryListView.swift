@@ -974,7 +974,13 @@ struct EntriesTabView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
         .background(entriesGround)
-        .onAppear { searchFocused = true }
+        .onAppear {
+            #if DEBUG
+            // `--entriesSearch=` captures keep the keyboard down so the result state shows.
+            if ProcessInfo.processInfo.arguments.contains(where: { $0.hasPrefix("--entriesSearch=") }) { return }
+            #endif
+            searchFocused = true
+        }
     }
 
     // MARK: - Select mode
@@ -1387,7 +1393,9 @@ struct EntriesTabView: View {
             }
             .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet)
         }
+        #if os(iOS)
         .frame(minHeight: 44)
+        #endif
         .contentShape(Rectangle())
         .buttonStyle(.plain)
         .accessibilityIdentifier("search.relaxFilters")
@@ -1434,7 +1442,9 @@ struct EntriesTabView: View {
                 .scaledFont(displayMode == .sentinel ? 12 : 14, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
                 .textCase(displayMode == .sentinel ? .uppercase : nil)
                 .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet)
+                #if os(iOS)
                 .frame(minHeight: 44)
+                #endif
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

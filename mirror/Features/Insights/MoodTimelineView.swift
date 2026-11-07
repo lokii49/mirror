@@ -355,7 +355,8 @@ struct MoodTimelineView: View {
                 valueSuffix: averageMoodScore > 0 ? "/5" : "",
                 label: "Avg. score",
                 icon: "chart.bar",
-                color: averageMoodScore >= 3.5 ? .green : averageMoodScore >= 2.5 ? .orange : .red
+                // Plum like the score bar below it: the number, not a traffic light, says how it went.
+                color: MirrorTheme.primary
             )
             statPill(
                 value: "\(currentStreak)d",
@@ -779,7 +780,7 @@ struct MoodTimelineView: View {
     private var previewStatsRow: some View {
         HStack(spacing: 12) {
             statPill(value: "4", label: "Moods logged", icon: "face.smiling", color: MirrorTheme.primary)
-            statPill(value: "3.0", valueSuffix: "/5", label: "Avg. score", icon: "chart.bar", color: .orange)
+            statPill(value: "3.0", valueSuffix: "/5", label: "Avg. score", icon: "chart.bar", color: MirrorTheme.primary)
             statPill(value: "3d", label: "Streak", icon: "flame.fill", color: .orange)
         }
     }
