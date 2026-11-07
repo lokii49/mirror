@@ -1,4 +1,5 @@
 import Foundation
+import ImageIO
 
 /// Whether a checked checklist item moves to the bottom of its list, as Notes' "Automatic
 /// Sorting" does. Per device (no CloudKit schema). Unset until the first checkbox tap asks.
@@ -245,4 +246,62 @@ nonisolated func validatedLinkURL(from urlString: String?) -> URL? {
           let scheme = url.scheme?.lowercased(),
           scheme == "http" || scheme == "https" else { return nil }
     return url
+}
+
+/// Which photos in a text are drawn as square tiles: in a run of two or more lines that are each
+/// just a photo token, every photo except a landscape first one (a map leads at full width). A
+/// photo on its own line with no photo line beside it is never a tile. Shared by the editor and
+/// the reader so the two agree; the stored text is untouched.
+nonisolated enum PhotoRuns {
+    /// Wider than tall, read from the image header (no decode); EXIF rotations count.
+    static func isLandscape(_ data: Data) -> Bool {
+        guard let source = CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary),
+              CGImageSourceGetCount(source) > 0,
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = properties[kCGImagePropertyPixelWidth] as? CGFloat,
+              let height = properties[kCGImagePropertyPixelHeight] as? CGFloat else { return false }
+        let rotated = (properties[kCGImagePropertyOrientation] as? UInt32 ?? 1) >= 5
+        return rotated ? height > width : width > height
+    }
+
+    /// `ranges`: the token ranges in `text`, in order. Returns the indices into `ranges` drawn as tiles.
+    static func tileMatches(_ ranges: [NSRange], in text: NSString, isLandscape: (NSRange) -> Bool) -> Set<Int> {
+        func aloneOnLine(_ r: NSRange) -> Bool {
+            let end = NSMaxRange(r)
+            let startOK = r.location == 0 || text.character(at: r.location - 1) == 10
+            let endOK = end == text.length || text.character(at: end) == 10
+            return startOK && endOK
+        }
+        var result = Set<Int>()
+        var i = 0
+        while i < ranges.count {
+            guard aloneOnLine(ranges[i]) else { i += 1; continue }
+            var j = i
+            while j + 1 < ranges.count, aloneOnLine(ranges[j + 1]), ranges[j + 1].location == NSMaxRange(ranges[j]) + 1 { j += 1 }
+            if j > i {
+                let first = isLandscape(ranges[i]) ? i + 1 : i
+                for k in first...j { result.insert(k) }
+            }
+            i = j + 1
+        }
+        return result
+    }
+
+    /// The same rule over lines: which line indices are tiles. `photoLine(i)` is true when line i
+    /// is just a photo token whose picture exists; `isLandscape(i)` for such a line.
+    static func tileLines(count: Int, photoLine: (Int) -> Bool, isLandscape: (Int) -> Bool) -> Set<Int> {
+        var result = Set<Int>()
+        var i = 0
+        while i < count {
+            guard photoLine(i) else { i += 1; continue }
+            var j = i
+            while j + 1 < count, photoLine(j + 1) { j += 1 }
+            if j > i {
+                let first = isLandscape(i) ? i + 1 : i
+                for k in first...j { result.insert(k) }
+            }
+            i = j + 1
+        }
+        return result
+    }
 }

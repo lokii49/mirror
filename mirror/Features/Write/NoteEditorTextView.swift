@@ -1937,8 +1937,17 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
 
             var lastEnd = 0
+            // Runs of photo lines (Suggestions from your day brings up to 4 pictures): a landscape
+            // first picture (a map) stays full width, every other picture in the run is a square
+            // tile. A photo on its own is drawn as before. Display only: the stored text keeps one
+            // token per line, which every older version reads.
+            let tiles = PhotoRuns.tileMatches(allMatches.map(\.range), in: nsRaw) { range in
+                guard let index = inlinePhotoIndex(from: nsRaw.substring(with: range)),
+                      index < parent.photoDataArray.count else { return false }
+                return PhotoRuns.isLandscape(parent.photoDataArray[index])
+            }
 
-            for match in allMatches {
+            for (matchIndex, match) in allMatches.enumerated() {
                 let textRange = NSRange(location: lastEnd, length: match.range.location - lastEnd)
                 let textSegment = nsRaw.substring(with: textRange)
                 let rendered = renderedTextWithoutMarkdownMarkers(for: textSegment, startingParagraph: paragraphIndex(at: lastEnd), continuesLine: lastEnd > 0)
@@ -1946,7 +1955,7 @@ struct NoteEditorTextView: UIViewRepresentable {
 
                 let token = nsRaw.substring(with: match.range)
                 let photoIdx = inlinePhotoIndex(from: token) ?? 0
-                attributed.append(photoAttachmentString(at: photoIdx, width: width))
+                attributed.append(photoAttachmentString(at: photoIdx, width: width, tile: tiles.contains(matchIndex)))
                 lastEnd = NSMaxRange(match.range)
             }
 
@@ -2103,11 +2112,12 @@ struct NoteEditorTextView: UIViewRepresentable {
             return result
         }
 
-        private func photoAttachmentString(at photoIndex: Int, width: CGFloat) -> NSAttributedString {
-            let maxWidth = max(180, width - 8)
+        private func photoAttachmentString(at photoIndex: Int, width: CGFloat, tile: Bool = false) -> NSAttributedString {
+            // A tile is a third of the line, less two 8 pt gaps.
+            let maxWidth = tile ? max(72, floor((width - 8 - 16) / 3)) : max(180, width - 8)
             guard photoIndex < parent.photoDataArray.count,
                   let photo = photoCache.image(for: parent.photoDataArray[photoIndex], at: photoIndex, maxWidth: maxWidth,
-                                               displayScale: max(UITraitCollection.current.displayScale, 2)) else {
+                                               displayScale: max(UITraitCollection.current.displayScale, 2), square: tile) else {
                 return unreadablePhotoAttachmentString()
             }
 

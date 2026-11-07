@@ -1124,9 +1124,64 @@ private struct InlineEntryContent: View {
         return AttributedString(attr[idx...])
     }
 
+    /// A photo line's picture index, when the line is just a photo token that has its picture.
+    private func photoIndex(ofLine line: String) -> Int? {
+        guard let index = inlinePhotoIndex(from: line.trimmingCharacters(in: .whitespaces)), index < photoDataArray.count else { return nil }
+        return index
+    }
+
+    /// The reader's blocks: each line, except that tiled photo lines (`PhotoRuns`) gather into one
+    /// grid of square tiles. Same rule as the editor; the stored text keeps one token per line.
+    private enum Block { case line(Int), tiles([Int]) }
+
+    private var blocks: [Block] {
+        let lines = displayLines
+        let tiles = PhotoRuns.tileLines(count: lines.count, photoLine: { photoIndex(ofLine: lines[$0]) != nil }) { line in
+            guard let photo = photoIndex(ofLine: lines[line]) else { return false }
+            return PhotoRuns.isLandscape(photoDataArray[photo])
+        }
+        var result: [Block] = []
+        for index in lines.indices {
+            if tiles.contains(index) {
+                if case .tiles(let run) = result.last, run.last == index - 1 { result[result.count - 1] = .tiles(run + [index]) } else { result.append(.tiles([index])) }
+            } else {
+                result.append(.line(index))
+            }
+        }
+        return result
+    }
+
     var body: some View {
+        let lines = displayLines
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(Array(displayLines.enumerated()), id: \.offset) { index, line in
+            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
+                switch block {
+                case .tiles(let lineIndices):
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), alignment: .leading, spacing: 8) {
+                        ForEach(lineIndices, id: \.self) { lineIndex in
+                            if let photo = photoIndex(ofLine: lines[lineIndex]), let uiImage = UIImage(data: photoDataArray[photo]) {
+                                Color.clear
+                                    .aspectRatio(1, contentMode: .fit)
+                                    .overlay { Image(uiImage: uiImage).resizable().scaledToFill() }
+                                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                    .overlay {
+                                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                            .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                                    }
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                case .line(let index):
+                    lineView(lines[index], at: index)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func lineView(_ line: String, at index: Int) -> some View {
                 if let photoIndex = inlinePhotoIndex(from: line.trimmingCharacters(in: .whitespaces)),
                    photoIndex < photoDataArray.count,
                    let uiImage = UIImage(data: photoDataArray[photoIndex]) {
@@ -1144,9 +1199,6 @@ private struct InlineEntryContent: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .id(ReaderMatches.lineID(index))
                 }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder

@@ -8,8 +8,8 @@ import Testing
 @Suite("Journaling Suggestion text")
 struct JournalingSuggestionTextTests {
     @Test func mediaAndPodcastLines() {
-        #expect(SuggestionLines.media(title: "Golden Hour", artist: "JVKE") == "♪ Golden Hour · JVKE")
-        #expect(SuggestionLines.media(title: "  Golden Hour ", artist: "") == "♪ Golden Hour")
+        #expect(SuggestionLines.media(title: "Paper Lanterns", artist: "The Quiet Hours") == "🎵 Paper Lanterns · The Quiet Hours")
+        #expect(SuggestionLines.media(title: "  Paper Lanterns ", artist: "") == "🎵 Paper Lanterns")
         #expect(SuggestionLines.media(title: nil, artist: nil) == nil)
         #expect(SuggestionLines.podcast(episode: "The Long Way Round", show: "Field Notes") == "🎧 The Long Way Round · Field Notes")
     }
@@ -35,7 +35,7 @@ struct JournalingSuggestionTextTests {
         #expect(SuggestionLines.place("Blue Door Café", city: "Lisbon") == "📍 Blue Door Café, Lisbon")
         #expect(SuggestionLines.place("Lisbon", city: "lisbon") == "📍 Lisbon", "a place named after its city reads once")
         #expect(SuggestionLines.place(nil, city: " ") == nil)
-        #expect(SuggestionLines.people(["Maya", "Tom"], locale: Locale(identifier: "en_US")) == "With Maya and Tom")
+        #expect(SuggestionLines.people(["Maya", "Tom"], locale: Locale(identifier: "en_US")) == "👥 With Maya and Tom")
         #expect(SuggestionLines.people([" "]) == nil)
         #expect(SuggestionLines.steps(1) == "👟 1 step")
         #expect(SuggestionLines.steps(8430) == "👟 8,430 steps" || SuggestionLines.steps(8430) == "👟 8430 steps")
@@ -62,6 +62,22 @@ struct JournalingSuggestionTextTests {
         #expect(insert.text.hasPrefix("What gave you energy today?\n"), "a reflection prompt leads instead of the title")
         #expect(SuggestionInsert(title: "Morning photos").text == "Morning photos\n\n")
         #expect(SuggestionInsert().text.isEmpty)
+    }
+
+    /// Option A (owner 2026-11-07): pictures follow the lines one token per line, the shape 3.1.7's
+    /// reader and the Mac codec read, then an empty line for the cursor.
+    @Test func picturesFollowTheLinesOnePerLine() {
+        let insert = SuggestionInsert(title: "Dinner by the river", lines: ["📍 Blue Door Café, Lisbon"])
+        let tokens = [inlinePhotoToken(at: 0), inlinePhotoToken(at: 1)]
+        #expect(insert.text(withPhotoTokens: tokens)
+                == "Dinner by the river\n📍 Blue Door Café, Lisbon\n[[mirror-photo-0]]\n[[mirror-photo-1]]\n")
+        #expect(insert.text(withPhotoTokens: []) == insert.text)
+        #expect(SuggestionInsert().text(withPhotoTokens: tokens) == "[[mirror-photo-0]]\n[[mirror-photo-1]]\n")
+        #expect(insert.leadsWithTitle)
+        var prompted = insert
+        prompted.prompt = "What made today feel full?"
+        #expect(!prompted.leadsWithTitle, "a reflection prompt is not styled as a heading")
+        #expect(!SuggestionInsert(title: "  ").leadsWithTitle)
     }
 
     /// A route north from a synthetic start, one point every ~111 m.

@@ -21,7 +21,7 @@ struct SuggestionRouteMapTests {
         guard let url = await SuggestionInsert.routeMap(trimmed) else { return }
         defer { try? FileManager.default.removeItem(at: url) }
         let image = try #require(UIImage(contentsOfFile: url.path))
-        #expect(image.size.width == 1200 && image.size.height == 800)
+        #expect(image.size.width == 1200 && image.size.height == 675)
         Attachment.record(try #require(image.jpegData(compressionQuality: 0.9)), named: "route-map.jpg")
     }
 
@@ -30,7 +30,7 @@ struct SuggestionRouteMapTests {
         guard let url = await SuggestionInsert.placeMap(CLLocation(latitude: 38.7115, longitude: -9.1366)) else { return }
         defer { try? FileManager.default.removeItem(at: url) }
         let image = try #require(UIImage(contentsOfFile: url.path))
-        #expect(image.size.width == 1200 && image.size.height == 800)
+        #expect(image.size.width == 1200 && image.size.height == 675)
         Attachment.record(try #require(image.jpegData(compressionQuality: 0.9)), named: "place-map.jpg")
     }
 }

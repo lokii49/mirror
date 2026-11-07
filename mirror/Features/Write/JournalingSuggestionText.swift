@@ -35,13 +35,27 @@ struct SuggestionInsert: Equatable {
         guard !parts.isEmpty else { return "" }
         return parts.joined(separator: "\n") + "\n\n"
     }
+
+    /// The text with the pictures' tokens after it, one per line (the shape every version reads),
+    /// and an empty last line for the cursor. Without pictures it's `text`.
+    func text(withPhotoTokens tokens: [String]) -> String {
+        guard !tokens.isEmpty else { return text }
+        var head = text
+        while head.hasSuffix("\n") { head.removeLast() }
+        return ((head.isEmpty ? [] : [head]) + tokens).joined(separator: "\n") + "\n"
+    }
+
+    /// The first line is the suggestion's title (shown as a Heading), not a reflection prompt.
+    var leadsWithTitle: Bool {
+        prompt == nil && !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 }
 
 /// The line formats, kept free of Apple's types so they can be tested. Words go through the string
 /// catalog; numbers and units follow the reader's region.
 enum SuggestionLines {
     static func media(title: String?, artist: String?) -> String? {
-        joined("♪", title, artist)
+        joined("🎵", title, artist)
     }
 
     static func podcast(episode: String?, show: String?) -> String? {
@@ -93,7 +107,7 @@ enum SuggestionLines {
         let f = ListFormatter()
         f.locale = locale
         let joined = f.string(from: list) ?? list.joined(separator: ", ")
-        return String(localized: "With \(joined)", comment: "Journaling Suggestion: the people in a moment, e.g. With Maya and Tom")
+        return "👥 " + String(localized: "With \(joined)", comment: "Journaling Suggestion: the people in a moment, e.g. With Maya and Tom")
     }
 
     static func steps(_ count: Int) -> String? {
@@ -150,7 +164,7 @@ enum SuggestionLines {
 @available(iOS 17.2, *)
 extension SuggestionInsert {
     /// Reads one picked suggestion. Each item is taken once, as its most useful kind (a Live Photo
-    /// that's also offered as a photo comes in once). Videos are skipped: entries don't hold video.
+    /// that's also offered as a photo comes in once). A video comes in as its first frame (entries don't hold video before 3.1.9).
     /// Contact photos are left out on purpose.
     static func read(_ suggestion: JournalingSuggestion) async -> SuggestionInsert {
         var insert = SuggestionInsert(title: suggestion.title)
@@ -318,7 +332,8 @@ extension SuggestionInsert {
                                    draw: @escaping (MKMapSnapshotter.Snapshot, UIColor) -> Void) async -> URL? {
         let style = mapStyle
         let options = MKMapSnapshotter.Options()
-        let size = CGSize(width: 1200, height: 800)
+        // 16:9, the shape the map leads the entry at (owner, option A, 2026-11-07).
+        let size = CGSize(width: 1200, height: 675)
         options.size = size
         options.scale = 1
         options.traitCollection = UITraitCollection(userInterfaceStyle: style)
