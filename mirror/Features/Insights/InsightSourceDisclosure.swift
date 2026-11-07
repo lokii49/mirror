@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// Settings › Diagnostics › "Show how insights are made" (3.1.8, owner): the engine tags and the
+/// Settings › About › "Show how insights are made" (3.1.8, owner): the engine tags and the
 /// "How this was generated" button that only Sentinel showed before it was retired. Off by default.
 enum GenerationDetails {
     static let key = "diagnostics.showGenerationDetails"
 }
 
-/// A small "how this was generated" control on an insight card (Settings › Diagnostics switch).
+/// A small "how this was generated" control on an insight card (Settings › About switch).
 /// Tapping it opens `InsightSourceSheet`: the on-device provenance HUD plus the
 /// verbatim system prompt. No card-surface gesture — just a button.
 struct InsightSourceButton: View {

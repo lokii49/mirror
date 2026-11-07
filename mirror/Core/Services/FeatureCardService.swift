@@ -501,7 +501,7 @@ enum FeatureCardRegistry {
         .init(
             id: "sentinel-retired-318",
             title: "Sentinel mode has been retired",
-            body: "Everyone now gets Paper & Ink. To see how a reflection was made, turn on Settings › Diagnostics › \"Show how insights are made\".",
+            body: "Everyone now gets Paper & Ink. To see how a reflection was made, turn on Settings › About › Show how insights are made.",
             symbolName: "rectangle.on.rectangle.angled",
             accentColor: MirrorTheme.violet,
             tier: .free,

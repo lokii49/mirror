@@ -12,7 +12,6 @@ struct DiagnosticsSettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appDisplayMode) private var displayMode
     @State private var encryptionReport: String?
-    @AppStorage(GenerationDetails.key) private var showGenerationDetails = false
     @State private var groundingAuditReport: String?
 
     /// Counts only; no names or text.
@@ -36,13 +35,6 @@ struct DiagnosticsSettingsView: View {
                         .textSelection(.enabled)
                 }
                 SettingsGroup(title: "Developer") {
-                    // Was Sentinel's engine tags and "How this was generated" (retired in 3.1.8).
-                    Toggle(isOn: $showGenerationDetails) {
-                        SettingsRowLabel(title: "Show how insights are made", systemImage: "shield.lefthalf.filled", iconColor: MirrorTheme.violet)
-                    }
-                    .tint(MirrorTheme.violet)
-                    SettingsDivider()
-
                     Button {
                         let unreadable = entries.filter(\.textDecryptionFailed).count
                         encryptionReport = MirrorEncryption.diagnosticsReport()

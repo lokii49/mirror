@@ -646,66 +646,66 @@
         }
       }
     },
-    "Everyone now gets Paper & Ink. To see how a reflection was made, turn on Settings › Diagnostics › \"Show how insights are made\"." : {
+    "Everyone now gets Paper & Ink. To see how a reflection was made, turn on Settings › About › Show how insights are made." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Alle sehen jetzt Paper & Ink. Wie eine Reflexion entstanden ist, zeigt Einstellungen › Diagnose › „Show how insights are made“."
+            "value" : "Alle sehen jetzt Paper & Ink. Wie eine Reflexion entstanden ist, zeigt Einstellungen › Über › Zeigen, wie Einblicke entstehen."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Everyone now gets Paper & Ink. To see how a reflection was made, turn on Settings › Diagnostics › \"Show how insights are made\"."
+            "value" : "Everyone now gets Paper & Ink. To see how a reflection was made, turn on Settings › About › Show how insights are made."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ahora todos ven Paper & Ink. Para ver cómo se hizo una reflexión, activa Ajustes › Diagnóstico › «Show how insights are made»."
+            "value" : "Ahora todos ven Paper & Ink. Para ver cómo se hizo una reflexión, activa Ajustes › Acerca de › Mostrar cómo se crean las perspectivas."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tout le monde passe à Paper & Ink. Pour voir comment une réflexion a été faite, activez Réglages › Diagnostics › « Show how insights are made »."
+            "value" : "Tout le monde passe à Paper & Ink. Pour voir comment une réflexion a été faite, activez Réglages › À propos › Montrer comment les aperçus sont créés."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ora tutti vedono Paper & Ink. Per vedere come è nata una riflessione, attiva Impostazioni › Diagnostica › «Show how insights are made»."
+            "value" : "Ora tutti vedono Paper & Ink. Per vedere come è nata una riflessione, attiva Impostazioni › Informazioni › Mostra come nascono gli approfondimenti."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "すべての方がPaper & Inkになりました。リフレクションの作られ方を見るには、設定 › 診断 ›「Show how insights are made」をオンにします。"
+            "value" : "すべての方がPaper & Inkになりました。リフレクションの作られ方を見るには、設定 › 情報 › インサイトの作られ方を表示 をオンにします。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "이제 모두 Paper & Ink를 사용합니다. 리플렉션이 어떻게 만들어졌는지 보려면 설정 › 진단 › 'Show how insights are made'를 켜세요."
+            "value" : "이제 모두 Paper & Ink를 사용합니다. 리플렉션이 어떻게 만들어졌는지 보려면 설정 › 정보 › 인사이트 생성 과정 보기를 켜세요."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Agora todos veem o Paper & Ink. Para ver como uma reflexão foi feita, ative Ajustes › Diagnóstico › “Show how insights are made”."
+            "value" : "Agora todos veem o Paper & Ink. Para ver como uma reflexão foi feita, ative Ajustes › Sobre › Mostrar como as percepções são feitas."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Теперь у всех Paper & Ink. Чтобы увидеть, как была сделана рефлексия, включите Настройки › Диагностика › «Show how insights are made»."
+            "value" : "Теперь у всех Paper & Ink. Чтобы увидеть, как была сделана рефлексия, включите Настройки › О приложении › Показывать, как создаётся аналитика."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "现在所有人都使用 Paper & Ink。想了解一条反思是如何生成的，请打开“设置 › 诊断 › Show how insights are made”。"
+            "value" : "现在所有人都使用 Paper & Ink。想了解一条反思是如何生成的，请打开“设置 › 关于 › 显示洞察的生成方式”。"
           }
         }
       }
@@ -1290,6 +1290,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sentinel 模式已停用"
+          }
+        }
+      }
+    },
+    "Show how insights are made" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zeigen, wie Einblicke entstehen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show how insights are made"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar cómo se crean las perspectivas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Montrer comment les aperçus sont créés"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostra come nascono gli approfondimenti"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "インサイトの作られ方を表示"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "인사이트 생성 과정 보기"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar como as percepções são feitas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показывать, как создаётся аналитика"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示洞察的生成方式"
           }
         }
       }

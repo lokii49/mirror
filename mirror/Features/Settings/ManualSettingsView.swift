@@ -7,6 +7,8 @@ struct ManualSettingsView: View {
     @State private var showHowItWorks = false
     @State private var showFeatureGuide = false
     @State private var showAcknowledgments = false
+    /// The engine tags and "How this was generated" that Sentinel used to show (retired in 3.1.8).
+    @AppStorage(GenerationDetails.key) private var showGenerationDetails = false
 
     var body: some View {
         SettingsScroll {
@@ -20,6 +22,13 @@ struct ManualSettingsView: View {
                         }
                     }
                     .buttonStyle(.plain)
+
+                    SettingsDivider()
+
+                    Toggle(isOn: $showGenerationDetails) {
+                        SettingsRowLabel(title: "Show how insights are made", systemImage: "shield.lefthalf.filled", iconColor: MirrorTheme.violet)
+                    }
+                    .tint(MirrorTheme.violet)
 
                     // Always there while this release has pages, seen or not: testers and anyone who
                     // swiped the sheet away can open it again (owner, 2026-11-06).
