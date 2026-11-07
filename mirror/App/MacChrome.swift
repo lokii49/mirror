@@ -333,8 +333,9 @@ struct MacPageBar<Trailing: View>: View {
 
     var body: some View {
         HStack(spacing: 8) {
+            // Paper & Ink: screen titles in the reflection's serif, as on iPhone.
             Text(title)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: 17, weight: .medium, design: .serif))
                 .foregroundStyle(MacTokens.ink)
             Spacer(minLength: 0)
             trailing()

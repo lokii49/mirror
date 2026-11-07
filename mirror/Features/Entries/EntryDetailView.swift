@@ -122,6 +122,19 @@ struct EntryDetailView: View {
         return matches.sorted { $0.createdAt > $1.createdAt }
     }
 
+    /// Paper & Ink: time · mood dot and name · words, in one quiet line (was monospaced, with a pill).
+    private var paperMetaLine: some View {
+        var line = Text(entry.createdAt, format: .dateTime.hour().minute())
+        if let mood = entry.mood, !mood.isEmpty {
+            line = line + Text(" · ") + Text("●").foregroundStyle(MirrorTheme.moodColor(for: mood))
+                + Text(" " + MirrorTheme.localizedMoodName(for: mood))
+        }
+        line = line + Text(" · ") + Text(displayedWordCount == 1 ? "1 word" : "\(displayedWordCount) words")
+        return line
+            .scaledFont(14)
+            .foregroundStyle(MirrorTheme.textSecondary)
+    }
+
     private var moodLabel: String? {
         let mood = entry.mood
         guard let mood, !mood.isEmpty else { return nil }
@@ -152,11 +165,15 @@ struct EntryDetailView: View {
                                 .foregroundStyle(MirrorTheme.textPrimary)
                                 .kerning(0.4)
                         } else {
+                            // Paper & Ink: the date in the reflection's serif.
                             Text(entry.createdAt, format: .dateTime.weekday(.wide).month(.wide).day().year())
-                                .scaledFont(18, weight: .semibold)
+                                .scaledFont(21, weight: .medium, design: .serif)
                                 .foregroundStyle(MirrorTheme.textPrimary)
                         }
 
+                        if displayMode != .sentinel {
+                            paperMetaLine
+                        } else {
                         HStack(spacing: 6) {
                             Text(entry.createdAt, format: .dateTime.hour().minute())
                                 .scaledFont(14, weight: .medium, design: .monospaced)
@@ -185,6 +202,7 @@ struct EntryDetailView: View {
                             Text(displayedWordCount == 1 ? "1 word" : "\(displayedWordCount) words")
                                 .scaledFont(14, weight: .medium, design: .monospaced)
                                 .foregroundStyle(MirrorTheme.textTertiary)
+                        }
                         }
                     }
 

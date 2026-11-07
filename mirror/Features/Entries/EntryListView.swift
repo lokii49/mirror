@@ -1254,6 +1254,13 @@ struct EntriesTabView: View {
                     .padding(.horizontal, displayMode == .sentinel ? 16 : 4)
                     .padding(.top, displayMode == .sentinel ? 8 : 16)
                     .padding(.bottom, displayMode == .sentinel ? 2 : 6)
+                    // Pinned while its month scrolls under it: paper behind it, edge to edge, so rows
+                    // don't show through the heading.
+                    .background {
+                        if displayMode != .sentinel {
+                            entriesGround.padding(.horizontal, -24)
+                        }
+                    }
                 }
             }
         }
@@ -2044,7 +2051,7 @@ extension EntriesTabView {
     fileprivate var macHeader: some View {
         HStack(spacing: 8) {
             Text("Entries")
-                .scaledFont(15, weight: .semibold)
+                .scaledFont(17, weight: .medium, design: .serif)
                 .foregroundStyle(MacTokens.ink)
             Text("\(entries.count)")
                 .scaledFont(12)
@@ -2245,26 +2252,40 @@ private struct MacEntryRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
+            // Paper & Ink (option D, as on iPhone): a serif day numeral, no tile; the rail carries colour.
             VStack(spacing: 2) {
                 Text(entry.createdAt, format: .dateTime.day())
-                    .scaledFont(15, weight: .bold, design: .rounded)
+                    .scaledFont(18, weight: .regular, design: .serif)
                     .foregroundStyle(MacTokens.ink)
                     .monospacedDigit()
                 Text(entry.createdAt, format: .dateTime.weekday(.abbreviated))
-                    .scaledFont(9, weight: .bold)
+                    .scaledFont(9, weight: .semibold)
+                    .kerning(0.5)
                     .foregroundStyle(secondary)
                     .textCase(.uppercase)
             }
-            .frame(width: 36)
-            .padding(.vertical, 7)
-            .background(moodColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .frame(width: 34)
+            .padding(.vertical, 4)
 
-            VStack(alignment: .leading, spacing: 4) {
-                (preview?.preview ?? Text("Untitled entry"))
-                    .scaledFont(13.5, weight: .semibold)
-                    .foregroundStyle(MacTokens.ink)
-                    .lineLimit(preview?.isSearchMatch == true ? 2 : 1)
-                    .truncationMode(.tail)
+            VStack(alignment: .leading, spacing: 3) {
+                if let title = preview?.title, preview?.isSearchMatch != true {
+                    Text(verbatim: title)
+                        .scaledFont(14.5, weight: .semibold, design: .serif)
+                        .foregroundStyle(MacTokens.ink)
+                        .lineLimit(1)
+                    if let snippet = preview?.snippet {
+                        snippet
+                            .scaledFont(12.5)
+                            .foregroundStyle(MacTokens.ink.opacity(0.8))
+                            .lineLimit(1)
+                    }
+                } else {
+                    (preview?.preview ?? Text("Untitled entry"))
+                        .scaledFont(13.5, weight: .medium)
+                        .foregroundStyle(MacTokens.ink)
+                        .lineLimit(2)
+                        .truncationMode(.tail)
+                }
 
                 HStack(spacing: 5) {
                     if let mood {
@@ -2285,6 +2306,7 @@ private struct MacEntryRow: View {
                 .lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            if entry.hasPhoto { EntryThumbnail(entry: entry, side: 40) }
         }
         .padding(.leading, 13)
         .padding(.trailing, 10)
