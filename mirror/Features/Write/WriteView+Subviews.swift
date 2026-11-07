@@ -617,6 +617,13 @@ struct WritingStarterChip: View {
             starterMenu
             suggestionsPicker
         }
+        #if DEBUG && os(iOS) && canImport(JournalingSuggestions)
+        .task {
+            // `--demoSuggestion=run|music|place`: applies a synthetic suggestion once, as a pick would.
+            guard let onSuggestion, #available(iOS 17.2, *), let demo = await SuggestionInsert.demoFromLaunchArguments() else { return }
+            onSuggestion(demo)
+        }
+        #endif
     }
 
     /// Apple's Journaling Suggestions (photos, workouts, places from your day), chosen in Apple's

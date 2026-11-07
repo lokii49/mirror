@@ -54,6 +54,9 @@ struct mirrorApp: App {
         // Plaintext left by an archive export/import that was interrupted (crash, force quit).
         let launch = Date()
         DispatchQueue.global(qos: .utility).async { ArchivePackage.removeStaleStaging(createdBefore: launch) }
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains(where: { $0.hasPrefix("--demoSuggestion=") }) { WriteDraftStore.wipeScratchForDemo() }
+        #endif
         #if os(macOS) && DEBUG
         if let dir = MacFormatPopoverRender.requestedDirectory {
             DispatchQueue.main.async { MacFormatPopoverRender.renderAndQuit(to: dir) }

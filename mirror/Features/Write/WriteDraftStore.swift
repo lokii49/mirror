@@ -104,6 +104,19 @@ enum WriteDraftStore {
         )
     }
 
+    #if DEBUG
+    /// DEBUG `--demoSuggestion=…` launches start from an empty scratch draft, so each capture shows
+    /// one suggestion and nothing left from the run before. Never touches the real draft.
+    static func wipeScratchForDemo() {
+        guard CommandLine.arguments.contains("--scratchDraftStorage") else { return }
+        UserDefaults(suiteName: "mirror.scratchDrafts")?.removePersistentDomain(forName: "mirror.scratchDrafts")
+        let fm = FileManager.default
+        guard let dir = try? fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: false),
+              let files = try? fm.contentsOfDirectory(atPath: dir.path) else { return }
+        for name in files where name.hasPrefix("scratch-mirror-") { try? fm.removeItem(at: dir.appendingPathComponent(name)) }
+    }
+    #endif
+
     /// Where drafts live. DEBUG `--scratchDraftStorage` (synthetic perf-seed runs)
     /// uses its own suite so a restart check never touches the real draft.
     static var storage: UserDefaults {

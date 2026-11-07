@@ -384,3 +384,59 @@ extension SuggestionInsert {
     }
 }
 #endif
+
+#if DEBUG && os(iOS) && canImport(JournalingSuggestions)
+@available(iOS 17.2, *)
+extension SuggestionInsert {
+    /// DEBUG `--demoSuggestion=run|music|place`: a synthetic suggestion, built the way `read` builds
+    /// a real one (same line formats, real map pictures), for screenshots and design passes on
+    /// devices and simulators that can't show Apple's sheet. Synthetic names and places only.
+    @MainActor
+    static func demoFromLaunchArguments() async -> SuggestionInsert? {
+        guard let arg = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("--demoSuggestion=") }) else { return nil }
+        var insert = SuggestionInsert()
+        switch arg.dropFirst("--demoSuggestion=".count) {
+        case "run":
+            insert.title = "Evening run"
+            insert.lines = [SuggestionLines.workout(name: "Running", meters: 5200, seconds: 31 * 60, kilocalories: 412),
+                            SuggestionLines.steps(8430)].compactMap { $0 }
+            insert.mood = "Energized"
+            // A loop through a synthetic park, one point every ~60 m.
+            let loop = (0..<90).map { i -> CLLocation in
+                let t = Double(i) / 90 * 2 * .pi * 0.92
+                return CLLocation(latitude: 38.7223 + 0.006 * sin(t), longitude: -9.1500 + 0.008 * cos(t))
+            }
+            if let kept = SuggestionLines.trimmedRoute(loop), let map = await routeMap(kept) { insert.pictures.append(map) }
+        case "music":
+            insert.title = "Songs on the drive home"
+            insert.lines = [SuggestionLines.media(title: "Paper Lanterns", artist: "The Quiet Hours"),
+                            SuggestionLines.media(title: "Low Tide", artist: "Marrow & Vine"),
+                            SuggestionLines.podcast(episode: "The Long Way Round", show: "Field Notes")].compactMap { $0 }
+            insert.pictures = [demoArtwork(0xE8A26A, 0x8E3A6E), demoArtwork(0x6E8FA8, 0x2E3E55), demoArtwork(0xC9B07A, 0x6E5A2E)].compactMap { $0 }
+        case "place":
+            insert.title = "Dinner by the river"
+            insert.lines = [SuggestionLines.place("Blue Door Café", city: "Lisbon"),
+                            SuggestionLines.people(["Maya", "Tom"])].compactMap { $0 }
+            if let map = await placeMap(CLLocation(latitude: 38.7077, longitude: -9.1365)) { insert.pictures.append(map) }
+            insert.pictures += [demoArtwork(0x7FA88A, 0x2E5540), demoArtwork(0xD9A06A, 0x8A4A2E)].compactMap { $0 }
+        default:
+            return nil
+        }
+        return insert
+    }
+
+    /// A square two-colour gradient standing in for album art or a photo.
+    @MainActor
+    private static func demoArtwork(_ from: UInt32, _ to: UInt32) -> URL? {
+        func color(_ hex: UInt32) -> CGColor {
+            UIColor(red: CGFloat(hex >> 16 & 0xFF) / 255, green: CGFloat(hex >> 8 & 0xFF) / 255, blue: CGFloat(hex & 0xFF) / 255, alpha: 1).cgColor
+        }
+        let size = CGSize(width: 900, height: 900)
+        let image = UIGraphicsImageRenderer(size: size).image { ctx in
+            let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: [color(from), color(to)] as CFArray, locations: [0, 1])!
+            ctx.cgContext.drawLinearGradient(gradient, start: .zero, end: CGPoint(x: size.width, y: size.height), options: [])
+        }
+        return writeJPEG(image)
+    }
+}
+#endif
