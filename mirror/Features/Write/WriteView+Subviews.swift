@@ -610,6 +610,9 @@ struct WritingStarterChip: View {
     @State private var customTemplates: [CustomTemplate] = []
     /// The one-time explanation under "Suggestions from your day" (owner, 2026-11-06).
     @AppStorage("mirror.suggestions.tipShown") private var suggestionsTipShown = false
+    /// Between picking a suggestion and its lines and pictures landing (maps are drawn, pictures
+    /// prepared: often a second or two), so the pick visibly does something.
+    @State private var addingSuggestion = false
     private var isSentinel: Bool { displayMode == .sentinel }
     private var accent: Color { isSentinel ? MirrorTheme.ember : MirrorTheme.violet }
 
@@ -635,9 +638,13 @@ struct WritingStarterChip: View {
         if let onSuggestion, #available(iOS 17.2, *), DeviceFeature.journalingSuggestionsAvailable {
             JournalingSuggestionsPicker {
                 HStack(spacing: 6) {
-                    Image(systemName: "photo.on.rectangle.angled")
-                        .scaledFont(13, weight: .semibold)
-                    Text(isSentinel ? "SUGGESTIONS FROM YOUR DAY" : "Suggestions from your day")
+                    if addingSuggestion {
+                        ProgressView().controlSize(.small).tint(accent)
+                    } else {
+                        Image(systemName: "photo.on.rectangle.angled")
+                            .scaledFont(13, weight: .semibold)
+                    }
+                    Text(addingSuggestion ? "Adding from your day…" : (isSentinel ? "SUGGESTIONS FROM YOUR DAY" : "Suggestions from your day"))
                         .scaledFont(isSentinel ? 12.5 : 14, weight: isSentinel ? .semibold : .medium, design: isSentinel ? .monospaced : .default)
                         .kerning(isSentinel ? 0.4 : 0)
                         .lineLimit(1)
@@ -648,12 +655,15 @@ struct WritingStarterChip: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
             } onCompletion: { suggestion in
+                await MainActor.run { addingSuggestion = true }
                 let insert = await SuggestionInsert.read(suggestion)
                 await MainActor.run {
                     suggestionsTipShown = true
+                    addingSuggestion = false
                     onSuggestion(insert)
                 }
             }
+            .disabled(addingSuggestion)
             .buttonStyle(.plain)
             .accessibilityIdentifier("write.suggestions")
             if !suggestionsTipShown {
