@@ -426,8 +426,9 @@ struct EntriesTabView: View {
 
     private var listHeaderRow: some View {
         HStack(spacing: 16) {
+            // Paper & Ink: the reflection's serif voice carries the screen title.
             Text(displayMode == .sentinel ? "Log" : "Entries")
-                .scaledFont(displayMode == .sentinel ? 20 : 26, weight: .bold, design: displayMode == .sentinel ? .monospaced : .default)
+                .scaledFont(displayMode == .sentinel ? 20 : 30, weight: displayMode == .sentinel ? .bold : .medium, design: displayMode == .sentinel ? .monospaced : .serif)
                 .foregroundStyle(MirrorTheme.textPrimary)
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 8)
@@ -436,9 +437,12 @@ struct EntriesTabView: View {
         .padding(.horizontal, 18)
         .padding(.top, 8)
         .padding(.bottom, 6)
-        .background(MirrorTheme.bgBase)
+        .background(entriesGround)
     }
     #endif
+
+    /// The list's ground: Paper & Ink's warm paper in the default theme, Sentinel's ink there.
+    private var entriesGround: Color { displayMode == .sentinel ? MirrorTheme.bgBase : MirrorTheme.paperGround }
 
     var body: some View {
         let snapshot = snapshotCache ?? listSnapshot
@@ -458,6 +462,7 @@ struct EntriesTabView: View {
             .navigationTitle(displayMode == .sentinel ? "Log" : "Entries")
             .navigationBarTitleDisplayMode(.inline)
             #if os(iOS)
+            .modifier(SerifNavigationTitle(title: "Entries", enabled: displayMode != .sentinel && !actionsInListHeader))
             .background(VerticalBarProbe(hasVerticalBar: $hasVerticalBar))
             .toolbar {
                 if !actionsInListHeader && showsListActions {
@@ -846,7 +851,8 @@ struct EntriesTabView: View {
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
                         .background(
-                            isSelected ? (displayMode == .sentinel ? MirrorTheme.ember.opacity(0.14) : MirrorTheme.violetDim) : MirrorTheme.inkRaised,
+                            isSelected ? (displayMode == .sentinel ? MirrorTheme.ember.opacity(0.14) : MirrorTheme.violetDim)
+                                : (displayMode == .sentinel ? MirrorTheme.inkRaised : Color.clear),
                             in: displayMode == .sentinel
                                 ? AnyShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                                 : AnyShape(Capsule())
@@ -855,6 +861,8 @@ struct EntriesTabView: View {
                             if displayMode == .sentinel {
                                 RoundedRectangle(cornerRadius: 6, style: .continuous)
                                     .stroke((isSelected ? MirrorTheme.ember : MirrorTheme.textTertiary).opacity(isSelected ? 0.4 : 0.2), lineWidth: 1)
+                            } else if !isSelected {
+                                Capsule().stroke(MirrorTheme.paperLine, lineWidth: 1)
                             }
                         }
                         .foregroundStyle(isSelected ? (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight) : MirrorTheme.textSecondary)
@@ -866,7 +874,7 @@ struct EntriesTabView: View {
             .padding(.vertical, 8)
         }
         .horizontalEdgeFade()
-        .background(MirrorTheme.bgBase)
+        .background(entriesGround)
     }
 
     private func moodFilterBar(_ usedMoods: [String]) -> some View {
@@ -893,11 +901,16 @@ struct EntriesTabView: View {
                         .background(
                             isSelected
                                 ? MirrorTheme.moodColor(for: mood).opacity(0.20)
-                                : MirrorTheme.inkRaised,
+                                : (displayMode == .sentinel ? MirrorTheme.inkRaised : Color.clear),
                             in: displayMode == .sentinel
                                 ? AnyShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                                 : AnyShape(Capsule())
                         )
+                        .overlay {
+                            if displayMode != .sentinel && !isSelected {
+                                Capsule().stroke(MirrorTheme.paperLine, lineWidth: 1)
+                            }
+                        }
                         .foregroundStyle(isSelected ? MirrorTheme.moodColor(for: mood) : MirrorTheme.textSecondary)
                     }
                     .buttonStyle(.plain)
@@ -907,7 +920,7 @@ struct EntriesTabView: View {
             .padding(.vertical, 8)
         }
         .horizontalEdgeFade()
-        .background(MirrorTheme.bgBase)
+        .background(entriesGround)
     }
 
     private var searchBar: some View {
@@ -940,7 +953,7 @@ struct EntriesTabView: View {
         .themedCard(cornerRadius: 14)
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .background(MirrorTheme.bgBase)
+        .background(entriesGround)
         .onAppear { searchFocused = true }
     }
 
@@ -1068,7 +1081,10 @@ struct EntriesTabView: View {
                 MoveToCollectionMenu(entry: entry, lookup: collectionLookup) { newCollectionFor = entry }
             }
             .buttonStyle(.plain)
-            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+            // Paper & Ink rows sit flat on the page, edge to edge between hairlines.
+            .listRowInsets(displayMode == .sentinel
+                           ? EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16)
+                           : EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
             .listRowSeparator(.hidden)
             .listRowBackground(macSelection?.wrappedValue?.id == entry.id ? MirrorTheme.violet.opacity(0.16) : Color.clear)
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
@@ -1208,24 +1224,28 @@ struct EntriesTabView: View {
                         entryRowView(row.entry, preview: snapshot.rowPreviews[row.id])
                     }
                 } header: {
-                    HStack {
+                    HStack(alignment: .firstTextBaseline) {
                         Group {
                             if displayMode == .sentinel {
                                 Text(sectionTitle(for: group, ranked: snapshot.isRanked)).scaledFont(13, weight: .bold, design: .monospaced).tracking(1.5)
                             } else {
-                                Text(sectionTitle(for: group, ranked: snapshot.isRanked)).scaledFont(13, weight: .black, design: .rounded).tracking(1.5)
+                                // Paper & Ink: the month reads as a serif heading, not a caps label.
+                                Text(sectionTitle(for: group, ranked: snapshot.isRanked))
+                                    .scaledFont(20, weight: .medium, design: .serif)
+                                    .foregroundStyle(MirrorTheme.textPrimary)
                             }
                         }
                         Spacer()
                         Text(group.rows.count == 1 ? "1 entry" : "\(group.rows.count) entries")
-                            .scaledFont(12, weight: .semibold, design: .monospaced)
+                            .scaledFont(displayMode == .sentinel ? 12 : 13, weight: displayMode == .sentinel ? .semibold : .regular, design: displayMode == .sentinel ? .monospaced : .default)
                             .textCase(nil)
                     }
-                    .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.75) : MirrorTheme.textTertiary)
-                    .textCase(.uppercase)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                    .padding(.bottom, 2)
+                    .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.75) : MirrorTheme.textSecondary)
+                    .textCase(displayMode == .sentinel ? .uppercase : nil)
+                    // The plain list already insets headers 16 pt; 4 more lines the month up with the rows (20).
+                    .padding(.horizontal, displayMode == .sentinel ? 16 : 4)
+                    .padding(.top, displayMode == .sentinel ? 8 : 16)
+                    .padding(.bottom, displayMode == .sentinel ? 2 : 6)
                 }
             }
         }
@@ -1238,7 +1258,7 @@ struct EntriesTabView: View {
         .environment(\.defaultMinListHeaderHeight, 0)
         .environment(\.defaultMinListRowHeight, 1)
         .scrollDismissesKeyboard(.interactively)
-        .background(MirrorTheme.bgBase)
+        .background(entriesGround)
         .onChange(of: scrollToTopID) { _, _ in
             // First tap closes a pushed reader (the list is then where it was); the next scrolls.
             if showEntryDetail {
@@ -1345,10 +1365,48 @@ struct EntriesTabView: View {
     }
 }
 
+#if os(iOS)
+/// Paper & Ink (owner 2026-11-07): a screen's navigation-bar title in the reflection's serif.
+/// iOS 18+ hides the system title so it isn't shown twice (iOS 26+ also drops the toolbar glass
+/// behind it); iOS 17 keeps the system title. The navigation title itself stays set, so back
+/// buttons and the app switcher still read it.
+struct SerifNavigationTitle: ViewModifier {
+    let title: LocalizedStringKey
+    let enabled: Bool
+
+    func body(content: Content) -> some View {
+        if enabled, #available(iOS 26.0, *) {
+            content
+                .toolbar(removing: .title)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) { label }
+                        .sharedBackgroundVisibility(.hidden)
+                }
+        } else if enabled, #available(iOS 18.0, *) {
+            content
+                .toolbar(removing: .title)
+                .toolbar { ToolbarItem(placement: .topBarLeading) { label } }
+        } else {
+            content
+        }
+    }
+
+    private var label: some View {
+        Text(title)
+            .scaledFont(26, weight: .medium, design: .serif)
+            .foregroundStyle(MirrorTheme.textPrimary)
+            .lineLimit(1)
+            .fixedSize()
+            .accessibilityAddTraits(.isHeader)
+    }
+}
+#endif
+
 private struct EntryRow: View {
     let entry: Entry
     @Environment(\.appDisplayMode) private var displayMode
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.displayScale) private var displayScale
     private let moodLabel: String?
     private let preview: Text
     private let displayWordCount: Int
@@ -1382,6 +1440,23 @@ private struct EntryRow: View {
         }
     }
 
+    /// Paper & Ink's date: a serif numeral over the weekday, no tile (the mood rule carries colour).
+    private func paperDate(stacked: Bool) -> some View {
+        let layout = stacked ? AnyLayout(VStackLayout(spacing: 3)) : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 6))
+        return layout {
+            Text(entry.createdAt, format: .dateTime.day())
+                .scaledFont(24, weight: .regular, design: .serif)
+                .foregroundStyle(MirrorTheme.textPrimary)
+                .monospacedDigit()
+            Text(entry.createdAt, format: .dateTime.weekday(.abbreviated))
+                .scaledFont(11, weight: .semibold)
+                .kerning(0.6)
+                .foregroundStyle(MirrorTheme.textSecondary)
+                .textCase(.uppercase)
+        }
+        .frame(width: stacked ? 40 : nil)
+    }
+
     private func dateTile(stacked: Bool) -> some View {
         let layout = stacked ? AnyLayout(VStackLayout(spacing: 6)) : AnyLayout(HStackLayout(spacing: 6))
         return layout {
@@ -1413,7 +1488,7 @@ private struct EntryRow: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 12) {
                 preview
-                    .scaledFont(displayMode == .sentinel ? 15 : 16, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)
+                    .scaledFont(displayMode == .sentinel ? 15 : 16, weight: displayMode == .sentinel ? .medium : .regular, design: displayMode == .sentinel ? .monospaced : .default)
                     .foregroundStyle(previewTextColor)
                     .lineLimit(3)
                     .multilineTextAlignment(.leading)
@@ -1471,10 +1546,10 @@ private struct EntryRow: View {
                             .kerning(displayMode == .sentinel ? 0.3 : 0)
                             .foregroundStyle(.secondary)
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
+                    .padding(.horizontal, displayMode == .sentinel ? 8 : 0)
+                    .padding(.vertical, displayMode == .sentinel ? 3 : 0)
                     .background(
-                        MirrorTheme.moodColor(for: label).opacity(0.10),
+                        displayMode == .sentinel ? MirrorTheme.moodColor(for: label).opacity(0.10) : Color.clear,
                         in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
                     )
                     .overlay {
@@ -1497,6 +1572,41 @@ private struct EntryRow: View {
     }
 
     var body: some View {
+        if displayMode == .sentinel { cardBody } else { paperBody }
+    }
+
+    /// Paper & Ink (owner 2026-11-07): the row lies flat on the page between hairlines. The mood
+    /// rule stays at the left edge, full height, as the entry's colour.
+    private var paperBody: some View {
+        Group {
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 8) {
+                    paperDate(stacked: false)
+                    contentColumn
+                }
+            } else {
+                HStack(alignment: .top, spacing: 12) {
+                    paperDate(stacked: true)
+                    contentColumn
+                }
+            }
+        }
+        .padding(.leading, 15)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                .fill(moodColor.opacity(moodLabel == nil ? 0.20 : 0.9))
+                .frame(width: 3)
+                .padding(.vertical, 14)
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(MirrorTheme.paperLine).frame(height: 1 / max(displayScale, 1))
+        }
+    }
+
+    private var cardBody: some View {
         // At accessibility text sizes the date tile goes above the text as one line ("24 SAT");
         // in its 42 pt column the day and weekday broke apart.
         Group {

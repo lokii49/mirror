@@ -46,6 +46,12 @@ enum MirrorTheme {
     static let inkRaised  = hex(0x241C22, 0xFAF6F8)  // elevated card / sheet
     static let inkBorder  = hex(0x33282F, 0xE7DDE2)  // dividers, stroke
 
+    // Paper & Ink (owner 2026-11-07, Entries first): a warmer paper ground and its hairline, for
+    // the default theme's flat lists. Text on it: textPrimary 15:1, textSecondary 4.9:1 light /
+    // 5.6:1 dark. Sentinel keeps inkBase.
+    static let paperGround = hex(0x141012, 0xF7F3EE)
+    static let paperLine   = hex(0x2C2428, 0xE6DDD6)
+
     // MARK: - Accent tokens
 
     // The accent keeps its old names (`violet`…) so ~200 call sites don't churn; it is plum now.
