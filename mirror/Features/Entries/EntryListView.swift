@@ -1083,9 +1083,33 @@ struct EntriesTabView: View {
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(isSelecting ? (selectedIDs.contains(entry.id) ? [.isButton, .isSelected] : .isButton) : .isButton)
             .accessibilityAction { if isSelecting { toggleSelection(entry) } else { open(entry) } }
+            #if os(iOS)
+            // Long press: the entry itself as a preview (as Messages and WhatsApp peek a chat),
+            // with Open, Pin, Move to and Delete under it (owner, 2026-11-07).
+            .contextMenu {
+                Button { open(entry) } label: { Label("Open", systemImage: "arrow.up.forward.app") }
+                Button {
+                    entry.isPinned.toggle()
+                    try? modelContext.save()
+                } label: {
+                    Label(entry.isPinned ? "Unpin" : "Pin", systemImage: entry.isPinned ? "pin.slash" : "pin")
+                }
+                MoveToCollectionMenu(entry: entry, lookup: collectionLookup) { newCollectionFor = entry }
+                Divider()
+                Button(role: .destructive) {
+                    if macSelection?.wrappedValue?.id == entry.id { macSelection?.wrappedValue = nil }
+                    try? EntryTrash.moveToTrash([entry], in: modelContext)
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            } preview: {
+                EntryPeekPreview(entry: entry)
+            }
+            #else
             .contextMenu {
                 MoveToCollectionMenu(entry: entry, lookup: collectionLookup) { newCollectionFor = entry }
             }
+            #endif
             .buttonStyle(.plain)
             // Paper & Ink rows sit flat on the page, edge to edge between hairlines.
             .listRowInsets(displayMode == .sentinel
@@ -1514,6 +1538,87 @@ private struct EntryThumbnail: View {
         return thumb.cropping(to: CGRect(x: (thumb.width - edge) / 2, y: (thumb.height - edge) / 2, width: edge, height: edge))
     }
 }
+
+#if os(iOS)
+/// What a long press on an entry row shows above its menu: the entry on paper, its first picture,
+/// title and text, read once when the preview opens (nothing is decrypted for rows that aren't
+/// pressed). Read-only; Open in the menu goes to the reader.
+private struct EntryPeekPreview: View {
+    let entry: Entry
+    @State private var picture: UIImage?
+
+    private var lines: [String] {
+        guard !entry.textDecryptionFailed else { return [] }
+        var text = entry.text
+        for (range, _) in allPhotoTokens(in: text).reversed() { text.removeSubrange(range) }
+        return text.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+
+    var body: some View {
+        let split = EntryRowText.split(lines)
+        VStack(alignment: .leading, spacing: 10) {
+            Text(entry.createdAt, format: .dateTime.weekday(.wide).month(.wide).day())
+                .scaledFont(20, weight: .medium, design: .serif)
+                .foregroundStyle(MirrorTheme.textPrimary)
+            meta
+            if let picture {
+                Image(uiImage: picture)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 170)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+            if let title = split.title {
+                Text(verbatim: title)
+                    .scaledFont(19, weight: .semibold, design: .serif)
+                    .foregroundStyle(MirrorTheme.textPrimary)
+            }
+            if entry.textDecryptionFailed {
+                Text("Encrypted entry unavailable")
+                    .scaledFont(16)
+                    .foregroundStyle(MirrorTheme.textSecondary)
+            } else {
+                Text(verbatim: split.title == nil ? lines.joined(separator: "\n") : lines.dropFirst().joined(separator: "\n"))
+                    .readingFont(size: 17)
+                    .lineSpacing(5)
+                    .foregroundStyle(MirrorTheme.textPrimary)
+                    .lineLimit(14)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(20)
+        .frame(width: 340, alignment: .topLeading)
+        .frame(minHeight: 200, maxHeight: 560, alignment: .top)
+        .background(MirrorTheme.inkMid)
+        .task {
+            guard entry.hasPhoto, let data = entry.photoData else { return }
+            picture = await Task.detached(priority: .userInitiated) {
+                guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+                      let cg = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                        kCGImageSourceCreateThumbnailFromImageAlways: true,
+                        kCGImageSourceCreateThumbnailWithTransform: true,
+                        kCGImageSourceThumbnailMaxPixelSize: 900,
+                      ] as CFDictionary) else { return nil }
+                return UIImage(cgImage: cg)
+            }.value
+        }
+    }
+
+    private var meta: some View {
+        var line = Text(entry.createdAt, format: .dateTime.hour().minute())
+        if let mood = entry.mood, !mood.isEmpty {
+            line = line + Text(" · ") + Text("●").foregroundStyle(MirrorTheme.moodColor(for: mood))
+                + Text(" " + MirrorTheme.localizedMoodName(for: mood))
+        }
+        let tags = entry.tags.prefix(3).map { "#" + MirrorTheme.localizedTagName(for: $0) }
+        if !tags.isEmpty { line = line + Text(" · ") + Text(tags.joined(separator: " ")).foregroundStyle(MirrorTheme.violet) }
+        return line.scaledFont(14).foregroundStyle(MirrorTheme.textSecondary)
+    }
+}
+#endif
 
 private struct EntryRow: View {
     let entry: Entry
