@@ -173,6 +173,14 @@ struct ManualSettingsView: View {
                         icon: "lock.shield.fill",
                         color: .green
                     )
+                    // UI checklist 2026-11-07: what a day's colour and a chart point mean.
+                    privacyStep(
+                        number: "5",
+                        title: "How your moods are drawn",
+                        body: "On the calendar, a day shows the mood you logged most that day (when two tie, the later one). Charts place moods from Low to High by how pleasant they are, one point per day; a gap means a day with no mood.",
+                        icon: "chart.line.uptrend.xyaxis",
+                        color: MirrorTheme.violet
+                    )
                 }
                 .padding(20)
             }
@@ -220,7 +228,7 @@ struct ManualSettingsView: View {
             }
         }
         .padding(18)
-        .themedCard(cornerRadius: 20)
+        .themedCard(cornerRadius: 22)
     }
 
     private var appVersion: String {

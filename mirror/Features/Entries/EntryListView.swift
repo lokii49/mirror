@@ -505,6 +505,16 @@ struct EntriesTabView: View {
             }
             .animation(.easeInOut(duration: 0.2), value: isSelecting)
             #endif
+            #if DEBUG
+            // Captures: `--entriesSearch=<text>` opens Search with that text (devicectl can't type).
+            .onAppear {
+                let prefix = "--entriesSearch="
+                if let arg = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix(prefix) }) {
+                    showSearch = true
+                    searchText = String(arg.dropFirst(prefix.count))
+                }
+            }
+            #endif
             .task(id: searchText) {
                 let value = searchText
                 do { try await Task.sleep(for: .milliseconds(250)) } catch { return }
@@ -867,17 +877,20 @@ struct EntriesTabView: View {
                             if displayMode == .sentinel {
                                 RoundedRectangle(cornerRadius: 6, style: .continuous)
                                     .stroke((isSelected ? MirrorTheme.ember : MirrorTheme.textTertiary).opacity(isSelected ? 0.4 : 0.2), lineWidth: 1)
-                            } else if !isSelected {
-                                Capsule().stroke(MirrorTheme.paperLine, lineWidth: 1)
                             }
+                            // Paper & Ink: tags are the quieter second row, plain words until chosen,
+                            // so only the mood chips above carry outlines (checklist: less competition).
                         }
                         .foregroundStyle(isSelected ? (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight) : MirrorTheme.textSecondary)
+                        .contentShape(Capsule())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityAddTraits(isSelected ? .isSelected : [])
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .padding(.horizontal, displayMode == .sentinel ? 16 : 10)
+            .padding(.top, displayMode == .sentinel ? 8 : 0)
+            .padding(.bottom, displayMode == .sentinel ? 8 : 4)
         }
         .horizontalEdgeFade()
         .background(entriesGround)
@@ -920,6 +933,7 @@ struct EntriesTabView: View {
                         .foregroundStyle(isSelected ? MirrorTheme.moodColor(for: mood) : MirrorTheme.textSecondary)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityAddTraits(isSelected ? .isSelected : [])
                 }
             }
             .padding(.horizontal, 16)
@@ -1207,46 +1221,41 @@ struct EntriesTabView: View {
                         entryRowView(row.entry, preview: snapshot.rowPreviews[row.id])
                     }
                 } header: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "pin.fill").scaledFont(11, weight: .bold)
-                        Group {
-                            if displayMode == .sentinel {
-                                Text("Pinned").scaledFont(13, weight: .bold, design: .monospaced).tracking(1.5)
-                            } else {
-                                Text("Pinned").scaledFont(13, weight: .black, design: .rounded).tracking(1.5)
-                            }
+                    if displayMode == .sentinel {
+                        HStack(spacing: 4) {
+                            Image(systemName: "pin.fill").scaledFont(11, weight: .bold)
+                            Text("Pinned").scaledFont(13, weight: .bold, design: .monospaced).tracking(1.5)
                         }
+                        .foregroundStyle(MirrorTheme.ember.opacity(0.75))
+                        .textCase(.uppercase)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                        .padding(.bottom, 2)
+                    } else {
+                        // Paper & Ink: the same small label as Today / Yesterday, lined up with the rows.
+                        HStack(spacing: 5) {
+                            Image(systemName: "pin.fill").scaledFont(10, weight: .semibold)
+                            Text("Pinned").scaledFont(11.5, weight: .semibold).kerning(0.8)
+                        }
+                        .foregroundStyle(MirrorTheme.violet)
+                        .textCase(.uppercase)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityAddTraits(.isHeader)
+                        .padding(.horizontal, 4)
+                        .padding(.top, 16)
+                        .padding(.bottom, 4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background { entriesGround.padding(.horizontal, -24) }
                     }
-                    .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.75) : MirrorTheme.textTertiary)
-                    .textCase(.uppercase)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                    .padding(.bottom, 2)
                 }
             }
 
             if snapshot.filteredEntries.isEmpty {
-                Group {
-                    if displayMode == .sentinel {
-                        Text(emptyFilteredMessage).scaledFont(13, weight: .medium, design: .monospaced).textCase(.uppercase)
-                    } else {
-                        Text(emptyFilteredMessage).scaledFont(14)
-                    }
-                }
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .multilineTextAlignment(.center)
-                .padding(.top, 32)
-                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-                if let count = snapshot.matchesWithoutFilters, count > 0 {
-                    relaxFiltersButton(count)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 0, trailing: 16))
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                }
+                filteredEmptyState(matchesWithoutFilters: snapshot.matchesWithoutFilters)
+                    .padding(.top, 32)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 24, bottom: 0, trailing: 24))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
             } else {
                 EmptyView()
             }
@@ -1378,8 +1387,57 @@ struct EntriesTabView: View {
             }
             .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet)
         }
+        .frame(minHeight: 44)
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
         .accessibilityIdentifier("search.relaxFilters")
+    }
+
+    /// Search or filters that match nothing: a calm heading, why, and the one step that brings
+    /// entries back (drop the filters the search is blocked by, else clear filters or the search).
+    @ViewBuilder
+    private func filteredEmptyState(matchesWithoutFilters: Int?) -> some View {
+        let hasProblem = EntrySearchQuery.parse(debouncedSearchText).problem != nil
+        VStack(spacing: 8) {
+            if displayMode == .sentinel {
+                Text(emptyFilteredMessage).scaledFont(13, weight: .medium, design: .monospaced).textCase(.uppercase)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("No matches")
+                    .scaledFont(20, weight: .medium, design: .serif)
+                    .foregroundStyle(MirrorTheme.textPrimary)
+                    .accessibilityAddTraits(.isHeader)
+                Text(emptyFilteredMessage)
+                    .scaledFont(14)
+                    .foregroundStyle(MirrorTheme.textSecondary)
+            }
+            Group {
+                if let count = matchesWithoutFilters, count > 0 {
+                    relaxFiltersButton(count)
+                } else if filters.isActive {
+                    emptyStateAction("Clear filters") {
+                        withAnimation(.easeInOut(duration: 0.2)) { filters = EntryFilterCriteria() }
+                    }
+                } else if !debouncedSearchText.isEmpty && !hasProblem {
+                    emptyStateAction("Clear search") { searchText = ""; debouncedSearchText = "" }
+                }
+            }
+            .padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+        .multilineTextAlignment(.center)
+    }
+
+    private func emptyStateAction(_ title: LocalizedStringKey, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .scaledFont(displayMode == .sentinel ? 12 : 14, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
+                .textCase(displayMode == .sentinel ? .uppercase : nil)
+                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private var emptyFilteredMessage: LocalizedStringKey {
@@ -1429,7 +1487,7 @@ struct EntriesTabView: View {
                 if displayMode == .sentinel {
                     Text("NO SIGNALS YET").scaledFont(18, weight: .semibold, design: .monospaced).tracking(1)
                 } else {
-                    Text("No entries yet").scaledFont(20, weight: .semibold)
+                    Text("No entries yet").scaledFont(24, weight: .medium, design: .serif)
                 }
             }
             Group {
@@ -2084,14 +2142,9 @@ extension EntriesTabView {
                         }
                     }
                     if snapshot.filteredEntries.isEmpty {
-                        Text(emptyFilteredMessage)
-                            .scaledFont(13)
-                            .foregroundStyle(MacTokens.secondaryInk)
-                            .frame(maxWidth: .infinity)
+                        filteredEmptyState(matchesWithoutFilters: snapshot.matchesWithoutFilters)
+                            .padding(.horizontal, 24)
                             .padding(.top, 32)
-                        if let count = snapshot.matchesWithoutFilters, count > 0 {
-                            relaxFiltersButton(count).frame(maxWidth: .infinity).padding(.top, 8)
-                        }
                     }
                     ForEach(snapshot.groupedByMonth, id: \.date) { group in
                         macSectionLabel(sectionTitle(for: group, ranked: snapshot.isRanked).uppercased(), icon: nil, topPadding: 14)

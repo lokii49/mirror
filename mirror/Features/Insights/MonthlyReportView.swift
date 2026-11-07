@@ -186,7 +186,7 @@ struct MonthlyReportView: View {
             #endif
         }
         .padding(20)
-        .themedCard(cornerRadius: 26)
+        .themedCard(cornerRadius: 22)
     }
 
     @ViewBuilder
@@ -384,7 +384,7 @@ struct MonthlyReportView: View {
             .foregroundStyle(MirrorTheme.textTertiary)
         }
         .padding(20)
-        .themedCard(cornerRadius: 24)
+        .themedCard(cornerRadius: 22)
     }
 
     private func endOfMonthTooFewEntriesCard(count: Int) -> some View {
@@ -430,7 +430,7 @@ struct MonthlyReportView: View {
             .foregroundStyle(MirrorTheme.textTertiary)
         }
         .padding(20)
-        .themedCard(cornerRadius: 24)
+        .themedCard(cornerRadius: 22)
     }
 
     private var deepLockedCard: some View {
@@ -481,7 +481,7 @@ struct MonthlyReportView: View {
             .buttonStyle(.plain)
         }
         .padding(20)
-        .themedCard(cornerRadius: 24)
+        .themedCard(cornerRadius: 22)
     }
 
     private var nightlyPendingCard: some View {
@@ -714,10 +714,10 @@ private struct MonthlyReportCard: View {
             }
         }
         .padding(22)
-        .themedHeroCard(cornerRadius: 26, classicBase: .elevated)
+        .themedHeroCard(cornerRadius: 22, classicBase: .elevated)
         .overlay {
             if !isSentinel {
-                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
                     .stroke(MirrorTheme.violet.opacity(0.25), lineWidth: 1)
             }
         }

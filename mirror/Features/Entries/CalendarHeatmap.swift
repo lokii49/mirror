@@ -33,6 +33,10 @@ struct CalendarHeatmap: View {
     @State private var viewDate: Date = Date()
     @Environment(\.appDisplayMode) private var displayMode
     @Environment(\.dynamicTypeSize) private var typeSize
+    /// Increase Contrast: future days and weekend initials step up one level so they stay legible.
+    @Environment(\.colorSchemeContrast) private var contrast
+    private var futureInk: HierarchicalShapeStyle { contrast == .increased ? .secondary : .quaternary }
+    private var weekendOpacity: Double { contrast == .increased ? 1 : 0.55 }
 
     // MARK: - Cache
 
@@ -492,12 +496,12 @@ struct CalendarHeatmap: View {
         return VStack(spacing: 5) {
             Text(date.formatted(.dateTime.weekday(.narrow)))
                 .scaledFont(10, weight: .medium)
-                .foregroundStyle(isFuture ? .quaternary : .tertiary)
-                .opacity(isWeekend ? 0.55 : 1)
+                .foregroundStyle(isFuture ? futureInk : .tertiary)
+                .opacity(isWeekend ? weekendOpacity : 1)
             Text(date.formatted(.dateTime.day()))
                 .font(.system(size: numeralSize, weight: isToday ? .semibold : .regular, design: .serif))
                 .monospacedDigit()
-                .foregroundStyle(isToday ? AnyShapeStyle(Color.white) : (isFuture ? AnyShapeStyle(.quaternary) : AnyShapeStyle(MirrorTheme.textPrimary)))
+                .foregroundStyle(isToday ? AnyShapeStyle(Color.white) : (isFuture ? AnyShapeStyle(futureInk) : AnyShapeStyle(MirrorTheme.textPrimary)))
                 .frame(maxWidth: .infinity, minHeight: numeralSize + 16)
                 .background {
                     if isToday {
@@ -514,7 +518,7 @@ struct CalendarHeatmap: View {
             Capsule()
                 .fill(count > 0 ? barColor : Color.clear)
                 .overlay { if count > 0, let ring { Capsule().strokeBorder(ring, lineWidth: 1) } }
-                .frame(width: 18, height: 4)
+                .frame(width: 20, height: 5)
             // How many entries, when more than one (owner, 2026-11-07: a small count). Fixed size
             // like the numerals; VoiceOver already reads the count in the day's label.
             Text(verbatim: count > 1 ? "\(count)" : " ")
@@ -549,8 +553,8 @@ struct CalendarHeatmap: View {
         return VStack(spacing: 4) {
             Text(date.formatted(.dateTime.weekday(.narrow)))
                 .scaledFont(10, weight: .medium)
-                .foregroundStyle(isFuture ? .quaternary : .tertiary)
-                .opacity(isWeekend ? 0.55 : 1)
+                .foregroundStyle(isFuture ? futureInk : .tertiary)
+                .opacity(isWeekend ? weekendOpacity : 1)
 
             RoundedRectangle(cornerRadius: displayMode == .sentinel ? 4 : 8, style: .continuous)
                 .fill(displayMode == .sentinel ? MirrorTheme.inkMid : (isFuture ? MirrorTheme.inkMid : color(for: startOfDay)))
@@ -571,7 +575,7 @@ struct CalendarHeatmap: View {
                     VStack(spacing: 2) {
                         Text(date.formatted(.dateTime.day()))
                             .font(displayMode == .sentinel ? MirrorTheme.mono(15, weight: isToday ? .bold : .semibold) : .system(size: 15, weight: isToday ? .bold : .semibold, design: .rounded))
-                            .foregroundStyle(isFuture ? .quaternary : .primary)
+                            .foregroundStyle(isFuture ? futureInk : .primary)
                         if count > 0 {
                             Text("\(count)")
                                 .scaledFont(10, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)
@@ -732,8 +736,8 @@ struct CalendarHeatmap: View {
         return VStack(spacing: 4) {
             Text(date.formatted(.dateTime.weekday(.narrow)))
                 .scaledFont(9, weight: .medium)
-                .foregroundStyle(isFuture ? .quaternary : .tertiary)
-                .opacity(isWeekend ? 0.55 : 1)
+                .foregroundStyle(isFuture ? futureInk : .tertiary)
+                .opacity(isWeekend ? weekendOpacity : 1)
 
             RoundedRectangle(cornerRadius: displayMode == .sentinel ? 4 : 7, style: .continuous)
                 .fill(displayMode == .sentinel ? MirrorTheme.inkMid : (isFuture ? MirrorTheme.inkMid : color(for: startOfDay)))
@@ -752,7 +756,7 @@ struct CalendarHeatmap: View {
                     VStack(spacing: 2) {
                         Text(date.formatted(.dateTime.day()))
                             .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: isToday ? .bold : .semibold) : .system(size: 13, weight: isToday ? .bold : .semibold, design: .rounded))
-                            .foregroundStyle(isFuture ? .quaternary : .primary)
+                            .foregroundStyle(isFuture ? futureInk : .primary)
                         if count > 0 {
                             Text("\(count)")
                                 .scaledFont(9, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)

@@ -401,7 +401,7 @@ struct PaywallView: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .themedCard(cornerRadius: 24)
+        .themedCard(cornerRadius: 22)
         .animation(.easeInOut(duration: 0.2), value: selectedTier)
     }
 
@@ -478,7 +478,7 @@ struct PaywallView: View {
             }
         }
         .padding(20)
-        .themedCard(cornerRadius: 24)
+        .themedCard(cornerRadius: 22)
     }
 
     private var plansUnavailable: some View {

@@ -57,6 +57,6 @@ struct AcknowledgmentsView: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .themedCard(cornerRadius: 20)
+        .themedCard(cornerRadius: 22)
     }
 }

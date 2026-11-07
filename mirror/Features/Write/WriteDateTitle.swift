@@ -25,7 +25,9 @@ struct WriteDateTitle: View {
                     .scaledFont(isSentinel ? 13 : 15, weight: .medium, design: isSentinel ? .monospaced : .default)
                     .kerning(isSentinel ? 0.4 : 0)
                     .foregroundStyle(secondary)
-                    .lineLimit(1)
+                    // Two lines at accessibility sizes, where the Mood pill beside the title
+                    // left "7 Novemb…" (UI checklist, AX3 pass 2026-11-07).
+                    .lineLimit(1...2)
                     .minimumScaleFactor(0.8)
                 if showsChevron {
                     Image(systemName: "chevron.down")

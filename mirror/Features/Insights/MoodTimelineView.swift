@@ -417,17 +417,14 @@ struct MoodTimelineView: View {
                 if averageMoodScore >= 1.5 { return "Mixed, leaning low" }
                 return "Low mood"
             }()
-            let barColor: Color = averageMoodScore >= 3.5 ? .green : averageMoodScore >= 2.5 ? .orange : .red
+            // Paper & Ink: one accent. The dot's place on the Low → High track carries the
+            // meaning; the red-to-green track and traffic-light dot were a second palette.
+            let barColor: Color = MirrorTheme.violet
 
             VStack(spacing: 5) {
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
-                        LinearGradient(
-                            colors: [.red, .orange, .yellow, .green],
-                            startPoint: .leading, endPoint: .trailing
-                        )
-                        .opacity(0.35)
-                        .clipShape(Capsule())
+                        Capsule().fill(MirrorTheme.inkBorder).frame(height: 4)
 
                         Circle()
                             .fill(barColor)
@@ -790,13 +787,11 @@ struct MoodTimelineView: View {
     @ViewBuilder
     private var previewMoodScaleRow: some View {
         let fraction: CGFloat = 0.5
-        let barColor: Color = .orange
+        let barColor: Color = MirrorTheme.violet
         VStack(spacing: 5) {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    LinearGradient(colors: [.red, .orange, .yellow, .green], startPoint: .leading, endPoint: .trailing)
-                        .opacity(0.35)
-                        .clipShape(Capsule())
+                    Capsule().fill(MirrorTheme.inkBorder).frame(height: 4)
                     Circle()
                         .fill(barColor)
                         .frame(width: 11, height: 11)

@@ -103,9 +103,9 @@ extension SettingsView {
             }
         }
         .padding(20)
-        .themedCard(cornerRadius: 26)
+        .themedCard(cornerRadius: 22)
         .overlay(
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .stroke(
                     subscriptionService.isDeep ? MirrorTheme.violet.opacity(0.22)
                     : subscriptionService.isSubscribed ? MirrorTheme.primary.opacity(0.22)
@@ -190,7 +190,7 @@ extension SettingsView {
             }
         }
         .padding(18)
-        .themedCard(cornerRadius: 24)
+        .themedCard(cornerRadius: 22)
     }
 
     func statCard(value: String, label: LocalizedStringKey, icon: String, color: Color) -> some View {

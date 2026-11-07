@@ -1353,7 +1353,7 @@ struct NightlyPendingCard: View {
             .foregroundStyle(MirrorTheme.textSecondary)
         }
         .padding(22)
-        .themedCard(cornerRadius: 26, classicBase: .elevated)
+        .themedCard(cornerRadius: 22, classicBase: .elevated)
     }
 }
 
@@ -1491,7 +1491,7 @@ struct NeedsMoreEntriesCard: View {
                 .foregroundStyle(MirrorTheme.textTertiary)
         }
         .padding(20)
-        .themedHeroCard(cornerRadius: 24)
+        .themedHeroCard(cornerRadius: 22)
     }
 }
 
@@ -1542,7 +1542,7 @@ struct UpgradePromptCard: View {
             .buttonStyle(.plain)
         }
         .padding(20)
-        .themedCard(cornerRadius: 24)
+        .themedCard(cornerRadius: 22)
     }
 }
 
@@ -1931,6 +1931,8 @@ private struct MoodWeekChartView: View {
                             Text(v == 1 ? LocalizedStringKey("Low") : v == 3 ? LocalizedStringKey("Mid") : LocalizedStringKey("High"))
                                 .scaledFont(isSentinel ? 9.5 : 10, weight: isSentinel ? .semibold : .regular, design: isSentinel ? .monospaced : .default)
                                 .foregroundStyle(MirrorTheme.textSecondary)
+                                // Bold Text and larger sizes cut the word to "Hi…" without it.
+                                .fixedSize()
                         }
                     }
                 }

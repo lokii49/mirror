@@ -839,6 +839,70 @@
         }
       }
     },
+    "How your moods are drawn" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "So werden deine Stimmungen gezeigt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How your moods are drawn"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cómo se dibujan tus estados de ánimo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comment vos humeurs sont représentées"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Come vengono mostrati i tuoi stati d’animo"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "気分の表し方"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "기분이 표시되는 방식"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Como seus humores são mostrados"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Как показано ваше настроение"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心情是如何显示的"
+          }
+        }
+      }
+    },
     "In Write, Suggestions from your day opens Apple's own sheet of photos, workouts and places from your day. MirrorNotes sees only the one you pick, to start that entry, and nothing else. Which suggestions appear is set in Settings › Privacy & Security › Journaling Suggestions." : {
       "comment" : "Settings explanation of Suggestions from your day",
       "localizations" : {
@@ -1032,6 +1096,64 @@
         }
       }
     },
+    "No matches" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Treffer"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin resultados"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun résultat"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessun risultato"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一致するものはありません"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "일치하는 항목 없음"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nenhum resultado"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ничего не найдено"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有匹配项"
+          }
+        }
+      }
+    },
     "Oats, lemons, tape" : {
       "comment" : "Sample quick note in the What's New Scratch demo",
       "localizations" : {
@@ -1093,6 +1215,70 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "燕麦、柠檬、胶带"
+          }
+        }
+      }
+    },
+    "On the calendar, a day shows the mood you logged most that day (when two tie, the later one). Charts place moods from Low to High by how pleasant they are, one point per day; a gap means a day with no mood." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Im Kalender zeigt ein Tag die Stimmung, die du an diesem Tag am häufigsten erfasst hast (bei Gleichstand die spätere). Diagramme ordnen Stimmungen von Niedrig bis Hoch danach, wie angenehm sie sind, ein Punkt pro Tag; eine Lücke ist ein Tag ohne Stimmung."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On the calendar, a day shows the mood you logged most that day (when two tie, the later one). Charts place moods from Low to High by how pleasant they are, one point per day; a gap means a day with no mood."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En el calendario, cada día muestra el estado de ánimo que más registraste ese día (si hay empate, el más reciente). Los gráficos colocan los estados de ánimo de Bajo a Alto según lo agradables que son, un punto por día; un hueco es un día sin estado de ánimo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dans le calendrier, un jour affiche l’humeur que vous avez notée le plus souvent ce jour-là (en cas d’égalité, la plus récente). Les graphiques placent les humeurs de Bas à Haut selon qu’elles sont agréables, un point par jour ; un vide correspond à un jour sans humeur."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nel calendario, un giorno mostra lo stato d’animo che hai registrato più spesso quel giorno (in caso di parità, il più recente). I grafici dispongono gli stati d’animo da Basso ad Alto in base a quanto sono piacevoli, un punto al giorno; uno spazio vuoto è un giorno senza stato d’animo."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "カレンダーでは、その日にいちばん多く記録した気分を表示します（同数のときは後のもの）。グラフは気分を心地よさに応じて「低い」から「高い」まで、1日1点で並べます。途切れている日は気分の記録がない日です。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "달력에서는 그날 가장 많이 기록한 기분을 보여 줍니다(같으면 나중 것). 그래프는 기분이 얼마나 좋은지에 따라 낮음부터 높음까지, 하루에 한 점으로 표시하며, 비어 있는 날은 기분 기록이 없는 날입니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No calendário, cada dia mostra o humor que você mais registrou naquele dia (em caso de empate, o mais recente). Os gráficos colocam os humores de Baixo a Alto conforme o quanto são agradáveis, um ponto por dia; um intervalo é um dia sem humor."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "В календаре день показывает настроение, которое вы отмечали в этот день чаще всего (при равенстве — более позднее). Графики располагают настроения от «Низкий» до «Высокий» по тому, насколько они приятны, одна точка в день; пропуск — день без отметки настроения."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在日历上，每天显示你当天记录最多的心情（数量相同时取较晚的一个）。图表按心情的愉快程度从“低”到“高”排列，每天一个点；中间的空缺表示那天没有记录心情。"
           }
         }
       }

@@ -162,14 +162,24 @@ struct ContentView: View {
         #endif
     }
 
-    /// Write, except DEBUG `--initialTab=entries`/`=insights` (headless simulator screenshots,
+    /// Write, except DEBUG `--initialTab=entries`/`=insights`/`=write` (headless simulator screenshots,
     /// where a mirror:// link would stop at the system's open confirmation).
     private static var launchTab: Int {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--initialTab=entries") { return 0 }
         if ProcessInfo.processInfo.arguments.contains("--initialTab=insights") { return 2 }
+        if ProcessInfo.processInfo.arguments.contains("--initialTab=write") { return 1 }
         #endif
         return 1
+    }
+
+    /// True when a DEBUG `--initialTab=` asked for a tab; onboarding's tab changes leave it alone.
+    private static var hasLaunchTabOverride: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains { $0.hasPrefix("--initialTab=") }
+        #else
+        return false
+        #endif
     }
 
     /// Widgets run in a separate process with no SwiftUI environment of their
@@ -440,7 +450,7 @@ struct ContentView: View {
         }
         .onChange(of: onboardingComplete) { _, complete in
             if complete {
-                selectedTab = 1
+                selectedTab = Self.hasLaunchTabOverride ? Self.launchTab : 1
                 selectedSidebarItem = .write
                 Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 800_000_000)
@@ -449,7 +459,7 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            if !onboardingComplete {
+            if !onboardingComplete && !Self.hasLaunchTabOverride {
                 selectedTab = 0
                 selectedSidebarItem = .entries
             }

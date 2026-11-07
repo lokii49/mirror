@@ -1543,11 +1543,18 @@ private struct DebugDynamicTypeSize: ViewModifier {
         return DynamicTypeSize.allCases.first { "\($0)" == arg.dropFirst(prefix.count) }
     }()
 
+    /// `--boldText` and `--increaseContrast`: the Bold Text and Increase Contrast settings, for the
+    /// accessibility passes (UI checklist 2026-11-07), set the same way.
+    private let bold = ProcessInfo.processInfo.arguments.contains("--boldText")
+    private let contrast = ProcessInfo.processInfo.arguments.contains("--increaseContrast")
+
     func body(content: Content) -> some View {
         content.onAppear {
-            guard let size else { return }
+            guard size != nil || bold || contrast else { return }
             for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
-                scene.traitOverrides.preferredContentSizeCategory = UIContentSizeCategory(size)
+                if let size { scene.traitOverrides.preferredContentSizeCategory = UIContentSizeCategory(size) }
+                if bold { scene.traitOverrides.legibilityWeight = .bold }
+                if contrast { scene.traitOverrides.accessibilityContrast = .high }
             }
         }
     }

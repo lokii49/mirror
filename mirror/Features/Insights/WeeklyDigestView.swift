@@ -86,7 +86,7 @@ struct WeeklyDigestView: View {
             }
         }
         .padding(22)
-        .themedHeroCard(cornerRadius: 26, classicBase: .elevated)
+        .themedHeroCard(cornerRadius: 22, classicBase: .elevated)
     }
 
     private func parseDigest(_ text: String) -> [(title: String, body: String)] {
