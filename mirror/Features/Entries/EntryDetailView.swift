@@ -1180,12 +1180,23 @@ private struct InlineEntryContent: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// The link on a photo line, if one covers it (a suggestion's map opens Maps).
+    private func photoLink(atLine index: Int) -> URL? {
+        let start = paragraphStartOffset(at: index)
+        let length = (displayLines[index] as NSString).length
+        for range in inlineRanges {
+            guard let link = validatedLinkURL(from: range.linkURL) else { continue }
+            if range.location < start + length, range.location + max(range.length, 1) > start { return link }
+        }
+        return nil
+    }
+
     @ViewBuilder
     private func lineView(_ line: String, at index: Int) -> some View {
                 if let photoIndex = inlinePhotoIndex(from: line.trimmingCharacters(in: .whitespaces)),
                    photoIndex < photoDataArray.count,
                    let uiImage = UIImage(data: photoDataArray[photoIndex]) {
-                    Image(uiImage: uiImage)
+                    let picture = Image(uiImage: uiImage)
                         .resizable()
                         .scaledToFit()
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -1194,6 +1205,11 @@ private struct InlineEntryContent: View {
                                 .stroke(Color.primary.opacity(0.08), lineWidth: 1)
                         }
                         .padding(.vertical, 4)
+                    if let link = photoLink(atLine: index) {
+                        Link(destination: link) { picture }
+                    } else {
+                        picture
+                    }
                 } else if !line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     styledText(for: line, at: index)
                         .frame(maxWidth: .infinity, alignment: .leading)

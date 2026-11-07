@@ -354,6 +354,14 @@ struct NoteEditorTextView: UIViewRepresentable {
                     if (displayed as NSString).character(at: i) == 0xFFFC { attachCount += 1 }
                 }
                 let sortedTokens = photoTokens.sorted { parent.text.distance(from: parent.text.startIndex, to: $0.range.lowerBound) < parent.text.distance(from: parent.text.startIndex, to: $1.range.lowerBound) }
+                // A picture with a link (a suggestion's map) opens it, e.g. Apple Maps at the place.
+                if let attributed = textView.attributedText, charIndex < attributed.length,
+                   let url = (attributed.attribute(.link, at: charIndex, effectiveRange: nil) as? URL)
+                    ?? (attributed.attribute(.link, at: charIndex, effectiveRange: nil) as? String).flatMap(URL.init(string:)),
+                   ["http", "https"].contains(url.scheme?.lowercased() ?? "") {
+                    UIApplication.shared.open(url)
+                    return
+                }
                 if attachCount < sortedTokens.count, isPhotoReadable(sortedTokens[attachCount].index) {
                     parent.onPhotoTapped?(sortedTokens[attachCount].index)
                 }

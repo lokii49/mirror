@@ -39,15 +39,18 @@ extension WriteView {
         isAttachingPhoto = true
         Task {
             var prepared: [Data] = []
-            for url in urls {
+            var mapLeads = false
+            for (offset, url) in urls.enumerated() {
                 if let data = try? await Task.detached(priority: .userInitiated, operation: { try preparedInlinePhotoData(fromFileAt: url) }).value {
                     prepared.append(data)
+                    // The map is always the first picture `read` gives, when there is one.
+                    if offset == 0, insert.mapLink != nil { mapLeads = true }
                 }
                 try? FileManager.default.removeItem(at: url)
             }
             let start = photoDataArray.count
             photoDataArray.append(contentsOf: prepared)
-            setSuggestionText(insert, tokens: prepared.indices.map { inlinePhotoToken(at: start + $0) })
+            setSuggestionText(insert, tokens: prepared.indices.map { inlinePhotoToken(at: start + $0) }, mapLeads: mapLeads)
             isAttachingPhoto = false
         }
         #else
@@ -55,10 +58,13 @@ extension WriteView {
         #endif
     }
 
-    private func setSuggestionText(_ insert: SuggestionInsert, tokens: [String]) {
+    private func setSuggestionText(_ insert: SuggestionInsert, tokens: [String], mapLeads: Bool = false) {
         let text = insert.text(withPhotoTokens: tokens)
         guard !text.isEmpty else { return }
         viewModel.text = text
+        // Places, songs and the map open Maps / Music / Podcasts: ordinary entry links.
+        let links = insert.linkRanges(in: text, mapLeads: mapLeads)
+        inlineStyleData = links.isEmpty ? nil : try? JSONEncoder().encode(InlineStyleDocument(ranges: links))
         if insert.leadsWithTitle {
             // Every paragraph gets an explicit style: one without falls back to legacy "# " parsing.
             let count = text.components(separatedBy: "\n").count

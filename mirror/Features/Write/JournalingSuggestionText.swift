@@ -20,6 +20,11 @@ struct SuggestionInsert: Equatable {
     var pictures: [URL] = []
     /// A reflection prompt from Apple, used as the starting text.
     var prompt: String?
+    /// Lines that open something when tapped (owner, 2026-11-07): a place in Maps, a song or
+    /// podcast searched in Music or Podcasts. Stored as ordinary entry links (since 3.1.0).
+    var lineLinks: [String: URL] = [:]
+    /// Where tapping the leading map picture goes (Maps at the place, or the route's middle).
+    var mapLink: URL?
     /// One of `MirrorTheme.moodOptions`, from a State of Mind.
     var mood: String?
 
@@ -43,6 +48,30 @@ struct SuggestionInsert: Equatable {
         var head = text
         while head.hasSuffix("\n") { head.removeLast() }
         return ((head.isEmpty ? [] : [head]) + tokens).joined(separator: "\n") + "\n"
+    }
+
+    /// Inline link ranges for `text(withPhotoTokens:)`: each linked line where it sits, and the
+    /// map's picture when `mapLeads` (the first token is the map). Inline coordinates count a
+    /// photo as one character; nothing comes before the first token but text, so up to it they
+    /// equal the text's own UTF-16 offsets.
+    func linkRanges(in text: String, mapLeads: Bool) -> [InlineStyleRange] {
+        let ns = text as NSString
+        var ranges: [InlineStyleRange] = []
+        func link(_ location: Int, _ length: Int, _ url: URL) {
+            ranges.append(InlineStyleRange(location: location, length: length, bold: false, italic: false,
+                                           underline: false, strikethrough: false, highlightIndex: nil,
+                                           linkURL: url.absoluteString))
+        }
+        for line in lines {
+            guard let url = lineLinks[line] else { continue }
+            let found = ns.range(of: line)
+            if found.location != NSNotFound { link(found.location, found.length, url) }
+        }
+        if mapLeads, let mapLink {
+            let token = ns.range(of: "[[mirror-photo-")
+            if token.location != NSNotFound { link(token.location, 1, mapLink) }
+        }
+        return ranges.sorted { $0.location < $1.location }
     }
 
     /// The first line is the suggestion's title (shown as a Heading), not a reflection prompt.
@@ -108,6 +137,41 @@ enum SuggestionLines {
         f.locale = locale
         let joined = f.string(from: list) ?? list.joined(separator: ", ")
         return "👥 " + String(localized: "With \(joined)", comment: "Journaling Suggestion: the people in a moment, e.g. With Maya and Tom")
+    }
+
+    /// Apple Maps at a coordinate, labelled with the place's name when there is one.
+    static func mapsURL(latitude: Double, longitude: Double, name: String? = nil) -> URL? {
+        var c = URLComponents(string: "https://maps.apple.com/")
+        var items = [URLQueryItem(name: "ll", value: String(format: "%.6f,%.6f", latitude, longitude))]
+        if let name = cleaned(name) { items.append(URLQueryItem(name: "q", value: name)) }
+        c?.queryItems = items
+        return c?.url
+    }
+
+    /// Apple Maps searching a place's name (an event that names its place but has no coordinate).
+    static func mapsSearchURL(_ place: String?) -> URL? {
+        guard let place = cleaned(place) else { return nil }
+        var c = URLComponents(string: "https://maps.apple.com/")
+        c?.queryItems = [URLQueryItem(name: "q", value: place)]
+        return c?.url
+    }
+
+    /// Apple Music searching a song (or other media) by title and artist.
+    static func musicSearchURL(title: String?, artist: String?) -> URL? {
+        searchURL("https://music.apple.com/search", [title, artist])
+    }
+
+    /// Apple Podcasts searching an episode and its show.
+    static func podcastSearchURL(episode: String?, show: String?) -> URL? {
+        searchURL("https://podcasts.apple.com/search", [episode, show])
+    }
+
+    private static func searchURL(_ base: String, _ parts: [String?]) -> URL? {
+        let term = parts.compactMap(cleaned).joined(separator: " ")
+        guard !term.isEmpty else { return nil }
+        var c = URLComponents(string: base)
+        c?.queryItems = [URLQueryItem(name: "term", value: term)]
+        return c?.url
     }
 
     static func steps(_ count: Int) -> String? {
@@ -176,7 +240,16 @@ extension SuggestionInsert {
             guard let url, insert.pictures.count < maxPictures, let copy = localCopy(of: url) else { return }
             insert.pictures.append(copy)
         }
-        func add(_ line: String?) { if let line, !insert.lines.contains(line) { insert.lines.append(line) } }
+        func add(_ line: String?, link: URL? = nil) {
+            guard let line, !insert.lines.contains(line) else { return }
+            insert.lines.append(line)
+            if let link { insert.lineLinks[line] = link }
+        }
+        func mapsLink(_ location: JournalingSuggestion.Location) -> URL? {
+            guard let c = location.location?.coordinate else { return nil }
+            return SuggestionLines.mapsURL(latitude: c.latitude, longitude: c.longitude, name: location.place)
+        }
+        var pinName: String?
 
         for item in suggestion.items {
             if item.hasContent(ofType: JournalingSuggestion.LivePhoto.self),
@@ -198,15 +271,20 @@ extension SuggestionInsert {
             }
             if item.hasContent(ofType: JournalingSuggestion.Song.self),
                let song = try? await item.content(forType: JournalingSuggestion.Song.self) {
-                add(SuggestionLines.media(title: song.song, artist: song.artist)); addPicture(song.artwork); continue
+                add(SuggestionLines.media(title: song.song, artist: song.artist),
+                    link: SuggestionLines.musicSearchURL(title: song.song, artist: song.artist))
+                addPicture(song.artwork); continue
             }
             if item.hasContent(ofType: JournalingSuggestion.Podcast.self),
                let pod = try? await item.content(forType: JournalingSuggestion.Podcast.self) {
-                add(SuggestionLines.podcast(episode: pod.episode, show: pod.show)); addPicture(pod.artwork); continue
+                add(SuggestionLines.podcast(episode: pod.episode, show: pod.show),
+                    link: SuggestionLines.podcastSearchURL(episode: pod.episode, show: pod.show))
+                addPicture(pod.artwork); continue
             }
             if #available(iOS 18.0, *), item.hasContent(ofType: JournalingSuggestion.GenericMedia.self),
                let media = try? await item.content(forType: JournalingSuggestion.GenericMedia.self) {
-                add(SuggestionLines.media(title: media.title, artist: media.artist)); continue
+                add(SuggestionLines.media(title: media.title, artist: media.artist),
+                    link: SuggestionLines.musicSearchURL(title: media.title, artist: media.artist)); continue
             }
             if item.hasContent(ofType: JournalingSuggestion.WorkoutGroup.self),
                let group = try? await item.content(forType: JournalingSuggestion.WorkoutGroup.self) {
@@ -225,15 +303,15 @@ extension SuggestionInsert {
             if item.hasContent(ofType: JournalingSuggestion.LocationGroup.self),
                let group = try? await item.content(forType: JournalingSuggestion.LocationGroup.self) {
                 for location in group.locations.prefix(3) {
-                    add(SuggestionLines.place(location.place, city: location.city))
-                    if pin == nil, mapsPlace(location) { pin = location.location }
+                    add(SuggestionLines.place(location.place, city: location.city), link: mapsLink(location))
+                    if pin == nil, mapsPlace(location) { pin = location.location; pinName = location.place }
                 }
                 continue
             }
             if item.hasContent(ofType: JournalingSuggestion.Location.self),
                let location = try? await item.content(forType: JournalingSuggestion.Location.self) {
-                add(SuggestionLines.place(location.place, city: location.city))
-                if pin == nil, mapsPlace(location) { pin = location.location }
+                add(SuggestionLines.place(location.place, city: location.city), link: mapsLink(location))
+                if pin == nil, mapsPlace(location) { pin = location.location; pinName = location.place }
                 continue
             }
             if item.hasContent(ofType: JournalingSuggestion.Contact.self),
@@ -256,7 +334,8 @@ extension SuggestionInsert {
             }
             if #available(iOS 26.0, *), item.hasContent(ofType: JournalingSuggestion.EventPoster.self),
                let poster = try? await item.content(forType: JournalingSuggestion.EventPoster.self) {
-                add(SuggestionLines.event(title: String(poster.title.characters), place: poster.placeName))
+                add(SuggestionLines.event(title: String(poster.title.characters), place: poster.placeName),
+                    link: SuggestionLines.mapsSearchURL(poster.placeName))
                 addPicture(poster.image)
                 continue
             }
@@ -265,8 +344,16 @@ extension SuggestionInsert {
         // One map leads the pictures (owner, 2026-11-06), within the same limit of four: a
         // workout's route first, else a named place's pin.
         var map: URL?
-        if let route { map = await routeMap(route) }
-        if map == nil, let pin { map = await placeMap(pin) }
+        if let route, !route.isEmpty {
+            let middle = route[route.count / 2]
+            map = await routeMap(route)
+            // The route's middle, never its (trimmed) ends.
+            if map != nil { insert.mapLink = SuggestionLines.mapsURL(latitude: middle.coordinate.latitude, longitude: middle.coordinate.longitude) }
+        }
+        if map == nil, let pin {
+            map = await placeMap(pin)
+            if map != nil { insert.mapLink = SuggestionLines.mapsURL(latitude: pin.coordinate.latitude, longitude: pin.coordinate.longitude, name: pinName) }
+        }
         if let map {
             if insert.pictures.count >= maxPictures, let dropped = insert.pictures.popLast() {
                 try? FileManager.default.removeItem(at: dropped)
@@ -421,18 +508,33 @@ extension SuggestionInsert {
                 let t = Double(i) / 90 * 2 * .pi * 0.92
                 return CLLocation(latitude: 38.7223 + 0.006 * sin(t), longitude: -9.1500 + 0.008 * cos(t))
             }
-            if let kept = SuggestionLines.trimmedRoute(loop), let map = await routeMap(kept) { insert.pictures.append(map) }
+            if let kept = SuggestionLines.trimmedRoute(loop), let map = await routeMap(kept) {
+                insert.pictures.append(map)
+                let middle = kept[kept.count / 2].coordinate
+                insert.mapLink = SuggestionLines.mapsURL(latitude: middle.latitude, longitude: middle.longitude)
+            }
         case "music":
             insert.title = "Songs on the drive home"
             insert.lines = [SuggestionLines.media(title: "Paper Lanterns", artist: "The Quiet Hours"),
                             SuggestionLines.media(title: "Low Tide", artist: "Marrow & Vine"),
                             SuggestionLines.podcast(episode: "The Long Way Round", show: "Field Notes")].compactMap { $0 }
             insert.pictures = [demoArtwork(0xE8A26A, 0x8E3A6E), demoArtwork(0x6E8FA8, 0x2E3E55), demoArtwork(0xC9B07A, 0x6E5A2E)].compactMap { $0 }
+            for (line, url) in zip(insert.lines, [SuggestionLines.musicSearchURL(title: "Paper Lanterns", artist: "The Quiet Hours"),
+                                                  SuggestionLines.musicSearchURL(title: "Low Tide", artist: "Marrow & Vine"),
+                                                  SuggestionLines.podcastSearchURL(episode: "The Long Way Round", show: "Field Notes")]) {
+                insert.lineLinks[line] = url
+            }
         case "place":
             insert.title = "Dinner by the river"
             insert.lines = [SuggestionLines.place("Blue Door Café", city: "Lisbon"),
                             SuggestionLines.people(["Maya", "Tom"])].compactMap { $0 }
-            if let map = await placeMap(CLLocation(latitude: 38.7077, longitude: -9.1365)) { insert.pictures.append(map) }
+            if let map = await placeMap(CLLocation(latitude: 38.7077, longitude: -9.1365)) {
+                insert.pictures.append(map)
+                insert.mapLink = SuggestionLines.mapsURL(latitude: 38.7077, longitude: -9.1365, name: "Blue Door Café")
+            }
+            if let place = insert.lines.first {
+                insert.lineLinks[place] = SuggestionLines.mapsURL(latitude: 38.7077, longitude: -9.1365, name: "Blue Door Café")
+            }
             insert.pictures += [demoArtwork(0x7FA88A, 0x2E5540), demoArtwork(0xD9A06A, 0x8A4A2E)].compactMap { $0 }
         default:
             return nil

@@ -80,6 +80,36 @@ struct JournalingSuggestionTextTests {
         #expect(!SuggestionInsert(title: "  ").leadsWithTitle)
     }
 
+    /// Tappable lines and map (owner, 2026-11-07): plain https links the entry already stores.
+    @Test func linksOpenMapsMusicAndPodcasts() throws {
+        let maps = try #require(SuggestionLines.mapsURL(latitude: 38.7077, longitude: -9.1365, name: "Blue Door Café"))
+        #expect(maps.host == "maps.apple.com")
+        #expect(maps.absoluteString.contains("ll=38.707700,-9.136500"))
+        #expect(maps.absoluteString.contains("q=Blue%20Door%20Caf"))
+        #expect(SuggestionLines.mapsURL(latitude: 1, longitude: 2, name: " ")?.absoluteString.contains("q=") == false)
+        let music = try #require(SuggestionLines.musicSearchURL(title: "Paper Lanterns", artist: "The Quiet Hours"))
+        #expect(music.absoluteString == "https://music.apple.com/search?term=Paper%20Lanterns%20The%20Quiet%20Hours")
+        #expect(SuggestionLines.podcastSearchURL(episode: "The Long Way Round", show: nil)?.host == "podcasts.apple.com")
+        #expect(SuggestionLines.musicSearchURL(title: nil, artist: "  ") == nil)
+        #expect(SuggestionLines.mapsSearchURL("Riverside Hall")?.absoluteString == "https://maps.apple.com/?q=Riverside%20Hall")
+    }
+
+    @Test func linkRangesCoverTheLinesAndTheMapPicture() throws {
+        var insert = SuggestionInsert(title: "Dinner by the river", lines: ["📍 Blue Door Café, Lisbon", "👥 With Maya and Tom"])
+        let maps = try #require(SuggestionLines.mapsURL(latitude: 38.7, longitude: -9.1, name: "Blue Door Café"))
+        insert.lineLinks["📍 Blue Door Café, Lisbon"] = maps
+        insert.mapLink = maps
+        let text = insert.text(withPhotoTokens: [inlinePhotoToken(at: 0), inlinePhotoToken(at: 1)])
+        let ranges = insert.linkRanges(in: text, mapLeads: true)
+        #expect(ranges.count == 2)
+        let ns = text as NSString
+        #expect(ns.substring(with: NSRange(location: ranges[0].location, length: ranges[0].length)) == "📍 Blue Door Café, Lisbon")
+        #expect(ranges[1].location == ns.range(of: "[[mirror-photo-0]]").location && ranges[1].length == 1,
+                "the map counts as one character in inline coordinates")
+        #expect(ranges.allSatisfy { $0.linkURL == maps.absoluteString })
+        #expect(insert.linkRanges(in: text, mapLeads: false).count == 1, "no map picture, no picture link")
+    }
+
     /// A route north from a synthetic start, one point every ~111 m.
     private func route(points: Int) -> [CLLocation] {
         (0..<points).map { CLLocation(latitude: 38.7 + Double($0) * 0.001, longitude: -9.1) }
