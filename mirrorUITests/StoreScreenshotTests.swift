@@ -85,13 +85,7 @@ final class StoreScreenshotTests: XCTestCase {
             }
         }
         app.terminate()
-
-        // Sentinel: the same journal's Briefing.
-        app = launch(loc, mode: "sentinel")
-        tab(app, 2)
-        Thread.sleep(forTimeInterval: 2.5)
-        shot("\(dir)/7-sentinel-briefing.png")
-        app.terminate()
+        // The Sentinel shot (7-sentinel-briefing) went with Sentinel mode in 3.1.8.
     }
 
     /// Brain View's "Zoom out" button in each language (Localizable.xcstrings).

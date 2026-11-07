@@ -6,7 +6,6 @@ final class EntryFiltersUITests: XCTestCase {
         executionTimeAllowance = 120
     }
     @MainActor func testClassicCombinedFilters() throws { try checkFilters(mode: "classic", tab: "Entries") }
-    @MainActor func testSentinelCombinedFilters() throws { try checkFilters(mode: "sentinel", tab: "Log") }
 
     @MainActor private func checkFilters(mode: String, tab: String) throws {
         let app = XCUIApplication()

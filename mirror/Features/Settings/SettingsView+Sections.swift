@@ -308,18 +308,7 @@ extension SettingsView {
                 .opacity(displayMode == .sentinel ? 0.4 : 1)
             }
 
-            #if os(iOS)
-            SettingsDivider()
-
-            VStack(alignment: .leading, spacing: 10) {
-                SettingsRowLabel(title: "Display mode", systemImage: "square.stack.3d.up.fill", iconColor: MirrorTheme.violet)
-                HStack(spacing: 10) {
-                    displayModePickerCard(mode: .classic, title: "Classic", accent: MirrorTheme.violet)
-                    displayModePickerCard(mode: .sentinel, title: "Sentinel", accent: MirrorTheme.ember)
-                }
-            }
-            .padding(.vertical, 4)
-            #endif
+            // The Display mode picker (Classic / Sentinel) went with Sentinel in 3.1.8.
         }
     }
 

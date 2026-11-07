@@ -10,8 +10,9 @@ import AppKit
 // MARK: - Design tokens (from the boards; light / dark)
 
 enum MacTokens {
-    static let windowBackground = MirrorTheme.hex(0x0E0A0D, 0xF6F2F3)
-    static let sidebarBackground = MirrorTheme.hex(0x140F13, 0xEFE8EB)
+    // Paper & Ink (2026-11-07): the window is MirrorTheme's paper; the sidebar a shade deeper.
+    static let windowBackground = MirrorTheme.hex(0x141012, 0xF7F3EE)
+    static let sidebarBackground = MirrorTheme.hex(0x18131A, 0xF0EBE4)
     static let sidebarBorder = MirrorTheme.hex(0x2B2228, 0xDFD3D9)
     static let ink = MirrorTheme.hex(0xF0E8EC, 0x1D1419)
     static let secondaryInk = MirrorTheme.hex(0x9C8D99, 0x72636D)
@@ -19,9 +20,9 @@ enum MacTokens {
     /// Under white text (selected rows, the primary button): the deep plum, white at 7.4:1 / 7.1:1.
     static let accentFill = MirrorTheme.hex(0x8A3769, 0x8E3A6E)
     /// Cards and controls sitting on the window background.
-    static let surface = MirrorTheme.hex(0x241C22, 0xFFFFFF)
+    static let surface = MirrorTheme.hex(0x241C22, 0xFFFDFB)
     static let controlBorder = MirrorTheme.hex(0x33282F, 0xDFD3D9)
-    static let divider = MirrorTheme.hex(0x2B2228, 0xE7DDE2)
+    static let divider = MirrorTheme.hex(0x2C2428, 0xE6DDD6)
     static let segmentDivider = MirrorTheme.hex(0x33282F, 0xEEE6EA)
     /// Icon-button and chip ink.
     static let controlInk = MirrorTheme.hex(0xE3CFE0, 0x54434E)

@@ -41,16 +41,16 @@ enum MirrorTheme {
     // long night-time writing glares less and the app matches its leather-journal icon. Same
     // three dark steps as the 2026-10-21 review (page → card → raised). Widgets mirror the dark
     // values in `WidgetTheme`, asserted by `WidgetThemeTokenTests`; Sentinel shares these.
-    static let inkBase    = hex(0x0E0A0D, 0xF6F2F3)  // page background
-    static let inkMid     = hex(0x1A1418, 0xFFFFFF)  // base card
-    static let inkRaised  = hex(0x241C22, 0xFAF6F8)  // elevated card / sheet
-    static let inkBorder  = hex(0x33282F, 0xE7DDE2)  // dividers, stroke
+    // Paper & Ink (owner 2026-11-07, on every view): a warmer paper ground, a sheet-white card and
+    // a fine hairline. Text on the ground: textPrimary 15:1, textSecondary 4.9:1 light / 5.6:1 dark.
+    // Sentinel shares these, so its surfaces warm a shade (as with the plum swap).
+    static let inkBase    = hex(0x141012, 0xF7F3EE)  // page background (paper)
+    static let inkMid     = hex(0x1C171A, 0xFFFDFB)  // base card (sheet)
+    static let inkRaised  = hex(0x241C22, 0xFCF9F5)  // elevated card / sheet
+    static let inkBorder  = hex(0x2C2428, 0xE6DDD6)  // dividers, stroke (hairline)
 
-    // Paper & Ink (owner 2026-11-07, Entries first): a warmer paper ground and its hairline, for
-    // the default theme's flat lists. Text on it: textPrimary 15:1, textSecondary 4.9:1 light /
-    // 5.6:1 dark. Sentinel keeps inkBase.
-    static let paperGround = hex(0x141012, 0xF7F3EE)
-    static let paperLine   = hex(0x2C2428, 0xE6DDD6)
+    static let paperGround = inkBase
+    static let paperLine   = inkBorder
 
     // MARK: - Accent tokens
 
@@ -265,10 +265,10 @@ extension View {
     func inkSurface(cornerRadius: CGFloat = 20) -> some View {
         self
             .background(
+                // Paper & Ink: a sheet on the desk, one soft shadow (was a 12 pt black blur).
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(MirrorTheme.inkMid)
-                    .shadow(color: .black.opacity(0.10), radius: 12, x: 0, y: 4)
-                    .shadow(color: .black.opacity(0.04), radius: 2, x: 0, y: 1)
+                    .shadow(color: .black.opacity(0.05), radius: 3, x: 0, y: 1)
             )
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -282,8 +282,7 @@ extension View {
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(MirrorTheme.inkRaised)
-                    .shadow(color: MirrorTheme.violet.opacity(0.12), radius: 20, x: 0, y: 6)
-                    .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
+                    .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
             )
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -295,21 +294,15 @@ extension View {
     func inkHero(cornerRadius: CGFloat = 24) -> some View {
         self
             .background(
+                // Paper & Ink's one raised surface per screen: a soft lift with a plum cast below.
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(MirrorTheme.inkRaised)
-                    .shadow(color: MirrorTheme.violet.opacity(0.22), radius: 32, x: 0, y: 10)
-                    .shadow(color: .black.opacity(0.12), radius: 6, x: 0, y: 3)
+                    .fill(MirrorTheme.inkMid)
+                    .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
+                    .shadow(color: MirrorTheme.violet.opacity(0.16), radius: 16, x: 0, y: 12)
             )
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(
-                        LinearGradient(
-                            colors: [MirrorTheme.violet.opacity(0.5), MirrorTheme.violetLight.opacity(0.2)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1.2
-                    )
+                    .stroke(MirrorTheme.inkBorder, lineWidth: 1)
             }
     }
 
@@ -559,3 +552,30 @@ extension View {
     }
 }
 
+#if os(iOS)
+import UIKit
+
+/// Navigation bar titles (Paper & Ink, owner 2026-11-07): the default theme sets screen titles in
+/// the reflection's serif, inline and large, growing with the reader's text size. Sentinel keeps
+/// the system font (its own titles are monospaced in-view).
+enum MirrorNavigationAppearance {
+    static func apply(_ mode: DisplayMode) {
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithDefaultBackground()
+        appearance.shadowColor = UIColor(MirrorTheme.inkBorder)
+        if mode != .sentinel {
+            appearance.titleTextAttributes = [.font: serif(17, .semibold, style: .headline)]
+            appearance.largeTitleTextAttributes = [.font: serif(34, .medium, style: .largeTitle)]
+        }
+        UINavigationBar.appearance().standardAppearance = appearance
+        UINavigationBar.appearance().scrollEdgeAppearance = appearance
+        UINavigationBar.appearance().compactAppearance = appearance
+    }
+
+    private static func serif(_ size: CGFloat, _ weight: UIFont.Weight, style: UIFont.TextStyle) -> UIFont {
+        let base = UIFont.systemFont(ofSize: size, weight: weight)
+        let font = base.fontDescriptor.withDesign(.serif).map { UIFont(descriptor: $0, size: size) } ?? base
+        return UIFontMetrics(forTextStyle: style).scaledFont(for: font)
+    }
+}
+#endif

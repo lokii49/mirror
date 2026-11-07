@@ -5,6 +5,7 @@ struct MonthlyReportView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var hSizeClass
     @Environment(\.appDisplayMode) private var displayMode
+    @AppStorage(GenerationDetails.key) private var showGenerationDetails = false
     /// The whole journal. Read `entries`, which leaves out collections kept out of insights.
     @Query(sort: \Entry.createdAt, order: .reverse) private var journalEntries: [Entry]
     @Query private var scopeCollections: [JournalCollection]
@@ -190,7 +191,7 @@ struct MonthlyReportView: View {
 
     @ViewBuilder
     private func reportCard(_ insight: Insight) -> some View {
-        MonthlyReportCard(insight: insight, showSourceButton: displayMode == .sentinel)
+        MonthlyReportCard(insight: insight, showSourceButton: showGenerationDetails)
             .glowShadow(color: MirrorTheme.violet, radius: 28)
     }
 

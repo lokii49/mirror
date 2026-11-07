@@ -1,6 +1,12 @@
 import SwiftUI
 
-/// A small "how this was generated" control on an insight card (Sentinel only).
+/// Settings › Diagnostics › "Show how insights are made" (3.1.8, owner): the engine tags and the
+/// "How this was generated" button that only Sentinel showed before it was retired. Off by default.
+enum GenerationDetails {
+    static let key = "diagnostics.showGenerationDetails"
+}
+
+/// A small "how this was generated" control on an insight card (Settings › Diagnostics switch).
 /// Tapping it opens `InsightSourceSheet`: the on-device provenance HUD plus the
 /// verbatim system prompt. No card-surface gesture — just a button.
 struct InsightSourceButton: View {
@@ -13,13 +19,9 @@ struct InsightSourceButton: View {
         } label: {
             Image(systemName: "shield.lefthalf.filled")
                 .scaledFont(11, weight: .bold)
-                .foregroundStyle(MirrorTheme.ember)
+                .foregroundStyle(MirrorTheme.violet)
                 .padding(5)
-                .background(MirrorTheme.ember.opacity(0.10), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .stroke(MirrorTheme.ember.opacity(0.3), lineWidth: 1)
-                }
+                .background(MirrorTheme.violetDim, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityLabel("How this was generated")

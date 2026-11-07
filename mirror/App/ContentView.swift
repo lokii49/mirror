@@ -306,6 +306,10 @@ struct ContentView: View {
         // display-mode environment below, so the toast follows the theme.
         .modifier(TrashUndoToast())
         .environment(\.appDisplayMode, displayMode)
+        #if os(iOS)
+        // Bars made after a theme switch take its title font (open screens keep theirs until reopened).
+        .onChange(of: displayMode, initial: true) { _, mode in MirrorNavigationAppearance.apply(mode) }
+        #endif
         // App Lock: the real cover is a window of its own (iOS) or one over every window (Mac),
         // which also covers sheets. This one only guarantees the first frame never shows the journal.
         .overlay {

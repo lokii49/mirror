@@ -267,12 +267,8 @@ struct mirrorApp: App {
 
     private func configureNavigationBarAppearance() {
         #if os(iOS)
-        let appearance = UINavigationBarAppearance()
-        appearance.configureWithDefaultBackground()
-        appearance.shadowColor = UIColor(MirrorTheme.inkBorder)
-        UINavigationBar.appearance().standardAppearance = appearance
-        UINavigationBar.appearance().scrollEdgeAppearance = appearance
-        UINavigationBar.appearance().compactAppearance = appearance
+        let mode = (try? sharedModelContainer.mainContext.fetch(FetchDescriptor<UserProfile>()).first?.displayMode) ?? .classic
+        MirrorNavigationAppearance.apply(mode)
         #endif
     }
 

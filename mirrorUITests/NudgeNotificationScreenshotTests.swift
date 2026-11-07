@@ -11,10 +11,6 @@ final class NudgeNotificationScreenshotTests: XCTestCase {
         try capture(displayMode: "classic", suffix: "classic")
     }
 
-    func testCaptureExpandedNudgeSentinel() throws {
-        try capture(displayMode: "sentinel", suffix: "sentinel")
-    }
-
     private func capture(displayMode: String, suffix: String) throws {
         let app = XCUIApplication()
         addUIInterruptionMonitor(withDescription: "Notification permission") { alert in

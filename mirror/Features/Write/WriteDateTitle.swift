@@ -14,8 +14,9 @@ struct WriteDateTitle: View {
     var body: some View {
         VStack(alignment: .leading, spacing: isSentinel ? 3 : 1) {
             Text(weekday)
-                .scaledFont(isSentinel ? 25 : 30, weight: .bold, design: isSentinel ? .monospaced : .default)
-                .kerning(isSentinel ? 0.6 : -0.4)
+                // Paper & Ink: the day in the reflection's serif.
+                .scaledFont(isSentinel ? 25 : 31, weight: isSentinel ? .bold : .medium, design: isSentinel ? .monospaced : .serif)
+                .kerning(isSentinel ? 0.6 : -0.2)
                 .foregroundStyle(primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)

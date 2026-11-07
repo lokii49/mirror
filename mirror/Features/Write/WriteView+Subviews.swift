@@ -519,8 +519,9 @@ struct FollowUpChip: View {
     @Environment(\.appDisplayMode) private var displayMode
     private var isSentinel: Bool { displayMode == .sentinel }
 
+    @AppStorage(GenerationDetails.key) private var showGenerationDetails = false
     private var engineTag: String? {
-        guard isSentinel, let engine else { return nil }
+        guard showGenerationDetails, let engine else { return nil }
         switch engine {
         case .gemma: return "GEMMA"
         case .foundationModels: return "FM"

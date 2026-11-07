@@ -5,6 +5,7 @@ import Charts
 struct InsightView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appDisplayMode) private var displayMode
+    @AppStorage(GenerationDetails.key) private var showGenerationDetails = false
     @Environment(\.horizontalSizeClass) private var hSizeClass
     @State private var insightsFold: FoldSpan?
     @State private var insightsWidth: CGFloat = 0
@@ -649,14 +650,13 @@ struct InsightView: View {
                 accentColor: MirrorTheme.primary,
                 isExpanded: nudgeExpanded,
                 collapsedLineLimit: 5,
-                showSourceButton: displayMode == .sentinel,
+                showSourceButton: showGenerationDetails,
                 onToggleExpanded: {
                     withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
                         nudgeExpanded.toggle()
                     }
                 }
             )
-                .glowShadow(color: MirrorTheme.primary, radius: 32)
         case .needsMoreEntries(let remaining):
             NeedsMoreEntriesCard(remaining: remaining)
         case .subscriptionRequired:
@@ -865,7 +865,7 @@ struct InsightView: View {
             WeeklyDigestView(
                 insight: insight,
                 isExpanded: digestExpanded,
-                showSourceButton: displayMode == .sentinel,
+                showSourceButton: showGenerationDetails,
                 onToggleExpanded: {
                     withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
                         digestExpanded.toggle()
@@ -878,7 +878,7 @@ struct InsightView: View {
             WeeklyDigestView(
                 insight: insight,
                 isExpanded: digestExpanded,
-                showSourceButton: displayMode == .sentinel,
+                showSourceButton: showGenerationDetails,
                 note: "Last week's digest — write 3 entries this week for a fresh one.",
                 sentinelNote: "LAST WEEK'S BRIEFING — 3 SIGNALS THIS WEEK FOR A NEW ONE",
                 onToggleExpanded: {
@@ -959,12 +959,13 @@ private struct PastDigestCard: View {
     let insight: Insight
     @State private var expanded = false
     @Environment(\.appDisplayMode) private var displayMode
+    @AppStorage(GenerationDetails.key) private var showGenerationDetails = false
 
     var body: some View {
         WeeklyDigestView(
             insight: insight,
             isExpanded: expanded,
-            showSourceButton: displayMode == .sentinel,
+            showSourceButton: showGenerationDetails,
             onToggleExpanded: {
                 withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) { expanded.toggle() }
             }
@@ -1003,6 +1004,7 @@ private struct PastNudgeCard: View {
     @State private var isExpanded = false
     @State private var overflows = false
     @Environment(\.appDisplayMode) private var displayMode
+    @AppStorage(GenerationDetails.key) private var showGenerationDetails = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -1011,7 +1013,7 @@ private struct PastNudgeCard: View {
                     .scaledFont(12, weight: .semibold)
                     .foregroundStyle(MirrorTheme.textSecondary)
                 Spacer()
-                if displayMode == .sentinel { InsightSourceButton(insight: insight) }
+                if showGenerationDetails { InsightSourceButton(insight: insight) }
                 Image(systemName: "sparkles")
                     .scaledFont(11, weight: .semibold)
                     .foregroundStyle(MirrorTheme.primary.opacity(0.5))
@@ -1099,14 +1101,14 @@ private struct SectionHeader<Trailing: View>: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: icon)
-                .scaledFont(13, weight: .bold)
-                .foregroundStyle(isSentinel ? MirrorTheme.ember : color)
-                .frame(width: 30, height: 30)
-                .background(
-                    (isSentinel ? MirrorTheme.ember : color).opacity(0.16),
-                    in: RoundedRectangle(cornerRadius: isSentinel ? 6 : 9, style: .continuous)
-                )
+            // Paper & Ink: a serif heading on the page, no icon tile (Sentinel keeps its tile).
+            if isSentinel {
+                Image(systemName: icon)
+                    .scaledFont(13, weight: .bold)
+                    .foregroundStyle(MirrorTheme.ember)
+                    .frame(width: 30, height: 30)
+                    .background(MirrorTheme.ember.opacity(0.16), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            }
             VStack(alignment: .leading, spacing: 1) {
                 if isSentinel {
                     Text(displayTitle)
@@ -1116,7 +1118,7 @@ private struct SectionHeader<Trailing: View>: View {
                         .kerning(0.5)
                 } else {
                     Text(displayTitle)
-                        .scaledFont(19, weight: .bold, design: .rounded)
+                        .scaledFont(21, weight: .medium, design: .serif)
                         .foregroundStyle(MirrorTheme.textPrimary)
                 }
                 displaySubtitle
@@ -1726,6 +1728,15 @@ private struct InsightTextView: View {
                     ReflectedDayLabel(day: aboutDay, isSentinel: isSentinel)
                 }
             }
+            if !isSentinel {
+                // Paper & Ink: the reflection opens with a plum quote mark (the card's only accent).
+                Text("\u{201C}")
+                    .font(.system(size: 48, weight: .regular, design: .serif))
+                    .foregroundStyle(MirrorTheme.violet)
+                    .frame(height: 18, alignment: .top)
+                    .padding(.bottom, -6)
+                    .accessibilityHidden(true)
+            }
             Text(displayText ?? insight.content)
                 .readingFont(size: 18)
                 .lineSpacing(8)
@@ -1744,25 +1755,8 @@ private struct InsightTextView: View {
             }
         }
         .padding(22)
-        .themedHeroCard(cornerRadius: 26, classicBase: .hero)
-        .overlay {
-            RadialGradient(
-                colors: [accentColor.opacity(0.16), .clear],
-                center: .init(x: 0.90, y: 0.10),
-                startRadius: 0,
-                endRadius: 200
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-            .allowsHitTesting(false)
-        }
-        .overlay(alignment: .topTrailing) {
-            Text("\u{201C}")
-                .scaledFont(80, weight: .bold, design: .serif)
-                .foregroundStyle(MirrorTheme.violetLight.opacity(0.13))
-                // Below the header row: higher up, it sat on top of the timestamp.
-                .offset(x: -18, y: 40)
-                .allowsHitTesting(false)
-        }
+        // Paper & Ink: the hero lift alone (inkHero), no wash or watermark quote behind the text.
+        .themedHeroCard(cornerRadius: 22, classicBase: .hero)
     }
 }
 
