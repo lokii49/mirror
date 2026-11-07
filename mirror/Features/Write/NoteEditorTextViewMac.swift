@@ -379,6 +379,8 @@ struct NoteEditorTextView: NSViewRepresentable {
     /// Shared with iOS's call site; the Mac always shows the popover.
     var panelAsPopover = true
     var onPhotoTapped: ((Int) -> Void)?
+    /// The hint on an empty editor; Write's "What's on your mind?" when nil (Scratch has its own).
+    var placeholder: String? = nil
     /// Not read: it makes SwiftUI call `updateNSView` when Text size changes in Settings.
     @AppStorage(MacPrefs.sizeKey) var textSizePreference: Double = MacPrefs.defaultSize
 
@@ -391,7 +393,9 @@ struct NoteEditorTextView: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
     func makeNSView(context: Context) -> MirrorNSTextView {
-        Self.makeConfiguredTextView(coordinator: context.coordinator)
+        let textView = Self.makeConfiguredTextView(coordinator: context.coordinator)
+        if let placeholder { textView.placeholder = placeholder }
+        return textView
     }
 
     /// Builds the text view the way the app does; also used by the DEBUG editor self-test.

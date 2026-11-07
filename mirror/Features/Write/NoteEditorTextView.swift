@@ -34,13 +34,15 @@ struct NoteEditorTextView: UIViewRepresentable {
     /// otherwise the panel replaces the keyboard.
     var panelAsPopover = false
     var onPhotoTapped: ((Int) -> Void)?
+    /// The hint on an empty editor; Write's "What's on your mind?" when nil (Scratch has its own).
+    var placeholder: String? = nil
 
     func makeUIView(context: Context) -> UITextView {
         // An explicit TextKit 1 stack: the editor reads `layoutManager` throughout, and the
         // checklist circles are drawn by ChecklistLayoutManager.
         let storage = NSTextStorage()
         let layoutManager = ChecklistLayoutManager()
-        layoutManager.setAccentColor(UIColor(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor), traits: .current)
+        layoutManager.setAccentColor(UIColor(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary), traits: .current)
         storage.addLayoutManager(layoutManager)
         storage.delegate = layoutManager.markerSpacing
         let container = NSTextContainer(size: CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
@@ -78,7 +80,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         textView.typingAttributes = context.coordinator.bodyAttributes
 
         let placeholder = UILabel()
-        placeholder.text = String(localized: "What's on your mind?")
+        placeholder.text = self.placeholder ?? String(localized: "What's on your mind?")
         placeholder.textColor = .tertiaryLabel
         placeholder.font = context.coordinator.serifBodyFont
         placeholder.adjustsFontForContentSizeCategory = true
@@ -121,7 +123,9 @@ struct NoteEditorTextView: UIViewRepresentable {
 
     func updateUIView(_ textView: UITextView, context: Context) {
         if let layoutManager = textView.layoutManager as? ChecklistLayoutManager {
-            let accent = UIColor(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
+            // The asset colour by name: `Color.accentColor` turned into a UIColor here, outside a
+            // view's environment, resolved to system blue (blue ticks, 2026-11-07).
+            let accent = UIColor(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
             if layoutManager.setAccentColor(accent, traits: textView.traitCollection) {
                 textView.setNeedsDisplay()
                 layoutManager.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: textView.textStorage.length))

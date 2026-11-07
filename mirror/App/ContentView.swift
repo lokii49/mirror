@@ -470,6 +470,12 @@ struct ContentView: View {
                     showMoodCheckIn = true
                 }
             }
+            if ProcessInfo.processInfo.arguments.contains("--showScratchNote") {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(3))
+                    showScratchNote = true
+                }
+            }
             if ProcessInfo.processInfo.arguments.contains("--showRatePrompt") {
                 Task { @MainActor in
                     try? await Task.sleep(for: .seconds(2))

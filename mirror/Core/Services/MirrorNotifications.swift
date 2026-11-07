@@ -23,7 +23,9 @@ final class MirrorNotificationDelegate: NSObject, UNUserNotificationCenterDelega
         #else
         let showsInForeground: Set = ["mirror.moodAlert"]
         #endif
-        if showsInForeground.contains(notification.request.identifier) {
+        // A reminder the person set on a Scratch note shows even with the app open.
+        if showsInForeground.contains(notification.request.identifier)
+            || ScratchReminders.entryID(from: notification.request) != nil {
             completionHandler([.banner, .sound])
         } else {
             completionHandler([])
@@ -50,6 +52,16 @@ final class MirrorNotificationDelegate: NSObject, UNUserNotificationCenterDelega
             || response.actionIdentifier == NotificationService.moodAlertWriteActionID,
            let url = URL(string: "mirror://write") {
             Task { @MainActor in
+                UIApplication.shared.open(url)
+            }
+        }
+        if let entryID = ScratchReminders.entryID(from: response.notification.request),
+           response.actionIdentifier == UNNotificationDefaultActionIdentifier,
+           let url = URL(string: EntryLinks.urlString(for: entryID)) {
+            Task { @MainActor in
+                #if os(macOS)
+                MacMainWindow.bringForward()
+                #endif
                 UIApplication.shared.open(url)
             }
         }
