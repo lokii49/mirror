@@ -110,6 +110,40 @@ struct JournalingSuggestionTextTests {
         #expect(insert.linkRanges(in: text, mapLeads: false).count == 1, "no map picture, no picture link")
     }
 
+    /// From the paperclip menu after writing (2026-11-07): the suggestion goes at the end after a
+    /// blank line, existing styles and links stay, new links shift past the existing text.
+    @Test func appendingKeepsTheEntryAndShiftsTheNewLinks() throws {
+        var insert = SuggestionInsert(title: "Dinner by the river", lines: ["📍 Blue Door Café, Lisbon"])
+        let maps = try #require(SuggestionLines.mapsURL(latitude: 38.7, longitude: -9.1, name: "Blue Door Café"))
+        insert.lineLinks["📍 Blue Door Café, Lisbon"] = maps
+        insert.mapLink = maps
+        let existing = "Long day.\n[[mirror-photo-0]]\nStill thinking about it.\n"
+        let oldStyles = NoteTextStyleDocument(paragraphStyles: [.title, .body, .body], indentLevels: nil, fontChoices: ["serif", "serif", "serif"])
+        let oldLink = InlineStyleRange(location: 0, length: 4, bold: true, italic: false, underline: false, strikethrough: false)
+        let r = insert.appended(to: existing, existingStyles: oldStyles, existingInline: [oldLink],
+                                tokens: [inlinePhotoToken(at: 1)], mapLeads: true, entryFont: "serif")
+        #expect(r.text == "Long day.\n[[mirror-photo-0]]\nStill thinking about it.\n\nDinner by the river\n📍 Blue Door Café, Lisbon\n[[mirror-photo-1]]\n")
+        let styles = try #require(r.styles)
+        #expect(styles.paragraphStyles == [.title, .body, .body, .body, .heading, .body, .body, .body])
+        #expect(styles.fontChoices?.count == styles.paragraphStyles.count)
+        #expect(r.inline.first == oldLink, "the entry's own formatting stays")
+        // Inline coordinates count the existing photo as one character.
+        let logical = (r.text as NSString).replacingOccurrences(of: "[[mirror-photo-0]]", with: "\u{FFFC}")
+            .replacingOccurrences(of: "[[mirror-photo-1]]", with: "\u{FFFC}") as NSString
+        let place = try #require(r.inline.first { $0.length > 1 && $0.linkURL != nil })
+        #expect(logical.substring(with: NSRange(location: place.location, length: place.length)) == "📍 Blue Door Café, Lisbon")
+        let map = try #require(r.inline.last)
+        #expect(map.length == 1 && logical.character(at: map.location) == 0xFFFC, "the map link sits on the new picture")
+    }
+
+    @Test func appendingToABlankEntryIsTheSuggestionAlone() {
+        let insert = SuggestionInsert(title: "Evening run", lines: ["👟 8,430 steps"])
+        let r = insert.appended(to: "\n", existingStyles: nil, existingInline: [], tokens: [], mapLeads: false, entryFont: "system")
+        #expect(r.text == insert.text)
+        #expect(r.styles?.paragraphStyles.first == .heading)
+        #expect(r.inline.isEmpty)
+    }
+
     /// A route north from a synthetic start, one point every ~111 m.
     private func route(points: Int) -> [CLLocation] {
         (0..<points).map { CLLocation(latitude: 38.7 + Double($0) * 0.001, longitude: -9.1) }

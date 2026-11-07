@@ -136,6 +136,8 @@ struct WriteView: View {
     @State var isRecordingInline = false
     @State var recordingPermissionDenied = false
     @State var showPhotoPicker = false
+    /// Apple's Journaling Suggestions sheet, from the paperclip menu (the chip has its own).
+    @State var showSuggestionsPicker = false
     @State var showRecorderSheet = false
     @State var showCameraPicker = false
     @State var photoAttachError: String? = nil
@@ -743,6 +745,7 @@ struct WriteView: View {
             }
             .ignoresSafeArea()
         }
+        .modifier(SuggestionsPickerPresenter(isPresented: $showSuggestionsPicker, isAdding: $isAttachingPhoto) { applySuggestion($0) })
         .sheet(isPresented: $showCameraPicker) {
             CameraPickerController { result in
                 handlePickedPhoto(result)

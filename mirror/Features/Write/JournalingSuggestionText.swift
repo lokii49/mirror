@@ -74,6 +74,49 @@ struct SuggestionInsert: Equatable {
         return ranges.sorted { $0.location < $1.location }
     }
 
+    /// The entry after this suggestion is added (Write, 3.1.8): on a blank entry the suggestion is
+    /// the whole text; after existing writing it goes at the end, after a blank line, and the
+    /// existing paragraph styles and links are kept. Returns the text, the paragraph-style
+    /// document (nil when nothing needs one) and every inline range (existing + the new links,
+    /// shifted past the existing text; a photo counts as one character there).
+    func appended(to existingText: String, existingStyles: NoteTextStyleDocument?, existingInline: [InlineStyleRange],
+                  tokens: [String], mapLeads: Bool, entryFont: String) -> (text: String, styles: NoteTextStyleDocument?, inline: [InlineStyleRange]) {
+        let block = text(withPhotoTokens: tokens)
+        var base = existingText
+        while let last = base.last, last.isNewline { base.removeLast() }
+        let hasBase = !base.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let prefix = hasBase ? base + "\n\n" : ""
+        let combined = prefix + block
+
+        // Paragraph styles: the existing ones, padded to the existing paragraph count, then the blank
+        // line and the block (its title as a Heading). Every paragraph gets an explicit entry: one
+        // without falls back to legacy "# " parsing.
+        let baseCount = hasBase ? base.components(separatedBy: "\n").count + 1 : 0
+        let blockCount = combined.components(separatedBy: "\n").count - baseCount
+        var styles: NoteTextStyleDocument?
+        if leadsWithTitle || existingStyles != nil {
+            var paragraph = Array((existingStyles?.paragraphStyles ?? []).prefix(baseCount))
+            paragraph += Array(repeating: .body, count: baseCount - paragraph.count)
+            paragraph += (leadsWithTitle ? [.heading] : [.body]) + Array(repeating: NoteParagraphTextStyle.body, count: max(0, blockCount - 1))
+            var fonts = Array((existingStyles?.fontChoices ?? []).prefix(baseCount))
+            fonts += Array(repeating: entryFont, count: paragraph.count - fonts.count)
+            var indents: [Int]? = nil
+            if let existing = existingStyles?.indentLevels {
+                indents = Array(existing.prefix(baseCount)) + Array(repeating: 0, count: paragraph.count - min(existing.count, baseCount))
+            }
+            styles = NoteTextStyleDocument(paragraphStyles: paragraph, indentLevels: indents, fontChoices: fonts)
+        }
+
+        // New links sit after the existing text: shift them by its length in inline coordinates.
+        let nsPrefix = prefix as NSString
+        let tokenChars = allPhotoTokens(in: prefix).reduce(0) { $0 + (NSRange($1.range, in: prefix).length - 1) }
+        let shift = nsPrefix.length - tokenChars
+        let added = linkRanges(in: block, mapLeads: mapLeads).map { range -> InlineStyleRange in
+            var r = range; r.location += shift; return r
+        }
+        return (combined, styles, (hasBase ? existingInline : []) + added)
+    }
+
     /// The first line is the suggestion's title (shown as a Heading), not a reflection prompt.
     var leadsWithTitle: Bool {
         prompt == nil && !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -286,6 +329,11 @@ extension SuggestionInsert {
                 add(SuggestionLines.media(title: media.title, artist: media.artist),
                     link: SuggestionLines.musicSearchURL(title: media.title, artist: media.artist)); continue
             }
+            // A workout's details can come as an item of their own (no route then).
+            if item.hasContent(ofType: JournalingSuggestion.Workout.Details.self),
+               let details = try? await item.content(forType: JournalingSuggestion.Workout.Details.self) {
+                add(detailsLine(details)); continue
+            }
             if item.hasContent(ofType: JournalingSuggestion.WorkoutGroup.self),
                let group = try? await item.content(forType: JournalingSuggestion.WorkoutGroup.self) {
                 for workout in group.workouts.prefix(3) {
@@ -458,7 +506,10 @@ extension SuggestionInsert {
     }
 
     private static func workoutLine(_ workout: JournalingSuggestion.Workout) -> String {
-        let details = workout.details
+        detailsLine(workout.details)
+    }
+
+    private static func detailsLine(_ details: JournalingSuggestion.Workout.Details?) -> String {
         var name: String?
         if #available(iOS 26.0, *) { name = details?.localizedName }
         return SuggestionLines.workout(

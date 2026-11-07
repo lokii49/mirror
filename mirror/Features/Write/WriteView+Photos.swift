@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(iOS) && canImport(JournalingSuggestions)
+import JournalingSuggestions
+#endif
 
 extension WriteView {
     func handlePickedPhoto(_ result: Result<URL, Error>) {
@@ -58,21 +61,47 @@ extension WriteView {
         #endif
     }
 
+    /// On a blank entry the suggestion becomes the text; after writing it's added at the end, after
+    /// a blank line, keeping the entry's paragraph styles and links (`SuggestionInsert.appended`).
+    /// Places, songs and the map open Maps / Music / Podcasts as ordinary entry links.
     private func setSuggestionText(_ insert: SuggestionInsert, tokens: [String], mapLeads: Bool = false) {
-        let text = insert.text(withPhotoTokens: tokens)
-        guard !text.isEmpty else { return }
-        viewModel.text = text
-        // Places, songs and the map open Maps / Music / Podcasts: ordinary entry links.
-        let links = insert.linkRanges(in: text, mapLeads: mapLeads)
-        inlineStyleData = links.isEmpty ? nil : try? JSONEncoder().encode(InlineStyleDocument(ranges: links))
-        if insert.leadsWithTitle {
-            // Every paragraph gets an explicit style: one without falls back to legacy "# " parsing.
-            let count = text.components(separatedBy: "\n").count
-            let models = [NoteEditorCodec.ParagraphModel(style: .heading)]
-                + Array(repeating: NoteEditorCodec.ParagraphModel(style: .body), count: max(0, count - 1))
-            viewModel.textStyleData = NoteEditorCodec.encodeTextStyleData(
-                models: models, entryFont: WritingFontChoice(rawValue: entryFontChoiceRaw) ?? .system)
-        }
+        guard !insert.text(withPhotoTokens: tokens).isEmpty else { return }
+        let existingStyles = viewModel.textStyleData.flatMap { try? JSONDecoder().decode(NoteTextStyleDocument.self, from: $0) }
+        let existingInline = inlineStyleData.flatMap { try? JSONDecoder().decode(InlineStyleDocument.self, from: $0) }?.ranges ?? []
+        let result = insert.appended(to: viewModel.text, existingStyles: existingStyles, existingInline: existingInline,
+                                     tokens: tokens, mapLeads: mapLeads, entryFont: entryFontChoiceRaw)
+        viewModel.text = result.text
+        if let styles = result.styles { viewModel.textStyleData = try? JSONEncoder().encode(styles) }
+        inlineStyleData = result.inline.isEmpty ? nil : try? JSONEncoder().encode(InlineStyleDocument(ranges: result.inline))
         applyTextCommand(.moveCursor(location: .max))
+    }
+}
+
+/// Presents Apple's Journaling Suggestions sheet from Write's paperclip menu and hands the pick to
+/// `applySuggestion`. Its own type so Write's body (at the Debug stack limit) gains one layer, not
+/// the picker's generic chain. While the pick is read, Write's attaching indicator shows.
+struct SuggestionsPickerPresenter: ViewModifier {
+    @Binding var isPresented: Bool
+    @Binding var isAdding: Bool
+    let onSuggestion: (SuggestionInsert) -> Void
+
+    func body(content: Content) -> some View {
+        #if os(iOS) && canImport(JournalingSuggestions)
+        if #available(iOS 17.2, *) {
+            content.journalingSuggestionsPicker(isPresented: $isPresented) { suggestion in
+                await MainActor.run { isAdding = true }
+                let insert = await SuggestionInsert.read(suggestion)
+                await MainActor.run {
+                    isAdding = false
+                    UserDefaults.standard.set(true, forKey: "mirror.suggestions.tipShown")
+                    onSuggestion(insert)
+                }
+            }
+        } else {
+            content
+        }
+        #else
+        content
+        #endif
     }
 }
