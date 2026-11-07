@@ -614,7 +614,7 @@ struct InsightView: View {
                             .foregroundStyle(.orange)
                         Text(displayMode == .sentinel ? "\(currentStreak)D" : "\(currentStreak)d")
                             .scaledFont(displayMode == .sentinel ? 11.5 : 12, weight: .bold, design: displayMode == .sentinel ? .monospaced : .rounded)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(MirrorTheme.warningInk)
                     }
                     .padding(.horizontal, 9)
                     .padding(.vertical, 5)

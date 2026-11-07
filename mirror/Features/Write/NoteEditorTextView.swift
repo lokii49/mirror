@@ -47,6 +47,8 @@ struct NoteEditorTextView: UIViewRepresentable {
         container.widthTracksTextView = true
         layoutManager.addTextContainer(container)
         let textView = MirrorEditorTextView(frame: .zero, textContainer: container)
+        // VoiceOver names the field before reading what's in it (accessibility audit, 2026-11-07).
+        textView.accessibilityLabel = String(localized: "Entry")
         context.coordinator.textView = textView
         textView.caretAccessibilityActions = { [weak coordinator = context.coordinator, weak textView] in
             guard let coordinator, let textView else { return [] }

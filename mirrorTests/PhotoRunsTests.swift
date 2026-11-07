@@ -61,4 +61,24 @@ struct EntryRowTextTests {
         #expect(EntryRowText.split([long, "more"]).title == nil)
         #expect(EntryRowText.split([]).body.isEmpty)
     }
+
+    /// The stored style is read for the first paragraph with words, not paragraph 0 (code review).
+    @Test func theStyleComesFromTheFirstWrittenParagraph() throws {
+        let text = "\n[[mirror-photo-0]]\nRough day.\nThen it got better."
+        let lines = ["Rough day.", "Then it got better."]
+        func data(_ styles: [NoteParagraphTextStyle]) throws -> Data {
+            try JSONEncoder().encode(NoteTextStyleDocument(paragraphStyles: styles, indentLevels: nil, fontChoices: nil))
+        }
+        #expect(EntryRowText.firstWordsParagraph(in: text) == 2)
+        let headingThere = try data([.body, .body, .heading, .body])
+        #expect(EntryRowText.split(lines, text: text, styleData: { headingThere }).title == "Rough day.")
+        // An empty Heading line before it doesn't make the next paragraph a title.
+        let emptyHeading = try data([.heading, .body, .body, .body])
+        #expect(EntryRowText.split(lines, text: text, styleData: { emptyHeading }).title == nil)
+        #expect(EntryRowText.split(lines, text: text, styleData: { nil }).title == nil)
+        // A short line that already reads as a title never needs the stored style.
+        #expect(EntryRowText.split(["Weekend plan", "Groceries"], text: "Weekend plan\nGroceries", styleData: {
+            Issue.record("style read when it couldn't change the answer"); return nil
+        }).title == "Weekend plan")
+    }
 }

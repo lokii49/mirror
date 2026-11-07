@@ -1032,6 +1032,64 @@
         }
       }
     },
+    "More ways to start: Talk it out or templates" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weitere Möglichkeiten: Durchsprechen oder Vorlagen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Más formas de empezar: Hablarlo o plantillas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autres façons de commencer : En parler ou modèles"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Altri modi per iniziare: Parlane o modelli"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ほかの始め方：話して整理、テンプレート"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다른 시작 방법: 말로 풀기, 템플릿"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Outras formas de começar: Falar sobre isso ou modelos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Другие способы начать: Выговориться или шаблоны"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更多开始方式：聊一聊或模板"
+          }
+        }
+      }
+    },
     "More ways to start: Talk it out, templates or Suggestions from your day" : {
       "localizations" : {
         "de" : {

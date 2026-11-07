@@ -202,6 +202,7 @@ extension SettingsView {
                 Image(systemName: icon)
                     .scaledFont(16, weight: .semibold)
                     .foregroundStyle(color)
+                    .accessibilityHidden(true)
             }
             .overlay {
                 if displayMode == .sentinel {
@@ -303,6 +304,10 @@ extension SettingsView {
                             .scaledFont(11, weight: .semibold)
                             .foregroundStyle(MirrorTheme.textSecondary)
                     }
+                    // 44 pt to tap without making this row taller than the others.
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+                    .padding(.vertical, -4)
                 }
                 .disabled(displayMode == .sentinel)
                 .opacity(displayMode == .sentinel ? 0.4 : 1)

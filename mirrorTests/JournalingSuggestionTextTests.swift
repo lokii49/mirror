@@ -160,6 +160,44 @@ struct JournalingSuggestionTextTests {
                                 mapLeads: false, entryFont: "system").text.hasSuffix("Cooked dinner.\n\nSongs on the drive home\n🎵 Low Tide · Marrow & Vine\n"))
     }
 
+    /// A style range over the insertion point is split around the block (code review, 2026-11-07).
+    @Test func aRangeAcrossTheInsertionPointIsSplit() throws {
+        let insert = SuggestionInsert(title: "Walk", lines: ["👟 8,430 steps"])
+        let existing = "Morning\nEvening"
+        let both = InlineStyleRange(location: 0, length: 15, bold: true, italic: false, underline: false, strikethrough: false)
+        let r = insert.inserted(into: existing, afterParagraph: 0, existingStyles: nil, existingInline: [both],
+                                tokens: [], mapLeads: false, entryFont: "system")
+        #expect(r.text == "Morning\n\nWalk\n👟 8,430 steps\n\nEvening")
+        let ns = r.text as NSString
+        let pieces = r.inline.filter(\.bold).map { ns.substring(with: NSRange(location: $0.location, length: $0.length)) }
+        #expect(pieces == ["Morning\n", "Evening"])
+    }
+
+    /// Mid-entry, the entry keeps the blank lines it ended with, and their paragraph styles.
+    @Test func insertingMidEntryKeepsTheTrailingBlankLines() throws {
+        let insert = SuggestionInsert(title: "Walk", lines: ["👟 8,430 steps"])
+        let existing = "One\nTwo\n\n"
+        let styles = NoteTextStyleDocument(paragraphStyles: [.body, .body, .body, .body], indentLevels: nil, fontChoices: nil)
+        let r = insert.inserted(into: existing, afterParagraph: 0, existingStyles: styles, existingInline: [],
+                                tokens: [], mapLeads: false, entryFont: "system")
+        #expect(r.text == "One\n\nWalk\n👟 8,430 steps\n\nTwo\n\n")
+        #expect(r.styles?.paragraphStyles.count == r.text.components(separatedBy: "\n").count)
+    }
+
+    /// The cursor on a picture puts the block after the whole row; on a blank line, after the
+    /// paragraph above it (one blank line before the block, not two).
+    @Test func cursorOnAPictureOrABlankLine() {
+        let insert = SuggestionInsert(title: "Walk", lines: ["👟 8,430 steps"])
+        let photos = "Beach day.\n[[mirror-photo-0]]\n[[mirror-photo-1]]\nSunburnt."
+        let onPicture = insert.inserted(into: photos, afterParagraph: 1, existingStyles: nil, existingInline: [],
+                                        tokens: [], mapLeads: false, entryFont: "system")
+        #expect(onPicture.text == "Beach day.\n[[mirror-photo-0]]\n[[mirror-photo-1]]\n\nWalk\n👟 8,430 steps\n\nSunburnt.")
+        let blank = "First.\n\nSecond."
+        let onBlank = insert.inserted(into: blank, afterParagraph: 1, existingStyles: nil, existingInline: [],
+                                      tokens: [], mapLeads: false, entryFont: "system")
+        #expect(onBlank.text == "First.\n\nWalk\n👟 8,430 steps\n\nSecond.")
+    }
+
     @Test func appendingToABlankEntryIsTheSuggestionAlone() {
         let insert = SuggestionInsert(title: "Evening run", lines: ["👟 8,430 steps"])
         let r = insert.appended(to: "\n", existingStyles: nil, existingInline: [], tokens: [], mapLeads: false, entryFont: "system")

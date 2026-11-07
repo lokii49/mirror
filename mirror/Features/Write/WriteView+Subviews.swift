@@ -608,8 +608,6 @@ struct WritingStarterChip: View {
     @State private var showTemplateManager = false
     /// Your templates, unsealed once and again when the manager closes (not on every render).
     @State private var customTemplates: [CustomTemplate] = []
-    /// The one-time explanation under "Suggestions from your day" (owner, 2026-11-06).
-    @AppStorage("mirror.suggestions.tipShown") private var suggestionsTipShown = false
     /// Between picking a suggestion and its lines and pictures landing (maps are drawn, pictures
     /// prepared: often a second or two), so the pick visibly does something.
     @State private var addingSuggestion = false
@@ -659,7 +657,12 @@ struct WritingStarterChip: View {
                     Button {
                         let text = prompt + "\n"
                         onUseTemplate(text, .max)
-                    } label: { Text("Use this prompt") }
+                    } label: {
+                        // 44 pt tall to tap (accessibility audit); the row keeps its look.
+                        Text("Use this prompt")
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("write.usePrompt")
                     starterMenu
@@ -668,10 +671,10 @@ struct WritingStarterChip: View {
             }
             .scaledFont(14.5, weight: .medium)
             .foregroundStyle(accent)
-            .frame(minHeight: 32)
+            .frame(minHeight: 44)
+            .padding(.vertical, -6)
         }
         .modifier(SuggestionsPickerPresenter(isPresented: $showSuggestionsSheet, isAdding: $addingSuggestion) { insert in
-            suggestionsTipShown = true
             onSuggestion?(insert)
         })
         #if DEBUG && os(iOS) && canImport(JournalingSuggestions)
@@ -691,6 +694,14 @@ struct WritingStarterChip: View {
             onUseTemplate(lines.joined(separator: "\n") + "\nLAST LINE HERE", .max)
         }
         #endif
+    }
+
+    /// What VoiceOver says the menu holds; Suggestions only where the device offers them.
+    private var starterMenuLabel: LocalizedStringKey {
+        guard showsTalkItOut else { return "More ways to start" }
+        return onSuggestion != nil && DeviceFeature.journalingSuggestionsAvailable
+            ? "More ways to start: Talk it out, templates or Suggestions from your day"
+            : "More ways to start: Talk it out or templates"
     }
 
     private var starterMenu: some View {
@@ -728,10 +739,11 @@ struct WritingStarterChip: View {
                 Text("More ways to start")
                 Image(systemName: "chevron.down").scaledFont(11, weight: .semibold)
             }
+            .frame(minHeight: 44)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(showsTalkItOut ? "More ways to start: Talk it out, templates or Suggestions from your day" : "More ways to start")
+        .accessibilityLabel(starterMenuLabel)
         .accessibilityIdentifier("write.starter")
         // Inside this struct, not on WriteView.body (Debug stack limit).
         .sheet(isPresented: $showTemplateManager, onDismiss: { customTemplates = CustomTemplateStore.readable() }) {

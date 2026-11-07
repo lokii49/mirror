@@ -101,7 +101,6 @@ struct SuggestionsPickerPresenter: ViewModifier {
                 let insert = await SuggestionInsert.read(suggestion)
                 await MainActor.run {
                     isAdding = false
-                    UserDefaults.standard.set(true, forKey: "mirror.suggestions.tipShown")
                     onSuggestion(insert)
                 }
             }

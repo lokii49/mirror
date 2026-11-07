@@ -939,7 +939,7 @@ struct DraftSaveStatusLabel: View {
                         .lineLimit(1)
                 }
                 .scaledFont(displayMode == .sentinel ? 10 : 12, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
-                .foregroundStyle(.orange)
+                .foregroundStyle(MirrorTheme.warningInk)
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("draft.saveRetry")

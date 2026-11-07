@@ -88,6 +88,9 @@ enum MirrorTheme {
     // same colour the website darkened on 2026-10-21 to pass its accessibility audit; the three
     // surfaces use one value again.
     static let textTertiary  = hex(0x9C8D99, 0x75666F)
+    /// Orange text (the streak chip, "Not saved · Retry"): system orange is under 2:1 on paper in
+    /// light mode, this is over 5:1 (accessibility audit, 2026-11-07). Dark keeps system orange.
+    static let warningInk    = hex(0xFF9F0A, 0x9A4A08)
 
     // MARK: - Legacy aliases (kept for backward compat)
 

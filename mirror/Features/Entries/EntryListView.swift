@@ -1405,7 +1405,6 @@ struct EntriesTabView: View {
     /// entries back (drop the filters the search is blocked by, else clear filters or the search).
     @ViewBuilder
     private func filteredEmptyState(matchesWithoutFilters: Int?) -> some View {
-        let hasProblem = EntrySearchQuery.parse(debouncedSearchText).problem != nil
         VStack(spacing: 8) {
             if displayMode == .sentinel {
                 Text(emptyFilteredMessage).scaledFont(13, weight: .medium, design: .monospaced).textCase(.uppercase)
@@ -1420,14 +1419,16 @@ struct EntriesTabView: View {
                     .foregroundStyle(MirrorTheme.textSecondary)
             }
             Group {
+                // The search alone finds something: drop the filters. A search that finds nothing
+                // even without them (or can't be read) is the thing to clear. Filters only: clear them.
                 if let count = matchesWithoutFilters, count > 0 {
                     relaxFiltersButton(count)
+                } else if !debouncedSearchText.isEmpty {
+                    emptyStateAction("Clear search") { searchText = ""; debouncedSearchText = "" }
                 } else if filters.isActive {
                     emptyStateAction("Clear filters") {
                         withAnimation(.easeInOut(duration: 0.2)) { filters = EntryFilterCriteria() }
                     }
-                } else if !debouncedSearchText.isEmpty && !hasProblem {
-                    emptyStateAction("Clear search") { searchText = ""; debouncedSearchText = "" }
                 }
             }
             .padding(.top, 4)
@@ -1564,9 +1565,35 @@ enum EntryRowText {
 
     static func split(_ lines: [String], firstIsStyledTitle: Bool = false) -> (title: String?, body: String) {
         guard lines.count >= 2, let first = lines.first else { return (nil, lines.joined(separator: " ")) }
-        let looksLikeTitle = first.count <= 60 && !(first.last.map(sentenceEnds.contains) ?? false)
-        guard firstIsStyledTitle || looksLikeTitle else { return (nil, lines.joined(separator: " ")) }
+        guard firstIsStyledTitle || looksLikeTitle(first) else { return (nil, lines.joined(separator: " ")) }
         return (first, lines.dropFirst().joined(separator: " "))
+    }
+
+    private static func looksLikeTitle(_ line: String) -> Bool {
+        line.count <= 60 && !(line.last.map(sentenceEnds.contains) ?? false)
+    }
+
+    /// `split` for an entry: `lines` are its text lines with pictures and blank lines left out,
+    /// `text` the stored text they came from. The stored style is read for the first paragraph
+    /// that has words (not paragraph 0, which can be a picture or an empty Heading line), and
+    /// only when it could change the answer (code review, 2026-11-07).
+    static func split(_ lines: [String], text: String, styleData: () -> Data?) -> (title: String?, body: String) {
+        guard lines.count >= 2, let first = lines.first, !looksLikeTitle(first) else { return split(lines) }
+        guard let data = styleData(),
+              let styles = try? JSONDecoder().decode(NoteTextStyleDocument.self, from: data).paragraphStyles,
+              let index = firstWordsParagraph(in: text), index < styles.count
+        else { return split(lines) }
+        let style = styles[index]
+        return split(lines, firstIsStyledTitle: style == .title || style == .heading || style == .subheading)
+    }
+
+    /// The index of the first stored paragraph with words in it once pictures are taken out.
+    static func firstWordsParagraph(in text: String) -> Int? {
+        text.components(separatedBy: "\n").firstIndex { line in
+            var rest = line
+            for (range, _) in allPhotoTokens(in: rest).reversed() { rest.removeSubrange(range) }
+            return !rest.trimmingCharacters(in: .whitespaces).isEmpty
+        }
     }
 }
 
@@ -1637,10 +1664,7 @@ private struct EntryPeekPreview: View {
     }
 
     var body: some View {
-        let firstStyle = entry.textStyleData
-            .flatMap { try? JSONDecoder().decode(NoteTextStyleDocument.self, from: $0) }?
-            .paragraphStyles.first
-        let split = EntryRowText.split(lines, firstIsStyledTitle: firstStyle == .title || firstStyle == .heading || firstStyle == .subheading)
+        let split = EntryRowText.split(lines, text: entry.textDecryptionFailed ? "" : entry.text, styleData: { entry.textStyleData })
         VStack(alignment: .leading, spacing: 10) {
             Text(entry.createdAt, format: .dateTime.weekday(.wide).month(.wide).day())
                 .scaledFont(20, weight: .medium, design: .serif)
@@ -2044,12 +2068,8 @@ private struct EntryRow: View {
         var stripped = entry.text
         for (r, _) in allPhotoTokens(in: stripped).reversed() { stripped.removeSubrange(r) }
         let lines = stripped.components(separatedBy: .newlines).map { strippedLine($0) }.filter { !$0.isEmpty }
-        // The first paragraph's stored style (Title / Heading / Subheading) makes it a title as written.
-        let firstStyle = entry.textStyleData
-            .flatMap { try? JSONDecoder().decode(NoteTextStyleDocument.self, from: $0) }?
-            .paragraphStyles.first
-        let styled = firstStyle == .title || firstStyle == .heading || firstStyle == .subheading
-        let split = EntryRowText.split(lines, firstIsStyledTitle: styled)
+        // The first written paragraph's stored style (Title / Heading / Subheading) makes it a title as written.
+        let split = EntryRowText.split(lines, text: entry.text, styleData: { entry.textStyleData })
         guard let title = split.title else { return (nil, nil) }
         return (title, split.body.isEmpty ? nil : Text(verbatim: split.body))
     }

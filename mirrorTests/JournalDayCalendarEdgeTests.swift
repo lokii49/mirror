@@ -25,6 +25,16 @@ struct JournalDayCalendarEdgeTests {
         #expect(cal.component(.day, from: DateHelpers.journalDay(of: earlyMarch1, calendar: cal)) == 29)
     }
 
+    /// Chile changes clocks at midnight: 6 September 2026 starts at 1 AM. Writing at 2 AM on the
+    /// 6th and at noon on the 5th share a journal day, as do 2 AM on the 7th and noon on the 6th.
+    @Test func midnightClockChangeKeepsOneJournalDay() {
+        let cal = calendar("America/Santiago")
+        let day = { (d: Date) in DateHelpers.journalDay(of: d, calendar: cal) }
+        #expect(day(date(cal, 2026, 9, 6, 2)) == day(date(cal, 2026, 9, 5, 12)))
+        #expect(day(date(cal, 2026, 9, 7, 2)) == day(date(cal, 2026, 9, 6, 12)))
+        #expect(day(date(cal, 2026, 9, 6, 2)) == cal.startOfDay(for: date(cal, 2026, 9, 5, 12)))
+    }
+
     @Test func springForwardAndFallBackKeepTheFourAMBoundary() {
         let cal = calendar("America/Los_Angeles")
         // 2026-03-08: clocks jump 2 AM → 3 AM. 3:30 AM is still the night before; 4:30 AM is the 8th.

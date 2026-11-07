@@ -342,6 +342,7 @@ struct CalendarHeatmap: View {
             Image(systemName: icon)
                 .scaledFont(11, weight: .semibold)
                 .foregroundStyle(color)
+                .accessibilityHidden(true)
             Text(value)
                 .scaledFont(13, weight: .bold, design: displayMode == .sentinel ? .monospaced : .rounded)
                 .foregroundStyle(.primary)

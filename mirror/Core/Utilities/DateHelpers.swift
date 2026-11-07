@@ -71,7 +71,9 @@ enum DateHelpers {
         // that put 3–5 AM writing on the wrong day (found by JournalDayCalendarEdgeTests, 2026-11-07).
         let start = calendar.startOfDay(for: date)
         guard calendar.component(.hour, from: date) < journalDayStartHour else { return start }
-        return calendar.date(byAdding: .day, value: -1, to: start) ?? start
+        // The day before's own start: where clocks change at midnight (Chile), "start minus a
+        // day" lands at 1 AM on a day that began at midnight, or the other way round (code review).
+        return calendar.startOfDay(for: calendar.date(byAdding: .day, value: -1, to: start) ?? start)
     }
 
     /// When the journal day containing `date` began: 4 AM on its day.

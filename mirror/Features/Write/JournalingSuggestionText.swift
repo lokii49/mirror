@@ -107,31 +107,45 @@ struct SuggestionInsert: Equatable {
             return (block, styles, linkRanges(in: block, mapLeads: mapLeads))
         }
         let lines = base.components(separatedBy: "\n")
-        let at = min(afterParagraph ?? (lines.count - 1), lines.count - 1)   // last paragraph kept before
-        let before = hasBase ? Array(lines[0...max(at, 0)]) : []
-        let after = hasBase && at + 1 < lines.count ? Array(lines[(at + 1)...]) : []
-        let gapAfter = !after.isEmpty && after.first?.isEmpty == false
+        var at = max(0, min(afterParagraph ?? (lines.count - 1), lines.count - 1))   // last paragraph kept before
+        // The cursor on a picture: go in after the whole row of pictures, so the row isn't split.
+        func isPhotoLine(_ line: String) -> Bool {
+            let t = line.trimmingCharacters(in: .whitespaces)
+            return t.hasPrefix("[[mirror-photo") && t.hasSuffix("]]") && allPhotoTokens(in: t).count == 1
+        }
+        if isPhotoLine(lines[at]) {
+            while at + 1 < lines.count, isPhotoLine(lines[at + 1]) { at += 1 }
+        }
+        // The cursor on a blank line between paragraphs: go in after the paragraph above it, so
+        // the block gets one blank line before it, not two.
+        while at > 0, lines[at].trimmingCharacters(in: .whitespaces).isEmpty { at -= 1 }
+        let before = Array(lines[0...at])
+        let after = at + 1 < lines.count ? Array(lines[(at + 1)...]) : []
+        let gapAfter = !after.isEmpty && after.first?.trimmingCharacters(in: .whitespaces).isEmpty == false
+        // Inserted mid-entry, the entry keeps the blank lines it ended with.
+        let trailingNewlines = after.isEmpty ? "" : String(existingText.dropFirst(base.count))
 
         // prefix (through the paragraph before) + inserted + suffix (the rest).
-        let prefix = hasBase ? before.joined(separator: "\n") + "\n" : ""
-        let inserted = (hasBase ? "\n" : "") + blockLines.map { $0 + "\n" }.joined() + (gapAfter ? "\n" : "")
-        let suffix = after.joined(separator: "\n")
+        let prefix = before.joined(separator: "\n") + "\n"
+        let inserted = "\n" + blockLines.map { $0 + "\n" }.joined() + (gapAfter ? "\n" : "")
+        let suffix = after.joined(separator: "\n") + trailingNewlines
         let combined = prefix + inserted + suffix
 
         // Paragraph styles, spliced: [before][blank][block…][blank?][after].
         var styles: NoteTextStyleDocument?
         if leadsWithTitle || existingStyles != nil {
-            let oldCount = lines.count
+            // Mid-entry, the entry's trailing blank paragraphs stay after the rest of it.
+            let oldCount = after.isEmpty ? lines.count : existingText.components(separatedBy: "\n").count
             func padded<T>(_ values: [T]?, _ filler: T) -> [T] {
                 let v = Array((values ?? []).prefix(oldCount)); return v + Array(repeating: filler, count: oldCount - v.count)
             }
             let oldStyles = padded(existingStyles?.paragraphStyles, NoteParagraphTextStyle.body)
             let oldFonts = padded(existingStyles?.fontChoices, entryFont)
             let oldIndents: [Int]? = existingStyles?.indentLevels.map { padded($0, 0) }
-            let keep = hasBase ? at + 1 : 0
-            let newCount = (hasBase ? 1 : 0) + blockLines.count + (gapAfter ? 1 : 0)
+            let keep = at + 1
+            let newCount = 1 + blockLines.count + (gapAfter ? 1 : 0)
             var newStyles = Array(repeating: NoteParagraphTextStyle.body, count: newCount)
-            if leadsWithTitle, !blockLines.isEmpty { newStyles[hasBase ? 1 : 0] = .heading }
+            if leadsWithTitle, !blockLines.isEmpty { newStyles[1] = .heading }
             // The text ends with a line break: one more (empty) paragraph after the block when it's last.
             let tail = after.isEmpty ? 1 : 0
             let paragraph = Array(oldStyles.prefix(keep)) + newStyles + Array(oldStyles.dropFirst(keep)) + Array(repeating: .body, count: tail)
@@ -146,12 +160,22 @@ struct SuggestionInsert: Equatable {
         }
         let insertAt = logicalLength(prefix)
         let insertedLength = logicalLength(inserted)
-        let kept = (hasBase ? existingInline : []).map { range -> InlineStyleRange in
+        // Ranges after the insertion move down; one that spans it is split around the new block,
+        // so styling over "Morning\nEvening" stays on both lines and never covers the block.
+        let kept = existingInline.flatMap { range -> [InlineStyleRange] in
             var r = range
-            if r.location >= insertAt { r.location += insertedLength }
-            return r
+            if r.location >= insertAt {
+                r.location += insertedLength
+                return [r]
+            }
+            guard r.location + r.length > insertAt else { return [r] }
+            var head = r, tail = r
+            head.length = insertAt - r.location
+            tail.location = insertAt + insertedLength
+            tail.length = r.location + r.length - insertAt
+            return [head, tail]
         }
-        let blockStart = insertAt + (hasBase ? 1 : 0)
+        let blockStart = insertAt + 1
         let added = linkRanges(in: block, mapLeads: mapLeads).map { range -> InlineStyleRange in
             var r = range; r.location += blockStart; return r
         }
