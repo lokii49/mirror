@@ -197,6 +197,9 @@ extension WriteView {
                 .foregroundStyle(MirrorTheme.ember)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 11)
+                // The whole row is the target: with .plain, only drawn pixels take taps, so the
+                // empty space after the label (and the padding) did nothing.
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .disabled(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isDetectingMood || !canSuggestMood)
@@ -232,6 +235,9 @@ extension WriteView {
                             .padding(.horizontal, 14)
                             .padding(.vertical, 10)
                             .background(isSelected ? MirrorTheme.moodColor(for: mood).opacity(0.10) : Color.clear)
+                            // Whole row: an unselected row's clear background takes no taps,
+                            // so only the dot and the name did (owner, 2026-11-07).
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                     }
@@ -256,6 +262,7 @@ extension WriteView {
                     .foregroundStyle(MirrorTheme.textSecondary)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 11)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
