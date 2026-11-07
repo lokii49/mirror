@@ -1070,15 +1070,18 @@ struct EntriesTabView: View {
 
     @ViewBuilder
     private func entryRowView(_ entry: Entry, preview: EntryRowPreview?) -> some View {
-        HStack(spacing: 10) {
-            if isSelecting { EntrySelectionMark(selected: selectedIDs.contains(entry.id)) }
-            EntryRow(entry: entry, rowPreview: preview)
-                .modifier(EntryZoomSource(id: entry.id, namespace: entryZoom, enabled: !reduceMotion))
-        }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                if isSelecting { toggleSelection(entry) } else { open(entry) }
+        // A button (was a tap gesture) so the row shows it's being pressed (UI checklist 2026-11-07).
+        Button {
+            if isSelecting { toggleSelection(entry) } else { open(entry) }
+        } label: {
+            HStack(spacing: 10) {
+                if isSelecting { EntrySelectionMark(selected: selectedIDs.contains(entry.id)) }
+                EntryRow(entry: entry, rowPreview: preview)
+                    .modifier(EntryZoomSource(id: entry.id, namespace: entryZoom, enabled: !reduceMotion))
             }
+            .contentShape(Rectangle())
+        }
+            .buttonStyle(EntryRowPressStyle())
             // One element that opens the entry, not its separate texts (backlog A19).
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(isSelecting ? (selectedIDs.contains(entry.id) ? [.isButton, .isSelected] : .isButton) : .isButton)
@@ -1484,13 +1487,17 @@ struct SerifNavigationTitle: ViewModifier {
 }
 #endif
 
-/// Which first line becomes a row's title (Paper & Ink option D): a short first line (60 characters
-/// or less) with more text after it. One-paragraph entries keep their plain preview.
+/// Which first line becomes a row's title (Paper & Ink option D). The writer's own Title, Heading
+/// or Subheading on the first paragraph always does. Otherwise only a short first line (60
+/// characters or less) that doesn't end like a sentence, with more after it: "Rough day." stays
+/// prose (UI checklist 2026-11-07: no arbitrary bold). One-paragraph entries keep their preview.
 enum EntryRowText {
-    static func split(_ lines: [String]) -> (title: String?, body: String) {
-        guard lines.count >= 2, let first = lines.first, first.count <= 60 else {
-            return (nil, lines.joined(separator: " "))
-        }
+    private static let sentenceEnds: Set<Character> = [".", "!", "?", "…", "。", "！", "？"]
+
+    static func split(_ lines: [String], firstIsStyledTitle: Bool = false) -> (title: String?, body: String) {
+        guard lines.count >= 2, let first = lines.first else { return (nil, lines.joined(separator: " ")) }
+        let looksLikeTitle = first.count <= 60 && !(first.last.map(sentenceEnds.contains) ?? false)
+        guard firstIsStyledTitle || looksLikeTitle else { return (nil, lines.joined(separator: " ")) }
         return (first, lines.dropFirst().joined(separator: " "))
     }
 }
@@ -1562,7 +1569,10 @@ private struct EntryPeekPreview: View {
     }
 
     var body: some View {
-        let split = EntryRowText.split(lines)
+        let firstStyle = entry.textStyleData
+            .flatMap { try? JSONDecoder().decode(NoteTextStyleDocument.self, from: $0) }?
+            .paragraphStyles.first
+        let split = EntryRowText.split(lines, firstIsStyledTitle: firstStyle == .title || firstStyle == .heading || firstStyle == .subheading)
         VStack(alignment: .leading, spacing: 10) {
             Text(entry.createdAt, format: .dateTime.weekday(.wide).month(.wide).day())
                 .scaledFont(20, weight: .medium, design: .serif)
@@ -1624,6 +1634,19 @@ private struct EntryPeekPreview: View {
     }
 }
 #endif
+
+/// A soft plum wash while an entry row is held; nothing else changes.
+private struct EntryRowPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(MirrorTheme.violet.opacity(configuration.isPressed ? 0.08 : 0))
+                    .padding(.horizontal, -8)
+            }
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
 
 private struct EntryRow: View {
     let entry: Entry
@@ -1953,7 +1976,12 @@ private struct EntryRow: View {
         var stripped = entry.text
         for (r, _) in allPhotoTokens(in: stripped).reversed() { stripped.removeSubrange(r) }
         let lines = stripped.components(separatedBy: .newlines).map { strippedLine($0) }.filter { !$0.isEmpty }
-        let split = EntryRowText.split(lines)
+        // The first paragraph's stored style (Title / Heading / Subheading) makes it a title as written.
+        let firstStyle = entry.textStyleData
+            .flatMap { try? JSONDecoder().decode(NoteTextStyleDocument.self, from: $0) }?
+            .paragraphStyles.first
+        let styled = firstStyle == .title || firstStyle == .heading || firstStyle == .subheading
+        let split = EntryRowText.split(lines, firstIsStyledTitle: styled)
         guard let title = split.title else { return (nil, nil) }
         return (title, split.body.isEmpty ? nil : Text(verbatim: split.body))
     }

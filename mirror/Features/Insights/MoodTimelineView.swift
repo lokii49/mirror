@@ -872,6 +872,22 @@ nonisolated enum MoodChartSeries {
             .map { day, group in MoodDayMean(day: day, score: group.map(\.score).reduce(0, +) / Double(group.count)) }
             .sorted { $0.day < $1.day }
     }
+
+    /// The daily means split into runs of consecutive days (UI checklist, 2026-11-07): the line
+    /// is drawn per run, so a day with no mood is a gap rather than a line drawn across it as if
+    /// it had a reading. Each mean comes with its run's number, for `LineMark(series:)`.
+    static func runs(_ means: [MoodDayMean], calendar: Calendar = .current) -> [(mean: MoodDayMean, run: Int)] {
+        var run = 0
+        var previous: Date?
+        return means.map { mean in
+            if let previous, let next = calendar.date(byAdding: .day, value: 1, to: previous),
+               !calendar.isDate(next, inSameDayAs: mean.day) {
+                run += 1
+            }
+            previous = mean.day
+            return (mean, run)
+        }
+    }
 }
 
 /// What VoiceOver says about the mood chart (its summary, and Audio Graphs through the chart
@@ -914,7 +930,7 @@ enum MoodChartSummary {
 }
 
 /// Audio Graphs for the mood chart: one series, the daily means the line draws.
-private struct MoodChartDescriptor: AXChartDescriptorRepresentable {
+struct MoodChartDescriptor: AXChartDescriptorRepresentable {
     let line: [MoodDayMean]
     let summary: String
 
@@ -969,11 +985,13 @@ private struct MoodChartCard: View {
             .foregroundStyle(.secondary)
 
             Chart {
-                ForEach(dailyLine, id: \.day) { day in
+                ForEach(MoodChartSeries.runs(dailyLine), id: \.mean.day) { point in
+                    let day = point.mean
                     #if !os(macOS)
                     AreaMark(
                         x: .value("Day", day.day, unit: .day),
-                        y: .value("Mood", day.score)
+                        y: .value("Mood", day.score),
+                        series: .value("Run", point.run)
                     )
                     .foregroundStyle(
                         LinearGradient(
@@ -986,17 +1004,14 @@ private struct MoodChartCard: View {
                     .accessibilityHidden(true)
                     #endif
 
+                    // One plum line per run of consecutive days (Paper & Ink: one accent; the
+                    // plum-to-ember gradient was Sentinel's second accent).
                     LineMark(
                         x: .value("Day", day.day, unit: .day),
-                        y: .value("Mood", day.score)
+                        y: .value("Mood", day.score),
+                        series: .value("Run", point.run)
                     )
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [MirrorTheme.violet, MirrorTheme.ember],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .foregroundStyle(MirrorTheme.violet)
                     #if os(macOS)
                     // Multiple moods can share a day. Avoid smoothing overshoot and the area
                     // renderer's duplicate-day wedges; show the recorded points and line.

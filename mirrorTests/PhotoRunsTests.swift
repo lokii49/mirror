@@ -48,6 +48,13 @@ struct EntryRowTextTests {
         #expect(split.body == "📍 Blue Door Café, Lisbon 👥 With Maya and Tom")
     }
 
+    @Test func aSentenceIsNotATitleUnlessTheWriterStyledIt() {
+        #expect(EntryRowText.split(["Rough day.", "Then it got better."]).title == nil)
+        #expect(EntryRowText.split(["今日は長かった。", "でも良かった。"]).title == nil)
+        #expect(EntryRowText.split(["Rough day.", "Then it got better."], firstIsStyledTitle: true).title == "Rough day.")
+        #expect(EntryRowText.split(["Weekend plan", "Groceries, call mom"]).title == "Weekend plan")
+    }
+
     @Test func oneParagraphOrALongFirstLineHasNoTitle() {
         #expect(EntryRowText.split(["Took the long way home on purpose."]).title == nil)
         let long = String(repeating: "word ", count: 14)

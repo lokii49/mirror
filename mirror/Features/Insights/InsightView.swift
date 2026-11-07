@@ -1878,18 +1878,14 @@ private struct MoodWeekChartView: View {
             }
 
             Chart {
-                ForEach(dailyLine, id: \.day) { day in
+                // One line per run of consecutive days: a day with no mood is a gap (UI checklist).
+                ForEach(MoodChartSeries.runs(dailyLine), id: \.mean.day) { point in
                     LineMark(
-                        x: .value("Day", day.day, unit: .day),
-                        y: .value("Mood", day.score)
+                        x: .value("Day", point.mean.day, unit: .day),
+                        y: .value("Mood", point.mean.score),
+                        series: .value("Run", point.run)
                     )
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [MirrorTheme.violet, MirrorTheme.violetLight],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .foregroundStyle(MirrorTheme.violet)
                     .lineStyle(StrokeStyle(lineWidth: 2))
                     .interpolationMethod(.catmullRom)
                 }
@@ -1921,6 +1917,8 @@ private struct MoodWeekChartView: View {
                 }
             }
             .chartYScale(domain: 0...6)
+            // VoiceOver (UI checklist): the same summary and Audio Graph as the Mood Timeline.
+            .accessibilityChartDescriptor(MoodChartDescriptor(line: dailyLine, summary: MoodChartSummary.text(points)))
             .chartOverlay { proxy in
                 MoodDotScrubOverlay(proxy: proxy, dots: points, selected: $selected) { dot in
                     moodDotPreviewText(for: dot, entry: entry)

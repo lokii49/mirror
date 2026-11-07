@@ -67,7 +67,11 @@ enum DateHelpers {
 
     /// The day (its calendar start of day) whose journal day `date` falls in.
     static func journalDay(of date: Date, calendar: Calendar = .current) -> Date {
-        calendar.startOfDay(for: calendar.date(byAdding: .hour, value: -journalDayStartHour, to: date) ?? date)
+        // By the wall clock, not by subtracting 4 hours of elapsed time: on a daylight-saving day
+        // that put 3–5 AM writing on the wrong day (found by JournalDayCalendarEdgeTests, 2026-11-07).
+        let start = calendar.startOfDay(for: date)
+        guard calendar.component(.hour, from: date) < journalDayStartHour else { return start }
+        return calendar.date(byAdding: .day, value: -1, to: start) ?? start
     }
 
     /// When the journal day containing `date` began: 4 AM on its day.

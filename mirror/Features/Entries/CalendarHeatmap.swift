@@ -360,12 +360,17 @@ struct CalendarHeatmap: View {
         onForward: @escaping () -> Void
     ) -> some View {
         HStack {
+            // 44 pt targets around the small chevrons, and VoiceOver hears which period is shown
+            // ("Back, November 2026"): UI checklist 2026-11-07.
             Button(action: onBack) {
                 Image(systemName: "chevron.left")
                     .scaledFont(13, weight: .semibold)
                     .foregroundStyle(canGoBack ? AnyShapeStyle(Color.secondary) : AnyShapeStyle(MirrorTheme.textSecondary.opacity(0.5)))
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .accessibilityLabel("Back")
+            .accessibilityValue(Text(verbatim: title))
             .buttonStyle(.plain)
             .disabled(!canGoBack)
 
@@ -388,12 +393,15 @@ struct CalendarHeatmap: View {
                 Image(systemName: "chevron.right")
                     .scaledFont(13, weight: .semibold)
                     .foregroundStyle(canGoForward ? AnyShapeStyle(Color.secondary) : AnyShapeStyle(MirrorTheme.textSecondary.opacity(0.5)))
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .accessibilityLabel("Next")
+            .accessibilityValue(Text(verbatim: title))
             .buttonStyle(.plain)
             .disabled(!canGoForward)
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 2)
     }
 
     // MARK: - Week View
@@ -507,6 +515,13 @@ struct CalendarHeatmap: View {
                 .fill(count > 0 ? barColor : Color.clear)
                 .overlay { if count > 0, let ring { Capsule().strokeBorder(ring, lineWidth: 1) } }
                 .frame(width: 18, height: 4)
+            // How many entries, when more than one (owner, 2026-11-07: a small count). Fixed size
+            // like the numerals; VoiceOver already reads the count in the day's label.
+            Text(verbatim: count > 1 ? "\(count)" : " ")
+                .font(.system(size: 10, weight: .medium))
+                .monospacedDigit()
+                .foregroundStyle(MirrorTheme.textSecondary)
+                .accessibilityHidden(true)
         }
         .contentShape(Rectangle())
         .onTapGesture {
