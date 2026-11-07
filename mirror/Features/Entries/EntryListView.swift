@@ -1256,6 +1256,10 @@ struct EntriesTabView: View {
                         entryRowView(row.entry, preview: snapshot.rowPreviews[row.id])
                     }
                 } header: {
+                    // The current month is already named by the calendar above and split into
+                    // Today / Yesterday / This week / Earlier, so it gets no heading of its own
+                    // (owner, 2026-11-07: "November 2026" twice). Older months keep theirs.
+                    if labels.isEmpty {
                     HStack(alignment: .firstTextBaseline) {
                         Group {
                             if displayMode == .sentinel {
@@ -1284,6 +1288,7 @@ struct EntriesTabView: View {
                         if displayMode != .sentinel {
                             entriesGround.padding(.horizontal, -24)
                         }
+                    }
                     }
                 }
             }
@@ -1346,7 +1351,7 @@ struct EntriesTabView: View {
             .textCase(.uppercase)
             .foregroundStyle(MirrorTheme.violet)
             .accessibilityAddTraits(.isHeader)
-            .padding(.top, 12)
+            .padding(.top, 16)
             .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
