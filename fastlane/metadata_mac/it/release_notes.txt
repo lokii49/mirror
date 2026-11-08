@@ -10,6 +10,7 @@ Inoltre in questo aggiornamento
 • Le riflessioni passate nella bacheca hanno Leggi di più, e riflessioni passate e riepiloghi precedenti finiscono con Mostra tutto.
 • Toccando un giorno nel calendario delle Voci, quel giorno resta in vista invece di tornare a oggi.
 • In Organizza puoi aggiungere la raccolta Appunti per note veloci, liste e numeri. Riflessioni, Chiedi, grafici dell’umore e avvisi sull’umore non la leggono, e qualsiasi raccolta si può escludere allo stesso modo.
+• Nuovo appunto (menu File, ⌥⌘N): checklist, elenchi numerati e puntati, e Ricordamelo per un promemoria all’ora che scegli. Il promemoria non mostra mai il testo dell’appunto.
 • Registra note vocali come su iPhone: pausa, riascolta, poi aggiungi.
 • In scrittura: modalità concentrazione, obiettivo di parole e suggerimenti di tag.
 • Trascina le righe delle liste per riordinarle; le voci spuntate possono scendere in fondo.

@@ -10,6 +10,7 @@ Also in this update
 • Past reflections on the board have Read more, and past reflections and digests end with Show all.
 • Tapping a day in the Entries calendar keeps that day in view instead of jumping back to today.
 • Organize can add a Scratch collection for quick notes, lists and numbers. Reflections, Ask, mood charts and mood alerts don't read it, and any collection can be kept out of them the same way.
+• New Scratch Note (File menu, ⌥⌘N): checklists, numbered and bulleted lists, and Remind me for a reminder at a time you pick. The reminder never shows the note's words.
 • Record voice notes as on iPhone: pause, listen back, then add.
 • Write gains focus mode, the daily word goal and tag suggestions.
 • Drag checklist lines to reorder them; checked items can move to the bottom.

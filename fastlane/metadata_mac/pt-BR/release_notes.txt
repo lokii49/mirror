@@ -10,6 +10,7 @@ Também nesta atualização
 • As reflexões anteriores do painel têm Ler mais, e reflexões anteriores e resumos anteriores terminam com Mostrar tudo.
 • Tocar em um dia no calendário de Entradas mantém esse dia à vista em vez de voltar para hoje.
 • Em Organizar, você pode adicionar a coleção Anotações para notas rápidas, listas e números. Reflexões, Perguntar, gráficos de humor e alertas de humor não a leem, e qualquer coleção pode ficar de fora do mesmo jeito.
+• Nova anotação (menu Arquivo, ⌥⌘N): checklists, listas numeradas e com marcadores, e Lembrar-me para um lembrete no horário que você escolher. O lembrete nunca mostra o texto da anotação.
 • Grave notas de voz como no iPhone: pause, ouça de novo e adicione.
 • Ao escrever: modo foco, meta diária de palavras e sugestões de tags.
 • Arraste linhas de lista para reordenar; itens marcados podem ir para o fim.

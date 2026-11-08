@@ -10,6 +10,7 @@ Core et Deep sont là
 • Les réflexions passées du tableau ont Lire plus, et les réflexions passées et les résumés précédents se terminent par Tout afficher.
 • Toucher un jour dans le calendrier des Entrées garde ce jour à l’écran au lieu de revenir à aujourd’hui.
 • Organiser peut ajouter une collection Pense-bête pour les notes rapides, listes et numéros. Les réflexions, Demander, les graphiques d’humeur et les alertes d’humeur ne la lisent pas, et toute collection peut en être exclue de la même façon.
+• Nouveau pense-bête (menu Fichier, ⌥⌘N) : checklists, listes numérotées et à puces, et Me le rappeler pour un rappel à l’heure choisie. Le rappel n’affiche jamais le texte du pense-bête.
 • Enregistrez des notes vocales comme sur iPhone : pause, réécoute, puis ajout.
 • Pour écrire : mode concentration, objectif de mots du jour et suggestions de tags.
 • Faites glisser les lignes de liste pour les réordonner ; les éléments cochés peuvent descendre.

@@ -10,6 +10,7 @@ Además en esta actualización
 • Las reflexiones pasadas del panel tienen Leer más, y las reflexiones pasadas y los resúmenes anteriores terminan con Mostrar todo.
 • Al tocar un día en el calendario de Entradas, ese día sigue a la vista en lugar de volver a hoy.
 • En Organizar puedes añadir la colección Apuntes para notas rápidas, listas y números. Las reflexiones, Preguntar, los gráficos de ánimo y las alertas de ánimo no la leen, y cualquier colección se puede excluir del mismo modo.
+• Nuevo apunte (menú Archivo, ⌥⌘N): checklists, listas numeradas y con viñetas, y Recordarme para un aviso a la hora que elijas. El aviso nunca muestra el texto del apunte.
 • Graba notas de voz como en el iPhone: pausa, escucha y añade.
 • Al escribir: modo concentración, objetivo diario de palabras y sugerencias de etiquetas.
 • Arrastra líneas de lista para reordenarlas; lo marcado puede bajar al final.
