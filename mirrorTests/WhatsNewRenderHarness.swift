@@ -12,8 +12,18 @@ final class WhatsNewRenderHarness: XCTestCase {
         try renderPages(version: "3.1.0")
     }
 
+    // 3.1.8 is split by look: all four looks in one test (58 kept 3x renders) peaked at 1.7 GB on the
+    // simulator and was SIGKILLed on the iPhone 14 Pro. Sentinel is retired in 3.1.8, so it isn't rendered.
+    func test_renderWalkthroughPages318_darkDE() throws {
+        try renderPages(version: "3.1.8", only: ["dark-de"])
+    }
+
+    func test_renderWalkthroughPages318_lightJA() throws {
+        try renderPages(version: "3.1.8", only: ["light-ja"])
+    }
+
     func test_renderWalkthroughPages318() throws {
-        try renderPages(version: "3.1.8")
+        try renderPages(version: "3.1.8", only: ["light-en"])
         // The Write page again with its Suggestions from your day start (simulators have no Journaling Suggestions).
         WhatsNewWalkthrough.snapshotShowsSuggestions = true
         defer { WhatsNewWalkthrough.snapshotShowsSuggestions = false }
@@ -29,7 +39,7 @@ final class WhatsNewRenderHarness: XCTestCase {
         }
     }
 
-    private func renderPages(version: String) throws {
+    private func renderPages(version: String, only: Set<String>? = nil) throws {
         let cards = FeatureCardRegistry.all.filter { $0.sinceVersion == version }
         let ordered = cards.filter { !WhatsNewWalkthrough.demoIDs.contains($0.id) } + cards.filter { WhatsNewWalkthrough.demoIDs.contains($0.id) }
         WhatsNewWalkthrough.snapshotPhase = 3
@@ -38,12 +48,12 @@ final class WhatsNewRenderHarness: XCTestCase {
                                                                              ("dark-de", .dark, .classic, "de"), ("light-ja", .light, .classic, "ja")]
         // Warm-up: the first window rendered in a run came out cut short, so it is thrown away.
         _ = try render(AnyView(WhatsNewWalkthrough(cards: ordered) {}), mode: .classic, style: .light)
-        for (name, style, mode, locale) in looks {
+        for (name, style, mode, locale) in looks where only?.contains(name) ?? true {
             for i in ordered.indices {
                 let view = AnyView(WhatsNewWalkthrough(cards: ordered, startIndex: i) {}
                     .environment(\.locale, Locale(identifier: locale)))
                 let image = try render(view, mode: mode, style: style)
-                let attachment = XCTAttachment(image: image)
+                let attachment = XCTAttachment(image: image, quality: .medium)
                 attachment.name = "wn\(version)-\(name)-\(i)"
                 attachment.lifetime = .keepAlways
                 add(attachment)
