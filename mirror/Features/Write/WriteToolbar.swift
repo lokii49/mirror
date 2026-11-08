@@ -28,6 +28,9 @@ struct WriteToolbar: ToolbarContent {
     var entryLinkPicker: Binding<Bool> = .constant(false)
     var linkingEntryID: UUID? = nil
     var linkToEntry: (UUID) -> Void = { _ in }
+    /// Pictures (a suggestion's map and photos, a picked photo) are still being prepared: Save
+    /// waits, so they land in this entry instead of being dropped or going into the next draft.
+    var isAddingAttachment: Bool = false
 
     var body: some ToolbarContent {
         if focusMode {
@@ -67,7 +70,7 @@ struct WriteToolbar: ToolbarContent {
         .preferringVerticalBar()
 
         ToolbarItem(placement: .topBarTrailing) {
-            WriteSaveButton(enabled: isExistingEntry || hasDraftContent, isSentinel: isSentinel, save: save)
+            WriteSaveButton(enabled: (isExistingEntry || hasDraftContent) && !isAddingAttachment, isSentinel: isSentinel, save: save)
         }
         .preferringVerticalBar()
     }

@@ -228,6 +228,10 @@ struct NoteEditorTextView: UIViewRepresentable {
     }
 
     final class Coordinator: NSObject, UITextViewDelegate, UIGestureRecognizerDelegate, UIContextMenuInteractionDelegate {
+        /// The last non-empty selection, kept until the text changes: "Link to an Entry…" applies
+        /// the link after the alert and a picker sheet, and the text view may have dropped its
+        /// selection by then (it isn't first responder while the sheet is up).
+        private var lastLinkableSelection: NSRange?
         /// The paragraph styles as the editor last wrote them, until SwiftUI's next update. In the app
         /// a write through `parent.textStyleData` (WriteViewModel via a binding) does not read back
         /// until then, so a re-render right after a style change drew the old styles: a list button
@@ -568,6 +572,7 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         func textViewDidChange(_ textView: UITextView) {
             guard !isApplyingStyledText else { return }
+            lastLinkableSelection = nil
             if let paste = pastedIntoList {
                 let nsText = (textView.text ?? "") as NSString
                 let pasted = NSIntersectionRange(paste.range, NSRange(location: 0, length: nsText.length))
@@ -1224,6 +1229,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             if parent.panelState.hasTextSelection != (textView.selectedRange.length > 0) {
                 parent.panelState.hasTextSelection = textView.selectedRange.length > 0
             }
+            if textView.selectedRange.length > 0 { lastLinkableSelection = textView.selectedRange }
             guard !isApplyingStyledText, textView.isFirstResponder else { return }
             lastKnownCursorLocation = textView.selectedRange.location
             // Photos are one attachment character on their own line, so line breaks before the
@@ -3240,6 +3246,10 @@ struct NoteEditorTextView: UIViewRepresentable {
                 targetRange = bounded(selRange, in: attributed.string)
             } else if let existing = existingLinkRange(at: selRange.location, in: attributed) {
                 targetRange = existing
+            } else if let remembered = lastLinkableSelection,
+                      NSMaxRange(remembered) <= (attributed.string as NSString).length {
+                // The selection was dropped while the picker was up; the text hasn't changed since.
+                targetRange = remembered
             } else {
                 return
             }

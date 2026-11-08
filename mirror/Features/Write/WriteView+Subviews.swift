@@ -303,7 +303,8 @@ extension WriteView {
             },
             entryLinkPicker: $showEntryLinkPicker,
             linkingEntryID: entry?.id,
-            linkToEntry: { applyTextCommand(.link(url: EntryLinks.urlString(for: $0))) }
+            linkToEntry: { applyTextCommand(.link(url: EntryLinks.urlString(for: $0))) },
+            isAddingAttachment: isAttachingPhoto
         )
     }
 
