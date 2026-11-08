@@ -130,6 +130,14 @@ enum NotificationService {
         await rescheduleContextualNudge(hasWrittenToday: false, insightReady: false, hour: hour, minute: minute)
     }
 
+    /// For a plan that can't make new reflections (Free, or a lapsed Core/Deep): a pending nudge
+    /// scheduled while reflections were made says "Your daily reflection is ready." (or quotes one)
+    /// and repeats every day, so it's turned back into the plain writing reminder at the same time.
+    /// Does nothing when no nudge is pending (reminders off or never allowed).
+    static func useWritingReminderBody() async {
+        await dropNudgePreview()
+    }
+
     static func rescheduleContextualNudge(
         hasWrittenToday: Bool,
         insightReady: Bool,
@@ -327,8 +335,17 @@ enum NotificationService {
             .removePendingNotificationRequests(withIdentifiers: [nudgeID, firstNudgeID])
     }
 
+    /// Settings' Notifications switch turned off: every reminder the app schedules on its own.
+    /// A Scratch note's reminder is one the person set by hand for that note, so it stays (the
+    /// note's reader still shows it and can remove it); turning the switch back on couldn't
+    /// bring it back.
     static func cancelAll() {
-        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+        Task {
+            let center = UNUserNotificationCenter.current()
+            let ids = await center.pendingNotificationRequests().map(\.identifier)
+                .filter { !$0.hasPrefix(ScratchReminders.identifierPrefix) }
+            center.removePendingNotificationRequests(withIdentifiers: ids)
+        }
     }
 
     static func nudgeHour() -> Int {

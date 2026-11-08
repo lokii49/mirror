@@ -264,8 +264,14 @@ final class SubscriptionService {
         Self.publishTierToWidgets(tier)
     }
 
+    /// Reloads the widgets only when the tier actually changed (a purchase, a lapse, the first
+    /// answer after a launch with no cached customer info), so they unlock or lock right away
+    /// without spending WidgetKit's reload budget on every refresh.
     private static func publishTierToWidgets(_ tier: SubscriptionTier) {
-        UserDefaults(suiteName: WidgetShared.appGroupID)?.set(tier.rawValue, forKey: "widget.tier")
+        guard let defaults = UserDefaults(suiteName: WidgetShared.appGroupID) else { return }
+        guard defaults.string(forKey: "widget.tier") != tier.rawValue else { return }
+        defaults.set(tier.rawValue, forKey: "widget.tier")
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     /// The widgets' locked states show the monthly price next to the tier name. The extension

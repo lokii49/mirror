@@ -611,6 +611,9 @@ struct mirrorApp: App {
                 hour: hour,
                 minute: minute
             )
+        } else {
+            // Free (or lapsed): no "reflection is ready" left repeating from when reflections were made.
+            await NotificationService.useWritingReminderBody()
         }
 
         // Weekly digest only on Sunday
@@ -634,6 +637,8 @@ struct mirrorApp: App {
         let context = sharedModelContainer.mainContext
         // Recently Deleted keeps entries for 30 days.
         EntryTrash.purgeExpired(in: context)
+        // Scratch reminders whose note was deleted on another device.
+        await ScratchReminders.dropOrphans(in: context)
         await mirrorApp.runDailyNudgeIfNeeded(context: context)
         mirrorApp.updateWidgetHeatmaps(context: context)
         mirrorApp.syncNudgeToWidget(context: context)
@@ -658,6 +663,10 @@ struct mirrorApp: App {
                 hour: hour,
                 minute: minute
             )
+        } else {
+            // Free (or lapsed): a nudge scheduled while every feature was free (3.1.7 and earlier
+            // ran everyone as Deep) can still say "Your daily reflection is ready." every day.
+            await NotificationService.useWritingReminderBody()
         }
 
         // Weekly digest: generate on Sundays proactively (fallback if nightly BGProcessingTask missed)
