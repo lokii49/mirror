@@ -68,7 +68,19 @@ enum WatchInbox {
             if item.kind == .voice { removeVoiceFile(item.value) }
             return true
         }
-        guard MirrorEncryption.canEncrypt(creatingIfNeeded: true) else { return false }
+        #if os(iOS)
+        // A locked phone can still hold the journal key in memory, but the waiting audio
+        // ("complete unless open") can't be read then: wait for the unlock instead of reading
+        // the file as gone.
+        guard UIApplication.shared.isProtectedDataAvailable else { return false }
+        // A background wake (a watch item with the app not open) never mints a journal key: on a
+        // new phone iCloud Keychain may not have delivered the existing one yet, and a new key
+        // would split the key set. The foreground retry may create it, as a first Write save does.
+        let mayCreateKey = UIApplication.shared.applicationState != .background || mirrorApp.isUnitTestHost
+        #else
+        let mayCreateKey = true
+        #endif
+        guard MirrorEncryption.canEncrypt(creatingIfNeeded: mayCreateKey) else { return false }
         switch item.kind {
         case .mood:
             let checkIn = MoodCheckIn(mood: item.value, createdAt: item.date)
@@ -91,7 +103,11 @@ enum WatchInbox {
             }
             MoodAutoDetector.shared.detectIfNeeded(entry, context: context)
         case .voice:
-            guard let file = voiceFileURL(named: item.value), let audio = try? Data(contentsOf: file) else {
+            let file = voiceFileURL(named: item.value)
+            let audio = file.flatMap { try? Data(contentsOf: $0) }
+            // There but unreadable (protection, a passing I/O error): try again later, never drop it.
+            if audio == nil, let file, FileManager.default.fileExists(atPath: file.path) { return false }
+            guard let audio else {
                 // The audio is gone (Delete Everything ran meanwhile): nothing left to save.
                 handled.append(item.id)
                 defaults.set(Array(handled.suffix(500)), forKey: handledKey)
@@ -167,9 +183,11 @@ enum WatchInbox {
     /// Where watch audio waits until it's saved into an entry. On iOS the files are protected
     /// "complete unless open": they can be written while the phone is locked (a watch note arrives
     /// in a pocket) and read only once it's unlocked, which is also when the journal key is there.
+    /// The audio isn't sealed with the journal key yet (the key can't be read while locked), so the
+    /// folder stays out of device backups: a saved entry reaches a backup only as ciphertext.
     nonisolated static var voiceDirectory: URL? {
         guard let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }
-        let dir = support.appendingPathComponent("WatchVoiceInbox", isDirectory: true)
+        var dir = support.appendingPathComponent("WatchVoiceInbox", isDirectory: true)
         if !FileManager.default.fileExists(atPath: dir.path) {
             #if os(iOS)
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true,
@@ -178,7 +196,34 @@ enum WatchInbox {
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             #endif
         }
+        // Every time, not only on creation: the folder already exists on TestFlight builds 43-49.
+        if (try? dir.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup) != true {
+            var values = URLResourceValues()
+            values.isExcludedFromBackup = true
+            try? dir.setResourceValues(values)
+        }
         return dir
+    }
+
+    /// Audio files left in `voiceDirectory` with no waiting item (the app was stopped between the
+    /// copy and queueing it). Queued again so the note isn't lost (the watch has already deleted
+    /// its copy), or removed if it was saved before. Runs before WatchConnectivity activates, so
+    /// no transfer can be mid-copy.
+    static func adoptOrphanedVoiceFiles(defaults: UserDefaults = .standard) {
+        guard let dir = voiceDirectory,
+              let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.creationDateKey]) else { return }
+        let waitingIDs = Set(pending().map(\.id))
+        let handled = Set(defaults.stringArray(forKey: handledKey) ?? [])
+        for file in files where file.pathExtension == "m4a" {
+            let id = file.deletingPathExtension().lastPathComponent
+            guard UUID(uuidString: id) != nil, !waitingIDs.contains(id) else { continue }
+            if handled.contains(id) {
+                try? FileManager.default.removeItem(at: file)
+                continue
+            }
+            let created = (try? file.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? Date()
+            addPending(Item(id: id, kind: .voice, value: "\(id).m4a", date: min(created, Date()), duration: nil))
+        }
     }
 
     /// The audio file for an id: only a UUID becomes a file name, so a message can't point
@@ -207,9 +252,24 @@ enum WatchInbox {
             try? context.save()
             return
         }
+        // The language picked in Settings, as Write's own voice notes use it.
+        let preferred = UserDefaults.standard.string(forKey: "transcriptionLanguage").flatMap { $0.isEmpty ? nil : $0 }
+        // A watch item usually wakes the app in the background, with seconds to run: ask for time,
+        // and if it runs out first, mark the entry so its Retry button offers the transcript.
+        let backgroundTask = TranscriptBackgroundTask()
+        backgroundTask.id = UIApplication.shared.beginBackgroundTask(withName: "mirror.watchVoiceTranscript") {
+            Task { @MainActor in
+                if !entry.isDeleted, (entry.voiceNoteTranscript ?? "").isEmpty {
+                    entry.voiceNoteTranscriptionFailed = true
+                    try? context.save()
+                }
+                backgroundTask.end()
+            }
+        }
         Task { @MainActor in
+            defer { backgroundTask.end() }
             do {
-                let result = try await VoiceTranscriptionService.transcribe(audioData: audio)
+                let result = try await VoiceTranscriptionService.transcribe(audioData: audio, preferredLocaleId: preferred)
                 guard !entry.isDeleted else { return }
                 WriteView.applyTranscription(result, to: entry, atIndex: 0)
                 entry.voiceNoteTranscriptionFailed = (entry.voiceNoteTranscript ?? "").isEmpty
@@ -243,6 +303,8 @@ enum WatchInbox {
             KeychainManager.delete(account: pendingAccount)
             return
         }
+        // Items past the limit are dropped for good, so their audio goes with them.
+        for dropped in items.dropLast(pendingLimit) where dropped.kind == .voice { removeVoiceFile(dropped.value) }
         guard let data = try? JSONEncoder().encode(Array(items.suffix(pendingLimit))) else { return }
         KeychainManager.save(data: data, account: pendingAccount,
                              accessible: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly)
@@ -254,6 +316,7 @@ enum WatchInbox {
     /// Starts listening (app launch). Nothing happens without a paired watch with the app.
     static func start() {
         guard WCSession.isSupported() else { return }
+        adoptOrphanedVoiceFiles()
         let session = WCSession.default
         session.delegate = receiver
         session.activate()
@@ -287,6 +350,9 @@ enum WatchInbox {
             guard size > 0, size < 50_000_000 else { return }
             try? FileManager.default.removeItem(at: destination)
             guard (try? FileManager.default.copyItem(at: file.fileURL, to: destination)) != nil else { return }
+            // A copy can keep the source file's protection class instead of the folder's.
+            try? FileManager.default.setAttributes([.protectionKey: FileProtectionType.completeUnlessOpen],
+                                                   ofItemAtPath: destination.path)
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
                     let date = Date(timeIntervalSince1970: seconds)
@@ -316,3 +382,18 @@ enum WatchInbox {
     }
     #endif
 }
+
+#if os(iOS)
+/// One background task for a watch voice note's transcript, ended once (by the finished pass or
+/// by its expiration handler, whichever comes first). Main actor only.
+@MainActor
+private final class TranscriptBackgroundTask {
+    var id: UIBackgroundTaskIdentifier = .invalid
+
+    func end() {
+        guard id != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(id)
+        id = .invalid
+    }
+}
+#endif

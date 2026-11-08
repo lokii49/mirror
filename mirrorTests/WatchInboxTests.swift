@@ -150,6 +150,33 @@ struct WatchInboxTests {
         }
     }
 
+    /// Audio copied in but never queued (the app stopped between the two) is queued again at
+    /// start; audio of a note already saved is removed (audit, 2026-11-08).
+    @Test func orphanedAudioIsQueuedAgainOrRemoved() throws {
+        let d = defaults()
+        let orphan = UUID().uuidString
+        let saved = UUID().uuidString
+        let orphanFile = try voiceFile(orphan)
+        let savedFile = try voiceFile(saved)
+        d.set([saved], forKey: WatchInbox.handledKey)
+        WatchInbox.$pendingAccount.withValue("WatchInboxTests.\(UUID().uuidString)") {
+            defer { WatchInbox.erasePending() }
+            WatchInbox.adoptOrphanedVoiceFiles(defaults: d)
+            #expect(WatchInbox.waiting.map(\.id) == [orphan])
+            #expect(FileManager.default.fileExists(atPath: orphanFile.path))
+            #expect(!FileManager.default.fileExists(atPath: savedFile.path))
+            // Running again doesn't queue it twice.
+            WatchInbox.adoptOrphanedVoiceFiles(defaults: d)
+            #expect(WatchInbox.waiting.count == 1)
+        }
+    }
+
+    /// Waiting audio stays out of device backups: it isn't sealed with the journal key yet.
+    @Test func waitingAudioIsExcludedFromBackup() throws {
+        let dir = try #require(WatchInbox.voiceDirectory)
+        #expect(try dir.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup == true)
+    }
+
     @Test func voiceNotesOnlyArriveAsFilesAndEraseRemovesTheirAudio() throws {
         // A message naming a voice note is refused: only a file transfer may bring one.
         #expect(WatchInbox.item(from: ["id": "v1", "kind": "voice", "value": "../../x.m4a", "date": 0.0]) == nil)

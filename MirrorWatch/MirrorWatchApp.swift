@@ -6,6 +6,7 @@ import SwiftUI
 @main
 struct MirrorWatchApp: App {
     @State private var sender = WatchSender.shared
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -20,6 +21,11 @@ struct MirrorWatchApp: App {
                         sender.send(.note, value: "Synthetic note from the watch self-test.")
                     }
                     #endif
+                }
+                // Raising the wrist brings the app back without a new launch: try what's waiting
+                // again then too, not only on a cold start.
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active { sender.resumeOnOpen() }
                 }
         }
     }
