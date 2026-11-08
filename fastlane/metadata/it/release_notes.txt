@@ -16,7 +16,7 @@ Inoltre in questo aggiornamento
 • In Organizza puoi aggiungere la raccolta Appunti per note veloci, liste e numeri. Riflessioni, Chiedi, grafici dell’umore e avvisi sull’umore non la leggono, e qualsiasi raccolta si può escludere allo stesso modo.
 • Toccando di nuovo Voci, l’elenco torna in cima.
 • Nuova intestazione per scrivere: la data come titolo, l’umore accanto, Salva come pulsante, Elimina e la modalità concentrazione nel menu ⋯.
-• Nuovo appunto dal Centro di Controllo, da Siri o dal menu delle voci.
+• Nuovo appunto dal Centro di Controllo, da Siri o dal menu delle voci, con checklist, elenchi numerati e puntati, e Ricordamelo per un promemoria all’ora che scegli. Il promemoria non mostra mai il testo dell’appunto.
 • Modelli: Riepilogo serale, Piano settimanale e Pagine del mattino, più i tuoi, solo su questo dispositivo.
 • Suggerimenti dalla tua giornata: inizia una voce dai suggerimenti per il diario di Apple. Brani, podcast, allenamenti, luoghi, persone e passi arrivano come righe brevi, con foto, copertine e una mappa del percorso o del luogo. Tocca un luogo o la sua mappa per aprirlo in Mappe, o un brano per trovarlo in Apple Music.
 • Ancora aperti raccoglie le voci delle liste non spuntate.

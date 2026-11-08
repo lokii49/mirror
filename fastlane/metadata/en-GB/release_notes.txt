@@ -16,7 +16,7 @@ Also in this update
 • Organize can add a Scratch collection for quick notes, lists and numbers. Reflections, Ask, mood charts and mood alerts don't read it, and any collection can be kept out of them the same way.
 • Tapping Entries again scrolls the list back to the top.
 • Write has a new header: the date as a title, Mood beside it, Save as a button, and Delete and focus mode in the ⋯ menu.
-• New Scratch Note from Control Center, Siri or the Entries menu.
+• New Scratch Note from Control Center, Siri or the Entries menu, with checklists, numbered and bulleted lists, and Remind me for a reminder at a time you pick. The reminder never shows the note's words.
 • Templates: Evening Review, Weekly Plan and Morning Pages, plus your own, kept on this device.
 • Suggestions from your day: start an entry from Apple's Journaling Suggestions. Songs, podcasts, workouts, places, people and steps come in as short lines, with photos, artwork and a map of your route or place. Tap a place or its map to open it in Maps, or a song to find it in Apple Music.
 • Still Open lists every unticked checklist item across your entries.

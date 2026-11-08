@@ -16,7 +16,7 @@ Também nesta atualização
 • Em Organizar, você pode adicionar a coleção Anotações para notas rápidas, listas e números. Reflexões, Perguntar, gráficos de humor e alertas de humor não a leem, e qualquer coleção pode ficar de fora do mesmo jeito.
 • Tocar em Entradas de novo leva a lista de volta ao topo.
 • Novo topo ao escrever: a data como título, o humor ao lado, Salvar como botão, e Apagar e o modo foco no menu ⋯.
-• Nova anotação pela Central de Controle, pela Siri ou pelo menu de Entradas.
+• Nova anotação pela Central de Controle, pela Siri ou pelo menu de Entradas, com checklists, listas numeradas e com marcadores, e Lembrar-me para um lembrete no horário que você escolher. O lembrete nunca mostra o texto da anotação.
 • Modelos: Revisão da noite, Plano semanal e Páginas matinais, além dos seus, só neste dispositivo.
 • Sugestões do seu dia: comece uma entrada com as sugestões de diário da Apple. Músicas, podcasts, treinos, lugares, pessoas e passos chegam como linhas curtas, com fotos, capas e um mapa do percurso ou do lugar. Toque num lugar ou no seu mapa para abri-lo no Mapas, ou numa música para encontrá-la no Apple Music.
 • Em aberto reúne todos os itens de lista não marcados das suas entradas.

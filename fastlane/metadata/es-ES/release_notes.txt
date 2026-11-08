@@ -16,7 +16,7 @@ Además en esta actualización
 • En Organizar puedes añadir la colección Apuntes para notas rápidas, listas y números. Las reflexiones, Preguntar, los gráficos de ánimo y las alertas de ánimo no la leen, y cualquier colección se puede excluir del mismo modo.
 • Al volver a tocar Entradas, la lista vuelve arriba.
 • Nueva cabecera al escribir: la fecha como título, el ánimo al lado, Guardar como botón, y Eliminar y el modo concentración en el menú ⋯.
-• Nuevo apunte desde el Centro de control, Siri o el menú de Entradas.
+• Nuevo apunte desde el Centro de control, Siri o el menú de Entradas, con checklists, listas numeradas y con viñetas, y Recordarme para un aviso a la hora que elijas. El aviso nunca muestra el texto del apunte.
 • Plantillas: Repaso de la tarde, Plan semanal y Páginas matutinas, y las tuyas, solo en este dispositivo.
 • Sugerencias de tu día: empieza una entrada con las sugerencias de diario de Apple. Canciones, podcasts, entrenamientos, lugares, personas y pasos llegan como líneas breves, con fotos, carátulas y un mapa de tu ruta o del lugar. Toca un lugar o su mapa para abrirlo en Mapas, o una canción para buscarla en Apple Music.
 • Pendientes reúne los elementos sin marcar de todas tus listas.
