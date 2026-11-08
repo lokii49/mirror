@@ -14,6 +14,19 @@ final class WhatsNewRenderHarness: XCTestCase {
 
     func test_renderWalkthroughPages318() throws {
         try renderPages(version: "3.1.8")
+        // The Write page again with its Suggestions from your day start (simulators have no Journaling Suggestions).
+        WhatsNewWalkthrough.snapshotShowsSuggestions = true
+        defer { WhatsNewWalkthrough.snapshotShowsSuggestions = false }
+        WhatsNewWalkthrough.snapshotPhase = 3
+        defer { WhatsNewWalkthrough.snapshotPhase = nil }
+        let write = try XCTUnwrap(FeatureCardRegistry.all.first { $0.id == "write-318" })
+        for (name, style) in [("light", UIUserInterfaceStyle.light), ("dark", .dark)] {
+            let image = try render(AnyView(WhatsNewWalkthrough(cards: [write]) {}), mode: .classic, style: style)
+            let attachment = XCTAttachment(image: image)
+            attachment.name = "wn318-suggestions-\(name)"
+            attachment.lifetime = .keepAlways
+            add(attachment)
+        }
     }
 
     private func renderPages(version: String) throws {

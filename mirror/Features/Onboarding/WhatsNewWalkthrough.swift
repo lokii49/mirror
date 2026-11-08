@@ -18,6 +18,9 @@ struct WhatsNewWalkthrough: View {
 
     /// Tests only: render every demo at this phase, still (render harness).
     static var snapshotPhase: Int? = nil
+    /// Tests only: draw the Write page's Suggestions from your day start even where the device has none
+    /// (simulators), so the harness can show both versions.
+    static var snapshotShowsSuggestions = false
 
     /// Card ids that have a demo. A What's New with none of them uses the plain list instead.
     static let demoIDs: Set<String> = ["smart-ask-search-310", "reflection-styles-310", "format-panel-310", "writing-310",
@@ -40,7 +43,7 @@ struct WhatsNewWalkthrough: View {
             ZStack {
                 ForEach(Array(cards.enumerated()), id: \.element.id) { offset, card in
                     if offset == index {
-                        AnyView(WhatsNewPage(card: card))
+                        AnyView(WhatsNewPage(card: card, number: offset + 1, count: cards.count))
                             .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
                                                     removal: .move(edge: .leading).combined(with: .opacity)))
                     }
@@ -60,11 +63,24 @@ struct WhatsNewWalkthrough: View {
                 .padding(.bottom, 20)
                 .padding(.top, 8)
         }
-        .background(MirrorTheme.bgBase)
+        .background(backdrop)
         #if os(macOS)
         // A Mac sheet sizes to its content, and this view fills whatever it is given.
         .frame(width: 560, height: 680)
         #endif
+    }
+
+    /// Paper that warms toward plum a little more on each page, like the Timer app's tour sky (and the
+    /// 3.1.8 What's New video). Theme tokens only, so light and dark both follow.
+    private var backdrop: some View {
+        let progress = cards.count > 1 ? Double(index) / Double(cards.count - 1) : 1
+        return ZStack {
+            MirrorTheme.bgBase
+            LinearGradient(colors: [MirrorTheme.violetDim.opacity(0.35 + 0.55 * progress), MirrorTheme.bgBase.opacity(0)],
+                           startPoint: .top, endPoint: .center)
+        }
+        .ignoresSafeArea()
+        .animation(.easeInOut(duration: 0.6), value: index)
     }
 
     private func go(to newIndex: Int) {
@@ -85,11 +101,14 @@ struct WhatsNewWalkthrough: View {
                     }
                     .animation(.spring(response: 0.3, dampingFraction: 0.8), value: index)
                 } else {
-                    // A row of dots wider than the screen widened the whole sheet (3.1.0, 28 pages).
-                    Text("\(index + 1) of \(cards.count)")
-                        .scaledFont(displayMode == .sentinel ? 12 : 13, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
+                    // A row of dots wider than the screen widened the whole sheet (3.1.0, 28 pages). The page
+                    // number is in each page's "New in … · 3 of 12" label, so this is just a slim progress bar.
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.primary.opacity(0.14))
+                        Capsule().fill(accent).frame(width: 140 * CGFloat(index + 1) / CGFloat(max(cards.count, 1)))
+                    }
+                    .frame(width: 140, height: 5)
+                    .animation(.spring(response: 0.35, dampingFraction: 0.85), value: index)
                 }
             }
             .accessibilityElement(children: .ignore)
@@ -132,22 +151,32 @@ struct WhatsNewWalkthrough: View {
 /// One page: the demo (or the card's icon), then the title and text.
 private struct WhatsNewPage: View {
     let card: FeatureCard
+    var number: Int = 1
+    var count: Int = 1
     @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
         ScrollView {
             VStack(spacing: 22) {
                 demo
-                    .frame(maxWidth: 420)
-                    .frame(height: 250)
+                    .frame(maxWidth: 460)
+                    .frame(height: 290)
                     .accessibilityHidden(true)
 
                 VStack(spacing: 10) {
+                    // "New in 3.1.8 · 3 of 12", as on the Timer app's tour.
+                    Text("New in \(card.sinceVersion) · \(number) of \(count)")
+                        .scaledFont(12, weight: .semibold)
+                        .tracking(1.2)
+                        .textCase(.uppercase)
+                        .foregroundStyle(MirrorTheme.textSecondary)
+                        .accessibilityHidden(true)
                     Group {
                         if displayMode == .sentinel {
                             Text(card.title).scaledFont(19, weight: .bold, design: .monospaced)
                         } else {
-                            Text(card.title).scaledFont(24, weight: .bold, design: .rounded)
+                            // Paper & Ink: titles are serif.
+                            Text(card.title).scaledFont(26, weight: .semibold, design: .serif)
                         }
                     }
                     .multilineTextAlignment(.center)
@@ -535,15 +564,15 @@ private func moodPill(_ mood: String, mode: DisplayMode) -> some View {
     .background(MirrorTheme.moodColor(for: mood).opacity(0.16), in: Capsule())
 }
 
-/// The same small Write screen in light, then dark: paper and plum, then warm off-black.
+/// Paper & Ink: today's reflection as the one raised card, then Entries rows (mood rule, serif day numeral,
+/// serif title, word count, photo thumbnail); light, then dark.
 private struct ThemeDemo: View {
     let phase: Int
-    @Environment(\.appDisplayMode) private var displayMode
     @Environment(\.locale) private var locale
 
     var body: some View {
         let dark = phase >= 2
-        return AnyView(VStack(spacing: 12) {
+        return AnyView(VStack(spacing: 10) {
             HStack(spacing: 8) {
                 modeIcon("sun.max.fill", on: !dark)
                 modeIcon("moon.fill", on: dark)
@@ -557,93 +586,181 @@ private struct ThemeDemo: View {
     }
 
     private var sample: AnyView {
-        let a = DemoAccent(mode: displayMode)
-        return AnyView(VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text(verbatim: demoDate(0, locale)).scaledFont(15, weight: .bold).foregroundStyle(MirrorTheme.textPrimary)
-                Spacer(minLength: 0)
-                Text("Save").scaledFont(12, weight: .semibold).foregroundStyle(.white)
-                    .padding(.horizontal, 12).frame(height: 26)
-                    .background(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.buttonFill, in: Capsule())
-            }
-            HStack(alignment: .top, spacing: 9) {
-                RoundedRectangle(cornerRadius: 1.5).fill(a.color).frame(width: 3)
-                VStack(alignment: .leading, spacing: 5) {
+        AnyView(VStack(alignment: .leading, spacing: 8) {
+            Text("Entries").scaledFont(19, weight: .semibold, design: .serif).foregroundStyle(MirrorTheme.textPrimary)
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "sparkles").scaledFont(12).foregroundStyle(MirrorTheme.primary)
+                VStack(alignment: .leading, spacing: 3) {
                     Text("Sat on the balcony after dinner. Finally quiet.")
-                        .scaledFont(14, weight: .medium, design: .serif).italic()
+                        .scaledFont(13, weight: .medium, design: .serif).italic()
                         .foregroundStyle(MirrorTheme.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text("You seem calmer tonight.").scaledFont(13).foregroundStyle(MirrorTheme.textSecondary)
+                    Text("You seem calmer tonight.").scaledFont(12).foregroundStyle(MirrorTheme.textSecondary)
                 }
+                Spacer(minLength: 0)
             }
-            .fixedSize(horizontal: false, vertical: true)
             .padding(10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: a.corner, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: a.corner, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1))
+            .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .shadow(color: .black.opacity(0.10), radius: 8, y: 3)
+            VStack(spacing: 0) {
+                row(daysAgo: 0, label: "Today", text: "Walked to the market early.", words: 52, mood: "Peaceful", photo: true)
+                row(daysAgo: 1, label: "Yesterday", text: "Deadline moved up again.", words: 38, mood: "Anxious", photo: false)
+            }
         }
         .padding(12)
-        .background(MirrorTheme.bgBase, in: RoundedRectangle(cornerRadius: a.corner + 4, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: a.corner + 4, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1)))
+        .background(MirrorTheme.bgBase, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1)))
+    }
+
+    private func row(daysAgo: Int, label: LocalizedStringKey, text: LocalizedStringKey, words: Int, mood: String, photo: Bool) -> some View {
+        let date = Calendar.current.date(byAdding: .day, value: -daysAgo, to: Date()) ?? Date()
+        return VStack(alignment: .leading, spacing: 3) {
+            Text(label).scaledFont(9, weight: .bold).textCase(.uppercase).foregroundStyle(MirrorTheme.textSecondary)
+            HStack(spacing: 8) {
+                RoundedRectangle(cornerRadius: 1.5).fill(MirrorTheme.moodColor(for: mood)).frame(width: 3, height: 30)
+                Text(verbatim: date.formatted(.dateTime.day().locale(locale)))
+                    .scaledFont(18, design: .serif).foregroundStyle(MirrorTheme.textPrimary).frame(minWidth: 22)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(text).scaledFont(12, weight: .semibold, design: .serif).lineLimit(1).foregroundStyle(MirrorTheme.textPrimary)
+                    Text("\(words) words").scaledFont(10).foregroundStyle(MirrorTheme.textSecondary)
+                }
+                Spacer(minLength: 4)
+                if photo {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(LinearGradient(colors: [Color(red: 0.79, green: 0.64, blue: 0.49), Color(red: 0.49, green: 0.35, blue: 0.27)],
+                                             startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .frame(width: 28, height: 28)
+                }
+            }
+        }
+        .padding(.vertical, 5)
+        .overlay(alignment: .top) { Rectangle().fill(MirrorTheme.inkBorder).frame(height: 1) }
     }
 
     private func modeIcon(_ symbol: String, on: Bool) -> some View {
-        let a = DemoAccent(mode: displayMode)
-        return Image(systemName: symbol)
+        Image(systemName: symbol)
             .scaledFont(14, weight: .semibold)
             .foregroundStyle(on ? Color.white : Color.primary.opacity(0.5))
             .frame(width: 36, height: 30)
-            .background(on ? a.color : MirrorTheme.bgBase, in: Capsule())
+            .background(on ? MirrorTheme.buttonFill : MirrorTheme.bgBase, in: Capsule())
     }
 }
 
-/// The date as the title, Mood beside it, then a template fills the page.
+/// The date as the title, Mood beside it, then a start: Suggestions from your day where Write offers them
+/// (a run, a place and a song arrive as short lines with a route map), else a template.
 private struct WriteHeaderDemo: View {
     let phase: Int
     @Environment(\.appDisplayMode) private var displayMode
     @Environment(\.locale) private var locale
+    private var suggestions: Bool { DeviceFeature.journalingSuggestionsAvailable || WhatsNewWalkthrough.snapshotShowsSuggestions }
 
     var body: some View {
         let a = DemoAccent(mode: displayMode)
-        let templates: [WritingTemplate] = [.eveningReview, .gratitude, .morningPages]
-        return AnyView(VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .bottom) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(verbatim: Date().formatted(.dateTime.weekday(.wide).locale(locale)))
-                        .scaledFont(22, weight: .bold)
-                    Text(verbatim: demoDate(0, locale, weekday: false))
-                        .scaledFont(12).foregroundStyle(MirrorTheme.textSecondary)
-                }
-                Spacer(minLength: 8)
-                if phase >= 1 {
-                    moodPill("Peaceful", mode: displayMode).transition(.scale.combined(with: .opacity))
+        return AnyView(VStack(alignment: .leading, spacing: 10) {
+            header
+            starters(a)
+            Group {
+                if phase >= 3 {
+                    if suggestions { suggestion(a) } else { template(a) }
                 } else {
-                    Text("Mood").scaledFont(12, weight: .semibold).foregroundStyle(MirrorTheme.textSecondary)
-                        .padding(.horizontal, 10).frame(height: 24)
-                        .overlay(Capsule().strokeBorder(MirrorTheme.textSecondary, style: StrokeStyle(lineWidth: 1, dash: [3, 2])))
+                    Text(verbatim: " ").frame(maxWidth: .infinity, minHeight: 60, alignment: .leading).demoCard(displayMode, accent: a.color).opacity(0.4)
                 }
             }
-            HStack(spacing: 6) {
-                ForEach(templates) { template in
-                    Text(verbatim: template.title)
-                        .scaledFont(12, weight: .semibold)
-                        .lineLimit(1)
-                        .foregroundStyle(phase >= 3 && template == .eveningReview ? Color.white : Color.primary)
-                        .padding(.horizontal, 10).frame(height: 28)
-                        .background(phase >= 3 && template == .eveningReview ? a.color : MirrorTheme.bgBase, in: Capsule())
-                        .overlay(Capsule().stroke(MirrorTheme.inkBorder, lineWidth: phase >= 3 && template == .eveningReview ? 0 : 1))
-                }
-            }
-            .opacity(phase >= 2 ? 1 : 0)
-            Text(verbatim: phase >= 3 ? WritingTemplate.eveningReview.seedText.trimmingCharacters(in: .whitespacesAndNewlines)
-                                        .components(separatedBy: .newlines).filter { !$0.isEmpty }.prefix(2).joined(separator: "\n") : " ")
-                .scaledFont(14, weight: .semibold)
-                .lineSpacing(6)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .demoCard(displayMode, accent: a.color)
-                .opacity(phase >= 3 ? 1 : 0.4)
+            .transition(.opacity)
             Spacer(minLength: 0)
         })
+    }
+
+    private var header: AnyView {
+        AnyView(HStack(alignment: .bottom) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(verbatim: Date().formatted(.dateTime.weekday(.wide).locale(locale)))
+                    .scaledFont(22, weight: .semibold, design: .serif)
+                Text(verbatim: demoDate(0, locale, weekday: false))
+                    .scaledFont(12).foregroundStyle(MirrorTheme.textSecondary)
+            }
+            Spacer(minLength: 8)
+            if phase >= 1 {
+                moodPill("Peaceful", mode: displayMode).transition(.scale.combined(with: .opacity))
+            } else {
+                Text("Mood").scaledFont(12, weight: .semibold).foregroundStyle(MirrorTheme.textSecondary)
+                    .padding(.horizontal, 10).frame(height: 24)
+                    .overlay(Capsule().strokeBorder(MirrorTheme.textSecondary, style: StrokeStyle(lineWidth: 1, dash: [3, 2])))
+            }
+        })
+    }
+
+    private func starters(_ a: DemoAccent) -> AnyView {
+        let picked = phase >= 3
+        return AnyView(HStack(spacing: 6) {
+            if suggestions {
+                chip(Label("Suggestions from your day", systemImage: "sparkles"), on: picked, a)
+            }
+            if !suggestions {
+                chip(Text(verbatim: WritingTemplate.eveningReview.title), on: picked, a)
+                chip(Text(verbatim: WritingTemplate.gratitude.title), on: false, a)
+            }
+        }
+        .opacity(phase >= 2 ? 1 : 0))
+    }
+
+    private func chip<V: View>(_ label: V, on: Bool, _ a: DemoAccent) -> some View {
+        label
+            .scaledFont(12, weight: .semibold)
+            .lineLimit(1)
+            .foregroundStyle(on ? Color.white : Color.primary)
+            .padding(.horizontal, 10).frame(height: 28)
+            .background(on ? MirrorTheme.buttonFill : MirrorTheme.bgBase, in: Capsule())
+            .overlay(Capsule().stroke(MirrorTheme.inkBorder, lineWidth: on ? 0 : 1))
+    }
+
+    private func suggestion(_ a: DemoAccent) -> AnyView {
+        let distance = Measurement(value: 5.2, unit: UnitLength.kilometers).formatted(.measurement(width: .abbreviated, usage: .asProvided).locale(locale))
+        let minutes = Duration.seconds(31 * 60).formatted(.units(allowed: [.minutes], width: .abbreviated))
+        return AnyView(VStack(alignment: .leading, spacing: 5) {
+            Text(verbatim: "Riverside Park").scaledFont(15, weight: .bold, design: .serif)
+            Text(verbatim: "🏃 \(distance) · \(minutes)").scaledFont(13)
+            Text(verbatim: "🎵 Slow Morning · Lumen Trio").scaledFont(13).foregroundStyle(a.color).underline()
+            RouteMap(color: a.color).frame(height: 54)
+        }
+        .demoCard(displayMode, accent: a.color))
+    }
+
+    private func template(_ a: DemoAccent) -> AnyView {
+        AnyView(Text(verbatim: WritingTemplate.eveningReview.seedText.trimmingCharacters(in: .whitespacesAndNewlines)
+                        .components(separatedBy: .newlines).filter { !$0.isEmpty }.prefix(2).joined(separator: "\n"))
+            .scaledFont(14, weight: .semibold)
+            .lineSpacing(6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .demoCard(displayMode, accent: a.color))
+    }
+}
+
+/// A suggestion's route map: a soft paper map with the run drawn in the accent.
+private struct RouteMap: View {
+    let color: Color
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color(red: 0.91, green: 0.89, blue: 0.85))
+            GeometryReader { g in
+                Path { p in
+                    p.move(to: CGPoint(x: 0, y: g.size.height * 0.8))
+                    p.addCurve(to: CGPoint(x: g.size.width, y: g.size.height * 0.25),
+                               control1: CGPoint(x: g.size.width * 0.35, y: g.size.height * 0.2),
+                               control2: CGPoint(x: g.size.width * 0.65, y: g.size.height))
+                }
+                .stroke(Color.white, lineWidth: 7)
+                Path { p in
+                    p.move(to: CGPoint(x: g.size.width * 0.08, y: g.size.height * 0.72))
+                    p.addCurve(to: CGPoint(x: g.size.width * 0.9, y: g.size.height * 0.3),
+                               control1: CGPoint(x: g.size.width * 0.4, y: g.size.height * 0.15),
+                               control2: CGPoint(x: g.size.width * 0.6, y: g.size.height * 0.95))
+                }
+                .stroke(color, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                Circle().fill(color).frame(width: 7, height: 7).position(x: g.size.width * 0.08, y: g.size.height * 0.72)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
 
@@ -694,53 +811,89 @@ private struct FocusModeDemo: View {
     }
 }
 
-/// A quick note goes into Scratch, kept out; the reflection reads only the journal entry.
+/// A Scratch note with a checklist and a reminder; the reflection reads only the journal entry, and the
+/// reminder's notification never shows the note's words.
 private struct ScratchDemo: View {
     let phase: Int
     @Environment(\.appDisplayMode) private var displayMode
+    @Environment(\.locale) private var locale
 
     var body: some View {
         let a = DemoAccent(mode: displayMode)
-        return AnyView(VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 10) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Label("Entries", systemImage: "book.closed").scaledFont(12, weight: .bold).foregroundStyle(MirrorTheme.textSecondary)
-                    Text("Sat on the balcony after dinner. Finally quiet.")
-                        .scaledFont(13).fixedSize(horizontal: false, vertical: true)
-                        .demoCard(displayMode, highlighted: phase >= 3, accent: a.color)
-                    if phase == 0 { note.transition(.opacity) }
+        return AnyView(ZStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top, spacing: 10) {
+                    journal(a).frame(maxWidth: .infinity, alignment: .topLeading)
+                    scratch(a).frame(maxWidth: .infinity, alignment: .topLeading)
                 }
-                .frame(maxWidth: .infinity, alignment: .topLeading)
-                VStack(alignment: .leading, spacing: 6) {
-                    Label("Scratch", systemImage: "note.text").scaledFont(12, weight: .bold).foregroundStyle(MirrorTheme.textSecondary)
-                    if phase >= 1 { note.transition(.move(edge: .leading).combined(with: .opacity)) }
-                    if phase >= 2 {
-                        Label("Keep out of reflections", systemImage: "eye.slash")
-                            .scaledFont(11, weight: .semibold)
-                            .foregroundStyle(a.color)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .topLeading)
+                Spacer(minLength: 0)
             }
-            if phase >= 3 {
-                HStack(spacing: 8) {
-                    Image(systemName: "sparkles").foregroundStyle(a.color)
-                    Text("You seem calmer tonight.").scaledFont(13, weight: .medium)
-                    Spacer(minLength: 0)
-                }
-                .demoCard(displayMode, accent: a.color)
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
-            }
-            Spacer(minLength: 0)
+            .padding(.top, phase >= 3 ? 44 : 0)
+            if phase >= 3 { banner.transition(.move(edge: .top).combined(with: .opacity)) }
         })
     }
 
-    private var note: some View {
-        Text("Oats, lemons, tape")
-            .scaledFont(13)
-            .fixedSize(horizontal: false, vertical: true)
-            .demoCard(displayMode, accent: DemoAccent(mode: displayMode).color)
+    private func journal(_ a: DemoAccent) -> AnyView {
+        AnyView(VStack(alignment: .leading, spacing: 6) {
+            Label("Entries", systemImage: "book.closed").scaledFont(12, weight: .bold).foregroundStyle(MirrorTheme.textSecondary)
+            Text("Sat on the balcony after dinner. Finally quiet.")
+                .scaledFont(13, design: .serif).fixedSize(horizontal: false, vertical: true)
+                .demoCard(displayMode, highlighted: phase >= 2, accent: a.color)
+            if phase >= 2 {
+                HStack(spacing: 6) {
+                    Image(systemName: "sparkles").foregroundStyle(a.color)
+                    Text("You seem calmer tonight.").scaledFont(12, weight: .medium).fixedSize(horizontal: false, vertical: true)
+                }
+                .demoCard(displayMode, accent: a.color)
+                .transition(.opacity)
+            }
+        })
+    }
+
+    private func scratch(_ a: DemoAccent) -> AnyView {
+        let items: [LocalizedStringKey] = ["Call the dentist", "Return the library books", "Send the photos"]
+        let reminderTime = Calendar.current.date(bySettingHour: 18, minute: 0, second: 0, of: Date()) ?? Date()
+        return AnyView(VStack(alignment: .leading, spacing: 6) {
+            Label("Scratch", systemImage: "note.text").scaledFont(12, weight: .bold).foregroundStyle(MirrorTheme.textSecondary)
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(Array(items.enumerated()), id: \.offset) { i, item in
+                    let done = phase >= 1 && i == 1
+                    HStack(spacing: 6) {
+                        Image(systemName: done ? "checkmark.square.fill" : "square").foregroundStyle(done ? a.color : MirrorTheme.textSecondary)
+                        Text(item).scaledFont(12).lineLimit(2).strikethrough(done).opacity(done ? 0.55 : 1)
+                    }
+                }
+                if phase >= 2 {
+                    Label { Text(verbatim: reminderTime.formatted(.dateTime.hour().minute().locale(locale))) } icon: { Image(systemName: "bell.fill") }
+                        .scaledFont(11, weight: .semibold)
+                        .foregroundStyle(a.color)
+                        .padding(.horizontal, 8).frame(height: 22)
+                        .background(a.color.opacity(0.12), in: Capsule())
+                        .transition(.opacity)
+                }
+            }
+            .demoCard(displayMode, accent: a.color)
+            if phase >= 2 {
+                Label("Keep out of reflections", systemImage: "eye.slash")
+                    .scaledFont(11, weight: .semibold).foregroundStyle(a.color).fixedSize(horizontal: false, vertical: true)
+            }
+        })
+    }
+
+    private var banner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "note.text").foregroundStyle(.white)
+                .frame(width: 24, height: 24)
+                .background(MirrorTheme.buttonFill, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            VStack(alignment: .leading, spacing: 1) {
+                Text(verbatim: "MirrorNotes").scaledFont(11, weight: .bold)
+                Text("Scratch note reminder").scaledFont(11)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(8)
+        .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
     }
 }
 
@@ -882,31 +1035,24 @@ private struct PatternsDemo: View {
     }
 }
 
-/// A mood logged on the watch arrives on the iPhone.
+/// A voice note recorded on the watch arrives on the iPhone, which keeps the key and writes the transcript.
 private struct WatchDemo: View {
     let phase: Int
     @Environment(\.appDisplayMode) private var displayMode
-    @Environment(\.locale) private var locale
 
     var body: some View {
         let a = DemoAccent(mode: displayMode)
-        let moods = ["Peaceful", "Grateful", "Drained"]
+        let recording = phase >= 1
         return AnyView(HStack(alignment: .center, spacing: 10) {
-            VStack(spacing: 5) {
-                ForEach(moods, id: \.self) { mood in
-                    let picked = phase >= 1 && mood == "Peaceful"
-                    HStack(spacing: 5) {
-                        Circle().fill(MirrorTheme.moodColor(for: mood)).frame(width: 8, height: 8)
-                        Text(LocalizedStringKey(mood)).scaledFont(11, weight: .semibold).lineLimit(1).minimumScaleFactor(0.8)
-                        Spacer(minLength: 0)
-                        if picked { Image(systemName: "checkmark").scaledFont(9, weight: .bold) }
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 7).frame(height: 26)
-                    .background(picked ? MirrorTheme.moodColor(for: mood).opacity(0.45) : Color.white.opacity(0.14), in: Capsule())
-                }
+            VStack(spacing: 8) {
+                Image(systemName: "waveform")
+                    .scaledFont(30, weight: .semibold)
+                    .foregroundStyle(recording ? Color(red: 0.79, green: 0.55, blue: 0.78) : Color.white.opacity(0.35))
+                    .symbolEffect(.variableColor.iterative, isActive: phase == 1)
+                Text(verbatim: recording ? "0:07" : "0:00").scaledFont(15, weight: .semibold).monospacedDigit().foregroundStyle(.white)
+                Circle().fill(phase == 1 ? Color.red : Color.white.opacity(0.22)).frame(width: 34, height: 34)
+                    .overlay(RoundedRectangle(cornerRadius: phase == 1 ? 3 : 8).fill(Color.white).frame(width: 12, height: 12))
             }
-            .padding(10)
             .frame(width: 118, height: 128)
             .background(Color.black, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous).stroke(Color.gray.opacity(0.5), lineWidth: 3))
@@ -918,14 +1064,13 @@ private struct WatchDemo: View {
             VStack(alignment: .leading, spacing: 7) {
                 Image(systemName: "iphone").scaledFont(14).foregroundStyle(MirrorTheme.textSecondary)
                 VStack(alignment: .leading, spacing: 5) {
-                    moodPill("Peaceful", mode: displayMode)
-                    Text(verbatim: Date().formatted(.dateTime.hour().minute().locale(locale)))
-                        .scaledFont(11).foregroundStyle(MirrorTheme.textSecondary)
+                    Label { Text("Voice note") + Text(verbatim: " · 0:07") } icon: { Image(systemName: "mic.fill") }
+                        .scaledFont(11, weight: .bold).foregroundStyle(a.color)
+                    Text("Walked to the market early.").scaledFont(12, design: .serif).fixedSize(horizontal: false, vertical: true)
                 }
                 .demoCard(displayMode, highlighted: phase >= 3, accent: a.color)
                 .opacity(phase >= 3 ? 1 : 0)
-                Text("Walked to the market early.").scaledFont(12).lineLimit(2)
-                    .demoCard(displayMode, accent: a.color)
+                moodPill("Peaceful", mode: displayMode)
             }
             .frame(maxWidth: .infinity)
         })
