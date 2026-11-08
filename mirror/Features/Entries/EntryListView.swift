@@ -513,6 +513,13 @@ struct EntriesTabView: View {
                     showSearch = true
                     searchText = String(arg.dropFirst(prefix.count))
                 }
+                // `--openNewestEntry`: the newest entry's reader, for captures.
+                if ProcessInfo.processInfo.arguments.contains("--openNewestEntry") {
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .seconds(2))
+                        if let newest = entries.max(by: { $0.createdAt < $1.createdAt }) { open(newest) }
+                    }
+                }
             }
             #endif
             .task(id: searchText) {

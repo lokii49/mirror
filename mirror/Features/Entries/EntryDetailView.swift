@@ -173,6 +173,7 @@ struct EntryDetailView: View {
 
                         if displayMode != .sentinel {
                             paperMetaLine
+                            ScratchReminderLine(entryID: entry.id)
                         } else {
                         HStack(spacing: 6) {
                             Text(entry.createdAt, format: .dateTime.hour().minute())
@@ -411,6 +412,8 @@ struct EntryDetailView: View {
                         .tracking(0.8)
                         .foregroundStyle(MacTokens.secondaryInk)
                         .padding(.bottom, 10)
+
+                    ScratchReminderLine(entryID: entry.id)
 
                     macChips
                         .padding(.bottom, 26)

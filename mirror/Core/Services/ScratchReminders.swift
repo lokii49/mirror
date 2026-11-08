@@ -59,6 +59,14 @@ enum ScratchReminders {
         }
     }
 
+    /// When this note's reminder will fire, or nil when none is waiting.
+    static func pendingDate(for entryID: UUID) async -> Date? {
+        let id = identifier(for: entryID)
+        let pending = await UNUserNotificationCenter.current().pendingNotificationRequests()
+        guard let request = pending.first(where: { $0.identifier == id }) else { return nil }
+        return (request.trigger as? UNCalendarNotificationTrigger)?.nextTriggerDate()
+    }
+
     static func cancel(entryIDs: [UUID]) {
         guard !entryIDs.isEmpty else { return }
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: entryIDs.map(identifier(for:)))

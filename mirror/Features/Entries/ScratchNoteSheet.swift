@@ -304,7 +304,7 @@ private struct ScratchNoteToolbar: View {
 
 /// When to be reminded: a date and time, Set or Remove. The reminder itself is scheduled when the
 /// note is saved, so a discarded note never leaves one behind.
-private struct ScratchReminderPicker: View {
+struct ScratchReminderPicker: View {
     @Binding var date: Date?
     @Environment(\.dismiss) private var dismiss
     @State private var picked = ScratchReminders.defaultTime()
@@ -359,5 +359,74 @@ private struct ScratchReminderPicker: View {
         #else
         .frame(minWidth: 360, minHeight: 220)
         #endif
+    }
+}
+
+/// In the note's reader: the reminder still waiting for this note, "🔔 Reminder · Sun 7:30 AM ›",
+/// or nothing (owner, 2026-11-08: a set reminder should show in the entry). Read from the pending
+/// notification itself, so it's gone once the reminder has fired or was cancelled; tapping it
+/// changes or removes it with the same picker.
+struct ScratchReminderLine: View {
+    let entryID: UUID
+    @State private var date: Date?
+    @State private var showPicker = false
+    @State private var editing: Date?
+    @Environment(\.scenePhase) private var scenePhase
+
+    var body: some View {
+        // A VStack, not a Group: with no reminder it still exists, so the lookup below runs.
+        VStack(alignment: .leading, spacing: 0) {
+            if let date {
+                Button { editing = date; showPicker = true } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "bell.fill")
+                            .accessibilityHidden(true)
+                        Text("Reminder") + Text(verbatim: " · ") + Text(date, format: ScratchReminders.chipFormat(for: date))
+                        Image(systemName: "chevron.right")
+                            .scaledFont(11, weight: .semibold)
+                            .accessibilityHidden(true)
+                    }
+                    .scaledFont(14, weight: .medium)
+                    .foregroundStyle(MirrorTheme.violet)
+                    .frame(minHeight: 32)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text("Reminder, \(date.formatted(date: .abbreviated, time: .shortened))"))
+                .accessibilityHint(Text("Change or remove the reminder"))
+                .accessibilityIdentifier("entry.reminder")
+            }
+        }
+        .task(id: scenePhase) { await refresh() }
+        .sheet(isPresented: $showPicker) {
+            ScratchReminderPicker(date: $editing)
+        }
+        .onChange(of: showPicker) { _, open in
+            guard !open else { return }
+            Task { await apply(editing) }
+        }
+    }
+
+    private func refresh() async {
+        #if DEBUG
+        // `--fakePendingReminder`: draws the line for captures (a real one needs the system's
+        // notification prompt answered, which devicectl can't do).
+        if ProcessInfo.processInfo.arguments.contains("--fakePendingReminder") {
+            date = date ?? ScratchReminders.defaultTime()
+            return
+        }
+        #endif
+        date = await ScratchReminders.pendingDate(for: entryID)
+    }
+
+    /// The picker sets `editing` to the new time, or nil for Remove; Cancel leaves it as it was.
+    private func apply(_ picked: Date?) async {
+        guard picked != date else { return }
+        if let picked {
+            _ = await ScratchReminders.schedule(entryID: entryID, at: picked)
+        } else {
+            ScratchReminders.cancel(entryIDs: [entryID])
+        }
+        await refresh()
     }
 }
