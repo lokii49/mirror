@@ -110395,60 +110395,176 @@
         }
       }
     },
-    "The note is saved. To get its reminder, allow notifications for MirrorNotes in Settings, then set it again." : {
+    "Couldn't set the reminder" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Die Notiz ist gespeichert. Für die Erinnerung erlaube Mitteilungen für MirrorNotes in den Einstellungen und lege sie dann erneut fest."
+            "value" : "Erinnerung konnte nicht festgelegt werden"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "El apunte está guardado. Para recibir el recordatorio, permite las notificaciones de MirrorNotes en Ajustes y vuelve a fijarlo."
+            "value" : "No se pudo fijar el recordatorio"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Le pense-bête est enregistré. Pour recevoir le rappel, autorisez les notifications de MirrorNotes dans Réglages, puis définissez-le à nouveau."
+            "value" : "Impossible de définir le rappel"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "L’appunto è salvato. Per ricevere il promemoria, consenti le notifiche di MirrorNotes in Impostazioni, poi impostalo di nuovo."
+            "value" : "Impossibile impostare il promemoria"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "メモは保存されました。リマインダーを受け取るには、設定でMirrorNotesの通知を許可してから、もう一度設定してください。"
+            "value" : "リマインダーを設定できませんでした"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "메모가 저장되었습니다. 알림을 받으려면 설정에서 MirrorNotes 알림을 허용한 뒤 다시 설정하세요."
+            "value" : "알림을 설정할 수 없습니다"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A anotação foi salva. Para receber o lembrete, permita as notificações do MirrorNotes nos Ajustes e defina-o de novo."
+            "value" : "Não foi possível definir o lembrete"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Заметка сохранена. Чтобы получить напоминание, разрешите уведомления MirrorNotes в Настройках и задайте его снова."
+            "value" : "Не удалось задать напоминание"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "随手记已保存。要收到提醒，请在“设置”中允许 MirrorNotes 发送通知，然后重新设置。"
+            "value" : "无法设置提醒"
+          }
+        }
+      }
+    },
+    "The note is saved without its reminder." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Notiz ist ohne Erinnerung gespeichert."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El apunte se guardó sin recordatorio."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le pense-bête est enregistré sans son rappel."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’appunto è salvato senza promemoria."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "メモはリマインダーなしで保存されました。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "메모가 알림 없이 저장되었습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A anotação foi salva sem o lembrete."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заметка сохранена без напоминания."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "随手记已保存，但没有提醒。"
+          }
+        }
+      }
+    },
+    "To get reminders, allow notifications for MirrorNotes in Settings." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Für Erinnerungen erlaube Mitteilungen für MirrorNotes in den Einstellungen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para recibir recordatorios, permite las notificaciones de MirrorNotes en Ajustes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pour recevoir des rappels, autorisez les notifications de MirrorNotes dans Réglages."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Per ricevere promemoria, consenti le notifiche di MirrorNotes in Impostazioni."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "リマインダーを受け取るには、設定でMirrorNotesの通知を許可してください。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "알림을 받으려면 설정에서 MirrorNotes 알림을 허용하세요."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para receber lembretes, permita as notificações do MirrorNotes nos Ajustes."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Чтобы получать напоминания, разрешите уведомления MirrorNotes в Настройках."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "要收到提醒，请在“设置”中允许 MirrorNotes 发送通知。"
           }
         }
       }

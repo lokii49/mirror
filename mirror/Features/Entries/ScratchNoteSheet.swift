@@ -43,7 +43,7 @@ struct ScratchNoteSheet: View {
     /// The time picked under Remind me…; scheduled when the note is saved.
     @State private var reminderDate: Date?
     @State private var showReminderPicker = false
-    @State private var reminderNotAllowed = false
+    @State private var reminderFailed = false
 
     private var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
 
@@ -92,10 +92,16 @@ struct ScratchNoteSheet: View {
                     send: send,
                     remind: { showReminderPicker = true }
                 )
+                // The note gets the room at the largest sizes; the bar stops growing at AX2.
+                .dynamicTypeSize(...DynamicTypeSize.accessibility2)
 
                 Label("Saved to Scratch. Reflections and insights don't read it.", systemImage: "eye.slash")
                     .font(.footnote)
                     .foregroundStyle(MirrorTheme.textSecondary)
+                    // Whole at large sizes (it was cut at AX3), but no bigger than xxxLarge: at AX5
+                    // it pushed the note itself off the screen.
+                    .fixedSize(horizontal: false, vertical: true)
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             }
             .padding(16)
             .background(MirrorTheme.bgBase)
@@ -169,10 +175,10 @@ struct ScratchNoteSheet: View {
         } message: {
             Text(errorMessage ?? "")
         }
-        .alert("Notifications are off", isPresented: $reminderNotAllowed) {
+        .alert("Couldn't set the reminder", isPresented: $reminderFailed) {
             Button("OK", role: .cancel) { dismiss() }
         } message: {
-            Text("The note is saved. To get its reminder, allow notifications for MirrorNotes in Settings, then set it again.")
+            Text("The note is saved without its reminder.")
         }
     }
 
@@ -193,10 +199,12 @@ struct ScratchNoteSheet: View {
             let entryID = entry.id
             if let reminderDate, reminderDate > Date() {
                 Task { @MainActor in
-                    if await ScratchReminders.schedule(entryID: entryID, at: reminderDate) == .notAllowed {
-                        reminderNotAllowed = true
-                    } else {
+                    // Permission was checked when the time was picked; this only fails if it was
+                    // turned off since, or the system refused the request.
+                    if await ScratchReminders.schedule(entryID: entryID, at: reminderDate) == .scheduled {
                         dismiss()
+                    } else {
+                        reminderFailed = true
                     }
                 }
                 return
@@ -226,21 +234,40 @@ private struct ScratchNoteToolbar: View {
     let reminderDate: Date?
     let send: (NoteTextCommand) -> Void
     let remind: () -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        HStack(spacing: 8) {
-            listButton("Checklist", systemImage: "checklist", command: .checklist,
-                       isOn: activeStyle == .checklistUnchecked || activeStyle == .checklistChecked)
-            listButton("Numbered list", systemImage: "list.number", command: .numberedList,
-                       isOn: activeStyle == .numberedList)
-            listButton("Bulleted list", systemImage: "list.bullet", command: .bulletedList,
-                       isOn: activeStyle == .bulletedList)
-            Spacer(minLength: 4)
+        // One row; at accessibility sizes the reminder goes under the list buttons, where it
+        // was cut to "Sat, 11:00…" beside them (AX3, 2026-11-07).
+        if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) { listButtons }
+                reminderButton
+            }
+        } else {
+            HStack(spacing: 8) {
+                listButtons
+                Spacer(minLength: 4)
+                reminderButton
+            }
+        }
+    }
+
+    @ViewBuilder private var listButtons: some View {
+        listButton("Checklist", systemImage: "checklist", command: .checklist,
+                   isOn: activeStyle == .checklistUnchecked || activeStyle == .checklistChecked)
+        listButton("Numbered list", systemImage: "list.number", command: .numberedList,
+                   isOn: activeStyle == .numberedList)
+        listButton("Bulleted list", systemImage: "list.bullet", command: .bulletedList,
+                   isOn: activeStyle == .bulletedList)
+    }
+
+    private var reminderButton: some View {
             Button(action: remind) {
                 HStack(spacing: 5) {
                     Image(systemName: reminderDate == nil ? "bell" : "bell.fill")
                     if let reminderDate {
-                        Text(reminderDate, format: .dateTime.weekday(.abbreviated).hour().minute())
+                        Text(reminderDate, format: ScratchReminders.chipFormat(for: reminderDate))
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
                     } else {
@@ -258,7 +285,6 @@ private struct ScratchNoteToolbar: View {
             .buttonStyle(.plain)
             .accessibilityLabel(reminderDate.map { Text("Reminder, \($0.formatted(date: .abbreviated, time: .shortened))") } ?? Text("Remind me"))
             .accessibilityIdentifier("scratchNote.remind")
-        }
     }
 
     private func listButton(_ title: LocalizedStringKey, systemImage: String, command: NoteTextCommand, isOn: Bool) -> some View {
@@ -282,6 +308,7 @@ private struct ScratchReminderPicker: View {
     @Binding var date: Date?
     @Environment(\.dismiss) private var dismiss
     @State private var picked = ScratchReminders.defaultTime()
+    @State private var notAllowed = false
 
     var body: some View {
         NavigationStack {
@@ -307,14 +334,26 @@ private struct ScratchReminderPicker: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Set") {
-                        date = picked
-                        dismiss()
+                        // Asks for notifications now, while nothing is saved, not after.
+                        Task { @MainActor in
+                            if await ScratchReminders.ensureAllowed() {
+                                date = picked
+                                dismiss()
+                            } else {
+                                notAllowed = true
+                            }
+                        }
                     }
                     .accessibilityIdentifier("scratchNote.setReminder")
                 }
             }
         }
         .onAppear { if let date, date > Date() { picked = date } }
+        .alert("Notifications are off", isPresented: $notAllowed) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("To get reminders, allow notifications for MirrorNotes in Settings.")
+        }
         #if os(iOS)
         .presentationDetents([.height(300)])
         #else

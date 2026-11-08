@@ -32,8 +32,9 @@ enum ScratchReminders {
 
     enum Outcome: Equatable { case scheduled, notAllowed, failed }
 
-    /// Asks for notification permission the first time (it's the person's own reminder), then adds it.
-    static func schedule(entryID: UUID, at date: Date) async -> Outcome {
+    /// Asks for notification permission the first time (it's the person's own reminder); true when
+    /// a reminder can be delivered. Called when a time is picked, before the note is saved.
+    static func ensureAllowed() async -> Bool {
         let center = UNUserNotificationCenter.current()
         var status = await center.notificationSettings().authorizationStatus
         if status == .notDetermined {
@@ -41,11 +42,15 @@ enum ScratchReminders {
             status = await center.notificationSettings().authorizationStatus
         }
         #if os(iOS)
-        let allowed = status == .authorized || status == .provisional || status == .ephemeral
+        return status == .authorized || status == .provisional || status == .ephemeral
         #else
-        let allowed = status == .authorized || status == .provisional
+        return status == .authorized || status == .provisional
         #endif
-        guard allowed else { return .notAllowed }
+    }
+
+    static func schedule(entryID: UUID, at date: Date) async -> Outcome {
+        guard await ensureAllowed() else { return .notAllowed }
+        let center = UNUserNotificationCenter.current()
         do {
             try await center.add(request(for: entryID, at: date))
             return .scheduled
@@ -57,6 +62,14 @@ enum ScratchReminders {
     static func cancel(entryIDs: [UUID]) {
         guard !entryIDs.isEmpty else { return }
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: entryIDs.map(identifier(for:)))
+    }
+
+    /// The chip's wording: the weekday within the next 6 days ("Sat 11:00 PM"), else the date
+    /// ("18 Nov, 9:00 AM"), so a reminder ten days out doesn't read as this week's.
+    static func chipFormat(for date: Date, now: Date = Date()) -> Date.FormatStyle {
+        date < now.addingTimeInterval(6 * 24 * 60 * 60)
+            ? .dateTime.weekday(.abbreviated).hour().minute()
+            : .dateTime.day().month(.abbreviated).hour().minute()
     }
 
     /// A sensible first time to offer: the next whole hour, at least 30 minutes away.

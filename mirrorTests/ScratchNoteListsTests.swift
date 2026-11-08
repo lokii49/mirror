@@ -68,4 +68,16 @@ struct ScratchNoteListsTests {
         let early = cal.date(from: DateComponents(year: 2026, month: 11, day: 7, hour: 9, minute: 10))!
         #expect(cal.component(.hour, from: ScratchReminders.defaultTime(after: early, calendar: cal)) == 10)
     }
+
+    @Test func theChipNamesTheDateBeyondThisWeek() {
+        let now = Date(timeIntervalSince1970: 2_000_000_000)
+        let soon = now.addingTimeInterval(2 * 24 * 3600)
+        let later = now.addingTimeInterval(10 * 24 * 3600)
+        let locale = Locale(identifier: "en_GB")
+        let soonText = soon.formatted(ScratchReminders.chipFormat(for: soon, now: now).locale(locale))
+        let laterText = later.formatted(ScratchReminders.chipFormat(for: later, now: now).locale(locale))
+        let month = later.formatted(.dateTime.month(.abbreviated).locale(locale))
+        #expect(!soonText.contains(soon.formatted(.dateTime.month(.abbreviated).locale(locale))))
+        #expect(laterText.contains(month))
+    }
 }
