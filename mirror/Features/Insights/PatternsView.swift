@@ -28,7 +28,7 @@ struct PatternsView: View {
 
     var body: some View {
         Group {
-            if subscription.isDeep {
+            if SubscriptionService.unlocksPatternsAndReview(for: subscription.tier) {
                 content
             } else {
                 DeepLockCard(icon: "square.grid.3x3.topleft.filled", title: "Patterns", sentinelTitle: "PATTERNS",

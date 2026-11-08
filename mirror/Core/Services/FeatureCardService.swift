@@ -294,7 +294,9 @@ enum FeatureCardRegistry {
             symbolName: "gift.fill",
             accentColor: .green,
             tier: .free,
-            sinceVersion: "2.0.3"
+            sinceVersion: "2.0.3",
+            // History only: the free period ended with 3.1.8, so a feature guide must never show it.
+            showInFeatureGuide: false
         ),
         .init(
             id: "localization-203",

@@ -57,7 +57,7 @@ struct ReviewView: View {
 
     var body: some View {
         Group {
-            if subscription.isDeep {
+            if SubscriptionService.unlocksPatternsAndReview(for: subscription.tier) {
                 content
             } else {
                 DeepLockCard(icon: "calendar.badge.checkmark", title: "Year in Review", sentinelTitle: "ANNUAL DEBRIEF",

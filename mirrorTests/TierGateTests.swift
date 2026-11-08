@@ -36,6 +36,13 @@ extension SharedLLMState {
             #expect(SubscriptionService.pinnedTier == .deep)
         }
 
+        /// Patterns and Year in Review (3.1.8) open only on Deep (audit, 2026-11-08: no test covered them).
+        @Test func patternsAndReviewAreDeepOnly() {
+            #expect(!SubscriptionService.unlocksPatternsAndReview(for: .free))
+            #expect(!SubscriptionService.unlocksPatternsAndReview(for: .core))
+            #expect(SubscriptionService.unlocksPatternsAndReview(for: .deep))
+        }
+
         @Test func askLimitsPerTier() {
             #expect(SubscriptionService.askMonthlyLimit(for: .free) == 0)
             #expect(SubscriptionService.askMonthlyLimit(for: .core) == 15)

@@ -76,6 +76,12 @@ final class SubscriptionService {
         tier != .free
     }
 
+    /// Patterns and Year in Review (3.1.8) are Deep only, like the Mood Timeline and the monthly
+    /// report: Free and Core see the Deep lock card.
+    static func unlocksPatternsAndReview(for tier: SubscriptionTier) -> Bool {
+        tier == .deep
+    }
+
     private init() {
         // Widgets read the tier from the app group and treat a missing key as "free".
         if let pinned = Self.pinnedTier { Self.publishTierToWidgets(pinned) }
