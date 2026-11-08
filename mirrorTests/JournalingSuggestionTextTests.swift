@@ -47,11 +47,13 @@ struct JournalingSuggestionTextTests {
     @Test func stateOfMindFallsBackToTheNearestMoodByValence() {
         #expect(SuggestionLines.mood(forValence: 0.9) == "Joyful")
         #expect(SuggestionLines.mood(forValence: 0.3) == "Content")
-        #expect(SuggestionLines.mood(forValence: 0) == "Numb")
+        #expect(SuggestionLines.mood(forValence: 0) == nil, "neutral isn't a hard day")
+        #expect(SuggestionLines.mood(forValence: 0.15) == nil, "slightly pleasant isn't Numb")
+        #expect(SuggestionLines.mood(forValence: -0.15) == nil)
         #expect(SuggestionLines.mood(forValence: -0.4) == "Drained")
         #expect(SuggestionLines.mood(forValence: -0.9) == "Sad")
         for v in stride(from: -1.0, through: 1.0, by: 0.1) {
-            #expect(MirrorTheme.moodOptions.contains(SuggestionLines.mood(forValence: v)))
+            if let mood = SuggestionLines.mood(forValence: v) { #expect(MirrorTheme.moodOptions.contains(mood)) }
         }
     }
 
@@ -204,6 +206,33 @@ struct JournalingSuggestionTextTests {
         #expect(r.text == insert.text)
         #expect(r.styles?.paragraphStyles.first == .heading)
         #expect(r.inline.isEmpty)
+    }
+
+    /// A line whose words also sit inside an earlier line links where it is (audit, 2026-11-08).
+    @Test func aRepeatedPhraseLinksItsOwnLine() throws {
+        var insert = SuggestionInsert(title: "Errands", lines: ["📍 Home, Lisbon", "📍 Home"])
+        let first = try #require(SuggestionLines.mapsSearchURL("Home, Lisbon"))
+        let second = try #require(SuggestionLines.mapsSearchURL("Home"))
+        insert.lineLinks["📍 Home, Lisbon"] = first
+        insert.lineLinks["📍 Home"] = second
+        let text = insert.text
+        let ranges = insert.linkRanges(in: text, mapLeads: false)
+        #expect(ranges.count == 2)
+        let ns = text as NSString
+        let secondLine = ns.range(of: "\n📍 Home\n")
+        #expect(ranges.last?.location == secondLine.location + 1)
+        #expect(ranges.last?.linkURL == second.absoluteString)
+        #expect(ranges.first?.linkURL == first.absoluteString)
+    }
+
+    /// A prompt suggestion on a blank entry brings body styles for every line, so a Checklist or
+    /// Heading tapped before picking doesn't stay on its first line (audit, 2026-11-08).
+    @Test func aPromptOnABlankEntryHasBodyStyles() {
+        var insert = SuggestionInsert(lines: ["👟 8,430 steps"])
+        insert.prompt = "What made today feel full?"
+        let r = insert.appended(to: "", existingStyles: nil, existingInline: [], tokens: [], mapLeads: false, entryFont: "system")
+        #expect(r.styles?.paragraphStyles.allSatisfy { $0 == .body } == true)
+        #expect(r.styles?.paragraphStyles.count == r.text.components(separatedBy: "\n").count)
     }
 
     /// A route north from a synthetic start, one point every ~111 m.

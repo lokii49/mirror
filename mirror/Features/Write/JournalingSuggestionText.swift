@@ -62,10 +62,14 @@ struct SuggestionInsert: Equatable {
                                            underline: false, strikethrough: false, highlightIndex: nil,
                                            linkURL: url.absoluteString))
         }
+        // Lines come in order, so each is looked for after the one before: a line whose words also
+        // sit inside an earlier line ("📍 Home" after "📍 Home, Lisbon") links where it is.
+        var searchFrom = 0
         for line in lines {
-            guard let url = lineLinks[line] else { continue }
-            let found = ns.range(of: line)
-            if found.location != NSNotFound { link(found.location, found.length, url) }
+            let found = ns.range(of: line, options: [], range: NSRange(location: searchFrom, length: ns.length - searchFrom))
+            guard found.location != NSNotFound else { continue }
+            searchFrom = found.location + found.length
+            if let url = lineLinks[line] { link(found.location, found.length, url) }
         }
         if mapLeads, let mapLink {
             let token = ns.range(of: "[[mirror-photo-")
@@ -100,10 +104,11 @@ struct SuggestionInsert: Equatable {
         guard hasBase else {
             // A blank entry: the suggestion is the text, its title a Heading.
             let count = block.components(separatedBy: "\n").count
-            let styles = leadsWithTitle
-                ? NoteTextStyleDocument(paragraphStyles: [.heading] + Array(repeating: .body, count: max(0, count - 1)),
-                                        indentLevels: nil, fontChoices: Array(repeating: entryFont, count: count))
-                : nil
+            // Always a full set of styles: nil would keep the blank entry's own (a Checklist or
+            // Heading tapped before picking) on the prompt's first line.
+            let styles = NoteTextStyleDocument(
+                paragraphStyles: (leadsWithTitle ? [.heading] : [.body]) + Array(repeating: .body, count: max(0, count - 1)),
+                indentLevels: nil, fontChoices: Array(repeating: entryFont, count: count))
             return (block, styles, linkRanges(in: block, mapLeads: mapLeads))
         }
         let lines = base.components(separatedBy: "\n")
@@ -292,12 +297,14 @@ enum SuggestionLines {
         return "📅 " + ([title, cleaned(place)].compactMap { $0 }.joined(separator: " · "))
     }
 
-    /// The nearest of the twelve moods for a State of Mind with no label the app knows.
-    static func mood(forValence valence: Double) -> String {
+    /// The nearest of the twelve moods for a State of Mind with no label the app knows, or nil
+    /// near neutral: none of the twelve is neutral, and "Numb" there would count a "Neutral" or
+    /// "Slightly Pleasant" day as a hard one (Mood Alerts, the hard-day tip).
+    static func mood(forValence valence: Double) -> String? {
         switch valence {
         case 0.6...: return "Joyful"
         case 0.2..<0.6: return "Content"
-        case -0.2..<0.2: return "Numb"
+        case -0.2..<0.2: return nil
         case -0.6 ..< -0.2: return "Drained"
         default: return "Sad"
         }
@@ -539,7 +546,7 @@ extension SuggestionInsert {
         options.traitCollection = UITraitCollection(userInterfaceStyle: style)
         options.pointOfInterestFilter = .excludingAll
         options.mapRect = rect
-        guard let snapshot = try? await MKMapSnapshotter(options: options).start() else { return nil }
+        guard let snapshot = await snapshot(options, timeout: 6) else { return nil }
         let color = style == .dark ? UIColor(red: 0.788, green: 0.545, blue: 0.776, alpha: 1)
                                    : UIColor(red: 0.557, green: 0.227, blue: 0.431, alpha: 1)
         let format = UIGraphicsImageRendererFormat()
@@ -549,6 +556,34 @@ extension SuggestionInsert {
             draw(snapshot, color)
         }
         return writeJPEG(image)
+    }
+
+    /// The map, or nil if MapKit hasn't drawn it within `timeout` seconds (offline, a weak
+    /// signal): the suggestion's words and photos go in without it instead of waiting on a spinner.
+    @MainActor
+    private static func snapshot(_ options: MKMapSnapshotter.Options, timeout: Double) async -> MKMapSnapshotter.Snapshot? {
+        let snapshotter = MKMapSnapshotter(options: options)
+        return await withCheckedContinuation { continuation in
+            let gate = SnapshotResumeOnce(continuation)
+            // Both callbacks arrive on the main queue; whichever comes first wins.
+            snapshotter.start(with: .main) { snapshot, _ in gate.resume(snapshot) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
+                if gate.resume(nil) { snapshotter.cancel() }
+            }
+        }
+    }
+
+    /// Resumes a map snapshot's continuation exactly once (the snapshot or the timeout). Main queue only.
+    private final class SnapshotResumeOnce: @unchecked Sendable {
+        private var continuation: CheckedContinuation<MKMapSnapshotter.Snapshot?, Never>?
+        init(_ continuation: CheckedContinuation<MKMapSnapshotter.Snapshot?, Never>) { self.continuation = continuation }
+        @discardableResult
+        func resume(_ value: MKMapSnapshotter.Snapshot?) -> Bool {
+            guard let continuation else { return false }
+            self.continuation = nil
+            continuation.resume(returning: value)
+            return true
+        }
     }
 
     /// A video's first frame, as a photo.
@@ -586,7 +621,7 @@ extension SuggestionInsert {
 
     /// The app's mood whose Health label the State of Mind carries, else the nearest by valence.
     @available(iOS 18.0, *)
-    private static func mood(for state: HKStateOfMind) -> String {
+    private static func mood(for state: HKStateOfMind) -> String? {
         for label in state.labels {
             if let match = MirrorTheme.moodOptions.first(where: { HealthMoodWriter.label(for: $0) == label }) { return match }
         }
