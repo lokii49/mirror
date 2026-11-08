@@ -171,6 +171,26 @@ struct WatchInboxTests {
         }
     }
 
+    /// An item written on WatchConnectivity's queue as it arrives is saved by the next retry,
+    /// once, and its staged copy is removed (audit, 2026-11-08: an app stopped between the
+    /// delegate returning and the main-actor save lost it).
+    @Test func anItemStagedOnArrivalIsSavedByTheNextRetry() throws {
+        let context = try context()
+        let d = defaults()
+        let account = "WatchInboxTests.\(UUID().uuidString)"
+        try WatchInbox.$pendingAccount.withValue(account) {
+            defer { WatchInbox.erasePending() }
+            let item = try #require(WatchInbox.item(from: ["id": UUID().uuidString, "kind": "note",
+                                                         "value": "Synthetic staged note.", "date": Date().timeIntervalSince1970 - 30]))
+            WatchInbox.stageInbound(item, account: account + ".inbound")
+            WatchInbox.stageInbound(item, account: account + ".inbound")
+            WatchInbox.retryWaiting(in: context, defaults: d)
+            #expect(((try? context.fetch(FetchDescriptor<Entry>())) ?? []).count == 1)
+            #expect(WatchInbox.waiting.isEmpty)
+            #expect(KeychainManager.read(account: account + ".inbound").data == nil)
+        }
+    }
+
     /// Waiting audio stays out of device backups: it isn't sealed with the journal key yet.
     @Test func waitingAudioIsExcludedFromBackup() throws {
         let dir = try #require(WatchInbox.voiceDirectory)

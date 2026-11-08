@@ -1154,6 +1154,70 @@
         }
       }
     },
+    "On its way to MirrorNotes on your iPhone. It arrives when your iPhone is nearby." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unterwegs zu MirrorNotes auf deinem iPhone. Es kommt an, sobald dein iPhone in der Nähe ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On its way to MirrorNotes on your iPhone. It arrives when your iPhone is nearby."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De camino a MirrorNotes en tu iPhone. Llega cuando tu iPhone está cerca."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En route vers MirrorNotes sur votre iPhone. Il arrive dès que votre iPhone est à proximité."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In viaggio verso MirrorNotes sul tuo iPhone. Arriva quando l’iPhone è vicino."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iPhoneのMirrorNotesに送信中です。iPhoneが近くにあるときに届きます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iPhone의 MirrorNotes로 가는 중입니다. iPhone이 가까이 있으면 도착합니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A caminho do MirrorNotes no seu iPhone. Chega quando o iPhone estiver por perto."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отправляется в MirrorNotes на iPhone. Дойдёт, когда iPhone будет рядом."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在发送到你 iPhone 上的 MirrorNotes。iPhone 在附近时就会送达。"
+          }
+        }
+      }
+    },
     "Open MirrorNotes on your iPhone so the waiting notes can arrive, then record again." : {
       "localizations" : {
         "de" : {

@@ -124,7 +124,7 @@ enum MirrorTheme {
 
     // MARK: - Mood
 
-    static let moodOptions: [String] = [
+    nonisolated static let moodOptions: [String] = [
         "Joyful", "Grateful", "Peaceful", "Content", "Energized", "Hopeful",
         "Anxious", "Overwhelmed", "Frustrated", "Drained", "Sad", "Numb"
     ]

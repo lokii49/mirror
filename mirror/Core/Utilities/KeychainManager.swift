@@ -1,7 +1,9 @@
 import Foundation
 import Security
 
-enum KeychainManager {
+/// Plain Security-framework calls (thread-safe), so it may be used off the main actor: WatchInbox
+/// stages watch items on WatchConnectivity's queue.
+nonisolated enum KeychainManager {
     private static let service = "com.lokesh.mirror"
 
     /// Distinguishes "the item does not exist" from "the read failed" (e.g.

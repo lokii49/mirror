@@ -39,7 +39,47 @@ enum WatchInbox {
     /// A task-local so tests use their own Keychain item, never the app's.
     @TaskLocal static var pendingAccount = "mirror.watchInbox.pending"
     /// The newest items kept when far more pile up than anyone logs between unlocks.
-    static let pendingLimit = 200
+    nonisolated static let pendingLimit = 200
+
+    /// Where WatchConnectivity's own queue writes each item the moment it arrives, before the
+    /// delegate method returns (the watch counts it as delivered then). The main actor moves them
+    /// into the waiting list (`mergeInbound`), so an app stopped in between loses nothing.
+    nonisolated static let inboundAccount = "mirror.watchInbox.pending.inbound"
+    nonisolated private static let inboundLock = NSLock()
+
+    /// Writes one arriving item to `inboundAccount` (any thread). Does nothing when the Keychain
+    /// can't be read (before the first unlock since a restart): rewriting then could drop items
+    /// already there, and the main-actor path still queues it.
+    nonisolated static func stageInbound(_ item: Item, account: String = inboundAccount) {
+        inboundLock.lock()
+        defer { inboundLock.unlock() }
+        var items: [Item] = []
+        switch KeychainManager.read(account: account) {
+        case .found(let data): items = (try? JSONDecoder().decode([Item].self, from: data)) ?? []
+        case .missing: break
+        case .failure: return
+        }
+        guard !items.contains(where: { $0.id == item.id }) else { return }
+        items.append(item)
+        guard let data = try? JSONEncoder().encode(Array(items.suffix(pendingLimit))) else { return }
+        KeychainManager.save(data: data, account: account, accessible: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly)
+    }
+
+    /// Moves staged items into the waiting list, oldest first; the staged copy is removed only
+    /// once every one of them is in the list.
+    static func mergeInbound(defaults: UserDefaults = .standard) {
+        let account = pendingAccount + ".inbound"
+        inboundLock.lock()
+        defer { inboundLock.unlock() }
+        guard let data = KeychainManager.read(account: account).data,
+              let staged = try? JSONDecoder().decode([Item].self, from: data), !staged.isEmpty else { return }
+        for item in staged { addPending(item) }
+        let waitingIDs = Set(pending().map(\.id))
+        let handled = Set(defaults.stringArray(forKey: handledKey) ?? [])
+        if staged.allSatisfy({ waitingIDs.contains($0.id) || handled.contains($0.id) }) {
+            KeychainManager.delete(account: account)
+        }
+    }
 
     /// The items waiting for the key, oldest first.
     static var waiting: [Item] { pending() }
@@ -147,6 +187,7 @@ enum WatchInbox {
     /// Saves what waited for the key: on every foreground, when protected data becomes available,
     /// and before each new item. Stops at the first one that still can't be saved.
     static func retryWaiting(in context: ModelContext, defaults: UserDefaults = .standard) {
+        mergeInbound(defaults: defaults)
         var items = pending()
         guard !items.isEmpty else { return }
         while let first = items.first, save(first, in: context, defaults: defaults) {
@@ -158,6 +199,7 @@ enum WatchInbox {
     /// Clears the waiting items and their audio (Delete Everything).
     static func erasePending() {
         KeychainManager.delete(account: pendingAccount)
+        KeychainManager.delete(account: pendingAccount + ".inbound")
         if let dir = voiceDirectory { try? FileManager.default.removeItem(at: dir) }
     }
 
@@ -210,6 +252,8 @@ enum WatchInbox {
     /// its copy), or removed if it was saved before. Runs before WatchConnectivity activates, so
     /// no transfer can be mid-copy.
     static func adoptOrphanedVoiceFiles(defaults: UserDefaults = .standard) {
+        // Staged arrivals first: their audio isn't orphaned, and they keep their real date and length.
+        mergeInbound(defaults: defaults)
         guard let dir = voiceDirectory,
               let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.creationDateKey]) else { return }
         let waitingIDs = Set(pending().map(\.id))
@@ -353,6 +397,9 @@ enum WatchInbox {
             // A copy can keep the source file's protection class instead of the folder's.
             try? FileManager.default.setAttributes([.protectionKey: FileProtectionType.completeUnlessOpen],
                                                    ofItemAtPath: destination.path)
+            // Recorded before returning: once this returns the watch has deleted its copy.
+            WatchInbox.stageInbound(.init(id: id, kind: .voice, value: "\(id).m4a",
+                                          date: min(Date(timeIntervalSince1970: seconds), Date()), duration: duration))
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
                     let date = Date(timeIntervalSince1970: seconds)
@@ -368,6 +415,8 @@ enum WatchInbox {
         nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
             // userInfo is a property list: only these four plain values are read from it.
             let copy: [String: Any] = userInfo.filter { ["id", "kind", "value", "date"].contains($0.key) }
+            // Recorded before returning: the watch counts it as delivered once this returns.
+            if let item = WatchInbox.item(from: copy) { WatchInbox.stageInbound(item) }
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
                     guard MirrorModelContainer.isStoreAvailable else {

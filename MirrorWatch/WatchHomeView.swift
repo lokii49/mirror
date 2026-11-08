@@ -305,7 +305,7 @@ private struct WatchSentView: View {
                 .frame(width: 44, height: 44)
                 .background(WatchTheme.fill, in: Circle())
             Text(title).font(.headline)
-            Text("Sent to MirrorNotes on your iPhone.")
+            Text("On its way to MirrorNotes on your iPhone. It arrives when your iPhone is nearby.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

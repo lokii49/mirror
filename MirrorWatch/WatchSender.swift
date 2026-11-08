@@ -8,8 +8,10 @@ import WatchConnectivity
 ///
 /// Items logged before the session is activated (a cold launch) are held until it is, and a
 /// transfer that fails is handed to the system again with the same id, so the phone saves it once.
-/// Typed text is held in memory only. A voice note's audio waits in the watch's outbox folder
-/// until its transfer finishes (`transferFile` reads the file while it sends), then it's deleted.
+/// Held items are also written to a small file on the watch (`heldFile`), so a mood or typed note
+/// that failed three times, or was logged before activation, survives the app being closed. A
+/// voice note's audio waits in the watch's outbox folder until its transfer finishes
+/// (`transferFile` reads the file while it sends), then it's deleted.
 @MainActor
 @Observable
 final class WatchSender: NSObject {
@@ -19,8 +21,10 @@ final class WatchSender: NSObject {
 
     /// Items handed to the system but not yet delivered, plus those held here.
     private(set) var waiting = 0
-    /// Logged before activation, or failed and waiting to be sent again.
-    private var held: [[String: Any]] = []
+    /// Logged before activation, or failed and waiting to be sent again. Saved on every change.
+    @ObservationIgnored private var held: [[String: Any]] = WatchSender.loadHeld() {
+        didSet { Self.saveHeld(held) }
+    }
     /// Voice notes in the outbox that aren't with the system yet (by file name).
     private var heldVoice: Set<String> = []
     /// Times one item may fail and be re-sent before it waits for the next app open.
@@ -143,6 +147,31 @@ final class WatchSender: NSObject {
             if attempts < Self.maxAttempts { heldVoice.insert(audio.lastPathComponent); flush() }
         }
         refreshWaiting()
+    }
+
+    // MARK: - Held items on disk
+
+    private static var heldFile: URL? {
+        guard let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }
+        try? FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
+        return support.appendingPathComponent("HeldItems.plist")
+    }
+
+    private static func loadHeld() -> [[String: Any]] {
+        guard let url = heldFile, let data = try? Data(contentsOf: url),
+              let items = (try? PropertyListSerialization.propertyList(from: data, format: nil)) as? [[String: Any]] else { return [] }
+        return items
+    }
+
+    private static func saveHeld(_ items: [[String: Any]]) {
+        guard let url = heldFile else { return }
+        guard !items.isEmpty else {
+            try? FileManager.default.removeItem(at: url)
+            return
+        }
+        guard let data = try? PropertyListSerialization.data(fromPropertyList: items, format: .binary, options: 0) else { return }
+        // Readable after the first unlock since the watch restarted: sending happens with the wrist down.
+        try? data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
 
     // MARK: - Outbox

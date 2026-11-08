@@ -31,6 +31,7 @@ final class WatchRecorder: NSObject {
     private var recorder: AVAudioRecorder?
     private var player: AVAudioPlayer?
     private var ticker: Timer?
+    private var interruptionObserver: NSObjectProtocol?
 
     /// Asks for the microphone if needed, then records into a fresh temporary file.
     func start() async {
@@ -61,6 +62,7 @@ final class WatchRecorder: NSObject {
             elapsed = 0
             state = .recording
             startTicker()
+            observeInterruptions()
         } catch {
             try? FileManager.default.removeItem(at: url)
             state = .failed
@@ -122,6 +124,28 @@ final class WatchRecorder: NSObject {
 
     // MARK: - Private
 
+    /// A call, an alarm or Siri takes the microphone: the recording pauses and wouldn't resume,
+    /// so it ends there and what was recorded is kept for review, as if Stop were tapped.
+    private func observeInterruptions() {
+        guard interruptionObserver == nil else { return }
+        interruptionObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification, object: AVAudioSession.sharedInstance(), queue: .main
+        ) { [weak self] note in
+            let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
+            guard raw == AVAudioSession.InterruptionType.began.rawValue else { return }
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                if self.state == .recording { self.stop() }
+                else if self.state == .playing { self.togglePlayback() }
+            }
+        }
+    }
+
+    private func stopObservingInterruptions() {
+        if let interruptionObserver { NotificationCenter.default.removeObserver(interruptionObserver) }
+        interruptionObserver = nil
+    }
+
     private func finishRecording() {
         recorder = nil
         stopTicker()
@@ -161,6 +185,7 @@ final class WatchRecorder: NSObject {
     }
 
     private func deactivateSession() {
+        stopObservingInterruptions()
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 }
