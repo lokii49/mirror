@@ -645,6 +645,70 @@
         }
       }
     },
+    "Choose Focus mode in the ⋯ menu while you write and everything else steps aside: the toolbar, the starter and the cards. Tap the arrows at the top to bring it all back. Swipe down on the page to hide the keyboard." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wähle beim Schreiben im Menü ⋯ „Fokusmodus“, und alles andere tritt zurück: Symbolleiste, Schreibanstoß und Karten. Tippe oben auf die Pfeile, um alles zurückzuholen. Wische auf der Seite nach unten, um die Tastatur auszublenden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose Focus mode in the ⋯ menu while you write and everything else steps aside: the toolbar, the starter and the cards. Tap the arrows at the top to bring it all back. Swipe down on the page to hide the keyboard."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elige Modo enfoque en el menú ⋯ mientras escribes y todo lo demás se aparta: la barra de herramientas, el punto de partida y las tarjetas. Toca las flechas de arriba para recuperarlo todo. Desliza hacia abajo en la página para ocultar el teclado."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisissez Mode focus dans le menu ⋯ pendant que vous écrivez, et tout le reste s’efface : la barre d’outils, le point de départ et les cartes. Touchez les flèches en haut pour tout faire revenir. Balayez la page vers le bas pour masquer le clavier."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scegli Modalità focus nel menu ⋯ mentre scrivi e tutto il resto si fa da parte: barra degli strumenti, spunto e schede. Tocca le frecce in alto per riportare tutto. Scorri verso il basso sulla pagina per nascondere la tastiera."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "書いている途中で⋯メニューから「フォーカスモード」を選ぶと、ツールバー、書き出しのヒント、カードが隠れます。上部の矢印をタップするとすべて戻ります。ページを下にスワイプするとキーボードを隠せます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "글을 쓰는 중에 ⋯ 메뉴에서 포커스 모드를 선택하면 도구 막대, 시작 도움말, 카드가 모두 물러납니다. 위쪽 화살표를 탭하면 모두 돌아옵니다. 페이지를 아래로 쓸어내리면 키보드가 숨겨집니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escolha Modo foco no menu ⋯ enquanto escreve e todo o resto sai de cena: a barra de ferramentas, o ponto de partida e os cartões. Toque nas setas no topo para trazer tudo de volta. Deslize para baixo na página para ocultar o teclado."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выберите «Режим фокусировки» в меню ⋯ во время письма, и всё остальное уйдёт: панель инструментов, отправная точка и карточки. Нажмите стрелки вверху, чтобы всё вернуть. Смахните страницу вниз, чтобы скрыть клавиатуру."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写作时在 ⋯ 菜单中选择“专注模式”，工具栏、起点提示和卡片都会让开。轻点顶部的箭头即可全部恢复。在页面上向下轻扫可隐藏键盘。"
+          }
+        }
+      }
+    },
     "Each check-in becomes a State of Mind in Health. MirrorNotes never reads from Health." : {
       "comment" : "One-time Health offer after a check-in",
       "localizations" : {
@@ -899,6 +963,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "心情是如何显示的"
+          }
+        }
+      }
+    },
+    "In Entries, open Manage collections and views and add Scratch for quick notes, checklists and lists. A Scratch note can remind you at a time you pick. Reflections, Ask, mood charts and mood alerts don't read it, and any collection can be kept out the same way." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öffne unter „Einträge“ „Sammlungen und Ansichten verwalten“ und füge „Notizen“ für schnelle Notizen, Checklisten und Listen hinzu. Eine Notiz kann dich zu einer gewählten Zeit erinnern. Reflexionen, Fragen, Stimmungsdiagramme und Stimmungswarnungen lesen sie nicht, und jede Sammlung lässt sich genauso heraushalten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In Entries, open Manage collections and views and add Scratch for quick notes, checklists and lists. A Scratch note can remind you at a time you pick. Reflections, Ask, mood charts and mood alerts don't read it, and any collection can be kept out the same way."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En Entradas, abre Gestionar colecciones y vistas y añade Apuntes para notas rápidas, checklists y listas. Un apunte puede recordártelo a la hora que elijas. Las reflexiones, Preguntar, los gráficos de ánimo y las alertas de ánimo no la leen, y cualquier colección se puede excluir del mismo modo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dans Entrées, ouvrez Gérer les collections et les vues et ajoutez Pense-bête pour les notes rapides, les checklists et les listes. Un pense-bête peut vous le rappeler à l’heure choisie. Les réflexions, Demander, les graphiques d’humeur et les alertes d’humeur ne la lisent pas, et toute collection peut en être exclue de la même façon."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In Voci, apri Gestisci raccolte e viste e aggiungi Appunti per note veloci, checklist e liste. Un appunto può ricordartelo all’ora che scegli. Riflessioni, Chiedi, grafici dell’umore e avvisi sull’umore non la leggono, e qualsiasi raccolta si può escludere allo stesso modo."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「エントリー」で「コレクションと表示を管理」を開き、クイックメモやチェックリスト、リスト用の「メモ」を追加できます。メモは選んだ時刻にリマインドできます。リフレクション、質問、ムードのグラフ、ムードアラートはこれを読みません。ほかのコレクションも同じように除外できます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "항목에서 컬렉션 및 보기 관리를 열고 빠른 메모, 체크리스트, 목록을 위한 '메모'를 추가하세요. 메모는 고른 시간에 알려 줄 수 있습니다. 리플렉션, 질문, 기분 차트, 기분 알림은 이 컬렉션을 읽지 않으며, 다른 컬렉션도 같은 방법으로 제외할 수 있습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Em Entradas, abra Gerenciar coleções e visualizações e adicione Anotações para notas rápidas, checklists e listas. Uma anotação pode lembrar você no horário que escolher. Reflexões, Perguntar, gráficos de humor e alertas de humor não a leem, e qualquer coleção pode ficar de fora do mesmo jeito."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "В разделе «Записи» откройте «Управлять коллекциями и видами» и добавьте «Заметки» для быстрых записей, чек-листов и списков. Заметка может напомнить о себе в выбранное время. Размышления, «Спросить», графики настроения и оповещения о настроении их не читают, и так же можно исключить любую коллекцию."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在“条目”中打开“管理合集和视图…”，添加“随手记”，用来放快速笔记、核对清单和列表。随手记可以在你选定的时间提醒你。回顾、提问、情绪图表和情绪提醒都不会读取它，任何合集也都可以这样设为不用于回顾。"
           }
         }
       }

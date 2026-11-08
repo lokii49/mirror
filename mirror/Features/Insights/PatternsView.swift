@@ -148,8 +148,12 @@ struct PatternsView: View {
         let kept = scopeCollections
             .sorted { ($0.sortIndex, $0.createdAt) < ($1.sortIndex, $1.createdAt) }
             .filter { scope.includes(collectionID: $0.id) }
-        collectionNames = Dictionary(uniqueKeysWithValues: kept.map { ($0.id.uuidString, $0.payload?.name ?? String(localized: "Locked collection")) })
-        result = PatternsService.compute(entries: readings, days: days, keptCollections: kept.map(\.id))
+        // Not uniqueKeysWithValues: a restored copy and its synced original share an id until
+        // JournalOrganizationStore.removeDuplicates runs, and that would trap.
+        collectionNames = Dictionary(kept.map { ($0.id.uuidString, $0.payload?.name ?? String(localized: "Locked collection")) },
+                                     uniquingKeysWith: { first, _ in first })
+        var seen = Set<UUID>()
+        result = PatternsService.compute(entries: readings, days: days, keptCollections: kept.map(\.id).filter { seen.insert($0).inserted })
     }
 }
 

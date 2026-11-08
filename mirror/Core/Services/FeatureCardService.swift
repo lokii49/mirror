@@ -100,6 +100,9 @@ struct FeatureCard: Identifiable {
 /// Device-dependent features a What's New card can promise.
 enum DeviceFeature {
     case appleHealth, appleWatch, journalingSuggestions
+    /// StoreKit's offer code sheet: iPhone and iPad, and the Mac app on macOS 15+ (not the
+    /// iPhone app running on a Mac).
+    case redeemCode
     /// This device's profile had Sentinel mode chosen before 3.1.8 retired it (ContentView records it).
     case usedSentinel
 
@@ -119,6 +122,8 @@ enum DeviceFeature {
             #endif
         case .journalingSuggestions:
             return Self.journalingSuggestionsAvailable
+        case .redeemCode:
+            return RedeemCodeSheet.isAvailable
         }
     }
 
@@ -510,7 +515,8 @@ enum FeatureCardRegistry {
             iOSOnly: true,
             requirement: .usedSentinel
         ),
-        // Offer codes are redeemed through StoreKit's sheet, which the Mac app doesn't offer.
+        // Offer codes are redeemed through StoreKit's sheet: iOS, and the Mac app on macOS 15+
+        // (RedeemCodeSheet); hidden where the button isn't (macOS 14, the iPhone app on a Mac).
         .init(
             id: "redeem-code-318",
             title: "Have a code?",
@@ -520,13 +526,13 @@ enum FeatureCardRegistry {
             tier: .free,
             sinceVersion: "3.1.8",
             showInFeatureGuide: false,
-            iOSOnly: true
+            requirement: .redeemCode
         ),
         // The Mac editor has its own toolbar and no focus mode.
         .init(
             id: "focus-mode-318",
             title: "Focus mode, just your words",
-            body: "Tap the arrows at the top while you write and everything else steps aside: the toolbar, the starter and the cards. Tap them again to bring it all back. Swipe down on the page to hide the keyboard.",
+            body: "Choose Focus mode in the ⋯ menu while you write and everything else steps aside: the toolbar, the starter and the cards. Tap the arrows at the top to bring it all back. Swipe down on the page to hide the keyboard.",
             symbolName: "arrow.up.left.and.arrow.down.right",
             accentColor: MirrorTheme.violet,
             tier: .free,
@@ -559,7 +565,7 @@ enum FeatureCardRegistry {
         .init(
             id: "scratch-318",
             title: "Notes that stay out of reflections",
-            body: "In Entries, open Manage collections and views and add Scratch for quick notes, lists and numbers. Reflections, Ask, mood charts and mood alerts don't read it, and any collection can be kept out the same way.",
+            body: "In Entries, open Manage collections and views and add Scratch for quick notes, checklists and lists. A Scratch note can remind you at a time you pick. Reflections, Ask, mood charts and mood alerts don't read it, and any collection can be kept out the same way.",
             symbolName: "note.text",
             accentColor: .teal,
             tier: .free,

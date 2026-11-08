@@ -322,8 +322,16 @@ struct ContentView: View {
             MirrorNavigationAppearance.apply(mode)
             // Sentinel was retired in 3.1.8: remember whether this device had it on, so What's New
             // explains the change only to those people.
-            if profiles.contains(where: \.hadChosenSentinel) {
+            if profiles.contains(where: \.hadChosenSentinel),
+               !UserDefaults.standard.bool(forKey: DeviceFeature.usedSentinelKey) {
                 UserDefaults.standard.set(true, forKey: DeviceFeature.usedSentinelKey)
+                // Sentinel forced Appearance to Dark, and leaving it set it back to System (the
+                // displayMode onChange below, which can't fire now). Once, on the first launch
+                // that finds Sentinel retired, so Paper & Ink opens as the person's system does.
+                if appearanceMode == "dark" {
+                    appearanceMode = "system"
+                    applyColorScheme(appearanceMode)
+                }
             }
         }
         #endif

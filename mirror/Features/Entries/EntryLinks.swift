@@ -2,8 +2,11 @@ import SwiftUI
 import SwiftData
 
 /// Links between entries (3.1.8, item 5). A link is an ordinary inline link whose URL is
-/// `mirror://entry/<id>`, so it round-trips through the editors, sync, export and older app
-/// versions (which already open that URL). Only links the person made count: nothing is inferred.
+/// `mirror://entry/<id>`, so it round-trips through 3.1.8's editors, sync and export. Versions
+/// before 3.1.8 (iOS 3.1.7, Mac 1.1.7) accept only http(s) links: their reader shows the linked
+/// words as plain text, and their editors drop the link from `inlineStyleData` on the first edit
+/// of that entry, for every device once it syncs. Text and other styles are kept. Only links the
+/// person made count: nothing is inferred.
 enum EntryLinks {
     static func urlString(for id: UUID) -> String { "mirror://entry/\(id.uuidString)" }
 

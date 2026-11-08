@@ -231,14 +231,11 @@ struct OnboardingFlow: View {
             .frame(width: 22, height: 1)
     }
 
-    /// Mac has only the default theme for now, so its flow ends before the "Choose your view" step.
-    private var lastStep: Int {
-        #if os(macOS)
-        return 3
-        #else
-        return 4
-        #endif
-    }
+    /// The flow ends before the "Choose your view" step on every platform: Sentinel was retired in
+    /// 3.1.8 (`UserProfile.displayMode` always reads `.classic`), so offering it would be a choice
+    /// that does nothing here and, stored on a new profile, would switch the person's 3.1.7 devices
+    /// to Sentinel. `modeStep` goes with the rest of Sentinel's dead code in 3.1.9.
+    private var lastStep: Int { 3 }
 
     private var progressIndicator: some View {
         HStack(spacing: 0) {
