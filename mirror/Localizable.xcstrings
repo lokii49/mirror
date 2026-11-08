@@ -1154,6 +1154,71 @@
         }
       }
     },
+    "New in %@ · %lld of %lld" : {
+      "comment" : "What's New walkthrough label above each page's title: the version that brought the feature, then the page number and page count",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Neu in %1$@ · %2$lld von %3$lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New in %1$@ · %2$lld of %3$lld"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Novedad en %1$@ · %2$lld de %3$lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Nouveau dans %1$@ · %2$lld sur %3$lld"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Novità in %1$@ · %2$lld di %3$lld"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%1$@ の新機能 · %2$lld/%3$lld"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%1$@의 새로운 기능 · %2$lld/%3$lld"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Novo na versão %1$@ · %2$lld de %3$lld"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Новое в %1$@ · %2$lld из %3$lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%1$@ 新功能 · %2$lld/%3$lld"
+          }
+        }
+      }
+    },
     "No matches" : {
       "localizations" : {
         "de" : {
