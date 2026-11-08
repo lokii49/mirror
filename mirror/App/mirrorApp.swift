@@ -80,6 +80,7 @@ struct mirrorApp: App {
             JournalSafety.shared.start(container: sharedModelContainer)
             #if os(iOS)
             CloudSyncBackgroundTime.shared.start()
+            StoreSaveBackgroundTime.shared.startForApp()
             #endif
             WidgetSaveRefresher.shared.start(container: sharedModelContainer)
             JournalRevision.shared.start(container: sharedModelContainer)
