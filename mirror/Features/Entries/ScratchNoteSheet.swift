@@ -209,6 +209,12 @@ struct ScratchNoteSheet: View {
                 }
                 return
             }
+            if reminderDate != nil {
+                // The picked time passed while the note was being written: say so instead of
+                // closing as if the reminder were set.
+                reminderFailed = true
+                return
+            }
             text = ""
             dismiss()
         } catch ScratchNotes.SaveError.empty {

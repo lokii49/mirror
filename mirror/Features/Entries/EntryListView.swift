@@ -36,6 +36,8 @@ struct EntriesTabView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @Query private var collectionModels: [JournalCollection]
+    /// Kept-out collections' moods don't colour the calendar (counts still do), as on the widget.
+    @State private var moodScopeMemo = InsightEntriesMemo()
     @Query private var savedViewModels: [SavedEntryView]
     @State private var showOrganizer = false
     @State private var libraryPage: LibraryPage?
@@ -681,11 +683,15 @@ struct EntriesTabView: View {
                 handOverReader(toSideBySide: sideBySide)
             }
             #endif
-            .onChange(of: deepLinkEntryID.wrappedValue) { _, newID in
-                guard let id = newID,
-                      let match = entries.first(where: { $0.id == id }) else { return }
+            // initial: a link tapped before this view existed (a cold launch from a Scratch reminder
+            // or an entry link) is already set when it appears.
+            .onChange(of: deepLinkEntryID.wrappedValue, initial: true) { _, newID in
+                guard let id = newID else { return }
+                // Cleared on a miss too (the entry was deleted, here or on another device), so the
+                // same link tapped again still reaches this.
+                defer { deepLinkEntryID.wrappedValue = nil }
+                guard let match = entries.first(where: { $0.id == id }) else { return }
                 open(match)
-                deepLinkEntryID.wrappedValue = nil
             }
         }
     }
@@ -1178,6 +1184,7 @@ struct EntriesTabView: View {
             Section {
                 CalendarHeatmap(
                     entries: entries,
+                    moodScope: moodScopeMemo.scope(for: collectionModels),
                     selectedDate: filters.selectedDay,
                     onDaySelected: { date in
                         withAnimation(.easeInOut(duration: 0.2)) {
@@ -2140,6 +2147,7 @@ extension EntriesTabView {
                 VStack(spacing: 8) {
                     CalendarHeatmap(
                         entries: entries,
+                        moodScope: moodScopeMemo.scope(for: collectionModels),
                         selectedDate: filters.selectedDay,
                         onDaySelected: { date in
                             withAnimation(.easeInOut(duration: 0.2)) {

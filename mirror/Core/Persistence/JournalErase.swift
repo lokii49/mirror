@@ -38,5 +38,7 @@ enum JournalErase {
         WidgetBridge.clearJournalDerived()
         // And the lock-screen reminder, which can quote a line of today's reflection.
         Task { await NotificationService.dropNudgePreview() }
+        // Scratch reminders: EntryTrash cancels them, but these entries are deleted directly.
+        Task { await ScratchReminders.cancelAll() }
     }
 }

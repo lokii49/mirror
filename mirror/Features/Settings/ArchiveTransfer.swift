@@ -236,6 +236,8 @@ enum ArchiveTransfer {
             context.delete(entry)
             removed += 1
         }
+        // A reminder set on an imported Scratch note goes with it.
+        ScratchReminders.cancel(entryIDs: Array(removedIDs))
         // Synced, so no device's backup offers the undone import back (backlog A13).
         if !removedIDs.isEmpty {
             context.insert(JournalErasure(erasedEntryIDs: Array(removedIDs)))

@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 import UserNotifications
 
 /// "Remind me…" on a Scratch note (owner, 2026-11-07): one local notification at the time picked,
@@ -69,7 +70,36 @@ enum ScratchReminders {
 
     static func cancel(entryIDs: [UUID]) {
         guard !entryIDs.isEmpty else { return }
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: entryIDs.map(identifier(for:)))
+        let ids = entryIDs.map(identifier(for:))
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: ids)
+        // One already in Notification Center would open a note that's gone.
+        center.removeDeliveredNotifications(withIdentifiers: ids)
+    }
+
+    /// Reminders whose note is gone from this device by a way that never ran `cancel`: trashed or
+    /// erased on another device and synced in, or an iCloud purge. Run on app-active; a reminder
+    /// is set on this device, so its note was here when it was set.
+    @MainActor
+    static func dropOrphans(in context: ModelContext) async {
+        let pending = await UNUserNotificationCenter.current().pendingNotificationRequests()
+        let entryIDs = pending.compactMap(entryID(from:))
+        guard !entryIDs.isEmpty else { return }
+        let gone = entryIDs.filter { id in
+            var descriptor = FetchDescriptor<Entry>(predicate: #Predicate { $0.id == id })
+            descriptor.fetchLimit = 1
+            // A failed fetch keeps the reminder.
+            return ((try? context.fetchCount(descriptor)) ?? 1) == 0
+        }
+        cancel(entryIDs: gone)
+    }
+
+    /// Every Scratch reminder still waiting (Delete Everything), so none fires for a note that's gone.
+    static func cancelAll() async {
+        let center = UNUserNotificationCenter.current()
+        let ids = await center.pendingNotificationRequests().map(\.identifier).filter { $0.hasPrefix(identifierPrefix) }
+        guard !ids.isEmpty else { return }
+        center.removePendingNotificationRequests(withIdentifiers: ids)
     }
 
     /// The chip's wording: the weekday within the next 6 days ("Sat 11:00 PM"), else the date

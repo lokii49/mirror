@@ -16,6 +16,9 @@ enum HeatmapMode: String, CaseIterable {
 
 struct CalendarHeatmap: View {
     let entries: [Entry]
+    /// Entries outside it (kept-out collections such as Scratch) still count as writing but never
+    /// colour a day with their mood, the same rule as the Mood Map widget.
+    var moodScope: InsightScope = .everything
     var selectedDate: Date?
     var onDaySelected: ((Date?) -> Void)?
 
@@ -140,6 +143,7 @@ struct CalendarHeatmap: View {
     private func representativeMood(for dayEntries: [Entry]) -> String? {
         let moodEntries = dayEntries
             .compactMap { entry -> (mood: String, createdAt: Date)? in
+                guard moodScope.includes(entry) else { return nil }
                 guard let mood = entry.mood, !mood.isEmpty else { return nil }
                 return (mood, entry.createdAt)
             }
