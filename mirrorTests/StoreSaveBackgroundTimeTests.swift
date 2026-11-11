@@ -100,5 +100,21 @@ struct StoreSaveBackgroundTimeTests {
         #expect(!fake.begun.isEmpty)
         #expect(Set(fake.ended).isSuperset(of: [1]))
     }
+
+    /// The app's own instance with the real UIKit calls, in the running app (the test host starts
+    /// it in `mirrorApp.init`, as a normal launch does). Builds 49 and 50 passed every test above
+    /// while this guard never got a task: the application was read before UIKit had made it.
+    @Test @MainActor func theAppsGuardGetsARealTaskForASave() throws {
+        try #require(MirrorModelContainer.isStoreAvailable)
+        #expect(StoreSaveBackgroundTime.hasApplication)
+        let shared = StoreSaveBackgroundTime.shared
+        let before = shared.begunCount
+        let object = NSObject()
+        let context = ObjectIdentifier(object)
+        shared.saveWillBegin(context)
+        #expect(shared.begunCount == before + 1)
+        shared.saveDidEnd(context)
+        withExtendedLifetime(object) {}
+    }
 }
 #endif
