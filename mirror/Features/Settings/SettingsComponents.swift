@@ -42,6 +42,7 @@ struct SettingsRowLabel: View {
                 Image(systemName: systemImage)
                     .scaledFont(embedded ? 12 : 14, weight: .medium)
                     .foregroundStyle(iconColor)
+                    .accessibilityHidden(true)
             }
             .overlay {
                 if displayMode == .sentinel {

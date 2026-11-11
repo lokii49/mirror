@@ -202,6 +202,15 @@ extension WriteView {
             } label: {
                 Label("Choose Photo", systemImage: "photo.on.rectangle")
             }
+            // Also after writing has started (owner, 2026-11-07): the blank-entry chip goes once there's
+            // text, and this adds the suggestion at the end of the entry.
+            if DeviceFeature.journalingSuggestionsAvailable {
+                Button {
+                    presentAfterKeyboard { showSuggestionsPicker = true }
+                } label: {
+                    Label("Suggestions from your day", systemImage: "photo.on.rectangle.angled")
+                }
+            }
             Divider()
             // Opens the recorder sheet, as Notes' Record Audio does. A voice note is an audio
             // memo, transcribed afterwards; the keyboard's own mic key dictates into the text.

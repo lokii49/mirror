@@ -1,9 +1,30 @@
-Planes de pago desde el 15 de noviembre
+Ya llegan Core y Deep
 
-• Desde el 15 de noviembre, las nuevas reflexiones diarias, Preguntar a Mirror, los nuevos resúmenes semanales e informes mensuales, la línea de estados de ánimo y los widgets necesitan Core o Deep. Escribir, leer, buscar y la copia en iCloud siguen siendo gratis, para siempre. Los nuevos suscriptores tienen 7 días de prueba gratis.
+• Las nuevas reflexiones diarias, Preguntar a Mirror, los nuevos resúmenes semanales e informes mensuales, la línea de estados de ánimo y los widgets ahora necesitan Core o Deep. Escribir, leer, buscar y la copia en iCloud siguen siendo gratis, para siempre. Los nuevos suscriptores tienen 7 días de prueba gratis.
 • Todo lo que ya se creó para ti sigue pudiendo leerse en cualquier plan: reflexiones, resúmenes e informes anteriores, en la app y en los widgets.
 
 Además en esta actualización
 
-• Una descarga mucho más pequeña: de nuevo menos de 30 MB, en vez de más de 300 MB.
-• Lo que escribes de madrugada cuenta como parte de la noche anterior. Las entradas escritas antes de las 4 de la mañana se reflejan con el día anterior, y lo que escribas más tarde ese día tiene su propia reflexión diaria.
+• Un aspecto nuevo, Paper & Ink: páginas de papel cálido con un acento ciruela, títulos con serifa y la reflexión de hoy arriba del todo. Las entradas muestran títulos, fotos, etiquetas y «Hoy» / «Ayer». El modo Sentinel se ha retirado, así que ahora todos ven este aspecto.
+• ¿Tienes un código de oferta del App Store? Toca Canjear código en Ajustes › Suscripción o en la pantalla de planes.
+• Ajustes tiene un botón Listo y un tirador, para que quede claro cómo cerrarlo.
+• Si los planes no cargan, Suscripción ofrece Intentar de nuevo en lugar de quedarse cargando.
+• El modo enfoque ahora es solo tus palabras: la barra de herramientas, el punto de partida y las tarjetas se apartan, y un botón los trae de vuelta.
+• La primera vez que se abre el teclado, un consejo muestra que deslizar hacia abajo en la página lo oculta.
+• Al tocar un día en el calendario de Entradas, ese día sigue a la vista en lugar de volver a hoy.
+• Las reflexiones pasadas y los resúmenes anteriores terminan con Mostrar todo, para que puedas leerlos todos.
+• En Organizar puedes añadir la colección Apuntes para notas rápidas, listas y números. Las reflexiones, Preguntar, los gráficos de ánimo y las alertas de ánimo no la leen, y cualquier colección se puede excluir del mismo modo.
+• Al volver a tocar Entradas, la lista vuelve arriba.
+• Nueva cabecera al escribir: la fecha como título, el ánimo al lado, Guardar como botón, y Eliminar y el modo concentración en el menú ⋯.
+• Nuevo apunte desde el Centro de control, Siri o el menú de Entradas, con checklists, listas numeradas y con viñetas, y Recordarme para un aviso a la hora que elijas. El aviso nunca muestra el texto del apunte.
+• Plantillas: Repaso de la tarde, Plan semanal y Páginas matutinas, y las tuyas, solo en este dispositivo.
+• Sugerencias de tu día: empieza una entrada con las sugerencias de diario de Apple. Canciones, podcasts, entrenamientos, lugares, personas y pasos llegan como líneas breves, con fotos, carátulas y un mapa de tu ruta o del lugar. Toca un lugar o su mapa para abrirlo en Mapas, o una canción para buscarla en Apple Music.
+• Pendientes reúne los elementos sin marcar de todas tus listas.
+• Enlaza una entrada con otra y mira en «Enlazada desde» qué apunta a ella.
+• Patrones y Resumen del año (Deep): qué estados de ánimo van con tus días, horas y etiquetas, y tu año en cifras.
+• MirrorNotes en el Apple Watch: graba una nota de voz, escribe una nota rápida o registra tu ánimo. Las notas de voz se transcriben en el iPhone.
+• Guarda tus registros de ánimo en Salud de Apple si quieres (Ajustes › Diario).
+• Los diarios grandes van más rápido: la lista de Entradas, la búsqueda, Perspectivas, la cronología del estado de ánimo y el calendario ya no vuelven a leer todas las entradas cada vez que cambia la pantalla, y abrir una entrada ya no carga todo el diario.
+• MirrorNotes se abre un poco más rápido y usa menos memoria.
+• Las entradas muestran el número de palabras completo («52 palabras» en lugar de «52 p»).
+• En el plan gratuito, Perspectivas muestra una sola tarjeta sobre Core en lugar de dos.

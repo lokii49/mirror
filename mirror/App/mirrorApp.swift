@@ -39,10 +39,24 @@ struct mirrorApp: App {
 
     var sharedModelContainer: ModelContainer = MirrorModelContainer.shared
 
+    /// The app is the host of the unit tests (not a UI-test launch).
+    static var isUnitTestHost: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            && !ProcessInfo.processInfo.arguments.contains("--uitesting")
+        #else
+        return false
+        #endif
+    }
+
     init() {
         PerfSignpost.beginLaunch()
         // Plaintext left by an archive export/import that was interrupted (crash, force quit).
-        DispatchQueue.global(qos: .utility).async { ArchivePackage.removeStaleStaging() }
+        let launch = Date()
+        DispatchQueue.global(qos: .utility).async { ArchivePackage.removeStaleStaging(createdBefore: launch) }
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains(where: { $0.hasPrefix("--demoSuggestion=") }) { WriteDraftStore.wipeScratchForDemo() }
+        #endif
         #if os(macOS) && DEBUG
         if let dir = MacFormatPopoverRender.requestedDirectory {
             DispatchQueue.main.async { MacFormatPopoverRender.renderAndQuit(to: dir) }
@@ -66,8 +80,14 @@ struct mirrorApp: App {
             JournalSafety.shared.start(container: sharedModelContainer)
             #if os(iOS)
             CloudSyncBackgroundTime.shared.start()
+            StoreSaveBackgroundTime.shared.startForApp()
             #endif
             WidgetSaveRefresher.shared.start(container: sharedModelContainer)
+            JournalRevision.shared.start(container: sharedModelContainer)
+            #if os(iOS)
+            // Moods and notes logged on Apple Watch arrive here and are saved with the journal key.
+            WatchInbox.start()
+            #endif
         }
         // Re-attach to a search-model download still running in its background session, so it
         // installs when it finishes even if Ask and Settings are never opened this launch.
@@ -248,12 +268,8 @@ struct mirrorApp: App {
 
     private func configureNavigationBarAppearance() {
         #if os(iOS)
-        let appearance = UINavigationBarAppearance()
-        appearance.configureWithDefaultBackground()
-        appearance.shadowColor = UIColor(MirrorTheme.inkBorder)
-        UINavigationBar.appearance().standardAppearance = appearance
-        UINavigationBar.appearance().scrollEdgeAppearance = appearance
-        UINavigationBar.appearance().compactAppearance = appearance
+        let mode = (try? sharedModelContainer.mainContext.fetch(FetchDescriptor<UserProfile>()).first?.displayMode) ?? .classic
+        MirrorNavigationAppearance.apply(mode)
         #endif
     }
 
@@ -296,6 +312,8 @@ struct mirrorApp: App {
             case .active:
                 AppLock.shared.setPrivacyCover(false)
                 AppLock.shared.didReturn()
+                // Watch items that came while the journal key was locked away.
+                WatchInbox.retryWaiting(in: sharedModelContainer.mainContext)
             @unknown default:
                 break
             }
@@ -303,6 +321,10 @@ struct mirrorApp: App {
             // Store couldn't be opened: sharedModelContainer is an empty stand-in, so nothing
             // below (generation, cleanup passes, reminders) has anything real to work on.
             guard MirrorModelContainer.isStoreAvailable else { return }
+            // Hosting unit tests: the tests drive generation and the cleanup passes themselves.
+            // App-launched passes would race them through shared hooks (LocalLLMService's test
+            // intercept, insight rows, the main actor) on a simulator where a model is available.
+            if Self.isUnitTestHost { return }
             #if DEBUG && os(macOS)
             // Snapshot mode renders sample data only: no generation, cleanup passes or permission prompts.
             if MacSnapshot.isRequested { return }
@@ -346,7 +368,6 @@ struct mirrorApp: App {
                 // iCloud status, restore-from-device offer, and cleanup of restored copies
                 // whose originals CloudKit has since delivered.
                 PerfSignpost.interval("active.journalSafety") { JournalSafety.shared.appDidBecomeActive() }
-                SubscriptionService.shared.appDidBecomeActive()
                 // One-time: re-clean daily reflections cached before the
                 // announce-line / "friend" vocative strip landed (076b9f5).
                 Task { @MainActor in
@@ -590,6 +611,9 @@ struct mirrorApp: App {
                 hour: hour,
                 minute: minute
             )
+        } else {
+            // Free (or lapsed): no "reflection is ready" left repeating from when reflections were made.
+            await NotificationService.useWritingReminderBody()
         }
 
         // Weekly digest only on Sunday
@@ -613,6 +637,8 @@ struct mirrorApp: App {
         let context = sharedModelContainer.mainContext
         // Recently Deleted keeps entries for 30 days.
         EntryTrash.purgeExpired(in: context)
+        // Scratch reminders whose note was deleted on another device.
+        await ScratchReminders.dropOrphans(in: context)
         await mirrorApp.runDailyNudgeIfNeeded(context: context)
         mirrorApp.updateWidgetHeatmaps(context: context)
         mirrorApp.syncNudgeToWidget(context: context)
@@ -637,6 +663,10 @@ struct mirrorApp: App {
                 hour: hour,
                 minute: minute
             )
+        } else {
+            // Free (or lapsed): a nudge scheduled while every feature was free (3.1.7 and earlier
+            // ran everyone as Deep) can still say "Your daily reflection is ready." every day.
+            await NotificationService.useWritingReminderBody()
         }
 
         // Weekly digest: generate on Sundays proactively (fallback if nightly BGProcessingTask missed)
@@ -666,7 +696,9 @@ struct mirrorApp: App {
     @MainActor
     static func anotherReflectionAllowed(after newestToday: Insight, context: ModelContext) -> Bool {
         let startOfToday = DateHelpers.journalDayStart(for: Date())
-        let todayEntries = (try? context.fetch(FetchDescriptor<Entry>(predicate: #Predicate { $0.createdAt >= startOfToday }))) ?? []
+        // Notes in a collection kept out of insights don't call for another reflection.
+        let todayEntries = InsightScope(context: context)
+            .filter((try? context.fetch(FetchDescriptor<Entry>(predicate: #Predicate { $0.createdAt >= startOfToday }))) ?? [])
         return InsightService.allowsAnotherReflectionToday(
             todaysReflectionAt: newestToday.generatedAt,
             todayEntryDates: todayEntries.filter(InsightService.hasReadableContext).map(\.createdAt),
@@ -746,7 +778,9 @@ struct mirrorApp: App {
         // on which entries count as "readable" (a photo-only or failed-voice-transcription entry
         // isn't a decryption failure but is just as unreadable). Filtered before the count gate so
         // unreadable entries don't count toward "enough to generate from" either.
-        let entries = ((try? context.fetch(entryDescriptor)) ?? []).filter(InsightService.hasReadableContext)
+        // Collections kept out of insights (Scratch) are left out before anything counts or reads them.
+        let entries = InsightScope(context: context)
+            .filter((try? context.fetch(entryDescriptor)) ?? []).filter(InsightService.hasReadableContext)
         guard entries.count >= 3 else {
             #if DEBUG
             print("[nudge] blocked: entries<3")
@@ -997,8 +1031,10 @@ struct mirrorApp: App {
         let entryDescriptor = FetchDescriptor<Entry>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
-        // Same locked-device decrypt-failure guard as runDailyNudgeIfNeeded — see its comment.
-        let entries = ((try? context.fetch(entryDescriptor)) ?? []).filter(InsightService.hasReadableContext)
+        // Same locked-device decrypt-failure guard as runDailyNudgeIfNeeded — see its comment —
+        // and the same kept-out collections.
+        let entries = InsightScope(context: context)
+            .filter((try? context.fetch(entryDescriptor)) ?? []).filter(InsightService.hasReadableContext)
         // Digest covers the current week only — gate on this week's entries, not lifetime.
         let weekEntries = entries.filter { DateHelpers.digestWeekIdentifier(for: $0.createdAt) == thisWeek }
         guard weekEntries.count >= InsightService.weeklyDigestMinimumWeekEntries,
@@ -1064,8 +1100,10 @@ struct mirrorApp: App {
         let entryDescriptor = FetchDescriptor<Entry>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
-        // Same locked-device decrypt-failure guard as runDailyNudgeIfNeeded — see its comment.
-        let allEntries = ((try? context.fetch(entryDescriptor)) ?? []).filter(InsightService.hasReadableContext)
+        // Same locked-device decrypt-failure guard as runDailyNudgeIfNeeded — see its comment —
+        // and the same kept-out collections.
+        let allEntries = InsightScope(context: context)
+            .filter((try? context.fetch(entryDescriptor)) ?? []).filter(InsightService.hasReadableContext)
         let cal = Calendar.current
         let now = DateHelpers.now()
         let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: now)) ?? now
@@ -1175,7 +1213,8 @@ struct mirrorApp: App {
         let descriptor = FetchDescriptor<Entry>(
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
-        let entries = (try? context.fetch(descriptor)) ?? []
+        // A note in a collection kept out of insights carries no mood reading here.
+        let entries = InsightScope(context: context).filter((try? context.fetch(descriptor)) ?? [])
 
         // Recent negative mood-*days* (entry moods + check-ins merged, latest of
         // the day wins) — not consecutive entries, which three low entries in
@@ -1269,10 +1308,28 @@ struct mirrorApp: App {
         return f
     }()
 
+    /// The journal revision and day the widget heatmaps were last built from (this launch).
+    @MainActor private static var widgetHeatmapsBuiltFor: (container: ObjectIdentifier, revision: Int, day: Date)?
+
     @MainActor
     static func updateWidgetHeatmaps(context: ModelContext) {
-        let descriptor = FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt)])
-        let entries = (try? context.fetch(descriptor)) ?? []
+        PerfSignpost.interval("widget.heatmaps") { buildWidgetHeatmaps(context: context) }
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    /// Runs on every app foreground and after every journal save. Rebuilds only when the journal
+    /// changed (JournalRevision) or the day did, and reads only the three fields the heatmaps use:
+    /// a full fetch also loaded every entry's text and photo bytes (photos live in the row).
+    @MainActor
+    private static func buildWidgetHeatmaps(context: ModelContext) {
+        let builtFor = (container: ObjectIdentifier(context.container), revision: JournalRevision.shared.value,
+                        day: Calendar.current.startOfDay(for: Date()))
+        if let last = widgetHeatmapsBuiltFor, last.container == builtFor.container,
+           last.revision == builtFor.revision, last.day == builtFor.day { return }
+        var descriptor = FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt)])
+        descriptor.propertiesToFetch = [\.id, \.createdAt, \.encryptedMood, \.collectionID]
+        guard let entries = try? context.fetch(descriptor) else { return }
+        let scope = InsightScope(context: context)
 
         // Entry count per day drives the streak + wrote-today flags below. Stays
         // entry-only — a mood check-in isn't "writing an entry".
@@ -1285,7 +1342,8 @@ struct mirrorApp: App {
         // of the day wins. Single merge rule, shared with every other surface.
         let checkIns = (try? context.fetch(FetchDescriptor<MoodCheckIn>())) ?? []
         var moodByDay: [String: String] = [:]
-        for (day, event) in MoodLog.dailyMoods(entries: entries, checkIns: checkIns) {
+        // Notes kept out of insights still count as writing above, but their moods don't colour a day.
+        for (day, event) in MoodLog.dailyMoods(entries: scope.filter(entries), checkIns: checkIns) {
             moodByDay[widgetDayFormatter.string(from: day)] = event.mood
         }
 
@@ -1316,14 +1374,18 @@ struct mirrorApp: App {
         }
         defaults?.set(streak, forKey: "widget.streak")
         defaults?.set(wroteToday, forKey: "widget.wrote.today")
-
-        WidgetCenter.shared.reloadAllTimelines()
+        widgetHeatmapsBuiltFor = builtFor
     }
 
     // Writes today's nudge text to AppGroup so NudgeWidget can read it even if the
     // nudge was generated in a previous app session (runDailyNudgeIfNeeded bails early then).
     @MainActor
     static func syncNudgeToWidget(context: ModelContext) {
+        PerfSignpost.interval("widget.syncNudge") { syncNudgeToWidgetNow(context: context) }
+    }
+
+    @MainActor
+    private static func syncNudgeToWidgetNow(context: ModelContext) {
         let today = DateHelpers.dayIdentifier(for: Date())
         let descriptor = FetchDescriptor<Insight>(
             predicate: #Predicate { $0.periodIdentifier == today }
@@ -1353,9 +1415,29 @@ struct mirrorApp: App {
         }
         defaults?.set(InsightService.nudgeTextForOutsideApp(nudge.content), forKey: "widget.nudge.text")
         defaults?.set(today, forKey: "widget.nudge.date")
-        let entryDescriptor = FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
-        let todaysEntries = (try? context.fetch(entryDescriptor)) ?? []
-        defaults?.set(InsightService.reflectedDay(of: nudge, entriesNewestFirst: todaysEntries).map { DateHelpers.dayIdentifier(for: $0) }, forKey: "widget.nudge.aboutDate")
+        // The newest readable entry at or before the reflection decides the day it's about. Look at
+        // the latest few first; only a run of unreadable entries needs the whole journal (this
+        // fetched every entry, with text and photos, on every foreground).
+        let generatedAt = nudge.generatedAt
+        let scope = InsightScope(context: context)
+        var aboutDescriptor = FetchDescriptor<Entry>(predicate: #Predicate { $0.createdAt <= generatedAt },
+                                                     sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
+        aboutDescriptor.fetchLimit = 40
+        let fetchedRecent = (try? context.fetch(aboutDescriptor)) ?? []
+        var aboutDay = InsightService.reflectedDay(of: nudge, entriesNewestFirst: scope.filter(fetchedRecent))
+        if aboutDay == nil, fetchedRecent.count == aboutDescriptor.fetchLimit {
+            aboutDescriptor.fetchLimit = nil
+            aboutDay = InsightService.reflectedDay(of: nudge, entriesNewestFirst: scope.filter((try? context.fetch(aboutDescriptor)) ?? []))
+        }
+        defaults?.set(aboutDay.map { DateHelpers.dayIdentifier(for: $0) }, forKey: "widget.nudge.aboutDate")
+        // Today's mood: the newest entry of today's journal day (from 4 AM).
+        let journalDayStart = DateHelpers.journalDayStart(for: Date())
+        let journalDayEnd = Calendar.current.date(byAdding: .day, value: 1, to: journalDayStart) ?? .distantFuture
+        var todayDescriptor = FetchDescriptor<Entry>(predicate: #Predicate { $0.createdAt >= journalDayStart && $0.createdAt < journalDayEnd },
+                                                     sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
+        // The newest one that isn't kept out of insights (one fetch when nothing is).
+        todayDescriptor.fetchLimit = scope.excludesNothing ? 1 : nil
+        let todaysEntries = scope.filter((try? context.fetch(todayDescriptor)) ?? [])
         if let todaysMood = journalDayMood(entriesNewestFirst: todaysEntries) {
             defaults?.set(todaysMood, forKey: "widget.nudge.mood")
         } else {
@@ -1471,11 +1553,18 @@ private struct DebugDynamicTypeSize: ViewModifier {
         return DynamicTypeSize.allCases.first { "\($0)" == arg.dropFirst(prefix.count) }
     }()
 
+    /// `--boldText` and `--increaseContrast`: the Bold Text and Increase Contrast settings, for the
+    /// accessibility passes (UI checklist 2026-11-07), set the same way.
+    private let bold = ProcessInfo.processInfo.arguments.contains("--boldText")
+    private let contrast = ProcessInfo.processInfo.arguments.contains("--increaseContrast")
+
     func body(content: Content) -> some View {
         content.onAppear {
-            guard let size else { return }
+            guard size != nil || bold || contrast else { return }
             for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
-                scene.traitOverrides.preferredContentSizeCategory = UIContentSizeCategory(size)
+                if let size { scene.traitOverrides.preferredContentSizeCategory = UIContentSizeCategory(size) }
+                if bold { scene.traitOverrides.legibilityWeight = .bold }
+                if contrast { scene.traitOverrides.accessibilityContrast = .high }
             }
         }
     }

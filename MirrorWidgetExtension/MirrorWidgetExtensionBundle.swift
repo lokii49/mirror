@@ -15,6 +15,7 @@ struct MirrorWidgetExtensionBundle: WidgetBundle {
         if #available(iOS 18.0, *) {
             MirrorNewEntryControl()
             MirrorLogMoodControl()
+            MirrorScratchNoteControl()
         }
         #endif
     }

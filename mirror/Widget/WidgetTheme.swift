@@ -20,14 +20,14 @@ enum WidgetTheme {
         )
     }
 
-    static let bgTop        = hex(0x1E1933)  // MirrorTheme.inkRaised (dark)
-    static let bgBottom      = hex(0x15111F)  // MirrorTheme.inkMid (dark)
-    static let violet        = hex(0x7C5CE4)  // MirrorTheme.violet (dark)
-    static let violetLight    = hex(0xA78BFA)  // MirrorTheme.violetLight (dark)
+    static let bgTop        = hex(0x241C22)  // MirrorTheme.inkRaised (dark)
+    static let bgBottom      = hex(0x1C171A)  // MirrorTheme.inkMid (dark)
+    static let violet        = hex(0xC98BC6)  // MirrorTheme.violet (dark)
+    static let violetLight    = hex(0xD8A3D4)  // MirrorTheme.violetLight (dark)
     static let ember          = hex(0xF97B8B)  // MirrorTheme.ember (dark)
 
-    /// Widget-only. No `MirrorTheme` counterpart — `inkBase` (dark) is #08060F,
-    /// a near-black with a violet cast; Sentinel widgets want a flatter neutral.
+    /// Widget-only. No `MirrorTheme` counterpart — `inkBase` (dark) is #141012,
+    /// a near-black with a plum cast; Sentinel widgets want a flatter neutral.
     static let sentinelBg     = hex(0x0B0B0E)
 
     /// `MirrorTheme.moodColor(for:)`, frozen: the twelve mood colours, with the six difficult

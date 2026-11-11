@@ -1,9 +1,20 @@
-Bezahlpläne ab 15. November
+Core und Deep sind da
 
-• Ab 15. November brauchen neue tägliche Reflexionen, „Mirror fragen“, neue Wöchentliche Zusammenfassungen und Monatsberichte, die Stimmungs-Zeitleiste und die Widgets Core oder Deep. Schreiben, Lesen, Suche und iCloud-Backup bleiben für immer kostenlos. Neue Abonnenten können 7 Tage kostenlos testen.
+• Neue tägliche Reflexionen, „Mirror fragen“, neue Wöchentliche Zusammenfassungen und Monatsberichte, die Stimmungs-Zeitleiste und die Widgets brauchen jetzt Core oder Deep. Schreiben, Lesen, Suche und iCloud-Backup bleiben für immer kostenlos. Neue Abonnenten können 7 Tage kostenlos testen.
 • Alles, was schon für dich erstellt wurde, bleibt in jedem Plan lesbar: frühere Reflexionen, Zusammenfassungen und Berichte, in der App und in den Widgets.
 
 Außerdem in diesem Update
 
-• Deutlich kleinerer Download: wieder unter 30 MB statt über 300 MB.
-• Was du spät nachts schreibst, gehört zum Abend davor. Einträge vor 4 Uhr morgens werden mit dem Vortag reflektiert, und was du später am Tag schreibst, bekommt eine eigene tägliche Reflexion.
+• Ein neuer Look, Paper & Ink: warme Papierseiten mit einem Pflaumen-Akzent, Überschriften in Serifenschrift und die heutige Reflexion ganz oben. Einträge zeigen Titel, Fotos und Tags auf einen Blick.
+• Wenn die Pläne nicht laden, bietet „Abonnement“ „Erneut versuchen“, statt endlos zu laden.
+• Frühere Reflexionen auf der Übersicht haben „Mehr lesen“, und frühere Reflexionen und Zusammenfassungen enden mit „Alle anzeigen“.
+• Ein Tippen auf einen Tag im Kalender unter „Einträge“ lässt diesen Tag im Blick, statt zurück zu heute zu springen.
+• Unter „Ordnen“ kannst du die Sammlung „Notizen“ für schnelle Notizen, Listen und Nummern anlegen. Reflexionen, Fragen, Stimmungsdiagramme und Stimmungswarnungen lesen sie nicht, und jede Sammlung lässt sich genauso heraushalten.
+• Neue Notiz (Menü „Ablage“, ⌥⌘N): Checklisten, nummerierte Listen und Aufzählungen sowie „Erinnern …“ für eine Erinnerung zur gewählten Zeit. Die Erinnerung zeigt nie den Text der Notiz.
+• Sprachnotizen wie auf dem iPhone: pausieren, anhören, dann hinzufügen.
+• Beim Schreiben: Fokusmodus, Tagesziel für Wörter und Tag-Vorschläge.
+• Checklisten-Zeilen per Ziehen umsortieren; abgehakte Punkte können nach unten wandern.
+• Integration der iPhone-Kamera: Foto oder Scan mit dem iPhone direkt in einen Eintrag (Menü „Ablage“).
+• Vorlagen, Noch offen, Verlinkungen, Muster und Jahresrückblick.
+• Code einlösen im Abo-Bildschirm und in den Einstellungen.
+• Große Tagebücher sind schneller: Die Eintragsliste, die Suche und Einblicke lesen nicht mehr bei jeder Änderung im Fenster alle Einträge neu.

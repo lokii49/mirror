@@ -520,6 +520,11 @@ extension WriteView {
         followUpTask = Task { @MainActor in
             try? await Task.sleep(for: .seconds(6))
             guard !Task.isCancelled, snapshot == viewModel.text else { return }
+            // A note going into a collection kept out of insights gets no model-written question.
+            guard InsightScope(context: modelContext).includes(collectionID: entryCollectionID) else {
+                followUpTask = nil
+                return
+            }
             // Skip this attempt entirely rather than queue behind whatever's already running —
             // this is an ambient, opportunistic suggestion nobody explicitly asked for right
             // now, and it shouldn't add latency to a save-time mood detect, an explicit Ask, or
@@ -789,6 +794,7 @@ extension WriteView {
     static func clearAllDraftStorage() {
         clearDraftStorage(slot: .newEntry, attachments: .live)
         clearDraftStorage(slot: .newEntryWindow, attachments: .window)
+        clearDraftStorage(slot: .scratchNote, attachments: nil)
     }
 
     static func clearDraftStorage(slot: WriteDraftStore.Slot, attachments: DraftAttachmentStore.Location?) {
@@ -813,6 +819,7 @@ extension WriteView {
         DraftAttachmentStore.clearIncludingPreserved(at: .window)
         WriteDraftStore.clearIncludingPreserved()
         WriteDraftStore.clearIncludingPreserved(slot: .newEntryWindow)
+        WriteDraftStore.clearIncludingPreserved(slot: .scratchNote)
         WriteDraftStore.clearAllEntryDrafts()
         SavedDraftStore.deleteAll()
         NotificationCenter.default.post(name: .mirrorDraftsErased, object: nil)
@@ -932,7 +939,7 @@ struct DraftSaveStatusLabel: View {
                         .lineLimit(1)
                 }
                 .scaledFont(displayMode == .sentinel ? 10 : 12, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
-                .foregroundStyle(.orange)
+                .foregroundStyle(MirrorTheme.warningInk)
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("draft.saveRetry")

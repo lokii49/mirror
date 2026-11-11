@@ -1,10 +1,15 @@
 import SwiftUI
 import SwiftData
+import Combine
+import ImageIO
 
 private let moodLabels = MirrorTheme.moodOptions
 
 struct EntriesTabView: View {
     var navResetID: UUID = UUID()
+    /// Changes when Entries is tapped again in the tab bar: an open (pushed) reader closes,
+    /// otherwise the list scrolls back to the top, like Insights. Nil where there's no tab bar.
+    var scrollToTopID: UUID? = nil
     var deepLinkEntryID: Binding<UUID?> = .constant(nil)
     /// macOS shows the reader beside the list instead of pushing it. When set, opening an
     /// entry writes it here and the list never navigates.
@@ -31,6 +36,8 @@ struct EntriesTabView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
     @Query private var collectionModels: [JournalCollection]
+    /// Kept-out collections' moods don't colour the calendar (counts still do), as on the widget.
+    @State private var moodScopeMemo = InsightEntriesMemo()
     @Query private var savedViewModels: [SavedEntryView]
     @State private var showOrganizer = false
     @State private var libraryPage: LibraryPage?
@@ -110,9 +117,19 @@ struct EntriesTabView: View {
         }
     }
 
+    /// An entry and its id, read once while the snapshot is built. `ForEach` over `Entry` reads every
+    /// entry's `id` through SwiftData on each list update and observation-tracks all of them, even
+    /// in a lazy stack; with 5,000 entries that bookkeeping was most of the hang when a cleared
+    /// search brought the whole list back (audit 2026-11-04).
+    struct EntryRowRef: Identifiable {
+        let id: UUID
+        let entry: Entry
+    }
+
     private struct EntryMonthGroup {
         let date: Date
-        let entries: [Entry]
+        let rows: [EntryRowRef]
+        var entries: [Entry] { rows.map(\.entry) }
     }
 
     // Precomputed at task time — zero AES decrypts during scroll
@@ -124,19 +141,27 @@ struct EntriesTabView: View {
         let hasVoiceNotes: Bool
         let textDecryptionFailed: Bool
         var isSearchMatch = false
+        /// Paper & Ink option D: a short first line shown as the row's title (`EntryRowText`).
+        var title: String? = nil
+        /// The text after the title, when there is one.
+        var snippet: Text? = nil
+        var tags: [String] = []
     }
 
     private struct EntryListSnapshot {
         let filteredEntries: [Entry]
         let usedMoods: [String]
         let usedTags: [String]
-        let pinnedEntries: [Entry]
+        let pinnedRows: [EntryRowRef]
+        var pinnedEntries: [Entry] { pinnedRows.map(\.entry) }
         let groupedByMonth: [EntryMonthGroup]
         let rowPreviews: [UUID: EntryRowPreview]
         let unreadableCount: Int
         /// Results are one ranked list (Best Match), not month sections.
         var isRanked = false
         var matchesWithoutFilters: Int?
+        /// Entries from today's date in earlier years (toolbar button), found here rather than in body.
+        var onThisDay: [Entry] = []
     }
 
     private struct SnapshotDeps: Equatable {
@@ -144,7 +169,9 @@ struct EntriesTabView: View {
         let filters: EntryFilterCriteria
         let day: Date
         let entryCount: Int
-        let contentHash: Int
+        /// `JournalRevision`: goes up on every journal save or CloudKit import. Replaced a hash of
+        /// every entry's stored fields that ran on each body evaluation (67-75 ms at 5,000 entries).
+        let revision: Int
         let sort: String
         let foregroundRefresh: Int
         let collections: Int
@@ -160,14 +187,19 @@ struct EntriesTabView: View {
             filters: filters,
             day: Calendar.current.startOfDay(for: filterNow),
             entryCount: entries.count,
-            contentHash: EntryDecryptCache.contentSignature(for: entries),
+            revision: JournalRevision.shared.value,
             sort: sortOrder.rawValue,
             foregroundRefresh: foregroundRefresh,
             collections: collectionSignature
         )
     }
 
-    private var listSnapshot: EntryListSnapshot { makeListSnapshot() }
+    /// Only until the first snapshot task lands (first open of the tab). Synchronous so the list
+    /// never flashes empty; the signature pass first, or every lookup would read every field again.
+    private var listSnapshot: EntryListSnapshot {
+        decryptCache.checkSignatures(of: entries, revision: JournalRevision.shared.value)
+        return makeListSnapshot()
+    }
 
     private func makeListSnapshot(searchResults: EntrySearch.Results? = nil) -> EntryListSnapshot {
         let query = EntrySearchQuery.parse(debouncedSearchText)
@@ -211,7 +243,7 @@ struct EntriesTabView: View {
         // (see entryList(_:)) — excluded here so they don't also render twice.
         // Deliberate: a month's "N entries" header counts only what's rendered
         // in that section, not the pinned ones that moved up top.
-        let pinnedEntries = result.filter(\.isPinned)
+        let pinnedRows = result.filter(\.isPinned).map { EntryRowRef(id: $0.id, entry: $0) }
         let calendar = Calendar.current
         let groups = Dictionary(grouping: result.filter { !$0.isPinned }) { entry -> Date in
             let comps = calendar.dateComponents([.year, .month], from: entry.createdAt)
@@ -219,7 +251,7 @@ struct EntriesTabView: View {
         }
 
         let monthSortAscending = sortOrder == .oldestFirst
-        let groupedByMonth = ranked ? [EntryMonthGroup(date: .distantPast, entries: result.filter { !$0.isPinned })].filter { !$0.entries.isEmpty } : groups.keys.sorted(by: monthSortAscending ? (<) : (>)).map { month in
+        let groupedByMonth = ranked ? [EntryMonthGroup(date: .distantPast, rows: result.filter { !$0.isPinned }.map { EntryRowRef(id: $0.id, entry: $0) })].filter { !$0.rows.isEmpty } : groups.keys.sorted(by: monthSortAscending ? (<) : (>)).map { month in
             let monthEntries = groups[month, default: []]
             let sortedMonthEntries: [Entry]
             switch sortOrder {
@@ -228,7 +260,7 @@ struct EntriesTabView: View {
             case .mostWords:   sortedMonthEntries = monthEntries.sorted { $0.wordCount > $1.wordCount }
             case .byMood:      sortedMonthEntries = monthEntries.sorted { (cache.item(for: $0).mood ?? "") < (cache.item(for: $1).mood ?? "") }
             }
-            return EntryMonthGroup(date: month, entries: sortedMonthEntries)
+            return EntryMonthGroup(date: month, rows: sortedMonthEntries.map { EntryRowRef(id: $0.id, entry: $0) })
         }
 
         // Precompute all row display data (mood + text decrypts) so EntryRow.init does zero decrypts
@@ -267,7 +299,8 @@ struct EntriesTabView: View {
         // A transcript or tag can arrive before its encryption key even when body
         // text is already readable. Keep the existing key-arrival retry active.
         let unreadableCount = entries.filter { !cache.item(for: $0).document.isReadable }.count
-        return EntryListSnapshot(filteredEntries: result, usedMoods: usedMoods, usedTags: usedTags, pinnedEntries: pinnedEntries, groupedByMonth: groupedByMonth, rowPreviews: rowPreviews, unreadableCount: unreadableCount, isRanked: ranked && !result.isEmpty, matchesWithoutFilters: searchResults?.matchesWithoutFilters)
+        return EntryListSnapshot(filteredEntries: result, usedMoods: usedMoods, usedTags: usedTags, pinnedRows: pinnedRows, groupedByMonth: groupedByMonth, rowPreviews: rowPreviews, unreadableCount: unreadableCount, isRanked: ranked && !result.isEmpty, matchesWithoutFilters: searchResults?.matchesWithoutFilters,
+                                 onThisDay: OnThisDayService.matches(in: entries))
     }
 
     private var collectionLookup: CollectionLookup { collectionLookupCache }
@@ -331,7 +364,7 @@ struct EntriesTabView: View {
     // Computed on every render off the existing @Query — cheap (date-component comparison only,
     // no decryption) even for a large journal, and typically yields 0-2 entries.
     private var onThisDayMatches: [Entry] {
-        OnThisDayService.matches(in: entries)
+        snapshotCache?.onThisDay ?? []
     }
 
     /// Separate toolbar buttons, not one custom HStack: the system can then lay them out itself —
@@ -401,8 +434,9 @@ struct EntriesTabView: View {
 
     private var listHeaderRow: some View {
         HStack(spacing: 16) {
+            // Paper & Ink: the reflection's serif voice carries the screen title.
             Text(displayMode == .sentinel ? "Log" : "Entries")
-                .scaledFont(displayMode == .sentinel ? 20 : 26, weight: .bold, design: displayMode == .sentinel ? .monospaced : .default)
+                .scaledFont(displayMode == .sentinel ? 20 : 30, weight: displayMode == .sentinel ? .bold : .medium, design: displayMode == .sentinel ? .monospaced : .serif)
                 .foregroundStyle(MirrorTheme.textPrimary)
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: 8)
@@ -411,9 +445,12 @@ struct EntriesTabView: View {
         .padding(.horizontal, 18)
         .padding(.top, 8)
         .padding(.bottom, 6)
-        .background(MirrorTheme.bgBase)
+        .background(entriesGround)
     }
     #endif
+
+    /// The list's ground: Paper & Ink's warm paper in the default theme, Sentinel's ink there.
+    private var entriesGround: Color { displayMode == .sentinel ? MirrorTheme.bgBase : MirrorTheme.paperGround }
 
     var body: some View {
         let snapshot = snapshotCache ?? listSnapshot
@@ -433,6 +470,7 @@ struct EntriesTabView: View {
             .navigationTitle(displayMode == .sentinel ? "Log" : "Entries")
             .navigationBarTitleDisplayMode(.inline)
             #if os(iOS)
+            .modifier(SerifNavigationTitle(title: "Entries", enabled: displayMode != .sentinel && !actionsInListHeader))
             .background(VerticalBarProbe(hasVerticalBar: $hasVerticalBar))
             .toolbar {
                 if !actionsInListHeader && showsListActions {
@@ -469,6 +507,23 @@ struct EntriesTabView: View {
             }
             .animation(.easeInOut(duration: 0.2), value: isSelecting)
             #endif
+            #if DEBUG
+            // Captures: `--entriesSearch=<text>` opens Search with that text (devicectl can't type).
+            .onAppear {
+                let prefix = "--entriesSearch="
+                if let arg = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix(prefix) }) {
+                    showSearch = true
+                    searchText = String(arg.dropFirst(prefix.count))
+                }
+                // `--openNewestEntry`: the newest entry's reader, for captures.
+                if ProcessInfo.processInfo.arguments.contains("--openNewestEntry") {
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .seconds(2))
+                        if let newest = entries.max(by: { $0.createdAt < $1.createdAt }) { open(newest) }
+                    }
+                }
+            }
+            #endif
             .task(id: searchText) {
                 let value = searchText
                 do { try await Task.sleep(for: .milliseconds(250)) } catch { return }
@@ -503,9 +558,19 @@ struct EntriesTabView: View {
             .sheet(isPresented: $showOrganizer) { OrganizationManagerSheet() }
             .sheet(item: $libraryPage) { LibrarySheet(page: $0) }
             // Drafts > Continue writing from inside Organize: close it so Write isn't left under it.
-            .onReceive(NotificationCenter.default.publisher(for: .mirrorResumeSavedDraft)) { _ in
+            // Also Still open's "open this entry": the same modifier (no new one on this body).
+            .onReceive(NotificationCenter.default.publisher(for: .mirrorResumeSavedDraft)
+                .merge(with: NotificationCenter.default.publisher(for: .mirrorOpenEntryFromLibrary))) { note in
                 showOrganizer = false
                 libraryPage = nil
+                if note.name == .mirrorOpenEntryFromLibrary, let id = note.object as? UUID,
+                   let entry = entries.first(where: { $0.id == id }) {
+                    // After the sheet has gone, or the push is dropped under it.
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(450))
+                        open(entry)
+                    }
+                }
             }
             .modifier(OrganizationPrompts(newCollectionFor: $newCollectionFor, savingView: $savingView, saveView: saveCurrentView))
             .sheet(isPresented: $showFilters) {
@@ -529,6 +594,10 @@ struct EntriesTabView: View {
                 let readerTerms = query.problem == nil ? ReaderSearchHighlight.terms(for: query) : []
                 if ReaderSearchHighlight.shared.terms != readerTerms { ReaderSearchHighlight.shared.terms = readerTerms }
                 var searchResults: EntrySearch.Results?
+                // What changed: one signature pass per journal revision, here rather than in body.
+                PerfSignpost.interval("entries.signatures") {
+                    decryptCache.checkSignatures(of: entries, revision: JournalRevision.shared.value)
+                }
                 if !query.isEmpty || filters.isActive {
                     decryptCache.prune(keeping: entries)
                     let documents = entries.map { ($0.id, decryptCache.item(for: $0).document) }
@@ -614,11 +683,15 @@ struct EntriesTabView: View {
                 handOverReader(toSideBySide: sideBySide)
             }
             #endif
-            .onChange(of: deepLinkEntryID.wrappedValue) { _, newID in
-                guard let id = newID,
-                      let match = entries.first(where: { $0.id == id }) else { return }
+            // initial: a link tapped before this view existed (a cold launch from a Scratch reminder
+            // or an entry link) is already set when it appears.
+            .onChange(of: deepLinkEntryID.wrappedValue, initial: true) { _, newID in
+                guard let id = newID else { return }
+                // Cleared on a miss too (the entry was deleted, here or on another device), so the
+                // same link tapped again still reaches this.
+                defer { deepLinkEntryID.wrappedValue = nil }
+                guard let match = entries.first(where: { $0.id == id }) else { return }
                 open(match)
-                deepLinkEntryID.wrappedValue = nil
             }
         }
     }
@@ -807,7 +880,8 @@ struct EntriesTabView: View {
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
                         .background(
-                            isSelected ? (displayMode == .sentinel ? MirrorTheme.ember.opacity(0.14) : MirrorTheme.violetDim) : MirrorTheme.inkRaised,
+                            isSelected ? (displayMode == .sentinel ? MirrorTheme.ember.opacity(0.14) : MirrorTheme.violetDim)
+                                : (displayMode == .sentinel ? MirrorTheme.inkRaised : Color.clear),
                             in: displayMode == .sentinel
                                 ? AnyShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                                 : AnyShape(Capsule())
@@ -817,17 +891,22 @@ struct EntriesTabView: View {
                                 RoundedRectangle(cornerRadius: 6, style: .continuous)
                                     .stroke((isSelected ? MirrorTheme.ember : MirrorTheme.textTertiary).opacity(isSelected ? 0.4 : 0.2), lineWidth: 1)
                             }
+                            // Paper & Ink: tags are the quieter second row, plain words until chosen,
+                            // so only the mood chips above carry outlines (checklist: less competition).
                         }
                         .foregroundStyle(isSelected ? (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight) : MirrorTheme.textSecondary)
+                        .contentShape(Capsule())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityAddTraits(isSelected ? .isSelected : [])
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .padding(.horizontal, displayMode == .sentinel ? 16 : 10)
+            .padding(.top, displayMode == .sentinel ? 8 : 0)
+            .padding(.bottom, displayMode == .sentinel ? 8 : 4)
         }
         .horizontalEdgeFade()
-        .background(MirrorTheme.bgBase)
+        .background(entriesGround)
     }
 
     private func moodFilterBar(_ usedMoods: [String]) -> some View {
@@ -854,21 +933,27 @@ struct EntriesTabView: View {
                         .background(
                             isSelected
                                 ? MirrorTheme.moodColor(for: mood).opacity(0.20)
-                                : MirrorTheme.inkRaised,
+                                : (displayMode == .sentinel ? MirrorTheme.inkRaised : Color.clear),
                             in: displayMode == .sentinel
                                 ? AnyShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                                 : AnyShape(Capsule())
                         )
+                        .overlay {
+                            if displayMode != .sentinel && !isSelected {
+                                Capsule().stroke(MirrorTheme.paperLine, lineWidth: 1)
+                            }
+                        }
                         .foregroundStyle(isSelected ? MirrorTheme.moodColor(for: mood) : MirrorTheme.textSecondary)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityAddTraits(isSelected ? .isSelected : [])
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
         }
         .horizontalEdgeFade()
-        .background(MirrorTheme.bgBase)
+        .background(entriesGround)
     }
 
     private var searchBar: some View {
@@ -901,8 +986,14 @@ struct EntriesTabView: View {
         .themedCard(cornerRadius: 14)
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .background(MirrorTheme.bgBase)
-        .onAppear { searchFocused = true }
+        .background(entriesGround)
+        .onAppear {
+            #if DEBUG
+            // `--entriesSearch=` captures keep the keyboard down so the result state shows.
+            if ProcessInfo.processInfo.arguments.contains(where: { $0.hasPrefix("--entriesSearch=") }) { return }
+            #endif
+            searchFocused = true
+        }
     }
 
     // MARK: - Select mode
@@ -950,7 +1041,7 @@ struct EntriesTabView: View {
 
     /// The rows on screen now (search, filters and collection applied).
     private func visibleEntryIDs(_ snapshot: EntryListSnapshot) -> Set<UUID> {
-        Set(snapshot.pinnedEntries.map(\.id) + snapshot.groupedByMonth.flatMap { $0.entries.map(\.id) })
+        Set(snapshot.pinnedRows.map(\.id) + snapshot.groupedByMonth.flatMap { $0.rows.map(\.id) })
     }
 
     private var selectedEntries: [Entry] {
@@ -1012,24 +1103,54 @@ struct EntriesTabView: View {
 
     @ViewBuilder
     private func entryRowView(_ entry: Entry, preview: EntryRowPreview?) -> some View {
-        HStack(spacing: 10) {
-            if isSelecting { EntrySelectionMark(selected: selectedIDs.contains(entry.id)) }
-            EntryRow(entry: entry, rowPreview: preview)
-                .modifier(EntryZoomSource(id: entry.id, namespace: entryZoom, enabled: !reduceMotion))
-        }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                if isSelecting { toggleSelection(entry) } else { open(entry) }
+        // A button (was a tap gesture) so the row shows it's being pressed (UI checklist 2026-11-07).
+        Button {
+            if isSelecting { toggleSelection(entry) } else { open(entry) }
+        } label: {
+            HStack(spacing: 10) {
+                if isSelecting { EntrySelectionMark(selected: selectedIDs.contains(entry.id)) }
+                EntryRow(entry: entry, rowPreview: preview)
+                    .modifier(EntryZoomSource(id: entry.id, namespace: entryZoom, enabled: !reduceMotion))
             }
+            .contentShape(Rectangle())
+        }
+            .buttonStyle(EntryRowPressStyle())
             // One element that opens the entry, not its separate texts (backlog A19).
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(isSelecting ? (selectedIDs.contains(entry.id) ? [.isButton, .isSelected] : .isButton) : .isButton)
             .accessibilityAction { if isSelecting { toggleSelection(entry) } else { open(entry) } }
+            #if os(iOS)
+            // Long press: the entry itself as a preview (as Messages and WhatsApp peek a chat),
+            // with Open, Pin, Move to and Delete under it (owner, 2026-11-07).
+            .contextMenu {
+                Button { open(entry) } label: { Label("Open", systemImage: "arrow.up.forward.app") }
+                Button {
+                    entry.isPinned.toggle()
+                    try? modelContext.save()
+                } label: {
+                    Label(entry.isPinned ? "Unpin" : "Pin", systemImage: entry.isPinned ? "pin.slash" : "pin")
+                }
+                MoveToCollectionMenu(entry: entry, lookup: collectionLookup) { newCollectionFor = entry }
+                Divider()
+                Button(role: .destructive) {
+                    if macSelection?.wrappedValue?.id == entry.id { macSelection?.wrappedValue = nil }
+                    try? EntryTrash.moveToTrash([entry], in: modelContext)
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            } preview: {
+                EntryPeekPreview(entry: entry)
+            }
+            #else
             .contextMenu {
                 MoveToCollectionMenu(entry: entry, lookup: collectionLookup) { newCollectionFor = entry }
             }
+            #endif
             .buttonStyle(.plain)
-            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+            // Paper & Ink rows sit flat on the page, edge to edge between hairlines.
+            .listRowInsets(displayMode == .sentinel
+                           ? EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16)
+                           : EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
             .listRowSeparator(.hidden)
             .listRowBackground(macSelection?.wrappedValue?.id == entry.id ? MirrorTheme.violet.opacity(0.16) : Color.clear)
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
@@ -1041,6 +1162,7 @@ struct EntriesTabView: View {
                 } label: {
                     Label("Delete", systemImage: "trash")
                 }
+                .tint(.red)
             }
             .swipeActions(edge: .leading, allowsFullSwipe: true) {
                 Button {
@@ -1056,11 +1178,13 @@ struct EntriesTabView: View {
     }
 
     private func entryList(_ snapshot: EntryListSnapshot) -> some View {
+        ScrollViewReader { proxy in
         List {
             // Activity heatmap
             Section {
                 CalendarHeatmap(
                     entries: entries,
+                    moodScope: moodScopeMemo.scope(for: collectionModels),
                     selectedDate: filters.selectedDay,
                     onDaySelected: { date in
                         withAnimation(.easeInOut(duration: 0.2)) {
@@ -1071,6 +1195,7 @@ struct EntriesTabView: View {
                 .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 8, trailing: 0))
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
+                .id(Self.listTopID)
             }
 
             if journalSafety.restoreOffer != nil {
@@ -1112,78 +1237,91 @@ struct EntriesTabView: View {
 
             if !snapshot.pinnedEntries.isEmpty {
                 Section {
-                    ForEach(snapshot.pinnedEntries) { entry in
-                        entryRowView(entry, preview: snapshot.rowPreviews[entry.id])
+                    ForEach(snapshot.pinnedRows) { row in
+                        entryRowView(row.entry, preview: snapshot.rowPreviews[row.id])
                     }
                 } header: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "pin.fill").scaledFont(11, weight: .bold)
-                        Group {
-                            if displayMode == .sentinel {
-                                Text("Pinned").scaledFont(13, weight: .bold, design: .monospaced).tracking(1.5)
-                            } else {
-                                Text("Pinned").scaledFont(13, weight: .black, design: .rounded).tracking(1.5)
-                            }
+                    if displayMode == .sentinel {
+                        HStack(spacing: 4) {
+                            Image(systemName: "pin.fill").scaledFont(11, weight: .bold)
+                            Text("Pinned").scaledFont(13, weight: .bold, design: .monospaced).tracking(1.5)
                         }
+                        .foregroundStyle(MirrorTheme.ember.opacity(0.75))
+                        .textCase(.uppercase)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                        .padding(.bottom, 2)
+                    } else {
+                        // Paper & Ink: the same small label as Today / Yesterday, lined up with the rows.
+                        HStack(spacing: 5) {
+                            Image(systemName: "pin.fill").scaledFont(10, weight: .semibold)
+                            Text("Pinned").scaledFont(11.5, weight: .semibold).kerning(0.8)
+                        }
+                        .foregroundStyle(MirrorTheme.violet)
+                        .textCase(.uppercase)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityAddTraits(.isHeader)
+                        .padding(.horizontal, 4)
+                        .padding(.top, 16)
+                        .padding(.bottom, 4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background { entriesGround.padding(.horizontal, -24) }
                     }
-                    .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.75) : MirrorTheme.textTertiary)
-                    .textCase(.uppercase)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                    .padding(.bottom, 2)
                 }
             }
 
             if snapshot.filteredEntries.isEmpty {
-                Group {
-                    if displayMode == .sentinel {
-                        Text(emptyFilteredMessage).scaledFont(13, weight: .medium, design: .monospaced).textCase(.uppercase)
-                    } else {
-                        Text(emptyFilteredMessage).scaledFont(14)
-                    }
-                }
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .multilineTextAlignment(.center)
-                .padding(.top, 32)
-                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-                if let count = snapshot.matchesWithoutFilters, count > 0 {
-                    relaxFiltersButton(count)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 0, trailing: 16))
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                }
+                filteredEmptyState(matchesWithoutFilters: snapshot.matchesWithoutFilters)
+                    .padding(.top, 32)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 24, bottom: 0, trailing: 24))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
             } else {
                 EmptyView()
             }
 
             ForEach(snapshot.groupedByMonth, id: \.date) { group in
+                let labels = dayLabels(for: group, ranked: snapshot.isRanked)
                 Section {
-                    ForEach(group.entries) { entry in
-                        entryRowView(entry, preview: snapshot.rowPreviews[entry.id])
+                    ForEach(group.rows) { row in
+                        if let label = labels[row.id] { dayLabelRow(label) }
+                        entryRowView(row.entry, preview: snapshot.rowPreviews[row.id])
                     }
                 } header: {
-                    HStack {
+                    // The current month is already named by the calendar above and split into
+                    // Today / Yesterday / This week / Earlier, so it gets no heading of its own
+                    // (owner, 2026-11-07: "November 2026" twice). Older months keep theirs.
+                    if labels.isEmpty {
+                    HStack(alignment: .firstTextBaseline) {
                         Group {
                             if displayMode == .sentinel {
                                 Text(sectionTitle(for: group, ranked: snapshot.isRanked)).scaledFont(13, weight: .bold, design: .monospaced).tracking(1.5)
                             } else {
-                                Text(sectionTitle(for: group, ranked: snapshot.isRanked)).scaledFont(13, weight: .black, design: .rounded).tracking(1.5)
+                                // Paper & Ink: the month reads as a serif heading, not a caps label.
+                                Text(sectionTitle(for: group, ranked: snapshot.isRanked))
+                                    .scaledFont(20, weight: .medium, design: .serif)
+                                    .foregroundStyle(MirrorTheme.textPrimary)
                             }
                         }
                         Spacer()
-                        Text(group.entries.count == 1 ? "1 entry" : "\(group.entries.count) entries")
-                            .scaledFont(12, weight: .semibold, design: .monospaced)
+                        Text(group.rows.count == 1 ? "1 entry" : "\(group.rows.count) entries")
+                            .scaledFont(displayMode == .sentinel ? 12 : 13, weight: displayMode == .sentinel ? .semibold : .regular, design: displayMode == .sentinel ? .monospaced : .default)
                             .textCase(nil)
                     }
-                    .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.75) : MirrorTheme.textTertiary)
-                    .textCase(.uppercase)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                    .padding(.bottom, 2)
+                    .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.75) : MirrorTheme.textSecondary)
+                    .textCase(displayMode == .sentinel ? .uppercase : nil)
+                    // The plain list already insets headers 16 pt; 4 more lines the month up with the rows (20).
+                    .padding(.horizontal, displayMode == .sentinel ? 16 : 4)
+                    .padding(.top, displayMode == .sentinel ? 8 : 16)
+                    .padding(.bottom, displayMode == .sentinel ? 2 : 6)
+                    // Pinned while its month scrolls under it: paper behind it, edge to edge, so rows
+                    // don't show through the heading.
+                    .background {
+                        if displayMode != .sentinel {
+                            entriesGround.padding(.horizontal, -24)
+                        }
+                    }
+                    }
                 }
             }
         }
@@ -1196,8 +1334,63 @@ struct EntriesTabView: View {
         .environment(\.defaultMinListHeaderHeight, 0)
         .environment(\.defaultMinListRowHeight, 1)
         .scrollDismissesKeyboard(.interactively)
-        .background(MirrorTheme.bgBase)
+        .background(entriesGround)
+        .onChange(of: scrollToTopID) { _, _ in
+            // First tap closes a pushed reader (the list is then where it was); the next scrolls.
+            if showEntryDetail {
+                showEntryDetail = false
+                selectedEntry = nil
+                return
+            }
+            if reduceMotion {
+                proxy.scrollTo(Self.listTopID, anchor: .top)
+            } else {
+                withAnimation(.easeOut(duration: 0.3)) { proxy.scrollTo(Self.listTopID, anchor: .top) }
+            }
+        }
+        }
     }
+
+    /// Paper & Ink option D: in this month, newest first, a label before the first entry of each
+    /// stretch: Today, Yesterday, This week, Earlier. Not for Sentinel, other sorts or search.
+    private func dayLabels(for group: EntryMonthGroup, ranked: Bool) -> [UUID: LocalizedStringKey] {
+        guard displayMode != .sentinel, !ranked, sortOrder == .newestFirst,
+              let first = group.rows.first, Calendar.current.isDate(first.entry.createdAt, equalTo: Date(), toGranularity: .month)
+        else { return [:] }
+        let cal = Calendar.current
+        func bucket(_ date: Date) -> Int {
+            if cal.isDateInToday(date) { return 0 }
+            if cal.isDateInYesterday(date) { return 1 }
+            if cal.isDate(date, equalTo: Date(), toGranularity: .weekOfYear) { return 2 }
+            return 3
+        }
+        let names: [LocalizedStringKey] = ["Today", "Yesterday", "This week", "Earlier"]
+        var labels: [UUID: LocalizedStringKey] = [:]
+        var last = -1
+        for row in group.rows {
+            let b = bucket(row.entry.createdAt)
+            if b != last { labels[row.id] = names[b]; last = b }
+        }
+        // A month with only older entries needs no "Earlier" label.
+        if labels.count == 1, let only = labels.first, last == 3 { labels[only.key] = nil }
+        return labels
+    }
+
+    private func dayLabelRow(_ label: LocalizedStringKey) -> some View {
+        Text(label)
+            .scaledFont(11.5, weight: .semibold)
+            .kerning(0.8)
+            .textCase(.uppercase)
+            .foregroundStyle(MirrorTheme.violet)
+            .accessibilityAddTraits(.isHeader)
+            .padding(.top, 16)
+            .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+    }
+
+    /// The heatmap row, the list's first row (scroll-to-top target).
+    private static let listTopID = "entries.listTop"
 
     /// The search matches entries the filters hide: offer to keep the search and
     /// drop the filters, instead of leaving the user to guess which one to remove.
@@ -1214,8 +1407,62 @@ struct EntriesTabView: View {
             }
             .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet)
         }
+        #if os(iOS)
+        .frame(minHeight: 44)
+        #endif
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
         .accessibilityIdentifier("search.relaxFilters")
+    }
+
+    /// Search or filters that match nothing: a calm heading, why, and the one step that brings
+    /// entries back (drop the filters the search is blocked by, else clear filters or the search).
+    @ViewBuilder
+    private func filteredEmptyState(matchesWithoutFilters: Int?) -> some View {
+        VStack(spacing: 8) {
+            if displayMode == .sentinel {
+                Text(emptyFilteredMessage).scaledFont(13, weight: .medium, design: .monospaced).textCase(.uppercase)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("No matches")
+                    .scaledFont(20, weight: .medium, design: .serif)
+                    .foregroundStyle(MirrorTheme.textPrimary)
+                    .accessibilityAddTraits(.isHeader)
+                Text(emptyFilteredMessage)
+                    .scaledFont(14)
+                    .foregroundStyle(MirrorTheme.textSecondary)
+            }
+            Group {
+                // The search alone finds something: drop the filters. A search that finds nothing
+                // even without them (or can't be read) is the thing to clear. Filters only: clear them.
+                if let count = matchesWithoutFilters, count > 0 {
+                    relaxFiltersButton(count)
+                } else if !debouncedSearchText.isEmpty {
+                    emptyStateAction("Clear search") { searchText = ""; debouncedSearchText = "" }
+                } else if filters.isActive {
+                    emptyStateAction("Clear filters") {
+                        withAnimation(.easeInOut(duration: 0.2)) { filters = EntryFilterCriteria() }
+                    }
+                }
+            }
+            .padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+        .multilineTextAlignment(.center)
+    }
+
+    private func emptyStateAction(_ title: LocalizedStringKey, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .scaledFont(displayMode == .sentinel ? 12 : 14, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
+                .textCase(displayMode == .sentinel ? .uppercase : nil)
+                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet)
+                #if os(iOS)
+                .frame(minHeight: 44)
+                #endif
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private var emptyFilteredMessage: LocalizedStringKey {
@@ -1265,7 +1512,7 @@ struct EntriesTabView: View {
                 if displayMode == .sentinel {
                     Text("NO SIGNALS YET").scaledFont(18, weight: .semibold, design: .monospaced).tracking(1)
                 } else {
-                    Text("No entries yet").scaledFont(20, weight: .semibold)
+                    Text("No entries yet").scaledFont(24, weight: .medium, design: .serif)
                 }
             }
             Group {
@@ -1286,16 +1533,243 @@ struct EntriesTabView: View {
     }
 }
 
+#if os(iOS)
+/// Paper & Ink (owner 2026-11-07): a screen's navigation-bar title in the reflection's serif.
+/// iOS 18+ hides the system title so it isn't shown twice (iOS 26+ also drops the toolbar glass
+/// behind it); iOS 17 keeps the system title. The navigation title itself stays set, so back
+/// buttons and the app switcher still read it.
+struct SerifNavigationTitle: ViewModifier {
+    let title: LocalizedStringKey
+    let enabled: Bool
+
+    func body(content: Content) -> some View {
+        if enabled, #available(iOS 26.0, *) {
+            content
+                .toolbar(removing: .title)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) { label }
+                        .sharedBackgroundVisibility(.hidden)
+                }
+        } else if enabled, #available(iOS 18.0, *) {
+            content
+                .toolbar(removing: .title)
+                .toolbar { ToolbarItem(placement: .topBarLeading) { label } }
+        } else {
+            content
+        }
+    }
+
+    private var label: some View {
+        Text(title)
+            .scaledFont(26, weight: .medium, design: .serif)
+            .foregroundStyle(MirrorTheme.textPrimary)
+            .lineLimit(1)
+            .fixedSize()
+            .accessibilityAddTraits(.isHeader)
+    }
+}
+#endif
+
+/// Which first line becomes a row's title (Paper & Ink option D). The writer's own Title, Heading
+/// or Subheading on the first paragraph always does. Otherwise only a short first line (60
+/// characters or less) that doesn't end like a sentence, with more after it: "Rough day." stays
+/// prose (UI checklist 2026-11-07: no arbitrary bold). One-paragraph entries keep their preview.
+enum EntryRowText {
+    private static let sentenceEnds: Set<Character> = [".", "!", "?", "…", "。", "！", "？"]
+
+    static func split(_ lines: [String], firstIsStyledTitle: Bool = false) -> (title: String?, body: String) {
+        guard lines.count >= 2, let first = lines.first else { return (nil, lines.joined(separator: " ")) }
+        guard firstIsStyledTitle || looksLikeTitle(first) else { return (nil, lines.joined(separator: " ")) }
+        return (first, lines.dropFirst().joined(separator: " "))
+    }
+
+    private static func looksLikeTitle(_ line: String) -> Bool {
+        line.count <= 60 && !(line.last.map(sentenceEnds.contains) ?? false)
+    }
+
+    /// `split` for an entry: `lines` are its text lines with pictures and blank lines left out,
+    /// `text` the stored text they came from. The stored style is read for the first paragraph
+    /// that has words (not paragraph 0, which can be a picture or an empty Heading line), and
+    /// only when it could change the answer (code review, 2026-11-07).
+    static func split(_ lines: [String], text: String, styleData: () -> Data?) -> (title: String?, body: String) {
+        guard lines.count >= 2, let first = lines.first, !looksLikeTitle(first) else { return split(lines) }
+        guard let data = styleData(),
+              let styles = try? JSONDecoder().decode(NoteTextStyleDocument.self, from: data).paragraphStyles,
+              let index = firstWordsParagraph(in: text), index < styles.count
+        else { return split(lines) }
+        let style = styles[index]
+        return split(lines, firstIsStyledTitle: style == .title || style == .heading || style == .subheading)
+    }
+
+    /// The index of the first stored paragraph with words in it once pictures are taken out.
+    static func firstWordsParagraph(in text: String) -> Int? {
+        text.components(separatedBy: "\n").firstIndex { line in
+            var rest = line
+            for (range, _) in allPhotoTokens(in: rest).reversed() { rest.removeSubrange(range) }
+            return !rest.trimmingCharacters(in: .whitespaces).isEmpty
+        }
+    }
+}
+
+/// An entry's first picture as a small square for its row, decrypted when the row shows and shrunk
+/// off the main thread; kept in memory for the session.
+private struct EntryThumbnail: View {
+    let entry: Entry
+    let side: CGFloat
+    @Environment(\.displayScale) private var displayScale
+    @State private var image: CGImage?
+
+    private static let cache = NSCache<NSString, CGImageBox>()
+    final class CGImageBox { let image: CGImage; init(_ image: CGImage) { self.image = image } }
+
+    private var key: String { "\(entry.id.uuidString)-\(entry.encryptedPhotoData?.count ?? 0)-\(Int(side))" }
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .fill(MirrorTheme.paperLine)
+            .overlay {
+                if let image {
+                    Image(decorative: image, scale: displayScale).resizable().scaledToFill()
+                }
+            }
+            .frame(width: side, height: side)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .accessibilityHidden(true)
+            .task(id: key) {
+                if let hit = Self.cache.object(forKey: key as NSString) { image = hit.image; return }
+                guard let data = entry.photoData else { return }
+                let pixels = Int(side * max(displayScale, 2))
+                let made = await Task.detached(priority: .utility) { Self.squareThumbnail(data, pixels: pixels) }.value
+                guard let made, !Task.isCancelled else { return }
+                Self.cache.setObject(CGImageBox(made), forKey: key as NSString)
+                image = made
+            }
+    }
+
+    nonisolated private static func squareThumbnail(_ data: Data, pixels: Int) -> CGImage? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: pixels * 2,
+        ]
+        guard let thumb = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+        let edge = min(thumb.width, thumb.height)
+        return thumb.cropping(to: CGRect(x: (thumb.width - edge) / 2, y: (thumb.height - edge) / 2, width: edge, height: edge))
+    }
+}
+
+#if os(iOS)
+/// What a long press on an entry row shows above its menu: the entry on paper, its first picture,
+/// title and text, read once when the preview opens (nothing is decrypted for rows that aren't
+/// pressed). Read-only; Open in the menu goes to the reader.
+private struct EntryPeekPreview: View {
+    let entry: Entry
+    @State private var picture: UIImage?
+
+    private var lines: [String] {
+        guard !entry.textDecryptionFailed else { return [] }
+        var text = entry.text
+        for (range, _) in allPhotoTokens(in: text).reversed() { text.removeSubrange(range) }
+        return text.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+
+    var body: some View {
+        let split = EntryRowText.split(lines, text: entry.textDecryptionFailed ? "" : entry.text, styleData: { entry.textStyleData })
+        VStack(alignment: .leading, spacing: 10) {
+            Text(entry.createdAt, format: .dateTime.weekday(.wide).month(.wide).day())
+                .scaledFont(20, weight: .medium, design: .serif)
+                .foregroundStyle(MirrorTheme.textPrimary)
+            meta
+            if let picture {
+                Image(uiImage: picture)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 170)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+            if let title = split.title {
+                Text(verbatim: title)
+                    .scaledFont(19, weight: .semibold, design: .serif)
+                    .foregroundStyle(MirrorTheme.textPrimary)
+            }
+            if entry.textDecryptionFailed {
+                Text("Encrypted entry unavailable")
+                    .scaledFont(16)
+                    .foregroundStyle(MirrorTheme.textSecondary)
+            } else {
+                Text(verbatim: split.title == nil ? lines.joined(separator: "\n") : lines.dropFirst().joined(separator: "\n"))
+                    .readingFont(size: 17)
+                    .lineSpacing(5)
+                    .foregroundStyle(MirrorTheme.textPrimary)
+                    .lineLimit(14)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(20)
+        .frame(width: 340, alignment: .topLeading)
+        .frame(minHeight: 200, maxHeight: 560, alignment: .top)
+        .background(MirrorTheme.inkMid)
+        .task {
+            guard entry.hasPhoto, let data = entry.photoData else { return }
+            picture = await Task.detached(priority: .userInitiated) {
+                guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+                      let cg = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                        kCGImageSourceCreateThumbnailFromImageAlways: true,
+                        kCGImageSourceCreateThumbnailWithTransform: true,
+                        kCGImageSourceThumbnailMaxPixelSize: 900,
+                      ] as CFDictionary) else { return nil }
+                return UIImage(cgImage: cg)
+            }.value
+        }
+    }
+
+    private var meta: some View {
+        var line = Text(entry.createdAt, format: .dateTime.hour().minute())
+        if let mood = entry.mood, !mood.isEmpty {
+            line = line + Text(" · ") + Text("●").foregroundStyle(MirrorTheme.moodColor(for: mood))
+                + Text(" " + MirrorTheme.localizedMoodName(for: mood))
+        }
+        let tags = entry.tags.prefix(3).map { "#" + MirrorTheme.localizedTagName(for: $0) }
+        if !tags.isEmpty { line = line + Text(" · ") + Text(tags.joined(separator: " ")).foregroundStyle(MirrorTheme.violet) }
+        return line.scaledFont(14).foregroundStyle(MirrorTheme.textSecondary)
+    }
+}
+#endif
+
+/// A soft plum wash while an entry row is held; nothing else changes.
+private struct EntryRowPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(MirrorTheme.violet.opacity(configuration.isPressed ? 0.08 : 0))
+                    .padding(.horizontal, -8)
+            }
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
 private struct EntryRow: View {
     let entry: Entry
     @Environment(\.appDisplayMode) private var displayMode
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.displayScale) private var displayScale
     private let moodLabel: String?
     private let preview: Text
     private let displayWordCount: Int
     private let hasReadablePreview: Bool
     private let hasVoiceNotes: Bool
     private let decryptFailed: Bool
+    private let title: String?
+    private let snippet: Text?
+    private let tags: [String]
+    /// Search results show their matched excerpt, never a title split.
+    private let isSearchMatch: Bool
     // The list reads in one voice (2026-10-21 design review): a per-entry font (serif, mono,
     // rounded from the Aa panel) shows inside the entry, where the writing is, not in its row.
     // Before this the row used the entry's first paragraph's font, so a mono entry between a
@@ -1312,6 +1786,10 @@ private struct EntryRow: View {
             self.hasReadablePreview = rp.hasReadablePreview
             self.hasVoiceNotes = rp.hasVoiceNotes
             self.decryptFailed = rp.textDecryptionFailed
+            self.title = rp.title
+            self.snippet = rp.snippet
+            self.tags = rp.tags
+            self.isSearchMatch = rp.isSearchMatch
         } else {
             self.decryptFailed = entry.textDecryptionFailed
             self.moodLabel = entry.mood.flatMap { $0.isEmpty ? nil : $0 }
@@ -1320,7 +1798,29 @@ private struct EntryRow: View {
             self.displayWordCount = snapshot.wordCount
             self.hasReadablePreview = snapshot.hasReadablePreview
             self.hasVoiceNotes = snapshot.hasVoiceNotes
+            let titled = Self.titleAndSnippet(for: entry)
+            self.title = titled.title
+            self.snippet = titled.snippet
+            self.tags = []
+            self.isSearchMatch = false
         }
+    }
+
+    /// Paper & Ink's date: a serif numeral over the weekday, no tile (the mood rule carries colour).
+    private func paperDate(stacked: Bool) -> some View {
+        let layout = stacked ? AnyLayout(VStackLayout(spacing: 3)) : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 6))
+        return layout {
+            Text(entry.createdAt, format: .dateTime.day())
+                .scaledFont(24, weight: .regular, design: .serif)
+                .foregroundStyle(MirrorTheme.textPrimary)
+                .monospacedDigit()
+            Text(entry.createdAt, format: .dateTime.weekday(.abbreviated))
+                .scaledFont(11, weight: .semibold)
+                .kerning(0.6)
+                .foregroundStyle(MirrorTheme.textSecondary)
+                .textCase(.uppercase)
+        }
+        .frame(width: stacked ? 40 : nil)
     }
 
     private func dateTile(stacked: Bool) -> some View {
@@ -1354,7 +1854,7 @@ private struct EntryRow: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 12) {
                 preview
-                    .scaledFont(displayMode == .sentinel ? 15 : 16, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)
+                    .scaledFont(displayMode == .sentinel ? 15 : 16, weight: displayMode == .sentinel ? .medium : .regular, design: displayMode == .sentinel ? .monospaced : .default)
                     .foregroundStyle(previewTextColor)
                     .lineLimit(3)
                     .multilineTextAlignment(.leading)
@@ -1379,10 +1879,25 @@ private struct EntryRow: View {
                     .scaledFont(displayMode == .sentinel ? 11.5 : 13, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)
                     .foregroundStyle(.secondary)
                 if displayWordCount > 0 {
-                    Text("\(displayWordCount)w")
-                        .scaledFont(displayMode == .sentinel ? 11.5 : 13, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
+                    // "53w" read as "53 weeks" (audit 2026-11-04). Classic spells it out and falls
+                    // back to the short form only when the row has no room (large text sizes);
+                    // Sentinel keeps its terse mono label.
+                    let short = Text("\(displayWordCount)w")
+                    let full = Text(displayWordCount == 1 ? "1 word" : "\(displayWordCount) words")
+                    Group {
+                        if displayMode == .sentinel {
+                            short
+                        } else {
+                            ViewThatFits(in: .horizontal) {
+                                full.lineLimit(1)
+                                short.lineLimit(1)
+                            }
+                        }
+                    }
+                    .scaledFont(displayMode == .sentinel ? 11.5 : 13, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                    .accessibilityLabel(full)
                 }
                 Spacer(minLength: 8)
                 if let label = moodLabel {
@@ -1397,10 +1912,10 @@ private struct EntryRow: View {
                             .kerning(displayMode == .sentinel ? 0.3 : 0)
                             .foregroundStyle(.secondary)
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
+                    .padding(.horizontal, displayMode == .sentinel ? 8 : 0)
+                    .padding(.vertical, displayMode == .sentinel ? 3 : 0)
                     .background(
-                        MirrorTheme.moodColor(for: label).opacity(0.10),
+                        displayMode == .sentinel ? MirrorTheme.moodColor(for: label).opacity(0.10) : Color.clear,
                         in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
                     )
                     .overlay {
@@ -1414,6 +1929,56 @@ private struct EntryRow: View {
         }
     }
 
+    /// Paper & Ink option D (owner 2026-11-07): a short first line as a serif title over a two-line
+    /// snippet, then time · words · mood · tags. A picture shows as the row's thumbnail.
+    private var paperContent: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if let title, !isSearchMatch {
+                Text(verbatim: title)
+                    .scaledFont(18, weight: .semibold, design: .serif)
+                    .foregroundStyle(MirrorTheme.textPrimary)
+                    .lineLimit(2)
+                if let snippet {
+                    snippet
+                        .scaledFont(15)
+                        .foregroundStyle(MirrorTheme.textPrimary.opacity(0.82))
+                        .lineLimit(2)
+                }
+            } else {
+                preview
+                    .scaledFont(16)
+                    .foregroundStyle(previewTextColor)
+                    .lineLimit(3)
+            }
+            paperMeta
+                .padding(.top, 2)
+        }
+        .multilineTextAlignment(.leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var paperMeta: some View {
+        var parts: [Text] = [Text(entry.createdAt, format: .dateTime.hour().minute())]
+        if displayWordCount > 0, title == nil || snippet != nil {
+            parts.append(Text(displayWordCount == 1 ? "1 word" : "\(displayWordCount) words"))
+        }
+        var line = parts.dropFirst().reduce(parts[0]) { $0 + Text(" · ") + $1 }
+        if let label = moodLabel {
+            line = line + Text(" · ") + Text("●").foregroundStyle(MirrorTheme.moodColor(for: label))
+                + Text(" " + MirrorTheme.localizedMoodName(for: label))
+        }
+        let shownTags = tags.prefix(2).map { "#" + MirrorTheme.localizedTagName(for: $0) }
+        if !shownTags.isEmpty {
+            line = line + Text(" · ") + Text(shownTags.joined(separator: " ")).foregroundStyle(MirrorTheme.violet)
+            if tags.count > 2 { line = line + Text(" +\(tags.count - 2)").foregroundStyle(MirrorTheme.violet) }
+        }
+        if hasVoiceNotes { line = line + Text("  ") + Text(Image(systemName: "waveform")) }
+        return line
+            .scaledFont(13)
+            .foregroundStyle(MirrorTheme.textSecondary)
+            .lineLimit(2)
+    }
+
     private var previewTextColor: Color {
         hasReadablePreview && !decryptFailed ? MirrorTheme.textPrimary : MirrorTheme.textSecondary
     }
@@ -1423,6 +1988,43 @@ private struct EntryRow: View {
     }
 
     var body: some View {
+        if displayMode == .sentinel { cardBody } else { paperBody }
+    }
+
+    /// Paper & Ink (owner 2026-11-07): the row lies flat on the page between hairlines. The mood
+    /// rule stays at the left edge, full height, as the entry's colour.
+    private var paperBody: some View {
+        Group {
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 8) {
+                    paperDate(stacked: false)
+                    paperContent
+                    if entry.hasPhoto { EntryThumbnail(entry: entry, side: 72) }
+                }
+            } else {
+                HStack(alignment: .top, spacing: 12) {
+                    paperDate(stacked: true)
+                    paperContent
+                    if entry.hasPhoto { EntryThumbnail(entry: entry, side: 56) }
+                }
+            }
+        }
+        .padding(.leading, 15)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                .fill(moodColor.opacity(moodLabel == nil ? 0.20 : 0.9))
+                .frame(width: 3)
+                .padding(.vertical, 14)
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(MirrorTheme.paperLine).frame(height: 1 / max(displayScale, 1))
+        }
+    }
+
+    private var cardBody: some View {
         // At accessibility text sizes the date tile goes above the text as one line ("24 SAT");
         // in its 42 pt column the day and weekday broke apart.
         Group {
@@ -1472,6 +2074,18 @@ private struct EntryRow: View {
             return String(trimmed.dropFirst(2))
         }
         return trimmed
+    }
+
+    /// The row's title and the text after it (option D), from the same stripped lines the preview uses.
+    fileprivate static func titleAndSnippet(for entry: Entry) -> (title: String?, snippet: Text?) {
+        guard !entry.textDecryptionFailed else { return (nil, nil) }
+        var stripped = entry.text
+        for (r, _) in allPhotoTokens(in: stripped).reversed() { stripped.removeSubrange(r) }
+        let lines = stripped.components(separatedBy: .newlines).map { strippedLine($0) }.filter { !$0.isEmpty }
+        // The first written paragraph's stored style (Title / Heading / Subheading) makes it a title as written.
+        let split = EntryRowText.split(lines, text: entry.text, styleData: { entry.textStyleData })
+        guard let title = split.title else { return (nil, nil) }
+        return (title, split.body.isEmpty ? nil : Text(verbatim: split.body))
     }
 
     fileprivate static func makePreview(for entry: Entry) -> (preview: Text, wordCount: Int, hasReadablePreview: Bool, hasVoiceNotes: Bool) {
@@ -1533,6 +2147,7 @@ extension EntriesTabView {
                 VStack(spacing: 8) {
                     CalendarHeatmap(
                         entries: entries,
+                        moodScope: moodScopeMemo.scope(for: collectionModels),
                         selectedDate: filters.selectedDay,
                         onDaySelected: { date in
                             withAnimation(.easeInOut(duration: 0.2)) {
@@ -1567,24 +2182,19 @@ extension EntriesTabView {
                 LazyVStack(alignment: .leading, spacing: 2) {
                     if !snapshot.pinnedEntries.isEmpty {
                         macSectionLabel("PINNED", icon: "pin", topPadding: 6)
-                        ForEach(snapshot.pinnedEntries) { entry in
-                            macRow(entry, snapshot: snapshot)
+                        ForEach(snapshot.pinnedRows) { row in
+                            macRow(row.entry, snapshot: snapshot)
                         }
                     }
                     if snapshot.filteredEntries.isEmpty {
-                        Text(emptyFilteredMessage)
-                            .scaledFont(13)
-                            .foregroundStyle(MacTokens.secondaryInk)
-                            .frame(maxWidth: .infinity)
+                        filteredEmptyState(matchesWithoutFilters: snapshot.matchesWithoutFilters)
+                            .padding(.horizontal, 24)
                             .padding(.top, 32)
-                        if let count = snapshot.matchesWithoutFilters, count > 0 {
-                            relaxFiltersButton(count).frame(maxWidth: .infinity).padding(.top, 8)
-                        }
                     }
                     ForEach(snapshot.groupedByMonth, id: \.date) { group in
                         macSectionLabel(sectionTitle(for: group, ranked: snapshot.isRanked).uppercased(), icon: nil, topPadding: 14)
-                        ForEach(group.entries) { entry in
-                            macRow(entry, snapshot: snapshot)
+                        ForEach(group.rows) { row in
+                            macRow(row.entry, snapshot: snapshot)
                         }
                     }
                 }
@@ -1636,7 +2246,7 @@ extension EntriesTabView {
     /// The rows in the order they are drawn: pinned first, then each month.
     private func macOrderedEntries(_ snapshot: EntryListSnapshot) -> [Entry] {
         var seen = Set<UUID>()
-        return (snapshot.pinnedEntries + snapshot.groupedByMonth.flatMap(\.entries)).filter { seen.insert($0.id).inserted }
+        return (snapshot.pinnedRows + snapshot.groupedByMonth.flatMap(\.rows)).filter { seen.insert($0.id).inserted }.map(\.entry)
     }
 
     private func macMoveSelection(_ step: Int, _ snapshot: EntryListSnapshot) {
@@ -1677,7 +2287,7 @@ extension EntriesTabView {
     fileprivate var macHeader: some View {
         HStack(spacing: 8) {
             Text("Entries")
-                .scaledFont(15, weight: .semibold)
+                .scaledFont(17, weight: .medium, design: .serif)
                 .foregroundStyle(MacTokens.ink)
             Text("\(entries.count)")
                 .scaledFont(12)
@@ -1878,26 +2488,40 @@ private struct MacEntryRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
+            // Paper & Ink (option D, as on iPhone): a serif day numeral, no tile; the rail carries colour.
             VStack(spacing: 2) {
                 Text(entry.createdAt, format: .dateTime.day())
-                    .scaledFont(15, weight: .bold, design: .rounded)
+                    .scaledFont(18, weight: .regular, design: .serif)
                     .foregroundStyle(MacTokens.ink)
                     .monospacedDigit()
                 Text(entry.createdAt, format: .dateTime.weekday(.abbreviated))
-                    .scaledFont(9, weight: .bold)
+                    .scaledFont(9, weight: .semibold)
+                    .kerning(0.5)
                     .foregroundStyle(secondary)
                     .textCase(.uppercase)
             }
-            .frame(width: 36)
-            .padding(.vertical, 7)
-            .background(moodColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .frame(width: 34)
+            .padding(.vertical, 4)
 
-            VStack(alignment: .leading, spacing: 4) {
-                (preview?.preview ?? Text("Untitled entry"))
-                    .scaledFont(13.5, weight: .semibold)
-                    .foregroundStyle(MacTokens.ink)
-                    .lineLimit(preview?.isSearchMatch == true ? 2 : 1)
-                    .truncationMode(.tail)
+            VStack(alignment: .leading, spacing: 3) {
+                if let title = preview?.title, preview?.isSearchMatch != true {
+                    Text(verbatim: title)
+                        .scaledFont(14.5, weight: .semibold, design: .serif)
+                        .foregroundStyle(MacTokens.ink)
+                        .lineLimit(1)
+                    if let snippet = preview?.snippet {
+                        snippet
+                            .scaledFont(12.5)
+                            .foregroundStyle(MacTokens.ink.opacity(0.8))
+                            .lineLimit(1)
+                    }
+                } else {
+                    (preview?.preview ?? Text("Untitled entry"))
+                        .scaledFont(13.5, weight: .medium)
+                        .foregroundStyle(MacTokens.ink)
+                        .lineLimit(2)
+                        .truncationMode(.tail)
+                }
 
                 HStack(spacing: 5) {
                     if let mood {
@@ -1918,6 +2542,7 @@ private struct MacEntryRow: View {
                 .lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            if entry.hasPhoto { EntryThumbnail(entry: entry, side: 40) }
         }
         .padding(.leading, 13)
         .padding(.trailing, 10)
@@ -1962,20 +2587,38 @@ final class EntryDecryptCache {
 
     private var items: [UUID: Item] = [:]
 
+    /// Length plus the first and last bytes of a stored value. Every encryption draws a fresh random
+    /// nonce (the first 12 bytes) and ends in the GCM tag (the last 16), so any rewrite changes both.
+    /// Hashing whole ciphertexts and style blobs was a large share of the list's main-thread time.
+    private static func fingerprint(_ value: String?, into h: inout Hasher) {
+        guard let value else { h.combine(-1); return }
+        let utf8 = value.utf8
+        h.combine(utf8.count)
+        for byte in utf8.prefix(40) { h.combine(byte) }
+        for byte in utf8.suffix(28) { h.combine(byte) }
+    }
+
+    private static func fingerprint(_ value: Data?, into h: inout Hasher) {
+        guard let value else { h.combine(-1); return }
+        h.combine(value.count)
+        for byte in value.prefix(48) { h.combine(byte) }
+        for byte in value.suffix(32) { h.combine(byte) }
+    }
+
     /// Changes to any encrypted field the list reads change the signature.
     static func signature(of entry: Entry) -> Int {
         var h = Hasher()
-        h.combine(entry.encryptedText)
-        h.combine(entry.encryptedMood)
-        h.combine(entry.encryptedTagsStorage)
-        h.combine(entry.encryptedVoiceNoteTranscript)
-        h.combine(entry.encryptedAdditionalVoiceNoteTranscriptsStorage)
-        h.combine(entry.encryptedVoiceNoteEnglishTranslation)
-        h.combine(entry.encryptedAdditionalVoiceNoteEnglishTranslationsStorage)
-        h.combine(entry.encryptedVoiceNoteLanguageName)
-        h.combine(entry.encryptedAdditionalVoiceNoteLanguageNamesStorage)
-        h.combine(entry.encryptedTextStyleData)
-        h.combine(entry.encryptedInlineStyleData)
+        fingerprint(entry.encryptedText, into: &h)
+        fingerprint(entry.encryptedMood, into: &h)
+        fingerprint(entry.encryptedTagsStorage, into: &h)
+        fingerprint(entry.encryptedVoiceNoteTranscript, into: &h)
+        fingerprint(entry.encryptedAdditionalVoiceNoteTranscriptsStorage, into: &h)
+        fingerprint(entry.encryptedVoiceNoteEnglishTranslation, into: &h)
+        fingerprint(entry.encryptedAdditionalVoiceNoteEnglishTranslationsStorage, into: &h)
+        fingerprint(entry.encryptedVoiceNoteLanguageName, into: &h)
+        fingerprint(entry.encryptedAdditionalVoiceNoteLanguageNamesStorage, into: &h)
+        fingerprint(entry.encryptedTextStyleData, into: &h)
+        fingerprint(entry.encryptedInlineStyleData, into: &h)
         h.combine(entry.fontChoice)
         h.combine(entry.wordCount)
         h.combine(entry.createdAt)
@@ -1990,6 +2633,27 @@ final class EntryDecryptCache {
         return h.finalize()
     }
 
+    /// Signatures from the latest `checkSignatures` pass. A snapshot looks every entry up 4-5 times
+    /// (moods, tags, filters, sort), and each lookup used to read every stored field again.
+    private var recordedSignatures: [UUID: Int] = [:]
+    private var checkedRevision: Int?
+    /// Items already looked up since the last pass, by object identity: reading `entry.id` goes
+    /// through SwiftData too, and a snapshot looks each entry up several times.
+    private var resolved: [ObjectIdentifier: Item] = [:]
+
+    /// Reads every entry's fields once per journal revision (a save or a CloudKit import), so a
+    /// search keystroke or a filter change looks nothing up again.
+    func checkSignatures(of entries: [Entry], revision: Int) {
+        guard revision != checkedRevision else { return }
+        var signatures: [UUID: Int] = [:]
+        signatures.reserveCapacity(entries.count)
+        for entry in entries { signatures[entry.id] = Self.signature(of: entry) }
+        recordedSignatures = signatures
+        checkedRevision = revision
+        resolved = [:]
+    }
+
+    /// All entries' signatures as one value (tests).
     static func contentSignature(for entries: [Entry]) -> Int {
         var hasher = Hasher()
         for entry in entries {
@@ -2000,8 +2664,13 @@ final class EntryDecryptCache {
     }
 
     func item(for entry: Entry) -> Item {
-        let sig = Self.signature(of: entry)
-        if let cached = items[entry.id], cached.signature == sig { return cached }
+        // Only between passes: without one (tests, previews) every lookup checks the signature.
+        if checkedRevision != nil, let hit = resolved[ObjectIdentifier(entry)] { return hit }
+        let sig = recordedSignatures[entry.id] ?? Self.signature(of: entry)
+        if let cached = items[entry.id], cached.signature == sig {
+            if checkedRevision != nil { resolved[ObjectIdentifier(entry)] = cached }
+            return cached
+        }
         let preview = EntryRow.makePreview(for: entry)
         let failed = entry.textDecryptionFailed
         let mood = entry.mood
@@ -2043,16 +2712,27 @@ final class EntryDecryptCache {
             tags: tags,
             searchText: passages.map(\.text).joined(separator: "\n\n"),
             document: document,
-            preview: EntriesTabView.EntryRowPreview(
-                moodLabel: entry.mood.flatMap { $0.isEmpty ? nil : $0 },
-                preview: preview.preview,
-                wordCount: preview.wordCount,
-                hasReadablePreview: preview.hasReadablePreview,
-                hasVoiceNotes: preview.hasVoiceNotes,
-                textDecryptionFailed: failed
-            )
+            preview: {
+                let titled = EntryRow.titleAndSnippet(for: entry)
+                return EntriesTabView.EntryRowPreview(
+                    moodLabel: entry.mood.flatMap { $0.isEmpty ? nil : $0 },
+                    preview: preview.preview,
+                    wordCount: preview.wordCount,
+                    hasReadablePreview: preview.hasReadablePreview,
+                    hasVoiceNotes: preview.hasVoiceNotes,
+                    textDecryptionFailed: failed,
+                    title: titled.title,
+                    snippet: titled.snippet,
+                    tags: tags
+                )
+            }()
         )
-        if !failed && searchReadable { items[entry.id] = item } else { items[entry.id] = nil }
+        if !failed && searchReadable {
+            items[entry.id] = item
+            if checkedRevision != nil { resolved[ObjectIdentifier(entry)] = item }
+        } else {
+            items[entry.id] = nil
+        }
         return item
     }
 
@@ -2063,6 +2743,10 @@ final class EntryDecryptCache {
     func prune(keeping entries: [Entry]) {
         let live = Set(entries.map(\.id))
         items = items.filter { live.contains($0.key) }
+        if resolved.count > entries.count {
+            let objects = Set(entries.map(ObjectIdentifier.init))
+            resolved = resolved.filter { objects.contains($0.key) }
+        }
     }
 }
 

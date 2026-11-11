@@ -30,6 +30,7 @@ struct TalkItOutView: View {
     var onCancel: (() -> Void)? = nil
 
     @Environment(\.appDisplayMode) private var displayMode
+    @AppStorage(GenerationDetails.key) private var showGenerationDetails = false
     private var isSentinel: Bool { displayMode == .sentinel }
     private var accent: Color { isSentinel ? MirrorTheme.ember : MirrorTheme.violet }
     private var engineTag: String? {
@@ -188,7 +189,7 @@ struct TalkItOutView: View {
                 }
             }
 
-            if isSentinel, let engineTag {
+            if showGenerationDetails, let engineTag {
                 Text(engineTag)
                     .scaledFont(8.5, weight: .bold, design: .monospaced)
                     .tracking(0.6)

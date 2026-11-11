@@ -38,7 +38,6 @@ struct WhatsNewSheet: View {
             }
             .onAppear {
                 service.markWhatsNewSeen()
-                if whatsNewCards.contains(where: { $0.id == PaidPlansNotice.cardID }) { PaidPlansNotice.markSeen() }
             }
         } else {
             listBody
@@ -82,7 +81,6 @@ struct WhatsNewSheet: View {
         .onAppear {
             if mode == .whatsNew {
                 service.markWhatsNewSeen()
-                if whatsNewCards.contains(where: { $0.id == PaidPlansNotice.cardID }) { PaidPlansNotice.markSeen() }
             }
         }
     }
@@ -96,7 +94,7 @@ struct WhatsNewSheet: View {
                 .fill(
                     displayMode == .sentinel
                         ? LinearGradient(colors: [MirrorTheme.ember, .orange.opacity(0.85)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                        : LinearGradient(colors: [Color.indigo, MirrorTheme.primary, MirrorTheme.violet.opacity(0.85)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        : LinearGradient(colors: [MirrorTheme.hex(0x6E2A55, 0x6E2A55), MirrorTheme.buttonFill, MirrorTheme.hex(0x9A4478, 0x9A4478)], startPoint: .topLeading, endPoint: .bottomTrailing)
                 )
                 .overlay {
                     if displayMode == .sentinel {

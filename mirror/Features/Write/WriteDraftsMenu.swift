@@ -65,7 +65,7 @@ struct WriteDraftsMenu: View {
                             .foregroundStyle(.white)
                             .padding(.horizontal, 4)
                             .frame(minWidth: 15, minHeight: 15)
-                            .background(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor, in: Capsule())
+                            .background(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.buttonFill, in: Capsule())
                             .offset(x: 8, y: -6)
                     }
                 }

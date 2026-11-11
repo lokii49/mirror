@@ -136,6 +136,8 @@ struct WriteView: View {
     @State var isRecordingInline = false
     @State var recordingPermissionDenied = false
     @State var showPhotoPicker = false
+    /// Apple's Journaling Suggestions sheet, from the paperclip menu (the chip has its own).
+    @State var showSuggestionsPicker = false
     @State var showRecorderSheet = false
     @State var showCameraPicker = false
     @State var photoAttachError: String? = nil
@@ -210,7 +212,7 @@ struct WriteView: View {
     /// a back-dated draft came back dated today after a tab switch or app kill).
     @State var entryDateChosen = false
     @State var showDatePicker = false
-    @State var focusMode = false
+    @State var focusMode = WriteView.startsInFocusMode
     @State var entryTags: [String] = []
     /// `JournalCollection.id` picked in Write; nil is Unfiled.
     @State var entryCollectionID: UUID? = nil
@@ -219,6 +221,8 @@ struct WriteView: View {
     @State var showTagInput = false
     @State var existingTagSuggestions: [String] = []
     @State var showLinkEditor = false
+    /// "Link to an Entry…" from Add Link; the picker is hosted by the toolbar (no new body modifier).
+    @State var showEntryLinkPicker = false
     @State var linkEditorURLText = ""
     @State var linkEditorHasExisting = false
     @AppStorage("dailyWordGoal") var dailyWordGoal: Int = 200
@@ -311,7 +315,7 @@ struct WriteView: View {
                 ScrollView {
                     VStack(spacing: 0) {
                         #if os(macOS)
-                        macDateLine
+                        if !focusMode { macDateLine } else { Color.clear.frame(height: 40) }
                         #endif
                         if !draftVoiceNotes.isEmpty {
                             VStack(spacing: 8) {
@@ -357,14 +361,16 @@ struct WriteView: View {
                         // Writing starter (writing-roadmap.md Tier 2 + 0.2) — only on a genuinely
                         // blank new entry. Disappears the instant there's any content, since at
                         // that point the user is already writing and doesn't need a starter.
-                        if entry == nil && !hasDraftContent {
+                        // Not in focus mode, which is the text alone.
+                        if entry == nil && !hasDraftContent && !focusMode {
                             WritingStarterChip(
                                 showsTalkItOut: SubscriptionService.offersTalkItOut(for: SubscriptionService.shared.tier),
                                 onTalkItOut: { presentTalkItOut() },
-                                onUseTemplate: { template in
-                                    viewModel.text = template.seedText
-                                    applyTextCommand(.moveCursor(location: template.cursorOffset))
-                                }
+                                onUseTemplate: { text, cursorOffset in
+                                    viewModel.text = text
+                                    applyTextCommand(.moveCursor(location: cursorOffset))
+                                },
+                                onSuggestion: { applySuggestion($0) }
                             )
                             .padding(.horizontal, 20)
                             .padding(.top, 8)
@@ -398,9 +404,12 @@ struct WriteView: View {
                         .frame(maxWidth: .infinity)
 
                         #if os(macOS)
-                        macChipsRow
-                        macPhotosRow
-                        macStatusLine
+                        // Focus mode is the text (owner, 2026-11-06: as on iPhone and iPad).
+                        if !focusMode {
+                            macChipsRow
+                            macPhotosRow
+                            macStatusLine
+                        }
                         #endif
                     }
                     #if os(macOS)
@@ -534,11 +543,19 @@ struct WriteView: View {
                 .padding(.bottom, 16)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
+
+            #if os(iOS)
+            // Shown once, the first time the keyboard comes up; same slot as the chip above.
+            // No `if` or modifiers here: each adds Debug stack under WriteView.body, and one
+            // `if` plus four modifiers crashed launch on the 14 Pro (2026-11-03).
+            KeyboardDismissHint(isKeyboardVisible: isKeyboardVisible, isBlocked: keyboardHintBlocked)
+            #endif
         }
         .overlay {
-            if displayMode == .sentinel {
+            if displayMode == .sentinel && !focusMode {
+                // Below the date title and the second row (option A's header is taller).
                 ViewfinderCorners(inset: 4, length: 18)
-                    .padding(.top, 50)
+                    .padding(.top, 104)
                     .padding(.bottom, 96)
                     .padding(.horizontal, 4)
             }
@@ -569,6 +586,9 @@ struct WriteView: View {
         .navigationBarTitleDisplayMode(.inline)
         #if os(macOS)
         .safeAreaInset(edge: .top, spacing: 0) { macToolbar }
+        // File › Import from iPhone (Take Photo, Scan Documents): Continuity Camera, the Mac's
+        // camera and document scanner (owner, 2026-11-06: Mac like iOS). Each image becomes a photo.
+        .modifier(MacContinuityCameraImport { macAttachPhoto(data: $0) })
         // Escape leaves the editor of an existing entry without saving (the design has no back button).
         .onExitCommand { if entry != nil { dismiss() } }
         #if DEBUG
@@ -582,6 +602,8 @@ struct WriteView: View {
             case "appendText": if let text = note.userInfo?["text"] as? String { viewModel.text += text }
             case "restoreDraft": if let draft = pendingEditDraft { restoreEditDraft(draft) }
             case "discardDraft": discardEditDraft()
+            case "openRecorder": showRecorderSheet = true
+            case "focus": focusMode.toggle()
             default: break
             }
         }
@@ -597,7 +619,7 @@ struct WriteView: View {
             paragraph: activeParagraphStyle
         ))
         #else
-        .toolbar { toolbarItems; focusModeToolbarItem }
+        .toolbar { toolbarItems }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             // Only with the keyboard up: with it down there is no bar (owner, 2026-10-16; the
             // short checklist/attach/record bar is gone). Hidden while the Aa panel stands in for
@@ -723,20 +745,20 @@ struct WriteView: View {
             }
             .ignoresSafeArea()
         }
+        .modifier(SuggestionsPickerPresenter(isPresented: $showSuggestionsPicker, isAdding: $isAttachingPhoto) { applySuggestion($0) })
         .sheet(isPresented: $showCameraPicker) {
             CameraPickerController { result in
                 handlePickedPhoto(result)
             }
             .ignoresSafeArea()
         }
-        #if os(iOS)
+        // Record Audio on iOS and the Mac toolbar's mic (Mac since 3.1.8, owner 2026-11-06).
         .sheet(isPresented: $showRecorderSheet) {
             VoiceRecorderSheet { data, duration in
                 appendVoiceNote(data: data, duration: duration)
             }
             .environment(\.appDisplayMode, displayMode)
         }
-        #endif
         .sheet(isPresented: $showDocumentScanner) {
             DocumentScannerController { result in
                 handleScannedPages(result)
@@ -829,15 +851,28 @@ struct WriteView: View {
             Text("Checked items are removed from this entry.")
         }
         .alert(linkEditorHasExisting ? "Edit Link" : "Add Link", isPresented: $showLinkEditor) {
+            if linkEditorHasExisting || panelState.hasTextSelection {
             TextField("https://example.com", text: $linkEditorURLText)
                 .keyboardType(.URL)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
             Button("Save") { applyTextCommand(.link(url: linkEditorURLText)) }
+            Button("Link to an Entry…") {
+                // After the alert has gone, or the sheet is dropped.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { showEntryLinkPicker = true }
+            }
             if linkEditorHasExisting {
                 Button("Remove Link", role: .destructive) { applyTextCommand(.link(url: nil)) }
             }
             Button("Cancel", role: .cancel) {}
+            } else {
+                // Nothing to put the link on: it used to save and silently do nothing.
+                Button("OK", role: .cancel) {}
+            }
+        } message: {
+            if !(linkEditorHasExisting || panelState.hasTextSelection) {
+                Text("Select the words to link first.")
+            }
         }
         .onReceive(recElapsedTimer) { _ in
             if isRecordingInline { voiceRecorder.refreshElapsed() }

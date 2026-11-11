@@ -60,7 +60,7 @@ enum WritingPrompts {
 /// question. Seeds plain text only (no paragraph-style/checklist encoding) to keep this
 /// additive and low-risk; the user can format after the fact with the existing editor.
 enum WritingTemplate: CaseIterable, Identifiable {
-    case gratitude, threeWins, moodLog
+    case gratitude, threeWins, moodLog, eveningReview, weeklyPlan, morningPages
 
     var id: Self { self }
 
@@ -69,6 +69,9 @@ enum WritingTemplate: CaseIterable, Identifiable {
         case .gratitude: return String(localized: "Gratitude", comment: "Entry template name")
         case .threeWins: return String(localized: "3 Wins", comment: "Entry template name")
         case .moodLog:   return String(localized: "Mood Log", comment: "Entry template name")
+        case .eveningReview: return String(localized: "Evening Review", comment: "Entry template name")
+        case .weeklyPlan:    return String(localized: "Weekly Plan", comment: "Entry template name")
+        case .morningPages:  return String(localized: "Morning Pages", comment: "Entry template name")
         }
     }
 
@@ -77,6 +80,9 @@ enum WritingTemplate: CaseIterable, Identifiable {
         case .gratitude: return "heart.circle"
         case .threeWins: return "checklist"
         case .moodLog:   return "face.smiling"
+        case .eveningReview: return "moon.stars"
+        case .weeklyPlan:    return "calendar"
+        case .morningPages:  return "sunrise"
         }
     }
 
@@ -89,6 +95,12 @@ enum WritingTemplate: CaseIterable, Identifiable {
             return String(localized: "1. ", comment: "3 Wins entry template seed text, before the cursor")
         case .moodLog:
             return String(localized: "Right now I feel…", comment: "Mood log entry template seed text, before the cursor")
+        case .eveningReview:
+            return String(localized: "What went well today?\n", comment: "Evening review entry template seed text, before the cursor")
+        case .weeklyPlan:
+            return String(localized: "This week I want to…\n", comment: "Weekly plan entry template seed text, before the cursor")
+        case .morningPages:
+            return String(localized: "Morning pages: write whatever comes, without stopping.\n\n", comment: "Morning pages entry template seed text, before the cursor")
         }
     }
 
@@ -98,6 +110,11 @@ enum WritingTemplate: CaseIterable, Identifiable {
         case .gratitude: return "\n\n"
         case .threeWins: return String(localized: "\n2. \n3. ", comment: "3 Wins entry template seed text, after the cursor")
         case .moodLog:   return String(localized: "\n\nBecause…", comment: "Mood log entry template seed text, after the cursor")
+        case .eveningReview:
+            return String(localized: "\n\nWhat was hard?\n\n\nWhat do I want to remember?\n", comment: "Evening review entry template seed text, after the cursor")
+        case .weeklyPlan:
+            return String(localized: "\n\nPeople I want to see:\n\n\nOne thing to let go of:\n", comment: "Weekly plan entry template seed text, after the cursor")
+        case .morningPages: return ""
         }
     }
 

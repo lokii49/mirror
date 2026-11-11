@@ -60,9 +60,8 @@ enum CardTier: CaseIterable, Equatable, Hashable {
     }
 
     /// "2,99 €/mo" in the user's own storefront currency, from the product the paywall sells.
-    /// Nil until products have loaded, and for as long as every feature is free (nothing costs
-    /// anything, so the chip is left out). Never a typed-in dollar amount: Apple prices each
-    /// country separately.
+    /// Nil until products have loaded. Never a typed-in dollar amount: Apple prices each country
+    /// separately.
     func pricingLabel(from service: SubscriptionService = .shared) -> LocalizedStringKey? {
         guard let price = service.localizedMonthlyPrice(for: subscriptionTier) else { return nil }
         return "\(price)/mo"
@@ -72,7 +71,7 @@ enum CardTier: CaseIterable, Equatable, Hashable {
 struct FeatureCard: Identifiable {
     let id: String
     let title: LocalizedStringKey
-    let body: LocalizedStringKey
+    var body: LocalizedStringKey
     let symbolName: String
     let accentColor: Color
     let tier: CardTier
@@ -82,6 +81,62 @@ struct FeatureCard: Identifiable {
     var showInFeatureGuide: Bool = true
     /// iPhone/iPad only (the Mac has its own version of the feature, or none).
     var iOSOnly: Bool = false
+    /// What this device needs for the card's promise to hold.
+    var requirement: DeviceFeature? = nil
+    /// Shown instead of `body` where `requirement` isn't met; nil hides the card there.
+    var bodyWithoutRequirement: LocalizedStringKey? = nil
+
+    /// The card as this device should show it, or nil when it promises something this device
+    /// can't do (Health before iOS 18, a Watch on an iPad).
+    func forThisDevice() -> FeatureCard? {
+        guard let requirement, !requirement.isAvailable else { return self }
+        guard let bodyWithoutRequirement else { return nil }
+        var card = self
+        card.body = bodyWithoutRequirement
+        return card
+    }
+}
+
+/// Device-dependent features a What's New card can promise.
+enum DeviceFeature {
+    case appleHealth, appleWatch, journalingSuggestions
+    /// StoreKit's offer code sheet: iPhone and iPad, and the Mac app on macOS 15+ (not the
+    /// iPhone app running on a Mac).
+    case redeemCode
+    /// This device's profile had Sentinel mode chosen before 3.1.8 retired it (ContentView records it).
+    case usedSentinel
+
+    static let usedSentinelKey = "mirror.whatsNew.usedSentinel"
+
+    var isAvailable: Bool {
+        switch self {
+        case .usedSentinel:
+            return UserDefaults.standard.bool(forKey: Self.usedSentinelKey)
+        case .appleHealth:
+            return HealthMoodWriter.isAvailable
+        case .appleWatch:
+            #if os(iOS)
+            return UIDevice.current.userInterfaceIdiom == .phone
+            #else
+            return false
+            #endif
+        case .journalingSuggestions:
+            return Self.journalingSuggestionsAvailable
+        case .redeemCode:
+            return RedeemCodeSheet.isAvailable
+        }
+    }
+
+    /// Where Write offers Apple's Journaling Suggestions: iPhone on iOS 17.2+, iPad from 26.
+    static var journalingSuggestionsAvailable: Bool {
+        #if os(iOS) && canImport(JournalingSuggestions)
+        guard #available(iOS 17.2, *) else { return false }
+        return UIDevice.current.userInterfaceIdiom == .phone
+            || ProcessInfo.processInfo.isOperatingSystemAtLeast(OperatingSystemVersion(majorVersion: 26, minorVersion: 0, patchVersion: 0))
+        #else
+        return false
+        #endif
+    }
 }
 
 // MARK: - Registry — add new cards here when releasing features
@@ -239,7 +294,9 @@ enum FeatureCardRegistry {
             symbolName: "gift.fill",
             accentColor: .green,
             tier: .free,
-            sinceVersion: "2.0.3"
+            sinceVersion: "2.0.3",
+            // History only: the free period ended with 3.1.8, so a feature guide must never show it.
+            showInFeatureGuide: false
         ),
         .init(
             id: "localization-203",
@@ -423,6 +480,167 @@ enum FeatureCardRegistry {
             tier: .free,
             sinceVersion: "3.1.4"
         ),
+        // 3.1.8: the free period is over (15 November 2026). No date in the text: people update
+        // weeks later.
+        .init(
+            id: "paid-plans-318",
+            title: "Core and Deep are here",
+            body: "The daily reflection, Ask, the weekly digest, the monthly report, the mood timeline and widgets now need Core or Deep. Writing, reading, search and iCloud backup stay free, forever, and everything already made for you stays readable. New subscribers get a 7-day free trial.",
+            symbolName: "checkmark.seal",
+            accentColor: MirrorTheme.primary,
+            tier: .free,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false
+        ),
+        // Paper & Ink (owner, 2026-11-07; the colours since 2026-11-06): the whole app, iPhone, iPad
+        // and Mac. It also tells Sentinel users their mode was retired (3.1.8).
+        .init(
+            id: "theme-318",
+            title: "A new look: Paper & Ink",
+            body: "Warm paper pages with a plum accent, serif titles, and today's reflection on top. Entries show titles, photos and tags at a glance.",
+            symbolName: "paintpalette",
+            accentColor: MirrorTheme.violet,
+            tier: .free,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false
+        ),
+        // Sentinel mode retired (owner, 2026-11-07). iPhone and iPad only: the Mac never had it.
+        .init(
+            id: "sentinel-retired-318",
+            title: "Sentinel mode has been retired",
+            body: "Everyone now gets Paper & Ink. To see how a reflection was made, turn on Settings › About › Show how insights are made.",
+            symbolName: "rectangle.on.rectangle.angled",
+            accentColor: MirrorTheme.violet,
+            tier: .free,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false,
+            iOSOnly: true,
+            requirement: .usedSentinel
+        ),
+        // Offer codes are redeemed through StoreKit's sheet: iOS, and the Mac app on macOS 15+
+        // (RedeemCodeSheet); hidden where the button isn't (macOS 14, the iPhone app on a Mac).
+        .init(
+            id: "redeem-code-318",
+            title: "Have a code?",
+            body: "Tap Redeem Code in Settings › Subscription, or at the bottom of the plans screen, to use an App Store offer code.",
+            symbolName: "ticket",
+            accentColor: .orange,
+            tier: .free,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false,
+            requirement: .redeemCode
+        ),
+        // The Mac editor has its own toolbar and no focus mode.
+        .init(
+            id: "focus-mode-318",
+            title: "Focus mode, just your words",
+            body: "Choose Focus mode in the ⋯ menu while you write and everything else steps aside: the toolbar, the starter and the cards. Tap the arrows at the top to bring it all back. Swipe down on the page to hide the keyboard.",
+            symbolName: "arrow.up.left.and.arrow.down.right",
+            accentColor: MirrorTheme.violet,
+            tier: .free,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false,
+            iOSOnly: true
+        ),
+        .init(
+            id: "show-all-318",
+            title: "Every past reflection",
+            body: "Past reflections and digests now end with Show all, so you can read every one, not just the latest 14.",
+            symbolName: "clock.arrow.circlepath",
+            accentColor: .teal,
+            tier: .free,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false
+        ),
+        // The audit of 4 November 2026: the list, search and Insights stopped re-reading every entry.
+        .init(
+            id: "faster-318",
+            title: "Faster with a big journal",
+            body: "The Entries list, search and Insights no longer re-read every entry whenever the screen changes, so years of writing stay quick.",
+            symbolName: "bolt.fill",
+            accentColor: .orange,
+            tier: .free,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false
+        ),
+        // Kept-out collections (InsightScope): Scratch is offered in Organize on iOS and Mac.
+        .init(
+            id: "scratch-318",
+            title: "Notes that stay out of reflections",
+            body: "In Entries, open Manage collections and views and add Scratch for quick notes, checklists and lists. A Scratch note can remind you at a time you pick. Reflections, Ask, mood charts and mood alerts don't read it, and any collection can be kept out the same way.",
+            symbolName: "note.text",
+            accentColor: .teal,
+            tier: .free,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false
+        ),
+        .init(
+            id: "write-318",
+            title: "A calmer Write screen",
+            body: "The date is the title, Mood sits beside it, and Delete and focus mode moved into the ⋯ menu. Need a start? Pick a template, write your own, or try Suggestions from your day.",
+            symbolName: "square.and.pencil",
+            accentColor: MirrorTheme.violet,
+            tier: .free,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false,
+            iOSOnly: true,
+            requirement: .journalingSuggestions,
+            bodyWithoutRequirement: "The date is the title, Mood sits beside it, and Delete and focus mode moved into the ⋯ menu. Need a start? Pick a template or write your own."
+        ),
+        .init(
+            id: "still-open-318",
+            title: "Still Open",
+            body: "Every checklist item you haven't ticked, from all your entries, in one list. Tick it there or open its entry. It's in the Entries menu beside your saved views.",
+            symbolName: "checklist.unchecked",
+            accentColor: .green,
+            tier: .free,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false
+        ),
+        .init(
+            id: "links-318",
+            title: "Link your entries",
+            body: "Select a few words, choose Add Link, then Link to an Entry. Under each entry, Linked from shows the entries that point to it.",
+            symbolName: "link",
+            accentColor: .blue,
+            tier: .free,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false
+        ),
+        .init(
+            id: "patterns-318",
+            title: "Patterns and Year in Review",
+            body: "See which moods come with your days, times and tags, and your year in numbers. Counted by the app from your own moods, so nothing is guessed.",
+            symbolName: "square.grid.3x3.topleft.filled",
+            accentColor: .pink,
+            tier: .deep,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false
+        ),
+        .init(
+            id: "watch-318",
+            title: "MirrorNotes on Apple Watch",
+            body: "Record a voice note, type a quick note or log a mood from your wrist. Each one is saved in MirrorNotes on your iPhone, which keeps your journal's key.",
+            symbolName: "applewatch",
+            accentColor: .orange,
+            tier: .free,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false,
+            iOSOnly: true,
+            requirement: .appleWatch
+        ),
+        .init(
+            id: "health-318",
+            title: "Moods in Apple Health",
+            body: "Turn on Settings › Journal › Save mood check-ins to Health, and each check-in is saved as a State of Mind. MirrorNotes never reads from Health.",
+            symbolName: "heart.text.square",
+            accentColor: .red,
+            tier: .free,
+            sinceVersion: "3.1.8",
+            showInFeatureGuide: false,
+            iOSOnly: true,
+            requirement: .appleHealth
+        ),
     ]
 
     /// 15 November 2026, the paid-plans cutover, in the reader's own date format.
@@ -443,7 +661,7 @@ final class FeatureCardService {
 
     private let lastSeenVersionKey = "mirror.whatsNew.lastSeenVersion"
 
-    var allCards: [FeatureCard] { FeatureCardRegistry.all.filter { $0.showInFeatureGuide } }
+    var allCards: [FeatureCard] { FeatureCardRegistry.all.filter { $0.showInFeatureGuide }.compactMap { $0.forThisDevice() } }
 
     /// The Mac has its own version numbers (1.x) while cards carry the iOS release they shipped
     /// in, so a Mac upgrade compared 1.x against "3.1.0" and never showed a card. List only the Mac
@@ -453,6 +671,7 @@ final class FeatureCardService {
         "1.1.0": "3.1.0",
         "1.1.4": "3.1.4",
         "1.1.6": "3.1.6",
+        "1.1.8": "3.1.8",
     ]
 
     /// The cards a Mac version shows: those of the newest iOS release whose Mac version is newer
@@ -483,9 +702,10 @@ final class FeatureCardService {
 
     var whatsNewCards: [FeatureCard] {
         #if os(macOS)
-        return Self.macWhatsNewCards(lastSeen: lastSeenVersion, current: currentAppVersion)
+        return Self.macWhatsNewCards(lastSeen: lastSeenVersion, current: currentAppVersion).compactMap { $0.forThisDevice() }
+        #else
+        return Self.iOSWhatsNewCards(lastSeen: lastSeenVersion, current: currentAppVersion).compactMap { $0.forThisDevice() }
         #endif
-        return Self.iOSWhatsNewCards(lastSeen: lastSeenVersion, current: currentAppVersion)
     }
 
     /// Only the newest release with cards since the last seen version, never the backlog. A device
@@ -528,24 +748,5 @@ final class FeatureCardService {
 
     private var lastSeenVersion: String {
         UserDefaults.standard.string(forKey: lastSeenVersionKey) ?? "0.0.0"
-    }
-}
-
-/// The paid-plans notice for everyone before the cutover, not only people updating: onboarding
-/// marks the current version's What's New as seen, so a fresh 3.1.4 install never got it from
-/// What's New. Shown once per device, from What's New (an update) or on its own (a new install).
-enum PaidPlansNotice {
-    static let cardID = "paid-plans-314"
-    static let seenKey = "mirror.paidPlansNotice.seen"
-
-    static var card: FeatureCard? { FeatureCardRegistry.all.first { $0.id == cardID } }
-
-    static func shouldShow(now: Date = Date(), defaults: UserDefaults = .standard,
-                           allFeaturesFree: Bool = SubscriptionService.allFeaturesFree) -> Bool {
-        allFeaturesFree && now < FeatureCardRegistry.paidPlansStart && !defaults.bool(forKey: seenKey)
-    }
-
-    static func markSeen(defaults: UserDefaults = .standard) {
-        defaults.set(true, forKey: seenKey)
     }
 }

@@ -21,9 +21,7 @@ extension SettingsView {
                             withAnimation(.easeInOut(duration: 0.2)) { showsRevenueCatID.toggle() }
                         }
 
-                    if SubscriptionService.allFeaturesFree {
-                        planChip("Early Access", systemImage: "sparkles", color: displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
-                    } else if subscriptionService.isSubscribed {
+                    if subscriptionService.isSubscribed {
                         let tierLabel: LocalizedStringKey = subscriptionService.isDeep ? "Deep" : "Core"
                         let tierColor = displayMode == .sentinel ? MirrorTheme.ember : (subscriptionService.isDeep ? MirrorTheme.violet : MirrorTheme.primary)
                         planChip(tierLabel, systemImage: "checkmark.seal.fill", color: tierColor)
@@ -36,11 +34,7 @@ extension SettingsView {
 
                 Spacer()
 
-                if SubscriptionService.allFeaturesFree {
-                    Image(systemName: "sparkles")
-                        .scaledFont(22)
-                        .foregroundStyle(MirrorTheme.primary)
-                } else if subscriptionService.isSubscribed {
+                if subscriptionService.isSubscribed {
                     let tierColor = subscriptionService.isDeep ? MirrorTheme.violet : MirrorTheme.primary
                     Image(systemName: "checkmark.seal.fill")
                         .scaledFont(22)
@@ -52,7 +46,7 @@ extension SettingsView {
                 revenueCatIDRow
             }
 
-            if !SubscriptionService.allFeaturesFree && !subscriptionService.isSubscribed {
+            if !subscriptionService.isSubscribed {
                 Divider()
                     .overlay(MirrorTheme.inkBorder)
                     .padding(.top, 16)
@@ -109,9 +103,9 @@ extension SettingsView {
             }
         }
         .padding(20)
-        .themedCard(cornerRadius: 26)
+        .themedCard(cornerRadius: 22)
         .overlay(
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .stroke(
                     subscriptionService.isDeep ? MirrorTheme.violet.opacity(0.22)
                     : subscriptionService.isSubscribed ? MirrorTheme.primary.opacity(0.22)
@@ -196,7 +190,7 @@ extension SettingsView {
             }
         }
         .padding(18)
-        .themedCard(cornerRadius: 24)
+        .themedCard(cornerRadius: 22)
     }
 
     func statCard(value: String, label: LocalizedStringKey, icon: String, color: Color) -> some View {
@@ -208,6 +202,7 @@ extension SettingsView {
                 Image(systemName: icon)
                     .scaledFont(16, weight: .semibold)
                     .foregroundStyle(color)
+                    .accessibilityHidden(true)
             }
             .overlay {
                 if displayMode == .sentinel {
@@ -242,11 +237,11 @@ extension SettingsView {
                 HStack {
                     SettingsRowLabel(
                         title: "Subscription",
-                        systemImage: SubscriptionService.allFeaturesFree ? "sparkles" : (subscriptionService.isSubscribed ? "checkmark.seal.fill" : "seal"),
-                        iconColor: SubscriptionService.allFeaturesFree ? MirrorTheme.primary : (subscriptionService.isSubscribed ? MirrorTheme.primary : .secondary)
+                        systemImage: subscriptionService.isSubscribed ? "checkmark.seal.fill" : "seal",
+                        iconColor: subscriptionService.isSubscribed ? MirrorTheme.primary : .secondary
                     )
                     Spacer()
-                    Text(SubscriptionService.allFeaturesFree ? "Early Access" : (subscriptionService.isDeep ? "Deep" : subscriptionService.isSubscribed ? "Core" : "Free"))
+                    Text(subscriptionService.isDeep ? "Deep" : subscriptionService.isSubscribed ? "Core" : "Free")
                         .scaledFont(13)
                         .foregroundStyle(MirrorTheme.textSecondary)
                     SettingsChevron()
@@ -309,23 +304,16 @@ extension SettingsView {
                             .scaledFont(11, weight: .semibold)
                             .foregroundStyle(MirrorTheme.textSecondary)
                     }
+                    // 44 pt to tap without making this row taller than the others.
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+                    .padding(.vertical, -4)
                 }
                 .disabled(displayMode == .sentinel)
                 .opacity(displayMode == .sentinel ? 0.4 : 1)
             }
 
-            #if os(iOS)
-            SettingsDivider()
-
-            VStack(alignment: .leading, spacing: 10) {
-                SettingsRowLabel(title: "Display mode", systemImage: "square.stack.3d.up.fill", iconColor: MirrorTheme.violet)
-                HStack(spacing: 10) {
-                    displayModePickerCard(mode: .classic, title: "Classic", accent: MirrorTheme.violet)
-                    displayModePickerCard(mode: .sentinel, title: "Sentinel", accent: MirrorTheme.ember)
-                }
-            }
-            .padding(.vertical, 4)
-            #endif
+            // The Display mode picker (Classic / Sentinel) went with Sentinel in 3.1.8.
         }
     }
 

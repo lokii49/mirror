@@ -1,9 +1,20 @@
-Paid plans from 15 November
+Core and Deep are here
 
-• From 15 November, new daily reflections, Ask, new weekly digests and monthly reports, the mood timeline and widgets need Core or Deep. Writing, reading, search and iCloud backup stay free, forever. New subscribers get a 7-day free trial.
+• New daily reflections, Ask, new weekly digests and monthly reports, the mood timeline and widgets now need Core or Deep. Writing, reading, search and iCloud backup stay free, forever. New subscribers get a 7-day free trial.
 • Everything already made for you stays readable on every plan: past reflections, digests and reports, in the app and in widgets.
 
 Also in this update
 
-• A much smaller download: under 30 MB again, down from over 300 MB.
-• Writing late at night counts as that evening's. Entries written before 4 AM are reflected with the day before, and what you write later in the day gets its own daily reflection.
+• A new look, Paper & Ink: warm paper pages with a plum accent, serif titles and today's reflection on top. Entries show titles, photos and tags at a glance.
+• If plans can't load, Subscription offers Try Again instead of loading forever.
+• Past reflections on the board have Read more, and past reflections and digests end with Show all.
+• Tapping a day in the Entries calendar keeps that day in view instead of jumping back to today.
+• Organize can add a Scratch collection for quick notes, lists and numbers. Reflections, Ask, mood charts and mood alerts don't read it, and any collection can be kept out of them the same way.
+• New Scratch Note (File menu, ⌥⌘N): checklists, numbered and bulleted lists, and Remind me for a reminder at a time you pick. The reminder never shows the note's words.
+• Record voice notes as on iPhone: pause, listen back, then add.
+• Write gains focus mode, the daily word goal and tag suggestions.
+• Drag checklist lines to reorder them; checked items can move to the bottom.
+• Continuity Camera: take a photo or scan a document with your iPhone, straight into an entry (File menu).
+• Templates, Still Open, links between entries, Patterns and Year in Review.
+• Redeem Code on the plans screen and in Settings.
+• Big journals are faster: the Entries list, search and Insights no longer re-read every entry whenever the window changes.

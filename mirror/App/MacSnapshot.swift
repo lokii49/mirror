@@ -12,6 +12,14 @@ import PDFKit
 // Capturing the app's own window needs no Screen Recording permission.
 
 enum MacSnapshot {
+    /// The appearance the harness runs in: `--macSnapshotDark`, `--macSnapshotLight` (App Store
+    /// captures, which must not follow a Mac that switches to dark at sunset), else the system's.
+    static var harnessAppearance: String {
+        if CommandLine.arguments.contains("--macSnapshotDark") { return "dark" }
+        if CommandLine.arguments.contains("--macSnapshotLight") { return "light" }
+        return "system"
+    }
+
     static var isRequested: Bool { CommandLine.arguments.contains("--macSnapshot") }
 
     static var outputDirectory: URL {
@@ -363,8 +371,12 @@ enum MacSnapshot {
         try? await Task.sleep(for: .seconds(2))
         capture(settingsWindow(), name: "5c-settings-chose-dark")
         capture(mainWindow(), name: "5d-main-chose-dark")
-        UserDefaults.standard.set(CommandLine.arguments.contains("--macSnapshotDark") ? "dark" : "system", forKey: "mirrorAppearanceMode")
-        if !CommandLine.arguments.contains("--macSnapshotDark") { NSApp.appearance = nil }
+        UserDefaults.standard.set(Self.harnessAppearance, forKey: "mirrorAppearanceMode")
+        switch Self.harnessAppearance {
+        case "light": NSApp.appearance = NSAppearance(named: .aqua)
+        case "dark": break
+        default: NSApp.appearance = nil
+        }
 
         // Close and reopen: the board's chrome must come back.
         settingsWindow()?.performClose(nil)
@@ -427,10 +439,18 @@ enum MacSnapshot {
             context.insert(profile)
         }
         SampleData.seed(into: context)
+        if CommandLine.arguments.contains("--macSnapshotStore") {
+            // App Store captures: the French i18n test entries stay out, so an English listing's
+            // "You also wrote" can't quote one of them.
+            for entry in (try? context.fetch(FetchDescriptor<Entry>())) ?? [] where entry.tags.contains("i18n") {
+                context.delete(entry)
+            }
+            try? context.save()
+        }
         try? context.save()
 
         applyOverrides()
-        UserDefaults.standard.set(CommandLine.arguments.contains("--macSnapshotDark") ? "dark" : "system", forKey: "mirrorAppearanceMode")
+        UserDefaults.standard.set(Self.harnessAppearance, forKey: "mirrorAppearanceMode")
 
         func mainWindow() -> NSWindow? {
             NSApp.windows.first { $0.isVisible && $0.contentView != nil && !($0 is NSPanel) && abs($0.frame.width - 720) > 1 } ?? NSApp.windows.first { $0.isVisible }
@@ -454,6 +474,142 @@ enum MacSnapshot {
             try? await Task.sleep(for: .seconds(1))
             capture(mainWindow(), name: "archive-active-filters")
             NSApp.terminate(nil)
+            return
+        }
+        // Entry links: the second-newest entry links to the newest, whose reader shows Linked from.
+        if CommandLine.arguments.contains("--macSnapshotLinksOnly") {
+            let all = (try? context.fetch(FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)]))) ?? []
+            // The oldest entry links to the six newest and every pinned one, so whichever the list
+            // opens first shows Linked from.
+            if let source = all.last {
+                let targets = (Array(all.prefix(6)) + all.filter(\.isPinned)).filter { $0.id != source.id }
+                let length = (source.text as NSString).length
+                let ranges = targets.enumerated().map { index, target in
+                    InlineStyleRange(location: min(index, max(0, length - 1)), length: 1, bold: false, italic: false,
+                                     underline: false, strikethrough: false, highlightIndex: nil,
+                                     linkURL: EntryLinks.urlString(for: target.id))
+                }
+                source.inlineStyleData = try? JSONEncoder().encode(InlineStyleDocument(ranges: ranges))
+                try? context.save()
+                NSLog("MacSnapshot: links from 1 entry to %d", ranges.count)
+            }
+            go("entries")
+            try? await Task.sleep(for: .seconds(1.5))
+            NotificationCenter.default.post(name: .mirrorMacDebugSelectFirstEntry, object: nil)
+            try? await Task.sleep(for: .seconds(2.5))
+            capture(mainWindow(), name: "links-target")
+            NSApp.terminate(nil)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { exit(0) }
+            return
+        }
+        // Patterns and Year in Review over the sample journal.
+        if CommandLine.arguments.contains("--macSnapshotPatternsOnly") {
+            go("patterns")
+            try? await Task.sleep(for: .seconds(2.5))
+            capture(mainWindow(), name: "patterns")
+            go("review")
+            try? await Task.sleep(for: .seconds(2.5))
+            capture(mainWindow(), name: "review")
+            NSApp.terminate(nil)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { exit(0) }
+            return
+        }
+        // Your templates: the manager with one saved (sealed, this device), then its editor.
+        if CommandLine.arguments.contains("--macSnapshotTemplatesOnly") {
+            CustomTemplateStore.save([CustomTemplate(title: "Synthetic check-in", text: "How did today go?\n- ")])
+            let host = NSHostingController(rootView: TemplateManagerView())
+            let window = NSWindow(contentViewController: host)
+            window.setContentSize(NSSize(width: 480, height: 460))
+            window.center(); window.makeKeyAndOrderFront(nil)
+            try? await Task.sleep(for: .seconds(1.5))
+            capture(window, name: "templates-manager")
+            CustomTemplateStore.erase()
+            NSApp.terminate(nil)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { exit(0) }
+            return
+        }
+        // The Write screen's header (date title, option A).
+        if CommandLine.arguments.contains("--macSnapshotWriteOnly") {
+            go("write")
+            try? await Task.sleep(for: .seconds(2))
+            capture(mainWindow(), name: "write-header")
+            // Focus mode: the text and the way out.
+            if CommandLine.arguments.contains("--macSnapshotWriteFocus") {
+                NotificationCenter.default.post(name: .mirrorMacDebugWrite, object: nil, userInfo: ["action": "focus"])
+                try? await Task.sleep(for: .seconds(1.5))
+                capture(mainWindow(), name: "write-focus")
+                NotificationCenter.default.post(name: .mirrorMacDebugWrite, object: nil, userInfo: ["action": "focus"])
+                try? await Task.sleep(for: .seconds(1))
+            }
+            // Time for an outside check (Writing Tools in the Edit menu, via System Events).
+            if CommandLine.arguments.contains("--macSnapshotWriteHold") {
+                NSLog("MacSnapshot: holding write")
+                try? await Task.sleep(for: .seconds(40))
+            }
+            // The recorder the toolbar's mic opens (no recording: that would ask for the microphone).
+            if CommandLine.arguments.contains("--macSnapshotRecorder") {
+                NotificationCenter.default.post(name: .mirrorMacDebugWrite, object: nil, userInfo: ["action": "openRecorder"])
+                for _ in 0..<20 where mainWindow()?.sheets.first == nil { try? await Task.sleep(for: .seconds(0.25)) }
+                try? await Task.sleep(for: .seconds(1))
+                capture(mainWindow()?.sheets.first ?? mainWindow(), name: "write-recorder")
+                try? await Task.sleep(for: .seconds(1))
+                capture(mainWindow()?.sheets.first ?? mainWindow(), name: "write-recorder-2")
+            }
+            NSApp.terminate(nil)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { exit(0) }
+            return
+        }
+        // The quick note into Scratch: the sheet as File › New Scratch Note opens it, then saved.
+        if CommandLine.arguments.contains("--macSnapshotScratchNoteOnly") {
+            go("entries")
+            try? await Task.sleep(for: .seconds(1))
+            ScratchNotePresenter.shared.pending = true
+            for _ in 0..<20 where mainWindow()?.sheets.first == nil { try? await Task.sleep(for: .seconds(0.25)) }
+            try? await Task.sleep(for: .seconds(1))
+            capture(mainWindow()?.sheets.first ?? mainWindow(), name: "scratch-note-sheet")
+            try? await Task.sleep(for: .seconds(1))
+            capture(mainWindow()?.sheets.first ?? mainWindow(), name: "scratch-note-sheet-2")
+            let saved = try? ScratchNotes.save("Gate code 4412.", in: context)
+            NSLog("MacSnapshot: scratch note saved = %@, in kept-out collection = %@", saved == nil ? "no" : "yes",
+                  saved.map { InsightScope(context: context).includes($0) ? "no" : "yes" } ?? "n/a")
+            NSApp.terminate(nil)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { exit(0) }
+            return
+        }
+        // Organize with a kept-out collection (Scratch) and that collection's own page.
+        if CommandLine.arguments.contains("--macSnapshotOrganizeOnly") {
+            go("entries")
+            try? await Task.sleep(for: .seconds(1))
+            NotificationCenter.default.post(name: .mirrorMacDebugEntriesState, object: nil, userInfo: ["organizer": true])
+            for _ in 0..<20 where mainWindow()?.sheets.first == nil { try? await Task.sleep(for: .seconds(0.25)) }
+            try? await Task.sleep(for: .seconds(1))
+            capture(mainWindow()?.sheets.first ?? mainWindow(), name: "organize-before-scratch")
+            // The sheet appears once the window is key, which the first capture makes it.
+            try? await Task.sleep(for: .seconds(1.5))
+            capture(mainWindow()?.sheets.first ?? mainWindow(), name: "organize-before-scratch-2")
+            let scratch = try? JournalOrganizationStore.addScratchCollection(in: context)
+            NSLog("MacSnapshot: scratch created = %@, kept out = %@", scratch == nil ? "no" : "yes",
+                  scratch?.payload?.keepsOutOfInsights == true ? "yes" : "no")
+            try? await Task.sleep(for: .seconds(1.5))
+            capture(mainWindow()?.sheets.first ?? mainWindow(), name: "organize-after-scratch")
+            // The row's own navigation (value link → navigationDestination) inside the sheet.
+            if let scratch {
+                NotificationCenter.default.post(name: .mirrorMacDebugOpenCollection, object: scratch.id)
+                try? await Task.sleep(for: .seconds(1.5))
+                capture(mainWindow()?.sheets.first ?? mainWindow(), name: "organize-pushed-scratch")
+            }
+            if let scratch {
+                let host = NSHostingController(rootView: NavigationStack { CollectionSettingsView(collection: scratch) }
+                    .environment(\.modelContext, context).modelContainer(context.container))
+                let window = NSWindow(contentViewController: host)
+                window.setContentSize(NSSize(width: 480, height: 420))
+                window.center(); window.makeKeyAndOrderFront(nil)
+                try? await Task.sleep(for: .seconds(1.5))
+                capture(window, name: "collection-settings-scratch")
+            }
+            NSApp.terminate(nil)
+            // With the sheet's stack pushed, terminate didn't always end the run.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { exit(0) }
             return
         }
         if CommandLine.arguments.contains("--macSnapshotSearchOnly") {
@@ -852,6 +1008,22 @@ enum MacEditorSelfTest {
             c.apply(.heading, to: tv)
             check("heading on first paragraph", styles(box.style) == ["heading", "body"], "\(styles(box.style))")
             check("text unchanged by styling", box.text == "Title line\nsecond", box.text)
+        }
+
+        // 1b. Dragging a checklist line (owner, 2026-11-06): down past the next line, then back up.
+        do {
+            let style = NoteEditorCodec.encodeTextStyleData(models: [
+                .init(style: .checklistUnchecked), .init(style: .checklistUnchecked), .init(style: .checklistChecked),
+            ], entryFont: .system)
+            let box = Box(text: "Milk\nEggs\nBread", style: style)
+            let (_, c) = makeEditor(box)
+            c.moveParagraph(startingAt: 0, toParagraphAt: 11)          // Milk onto Bread's line
+            check("drag moves the line down", box.text == "Eggs\nBread\nMilk", box.text)
+            check("its checklist state moves with it", styles(box.style) == ["checklistUnchecked", "checklistChecked", "checklistUnchecked"], "\(styles(box.style))")
+            c.moveParagraph(startingAt: 11, toParagraphAt: 0)          // and back to the top
+            check("drag moves the line up", box.text == "Milk\nEggs\nBread", box.text)
+            c.moveParagraph(startingAt: 0, toParagraphAt: 2)           // onto itself: nothing
+            check("a drop on its own line changes nothing", box.text == "Milk\nEggs\nBread", box.text)
         }
 
         // 2. Inline bold on a selection is saved as a logical range; toggling again removes it.

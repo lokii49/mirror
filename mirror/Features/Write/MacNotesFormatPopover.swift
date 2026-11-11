@@ -96,7 +96,7 @@ struct MacNotesFormatPopover: View {
                 .strikethrough(strikethrough)
                 .frame(width: 34, height: 26)
                 .foregroundStyle(on ? Color.white : MacTokens.ink)
-                .background(on ? Color.accentColor : Color.clear)
+                .background(on ? MirrorTheme.buttonFill : Color.clear)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

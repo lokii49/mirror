@@ -15,6 +15,7 @@ struct JournalErasureTests {
     @Test @MainActor func checkInIDsAreRecordedSeparately() throws {
         let config = ModelConfiguration(schema: MirrorModelContainer.schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: MirrorModelContainer.schema, configurations: [config])
+        container.mainContext.autosaveEnabled = false
         let entry = UUID(), checkIn = UUID()
         container.mainContext.insert(JournalErasure(erasedEntryIDs: [entry], erasedCheckInIDs: [checkIn]))
         try container.mainContext.save()
@@ -35,6 +36,7 @@ struct JournalErasureTests {
         let config = ModelConfiguration(schema: MirrorModelContainer.schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: MirrorModelContainer.schema, configurations: [config])
         let context = container.mainContext
+        context.autosaveEnabled = false
         let a = [UUID(), UUID()], b = [UUID()]
         context.insert(JournalErasure(erasedEntryIDs: a))
         context.insert(JournalErasure(erasedEntryIDs: b))   // e.g. synced from another device

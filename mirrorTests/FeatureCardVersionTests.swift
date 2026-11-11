@@ -49,6 +49,31 @@ struct FeatureCardVersionTests {
         #expect(ids == release310)
     }
 
+    /// Sentinel was retired in 3.1.8: only a device whose profile had it on gets the note.
+    @Test func sentinelNoteOnlyForFormerSentinelUsers() throws {
+        let card = try #require(FeatureCardRegistry.all.first { $0.id == "sentinel-retired-318" })
+        let defaults = UserDefaults.standard
+        let before = defaults.object(forKey: DeviceFeature.usedSentinelKey)
+        defer { defaults.set(before, forKey: DeviceFeature.usedSentinelKey) }
+        defaults.set(false, forKey: DeviceFeature.usedSentinelKey)
+        #expect(card.forThisDevice() == nil)
+        defaults.set(true, forKey: DeviceFeature.usedSentinelKey)
+        #expect(card.forThisDevice()?.id == "sentinel-retired-318")
+        #expect(card.iOSOnly, "the Mac never had Sentinel")
+    }
+
+    /// 3.1.8: paid plans, Show all and Redeem Code everywhere (Redeem Code hidden where the sheet
+    /// isn't, see `DeviceFeature.redeemCode`); focus mode only on iPhone and iPad.
+    @Test func release318ShowsPaidPlansAndRedeemCode() {
+        let iOS318 = ["paid-plans-318", "theme-318", "sentinel-retired-318", "redeem-code-318", "focus-mode-318", "show-all-318", "faster-318", "scratch-318",
+                      "write-318", "still-open-318", "links-318", "patterns-318", "watch-318", "health-318"]
+        #expect(FeatureCardService.iOSWhatsNewCards(lastSeen: "3.1.7", current: "3.1.8").map(\.id) == iOS318)
+        #expect(FeatureCardService.iOSWhatsNewCards(lastSeen: "3.1.5", current: "3.1.8").map(\.id) == iOS318)
+        #expect(FeatureCardService.macHasUnseenCards(lastSeen: "1.1.7", current: "1.1.8"))
+        #expect(FeatureCardService.macWhatsNewCards(lastSeen: "1.1.7", current: "1.1.8").map(\.id) == ["paid-plans-318", "theme-318", "redeem-code-318", "show-all-318", "faster-318", "scratch-318",
+                                                                                     "still-open-318", "links-318", "patterns-318"])
+    }
+
     @Test func noCardsMeansNoPages() {
         #expect(FeatureCardService.iOSWhatsNewCards(lastSeen: "3.1.0", current: "3.1.1").isEmpty)
     }

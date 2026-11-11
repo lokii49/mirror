@@ -86,7 +86,7 @@ struct WeeklyDigestView: View {
             }
         }
         .padding(22)
-        .themedHeroCard(cornerRadius: 26, classicBase: .elevated)
+        .themedHeroCard(cornerRadius: 22, classicBase: .elevated)
     }
 
     private func parseDigest(_ text: String) -> [(title: String, body: String)] {
@@ -215,6 +215,7 @@ struct DigestSectionView: View {
             HStack(spacing: 5) {
                 Image(systemName: sectionIcon)
                     .scaledFont(10, weight: .bold)
+                    .accessibilityHidden(true)
                 Text(displayName)
                     .scaledFont(10, weight: .bold, design: isSentinel ? .monospaced : .default)
                     .textCase(isSentinel ? .uppercase : nil)

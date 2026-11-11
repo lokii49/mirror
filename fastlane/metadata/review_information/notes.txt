@@ -1,5 +1,11 @@
 MirrorNotes runs all of its AI on the device. No account or login is needed: open the app and start writing.
 
-Paid plans: the four auto-renewable subscriptions (Core and Deep, monthly and yearly) are already approved. They start on 15 November 2026. Until that date every feature is free, as the app announces in its What's New card, so Settings > Subscription shows "Early Access" and no purchase button. From 15 November (by the device's date) free users see the plans in Settings > Subscription, with a 7-day free trial for new subscribers. To review the purchase flow now, set the device date to 15 November 2026 or later and bring the app to the front.
+Paid plans: this version turns on the four auto-renewable subscriptions (Core and Deep, monthly and yearly, one subscription group). Writing, reading, search and iCloud backup stay free. Free users see the plans in Settings > Subscription and from the locked cards in Insights, with a 7-day free trial for new subscribers. Restore Purchases is on the plans screen, and Redeem Code there and in Settings > Subscription opens Apple's offer code sheet. Reflections, Ask and digests need a few entries first (Insights shows how many more), so write a few short entries before reviewing them.
+
+Apple Health (iPhone): optional and write-only. Settings > Journal > Save mood check-ins to Health saves each mood check-in as a State of Mind sample. The app never reads Health data.
+
+Journaling Suggestions (iPhone, iOS 17.2+): in Write, "Suggestions from your day" opens Apple's suggestions picker; the app only receives the one suggestion the person picks.
+
+Apple Watch: the watch app records a voice note, takes a typed note or logs a mood and sends it to the iPhone app, which saves it to the journal. The watch keeps nothing after sending.
 
 On devices without Apple Intelligence, the AI features first download an on-device model (about 800 MB).

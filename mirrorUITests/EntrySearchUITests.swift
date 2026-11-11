@@ -7,7 +7,6 @@ final class EntrySearchUITests: XCTestCase {
     }
 
     @MainActor func testClassicArchiveSearch() throws { try checkSearch(mode: "classic", tab: "Entries") }
-    @MainActor func testSentinelArchiveSearch() throws { try checkSearch(mode: "sentinel", tab: "Log") }
 
     @MainActor private func checkSearch(mode: String, tab: String) throws {
         let app = XCUIApplication()

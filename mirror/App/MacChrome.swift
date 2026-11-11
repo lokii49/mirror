@@ -10,38 +10,41 @@ import AppKit
 // MARK: - Design tokens (from the boards; light / dark)
 
 enum MacTokens {
-    static let windowBackground = MirrorTheme.hex(0x08060F, 0xF2EEF8)
-    static let sidebarBackground = MirrorTheme.hex(0x0D0A17, 0xE9E3F5)
-    static let sidebarBorder = MirrorTheme.hex(0x221E3A, 0xD9D0EE)
-    static let ink = MirrorTheme.hex(0xF2EEF8, 0x1A1530)
-    static let secondaryInk = MirrorTheme.hex(0x9A93B5, 0x6B6485)
-    static let accent = MirrorTheme.hex(0x7C5CE4, 0x6341CC)
+    // Paper & Ink (2026-11-07): the window is MirrorTheme's paper; the sidebar a shade deeper.
+    static let windowBackground = MirrorTheme.hex(0x141012, 0xF7F3EE)
+    static let sidebarBackground = MirrorTheme.hex(0x18131A, 0xF0EBE4)
+    static let sidebarBorder = MirrorTheme.hex(0x2B2228, 0xDFD3D9)
+    static let ink = MirrorTheme.hex(0xF0E8EC, 0x1D1419)
+    static let secondaryInk = MirrorTheme.hex(0x9C8D99, 0x72636D)
+    static let accent = MirrorTheme.hex(0xC98BC6, 0x8E3A6E)
+    /// Under white text (selected rows, the primary button): the deep plum, white at 7.4:1 / 7.1:1.
+    static let accentFill = MirrorTheme.hex(0x8A3769, 0x8E3A6E)
     /// Cards and controls sitting on the window background.
-    static let surface = MirrorTheme.hex(0x1C1830, 0xFFFFFF)
-    static let controlBorder = MirrorTheme.hex(0x2A2545, 0xD9D0EE)
-    static let divider = MirrorTheme.hex(0x221E3A, 0xE0D9F5)
-    static let segmentDivider = MirrorTheme.hex(0x2A2545, 0xE8E2F6)
-    /// Icon-button and chip ink (the boards' #4A4366 / light violet).
-    static let controlInk = MirrorTheme.hex(0xC9BEF2, 0x4A4366)
-    static let accentInk = MirrorTheme.hex(0xC9BEF2, 0x4B2FA8)
+    static let surface = MirrorTheme.hex(0x241C22, 0xFFFDFB)
+    static let controlBorder = MirrorTheme.hex(0x33282F, 0xDFD3D9)
+    static let divider = MirrorTheme.hex(0x2C2428, 0xE6DDD6)
+    static let segmentDivider = MirrorTheme.hex(0x33282F, 0xEEE6EA)
+    /// Icon-button and chip ink.
+    static let controlInk = MirrorTheme.hex(0xE3CFE0, 0x54434E)
+    static let accentInk = MirrorTheme.hex(0xE3C0DF, 0x7A2F5E)
 
     /// Selected list row. The board is dark-only; the light values are derived from it.
-    static let selectedRowFill = MirrorTheme.hex(0x2A2150, 0xE6DEFA)
-    static let selectedRowBorder = MirrorTheme.hex(0x5B45B8, 0xB9A8F0)
-    static let selectedRowInk = MirrorTheme.hex(0xC9BEF2, 0x5B45B8)
+    static let selectedRowFill = MirrorTheme.hex(0x3A2238, 0xF4E4EE)
+    static let selectedRowBorder = MirrorTheme.hex(0x8A3769, 0xD7AECB)
+    static let selectedRowInk = MirrorTheme.hex(0xE3C0DF, 0x7A2F5E)
 
     /// The quoted sentence of a reflection, and the active state of a toolbar toggle.
-    static let quoteHighlight = MirrorTheme.hex(0x2F2560, 0xEAE2FF)
-    static let toggleActiveFill = MirrorTheme.hex(0x2F2560, 0xE3DBF7)
+    static let quoteHighlight = MirrorTheme.hex(0x3F2440, 0xF6E6F1)
+    static let toggleActiveFill = MirrorTheme.hex(0x3F2440, 0xF1DEEC)
 
     /// Settings window: control outline and the selected tab's pill.
-    static let settingsControlBorder = MirrorTheme.hex(0x2A2545, 0xD0C6EC)
-    static let tabSelectedFill = MirrorTheme.hex(0x2F2560, 0xDAD0F3)
+    static let settingsControlBorder = MirrorTheme.hex(0x33282F, 0xDCCBD6)
+    static let tabSelectedFill = MirrorTheme.hex(0x3F2440, 0xEDD8E7)
 
     /// Quick capture popover: its outline, the text field and the footer strip.
-    static let popoverBorder = MirrorTheme.hex(0x3A3360, 0xD9D0EE)
-    static let quickField = MirrorTheme.hex(0x110E1C, 0xF8F5FF)
-    static let quickFooter = MirrorTheme.hex(0x17132B, 0xF0EBFA)
+    static let popoverBorder = MirrorTheme.hex(0x46343F, 0xDFD3D9)
+    static let quickField = MirrorTheme.hex(0x1A1418, 0xFAF6F8)
+    static let quickFooter = MirrorTheme.hex(0x201920, 0xF3ECEF)
 
     static let sidebarWidth: CGFloat = 232
     static let chromeHeight: CGFloat = 52
@@ -89,7 +92,7 @@ struct MacHoverButtonStyle: ButtonStyle {
 /// Every place the sidebar can go. The sidebar lists them in this order.
 enum MacDestination: String, CaseIterable, Hashable {
     case write, entries
-    case today, digest, report, mood, ask, brain
+    case today, digest, report, mood, patterns, review, ask, brain
 
     var title: LocalizedStringKey {
         switch self {
@@ -99,6 +102,8 @@ enum MacDestination: String, CaseIterable, Hashable {
         case .digest: return "Weekly digest"
         case .report: return "Monthly report"
         case .mood: return "Mood timeline"
+        case .patterns: return "Patterns"
+        case .review: return "Year in Review"
         case .ask: return "Ask"
         case .brain: return "Brain View"
         }
@@ -113,6 +118,8 @@ enum MacDestination: String, CaseIterable, Hashable {
         case .digest: return String(localized: "Weekly digest")
         case .report: return String(localized: "Monthly report")
         case .mood: return String(localized: "Mood timeline")
+        case .patterns: return String(localized: "Patterns")
+        case .review: return String(localized: "Year in Review")
         case .ask: return String(localized: "Ask")
         case .brain: return String(localized: "Brain View")
         }
@@ -126,6 +133,8 @@ enum MacDestination: String, CaseIterable, Hashable {
         case .digest: return "doc"
         case .report: return "bars"
         case .mood: return "chart"
+        case .patterns: return "pulse"
+        case .review: return "card"
         case .ask: return "chat"
         case .brain: return "constellation"
         }
@@ -136,7 +145,7 @@ enum MacDestination: String, CaseIterable, Hashable {
         switch self {
         case .write, .entries: return false
         case .today, .digest, .ask: return tier == .free
-        case .report, .mood, .brain: return tier != .deep
+        case .report, .mood, .patterns, .review, .brain: return tier != .deep
         }
     }
 }
@@ -183,6 +192,8 @@ struct MacSidebar: View {
                 row(.digest)
                 row(.report)
                 row(.mood)
+                row(.patterns)
+                row(.review)
                 row(.ask, trailing: asksLeft.map { String(localized: "\($0) left") })
                 row(.brain)
             }
@@ -234,7 +245,7 @@ struct MacSidebar: View {
             .padding(.horizontal, 10)
             .frame(height: 30)
             .foregroundStyle(isSelected ? Color.white : (locked ? MacTokens.secondaryInk : MacTokens.ink))
-            .background(isSelected ? MacTokens.accent : Color.clear, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .background(isSelected ? MacTokens.accentFill : Color.clear, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
             .contentShape(Rectangle())
         }
         .buttonStyle(MacHoverButtonStyle())
@@ -322,8 +333,9 @@ struct MacPageBar<Trailing: View>: View {
 
     var body: some View {
         HStack(spacing: 8) {
+            // Paper & Ink: screen titles in the reflection's serif, as on iPhone.
             Text(title)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: 17, weight: .medium, design: .serif))
                 .foregroundStyle(MacTokens.ink)
             Spacer(minLength: 0)
             trailing()

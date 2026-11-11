@@ -19,11 +19,11 @@ if not str(destination).startswith('/private/tmp/'):
     raise SystemExit('Device test projects must live under /private/tmp/.')
 destination.mkdir()
 for name in ['mirror', 'Mac', 'Packages', 'MirrorWidgetExtension',
-             'MirrorNotificationContentExtension', 'mirror.xcodeproj',
+             'MirrorNotificationContentExtension', 'MirrorWatch', 'mirror.xcodeproj',
              'mirrorTests', 'mirrorUITests', 'MirrorWidgetExtensionExtension.entitlements']:
     subprocess.run(['cp', '-cR', str(source / name), str(destination / name)], check=True)
 
-for root in ['mirror', 'Mac', 'MirrorWidgetExtension', 'MirrorNotificationContentExtension',
+for root in ['mirror', 'Mac', 'MirrorWidgetExtension', 'MirrorNotificationContentExtension', 'MirrorWatch',
              'mirrorTests', 'mirrorUITests', 'mirror.xcodeproj']:
     for path in (destination / root).rglob('*'):
         if path.is_file() and path.suffix in ['.swift', '.pbxproj', '.plist', '.entitlements']:

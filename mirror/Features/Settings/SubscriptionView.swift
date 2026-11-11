@@ -1,5 +1,6 @@
 import SwiftUI
 import RevenueCat
+import StoreKit
 
 // futureSurface has a distinct two-shadow signature from themedCard's .surface
 // base (inkSurface), so swapping to themedCard would shift Classic's look.
@@ -35,6 +36,7 @@ struct SubscriptionView: View {
     @State private var subscriptionService = SubscriptionService.shared
     @State private var isLoading = false
     @State private var showPaywall = false
+    @State private var showRedeemCode = false
     /// Shown as a tab of the Mac Settings window: no navigation bar or Done, and no own scroll view.
     var embedded = false
 
@@ -42,9 +44,7 @@ struct SubscriptionView: View {
         VStack(spacing: 24) {
             statusCard
 
-            if SubscriptionService.allFeaturesFree {
-                earlyAccessSection
-            } else if !subscriptionService.isSubscribed {
+            if !subscriptionService.isSubscribed {
                 upgradeSection
             } else {
                 manageSection
@@ -82,13 +82,14 @@ struct SubscriptionView: View {
             PaywallView(initialTier: subscriptionService.tier == .core ? .deep : .core)
                 .environment(\.appDisplayMode, displayMode)
         }
+        .modifier(RedeemCodeSheet(isPresented: $showRedeemCode))
     }
 
     private var statusCard: some View {
         HStack(spacing: 14) {
-            Image(systemName: SubscriptionService.allFeaturesFree ? "sparkles" : (subscriptionService.isSubscribed ? "checkmark.seal.fill" : "seal"))
+            Image(systemName: subscriptionService.isSubscribed ? "checkmark.seal.fill" : "seal")
                 .scaledFont(28, weight: .semibold)
-                .foregroundStyle(SubscriptionService.allFeaturesFree ? MirrorTheme.primary : subscriptionService.isDeep ? MirrorTheme.violet : subscriptionService.isSubscribed ? Color.accentColor : .secondary)
+                .foregroundStyle(subscriptionService.isDeep ? MirrorTheme.violet : subscriptionService.isSubscribed ? Color.accentColor : .secondary)
             VStack(alignment: .leading, spacing: 4) {
                 Group {
                     if displayMode == .sentinel {
@@ -113,7 +114,6 @@ struct SubscriptionView: View {
     }
 
     private var tierName: LocalizedStringKey {
-        if SubscriptionService.allFeaturesFree { return "Early Access" }
         switch subscriptionService.tier {
         case .free: return "Free Plan"
         case .core: return "MirrorNotes Core"
@@ -122,7 +122,6 @@ struct SubscriptionView: View {
     }
 
     private var tierDescription: LocalizedStringKey {
-        if SubscriptionService.allFeaturesFree { return "Every feature is free until 15 November" }
         switch subscriptionService.tier {
         case .free:
             return "Unlimited writing, full history, iCloud sync"
@@ -130,46 +129,6 @@ struct SubscriptionView: View {
             return "Daily nudges, weekly digest, 15 Ask questions/month"
         case .deep:
             return "Everything in Core + unlimited Ask, monthly report, mood timeline"
-        }
-    }
-
-    private var earlyAccessSection: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 10) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(MirrorTheme.primary.opacity(0.12))
-                        .frame(width: 36, height: 36)
-                    Image(systemName: "sparkles")
-                        .scaledFont(16, weight: .semibold)
-                        .foregroundStyle(MirrorTheme.primary)
-                }
-                VStack(alignment: .leading, spacing: 2) {
-                    Group {
-                        if displayMode == .sentinel {
-                            Text("ALL SYSTEMS UNLOCKED").scaledFont(14, weight: .semibold, design: .monospaced)
-                        } else {
-                            Text("Everything's unlocked").scaledFont(16, weight: .semibold)
-                        }
-                    }
-                    Group {
-                        if displayMode == .sentinel {
-                            Text("NO SUBSCRIPTION, NO PAYMENT, NOTHING TO MANAGE.").scaledFont(10.5, weight: .medium, design: .monospaced)
-                        } else {
-                            Text("No subscription, no payment, nothing to manage.").scaledFont(13)
-                        }
-                    }
-                    .foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
-            .padding(16)
-            .subscriptionCard(cornerRadius: 16)
-
-            Text("Paid plans start on 15 November. Until then, everything is free. Your entries and history stay yours either way.")
-                .scaledFont(13)
-                .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.center)
         }
     }
 
@@ -227,6 +186,8 @@ struct SubscriptionView: View {
             .foregroundStyle(.secondary)
             .padding(.top, 4)
 
+            redeemCodeButton
+
             HStack(spacing: 16) {
                 if let privacyURL = AppConstants.privacyPolicyURL {
                     Link("Privacy Policy", destination: privacyURL)
@@ -273,7 +234,23 @@ struct SubscriptionView: View {
                 }
             }
 
-            if packages.isEmpty {
+            if packages.isEmpty && subscriptionService.productsLoadFailed {
+                // As on the paywall: a failed load offers a retry instead of spinning forever.
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Couldn't load plans. Check your connection.")
+                        .scaledFont(displayMode == .sentinel ? 12 : 13, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)
+                        .foregroundStyle(.secondary)
+                    Button {
+                        Task { await subscriptionService.loadProducts() }
+                    } label: {
+                        Text("Try Again")
+                            .scaledFont(displayMode == .sentinel ? 13 : 14, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
+                            .textCase(displayMode == .sentinel ? .uppercase : nil)
+                            .foregroundStyle(iconColor)
+                    }
+                    .buttonStyle(.plain)
+                }
+            } else if packages.isEmpty {
                 HStack(spacing: 8) {
                     ProgressView().scaleEffect(0.8)
                     Group {
@@ -335,6 +312,8 @@ struct SubscriptionView: View {
                 }
             }
         }
+        // Full width while plans load too, not only once a price row's Spacer stretches it.
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
         .subscriptionCard(cornerRadius: 18)
     }
@@ -433,6 +412,59 @@ struct SubscriptionView: View {
                 .scaledFont(13)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
+
+            // Subscribers too: an offer code can be for existing subscribers, and the What's New
+            // card sends everyone here.
+            redeemCodeButton
+                .padding(.top, 4)
         }
+    }
+
+    /// Apple's offer-code sheet (`offerCodeRedemption` on the body). Hidden for the iPhone app on
+    /// a Mac, where RevenueCat found the older StoreKit 1 version of this sheet crashes.
+    @ViewBuilder
+    private var redeemCodeButton: some View {
+        if RedeemCodeSheet.isAvailable {
+            Button { showRedeemCode = true } label: {
+                if displayMode == .sentinel {
+                    Text("REDEEM CODE").scaledFont(12, weight: .medium, design: .monospaced)
+                } else {
+                    Text("Redeem Code").scaledFont(14, weight: .medium)
+                }
+            }
+            .foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// Apple's offer-code sheet, then a silent purchase sync. iPhone and iPad; the Mac app on
+/// macOS 15+ (owner, 2026-11-06: Mac like iOS). Not for the iPhone app running on a Mac, where
+/// RevenueCat found the older StoreKit 1 sheet crashes.
+struct RedeemCodeSheet: ViewModifier {
+    @Binding var isPresented: Bool
+
+    static var isAvailable: Bool {
+        #if os(iOS)
+        return !ProcessInfo.processInfo.isiOSAppOnMac
+        #else
+        if #available(macOS 15.0, *) { return true }
+        return false
+        #endif
+    }
+
+    func body(content: Content) -> some View {
+        #if os(iOS)
+        content.offerCodeRedemption(isPresented: $isPresented) { _ in
+            Task { await SubscriptionService.shared.offerCodeSheetClosed() }
+        }
+        #else
+        if #available(macOS 15.0, *) {
+            content.offerCodeRedemption(isPresented: $isPresented) { _ in
+                Task { await SubscriptionService.shared.offerCodeSheetClosed() }
+            }
+        } else {
+            content
+        }
+        #endif
     }
 }

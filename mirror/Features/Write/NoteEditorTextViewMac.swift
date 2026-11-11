@@ -248,6 +248,11 @@ final class MirrorLayoutManager: NSLayoutManager {
 final class MirrorNSTextView: NSTextView {
     var placeholder = String(localized: "What's on your mind?")
     var onToggleChecklist: ((Int) -> Void)?
+    /// Dragging a checklist circle moves its line (owner, 2026-11-06: as on iPhone): the
+    /// paragraph start, and the character index under the pointer on release.
+    var onMoveChecklist: ((Int, Int) -> Void)?
+    /// Where a dragged line would land, drawn as an accent line.
+    private var dropIndicatorY: CGFloat?
     /// The checklist item at the caret (its paragraph start and whether it is checked), if any.
     var checklistItemAtCaret: (() -> (start: Int, checked: Bool)?)?
 
@@ -289,15 +294,59 @@ final class MirrorNSTextView: NSTextView {
             let local = convert(event.locationInWindow, from: nil)
             let point = NSPoint(x: local.x - textContainerOrigin.x, y: local.y - textContainerOrigin.y)
             if let start = layout.checklistParagraphStart(at: point) {
-                onToggleChecklist?(start)
+                // A click ticks it; a drag of a few points moves the line instead.
+                var dragging = false
+                while let next = window?.nextEvent(matching: [.leftMouseDragged, .leftMouseUp]) {
+                    let location = convert(next.locationInWindow, from: nil)
+                    if next.type == .leftMouseDragged {
+                        if !dragging, abs(location.y - local.y) > 6 {
+                            dragging = true
+                            NSCursor.closedHand.push()
+                        }
+                        if dragging {
+                            dropIndicatorY = dropLineY(at: location, from: start)
+                            needsDisplay = true
+                            autoscroll(with: next)
+                        }
+                    } else {
+                        if dragging {
+                            NSCursor.pop()
+                            dropIndicatorY = nil
+                            needsDisplay = true
+                            onMoveChecklist?(start, characterIndexForInsertion(at: location))
+                        } else {
+                            onToggleChecklist?(start)
+                        }
+                        break
+                    }
+                }
                 return
             }
         }
         super.mouseDown(with: event)
     }
 
+    /// Where the dragged line starting at `sourceStart` would land if dropped at `point`, as
+    /// `Coordinator.moveParagraph` places it: moving up, above the line under the pointer; moving
+    /// down, below it. Nil over the dragged line itself (dropping there moves nothing).
+    private func dropLineY(at point: NSPoint, from sourceStart: Int) -> CGFloat? {
+        guard let layoutManager, let textContainer else { return nil }
+        let index = characterIndexForInsertion(at: point)
+        let text = string as NSString
+        guard text.length > 0 else { return nil }
+        let paragraph = text.paragraphRange(for: NSRange(location: min(index, text.length - 1), length: 0))
+        guard paragraph.location != sourceStart else { return nil }
+        let glyphs = layoutManager.glyphRange(forCharacterRange: paragraph, actualCharacterRange: nil)
+        let rect = layoutManager.boundingRect(forGlyphRange: glyphs, in: textContainer)
+        return (paragraph.location > sourceStart ? rect.maxY : rect.minY) + textContainerOrigin.y
+    }
+
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
+        if let dropIndicatorY {
+            NSColor.controlAccentColor.setFill()
+            NSRect(x: textContainerOrigin.x, y: dropIndicatorY - 1, width: bounds.width - textContainerOrigin.x * 2, height: 2).fill()
+        }
         guard string.isEmpty else { return }
         let origin = textContainerOrigin
         let attributes: [NSAttributedString.Key: Any] = [
@@ -330,6 +379,8 @@ struct NoteEditorTextView: NSViewRepresentable {
     /// Shared with iOS's call site; the Mac always shows the popover.
     var panelAsPopover = true
     var onPhotoTapped: ((Int) -> Void)?
+    /// The hint on an empty editor; Write's "What's on your mind?" when nil (Scratch has its own).
+    var placeholder: String? = nil
     /// Not read: it makes SwiftUI call `updateNSView` when Text size changes in Settings.
     @AppStorage(MacPrefs.sizeKey) var textSizePreference: Double = MacPrefs.defaultSize
 
@@ -342,7 +393,9 @@ struct NoteEditorTextView: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
     func makeNSView(context: Context) -> MirrorNSTextView {
-        Self.makeConfiguredTextView(coordinator: context.coordinator)
+        let textView = Self.makeConfiguredTextView(coordinator: context.coordinator)
+        if let placeholder { textView.placeholder = placeholder }
+        return textView
     }
 
     /// Builds the text view the way the app does; also used by the DEBUG editor self-test.
@@ -357,6 +410,8 @@ struct NoteEditorTextView: NSViewRepresentable {
 
         // A TextKit 1 text view (explicit layout manager), which the marker drawing relies on.
         let textView = MirrorNSTextView(frame: .zero, textContainer: container)
+        // VoiceOver names the field before reading it, as on iPhone (accessibility audit, 2026-11-07).
+        textView.setAccessibilityLabel(String(localized: "Entry"))
         textView.isRichText = true
         textView.allowsUndo = true
         textView.drawsBackground = false
@@ -375,7 +430,13 @@ struct NoteEditorTextView: NSViewRepresentable {
         textView.linkTextAttributes = [.foregroundColor: NSColor.linkColor, .underlineStyle: NSUnderlineStyle.single.rawValue]
         textView.delegate = coordinator
         storage.delegate = coordinator
+        // Writing Tools in its panel, plain-text results, photos left alone (WritingToolsGuard).
+        if #available(macOS 15.0, *) {
+            textView.writingToolsBehavior = .limited
+            textView.allowedWritingToolsResultOptions = [.plainText]
+        }
         textView.onToggleChecklist = { [weak coordinator] start in coordinator?.toggleChecklist(at: start) }
+        textView.onMoveChecklist = { [weak coordinator] start, target in coordinator?.moveParagraph(startingAt: start, toParagraphAt: target) }
         textView.checklistItemAtCaret = { [weak coordinator, weak textView] in
             guard let coordinator, let textView else { return nil }
             return coordinator.checklistItemAtCaret(in: textView)
@@ -554,6 +615,11 @@ struct NoteEditorTextView: NSViewRepresentable {
 
         // MARK: Emitting changes
 
+        @available(macOS 15.0, *)
+        func textView(_ textView: NSTextView, writingToolsIgnoredRangesInEnclosingRange enclosingRange: NSRange) -> [NSValue] {
+            WritingToolsGuard.ignoredRanges(in: textView.string, enclosing: enclosingRange).map { NSValue(range: $0) }
+        }
+
         func textDidChange(_ notification: Notification) {
             guard !isApplying, let textView, let storage = textView.textStorage else { return }
             // Mid-composition the marked text carries NSTextView's underline, which would be
@@ -589,6 +655,9 @@ struct NoteEditorTextView: NSViewRepresentable {
 
         func textViewDidChangeSelection(_ notification: Notification) {
             guard !isApplying, let textView else { return }
+            if parent.panelState.hasTextSelection != (textView.selectedRange().length > 0) {
+                parent.panelState.hasTextSelection = textView.selectedRange().length > 0
+            }
             captureTrailingModel(from: textView)
             publishActiveState(in: textView)
             if textView.window?.firstResponder === textView, !parent.isFocused {
@@ -1069,6 +1138,26 @@ struct NoteEditorTextView: NSViewRepresentable {
         }
 
         /// Clicking a checklist box flips that item between unchecked and checked.
+        /// Moves the paragraph that starts at `sourceStart` to the place of the paragraph containing
+        /// `targetLocation` (above it moving up, below it moving down). One undo step; inline styles
+        /// move with the line (`replaceDocument`).
+        func moveParagraph(startingAt sourceStart: Int, toParagraphAt targetLocation: Int) {
+            guard let textView, let storage = textView.textStorage, let rows = paragraphRows(in: textView) else { return }
+            let text = storage.string as NSString
+            let starts = NoteEditorCodec.paragraphStarts(in: text)
+            guard let from = starts.firstIndex(of: sourceStart) else { return }
+            var to = starts.lastIndex(where: { $0 <= targetLocation }) ?? 0
+            // Never below an empty last paragraph that isn't a list item (it has no line to hold).
+            if let last = rows.indices.last, to == last, rows[last].text.isEmpty, !NoteEditorCodec.isListStyle(rows[last].model.style) {
+                to = max(0, last - 1)
+            }
+            guard from != to, rows.indices.contains(to) else { return }
+            var order = Array(rows.indices)
+            let moved = order.remove(at: from)
+            order.insert(moved, at: to)
+            replaceDocument(with: order.map { rows[$0] }, rowOrder: order, in: textView)
+        }
+
         func toggleChecklist(at paragraphStart: Int) {
             guard let textView, let storage = textView.textStorage else { return }
             let text = storage.string as NSString
@@ -1077,6 +1166,7 @@ struct NoteEditorTextView: NSViewRepresentable {
                 layout?.trailingModel = trailing
                 refreshTypingAttributes(in: textView)
                 emit(storage: storage, textView: textView)
+                if trailing.style == .checklistChecked { parent.panelState.onChecklistItemChecked?() }
                 return
             }
             let range = text.paragraphRange(for: NSRange(location: paragraphStart, length: 0))
@@ -1085,6 +1175,9 @@ struct NoteEditorTextView: NSViewRepresentable {
             mutate(textView, range: range) { storage in
                 storage.addAttribute(NoteEditorCodec.paragraphStyleKey, value: next.rawValue, range: range)
             }
+            // Same as iPhone: the first check asks about sorting, then checked items move down if
+            // the person chose that (owner, 2026-11-06: Mac like iOS).
+            if next == .checklistChecked { parent.panelState.onChecklistItemChecked?() }
         }
     }
 }

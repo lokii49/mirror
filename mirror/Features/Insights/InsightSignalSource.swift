@@ -11,7 +11,11 @@ import SwiftData
 /// thread it through.
 struct InsightSourceSheet: View {
     let insight: Insight
-    @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
+    /// The whole journal. Read `entries`, which leaves out collections kept out of insights.
+    @Query(sort: \Entry.createdAt, order: .reverse) private var journalEntries: [Entry]
+    @Query private var scopeCollections: [JournalCollection]
+    @State private var insightEntries = InsightEntriesMemo()
+    private var entries: [Entry] { insightEntries.entries(journalEntries, collections: scopeCollections) }
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -233,13 +237,8 @@ struct InsightSignalSource: View {
             .split(separator: "·").last.map { $0.trimmingCharacters(in: .whitespaces) }
             ?? String(localized: "system prompt")
 
+        // The sheet's title already names it ("How this was generated"), so the card starts with the facts.
         return VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 6) {
-                Image(systemName: "shield.lefthalf.filled").scaledFont(11, weight: .bold)
-                Text("SIGNAL SOURCE").scaledFont(11, weight: .bold, design: .monospaced).tracking(1.4)
-            }
-            .foregroundStyle(MirrorTheme.ember)
-
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(Array(r.rows.enumerated()), id: \.offset) { _, item in
                     row(item.label, item.value)
@@ -248,7 +247,7 @@ struct InsightSignalSource: View {
 
             if let note = r.note {
                 Text(note)
-                    .scaledFont(9.5, design: .monospaced)
+                    .scaledFont(12.5)
                     .foregroundStyle(MirrorTheme.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -256,16 +255,16 @@ struct InsightSignalSource: View {
             if !r.reading.isEmpty {
                 VStack(alignment: .leading, spacing: 5) {
                     Text("READING")
-                        .scaledFont(10, weight: .bold, design: .monospaced).tracking(0.6)
+                        .scaledFont(11, weight: .semibold).tracking(0.6)
                         .foregroundStyle(MirrorTheme.textSecondary)
                     ForEach(Array(r.reading.enumerated()), id: \.offset) { _, item in
                         HStack(alignment: .firstTextBaseline, spacing: 10) {
                             Text(item.day)
-                                .scaledFont(10, weight: .medium, design: .monospaced)
+                                .scaledFont(12, weight: .medium)
                                 .foregroundStyle(MirrorTheme.textTertiary)
                                 .frame(width: 44, alignment: .leading)
                             Text(item.snippet)
-                                .scaledFont(10.5, design: .monospaced)
+                                .scaledFont(13)
                                 .foregroundStyle(MirrorTheme.textPrimary)
                                 .lineLimit(2).truncationMode(.tail)
                         }
@@ -273,17 +272,17 @@ struct InsightSignalSource: View {
                 }
             }
 
-            Rectangle().fill(MirrorTheme.ember.opacity(0.3)).frame(height: 1)
+            Rectangle().fill(MirrorTheme.inkBorder).frame(height: 1)
 
             NavigationLink(value: insight.type) {
                 HStack(spacing: 6) {
                     Image(systemName: "curlybraces").scaledFont(10, weight: .bold)
                     Text("SYSTEM PROMPT · \(symbol)")
-                        .scaledFont(10, weight: .bold, design: .monospaced).tracking(0.4)
+                        .scaledFont(11, weight: .semibold).tracking(0.3)
                     Spacer(minLength: 4)
                     Image(systemName: "chevron.right").scaledFont(9, weight: .bold)
                 }
-                .foregroundStyle(MirrorTheme.ember)
+                .foregroundStyle(MirrorTheme.violet)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -291,28 +290,28 @@ struct InsightSignalSource: View {
             HStack(spacing: 6) {
                 Image(systemName: "lock.fill").scaledFont(10, weight: .bold)
                 Text("NO NETWORK · NEVER LEFT THIS DEVICE")
-                    .scaledFont(10, weight: .bold, design: .monospaced).tracking(0.8)
+                    .scaledFont(11, weight: .semibold).tracking(0.6)
             }
-            .foregroundStyle(MirrorTheme.violetLight)
+            .foregroundStyle(MirrorTheme.textSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
-        .background(MirrorTheme.inkDeep,
-                    in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(MirrorTheme.inkMid,
+                    in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(MirrorTheme.ember.opacity(0.3), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(MirrorTheme.inkBorder, lineWidth: 1)
         }
     }
 
     private func row(_ label: String, _ value: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             Text(label)
-                .scaledFont(10, weight: .bold, design: .monospaced).tracking(0.6)
+                .scaledFont(11, weight: .semibold).tracking(0.6)
                 .foregroundStyle(MirrorTheme.textSecondary)
-                .frame(width: 92, alignment: .leading)
+                .frame(width: 104, alignment: .leading)
             Text(value)
-                .scaledFont(11, weight: .medium, design: .monospaced)
+                .scaledFont(13, weight: .medium)
                 .foregroundStyle(MirrorTheme.textPrimary)
                 .lineLimit(3).truncationMode(.tail)
                 .fixedSize(horizontal: false, vertical: true)
@@ -332,8 +331,8 @@ struct SystemPromptDetail: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 Text(p.ref)
-                    .scaledFont(11, weight: .bold, design: .monospaced)
-                    .foregroundStyle(MirrorTheme.ember)
+                    .scaledFont(12, weight: .semibold, design: .monospaced)
+                    .foregroundStyle(MirrorTheme.violet)
                     .textSelection(.enabled)
                 Text("The exact instruction sent to the on-device model. It doesn't change per entry — the same text every time an insight of this kind is generated.")
                     .scaledFont(13)
@@ -344,11 +343,11 @@ struct SystemPromptDetail: View {
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(14)
-                    .background(MirrorTheme.inkDeep,
+                    .background(MirrorTheme.inkMid,
                                 in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(MirrorTheme.ember.opacity(0.25), lineWidth: 1)
+                            .stroke(MirrorTheme.inkBorder, lineWidth: 1)
                     }
             }
             .padding(20)
@@ -381,7 +380,6 @@ private func sheetPreview(_ type: InsightType, question: String? = nil) -> some 
         ctx.insert(e)
     }
     return InsightSourceSheet(insight: insight)
-        .environment(\.appDisplayMode, .sentinel)
         .modelContainer(container)
 }
 

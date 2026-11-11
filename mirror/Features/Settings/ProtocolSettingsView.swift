@@ -18,6 +18,8 @@ struct ProtocolSettingsView: View {
     // snippet is AI content derived from journal text even though it isn't the journal text
     // itself. Opt-in only.
     @AppStorage("nudgePreviewEnabled") private var nudgePreviewEnabled: Bool = false
+    @AppStorage(HealthMoodWriter.enabledKey) private var healthWritesMoods = false
+    @State private var healthAccessDenied = false
 
     // One unified daily reminder (replaces the old separate writing reminder).
     // On by default; tapping the notification opens the mood check-in sheet.
@@ -110,6 +112,29 @@ struct ProtocolSettingsView: View {
             .fixedSize()
     }
     #endif
+
+    private func setHealthWrites(_ on: Bool) {
+        guard on else { healthWritesMoods = false; return }
+        #if os(iOS)
+        if #available(iOS 18.0, *) {
+            Task {
+                let allowed = await HealthMoodWriter.requestAccess()
+                healthWritesMoods = allowed
+                healthAccessDenied = !allowed
+            }
+        }
+        #endif
+    }
+
+    /// The Apple Health footer names the device the check-ins are logged on.
+    private var healthFooter: LocalizedStringKey {
+        #if os(iOS)
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            return "Each mood check-in logged on this iPad is saved to Health as a State of Mind. MirrorNotes never reads from Health, and your entries are never sent there."
+        }
+        #endif
+        return "Each mood check-in logged on this iPhone is saved to Health as a State of Mind. MirrorNotes never reads from Health, and your entries are never sent there."
+    }
 
     var body: some View {
         SettingsScroll {
@@ -344,8 +369,7 @@ struct ProtocolSettingsView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                // The Mac editor never sorts checklists, so the setting would do nothing there.
-                #if os(iOS)
+                // Both editors sort checked items now (Mac since 3.1.8).
                 SettingsGroup(title: "Checklists") {
                     VStack(alignment: .leading, spacing: 0) {
                         Toggle(isOn: Binding(
@@ -364,7 +388,53 @@ struct ProtocolSettingsView: View {
                     }
                     .padding(.vertical, 2)
                 }
-                #endif
+
+                // Mood check-ins to Apple Health (owner: write only). iPhone with Health, iOS 18+.
+                if HealthMoodWriter.isAvailable {
+                    SettingsGroup(title: "Apple Health") {
+                        VStack(alignment: .leading, spacing: 0) {
+                            Toggle(isOn: Binding(get: { healthWritesMoods }, set: { on in setHealthWrites(on) })) {
+                                SettingsRowLabel(title: "Save mood check-ins to Health", systemImage: "heart.text.square", iconColor: .pink)
+                            }
+                            .tint(MirrorTheme.primary)
+                            .accessibilityIdentifier("settings.healthMoods")
+                            Text(healthFooter)
+                                .scaledFont(12.5)
+                                .foregroundStyle(MirrorTheme.textSecondary)
+                                .padding(.leading, 44)
+                                .padding(.top, -4)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text("Turning this off stops new check-ins from going to Health; the ones already saved stay in Health, where you can see or delete them.")
+                                .scaledFont(12.5)
+                                .foregroundStyle(MirrorTheme.textSecondary)
+                                .padding(.leading, 44)
+                                .padding(.top, 6)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(.vertical, 2)
+                    }
+                    .alert("Health access is off", isPresented: $healthAccessDenied) {
+                        Button("OK", role: .cancel) {}
+                    } message: {
+                        Text("Allow MirrorNotes to write State of Mind in the Health app › Sharing › Apps, then turn this on again.")
+                    }
+                }
+
+                // Explains Write's "Suggestions from your day" where it's offered (owner, 2026-11-06).
+                if DeviceFeature.journalingSuggestionsAvailable {
+                    SettingsGroup(title: "Suggestions from your day") {
+                        VStack(alignment: .leading, spacing: 0) {
+                            SettingsRowLabel(title: "Apple's Journaling Suggestions", systemImage: "photo.on.rectangle.angled", iconColor: .orange)
+                            Text("In Write, Suggestions from your day opens Apple's own sheet of photos, workouts and places from your day. MirrorNotes sees only the one you pick, to start that entry, and nothing else. Which suggestions appear is set in Settings › Privacy & Security › Journaling Suggestions.")
+                                .scaledFont(12.5)
+                                .foregroundStyle(MirrorTheme.textSecondary)
+                                .padding(.leading, 44)
+                                .padding(.top, -4)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
 
                 SettingsGroup(title: "Input") {
                     // SettingsRowLabel centers its 32pt icon against the title (correct, and

@@ -1,9 +1,30 @@
-Paid plans from 15 November
+Core and Deep are here
 
-• From 15 November, new daily reflections, Ask, new weekly digests and monthly reports, the mood timeline and widgets need Core or Deep. Writing, reading, search and iCloud backup stay free, forever. New subscribers get a 7-day free trial.
+• New daily reflections, Ask, new weekly digests and monthly reports, the mood timeline and widgets now need Core or Deep. Writing, reading, search and iCloud backup stay free, forever. New subscribers get a 7-day free trial.
 • Everything already made for you stays readable on every plan: past reflections, digests and reports, in the app and in widgets.
 
 Also in this update
 
-• A much smaller download: under 30 MB again, down from over 300 MB.
-• Writing late at night counts as that evening's. Entries written before 4 AM are reflected with the day before, and what you write later in the day gets its own daily reflection.
+• A new look, Paper & Ink: warm paper pages with a plum accent, serif titles and today's reflection on top. Entries show titles, photos, tags and Today / Yesterday labels. Sentinel mode has been retired, so everyone now gets this look.
+• Have an App Store offer code? Tap Redeem Code in Settings › Subscription or on the plans screen.
+• Settings has a Done button and a grab handle, so it's clear how to close it.
+• If plans can't load, Subscription offers Try Again instead of loading forever.
+• Focus mode is now just your words: the toolbar, the starter and the cards step aside, and one button brings them back.
+• The first time the keyboard opens, a tip shows that swiping down on the page hides it.
+• Tapping a day in the Entries calendar keeps that day in view instead of jumping back to today.
+• Past reflections and digests end with Show all, so you can read every one.
+• Organize can add a Scratch collection for quick notes, lists and numbers. Reflections, Ask, mood charts and mood alerts don't read it, and any collection can be kept out of them the same way.
+• Tapping Entries again scrolls the list back to the top.
+• Write has a new header: the date as a title, Mood beside it, Save as a button, and Delete and focus mode in the ⋯ menu.
+• New Scratch Note from Control Center, Siri or the Entries menu, with checklists, numbered and bulleted lists, and Remind me for a reminder at a time you pick. The reminder never shows the note's words.
+• Templates: Evening Review, Weekly Plan and Morning Pages, plus your own, kept on this device.
+• Suggestions from your day: start an entry from Apple's Journaling Suggestions. Songs, podcasts, workouts, places, people and steps come in as short lines, with photos, artwork and a map of your route or place. Tap a place or its map to open it in Maps, or a song to find it in Apple Music.
+• Still Open lists every unticked checklist item across your entries.
+• Link an entry to another, and see what links to it under Linked from.
+• Patterns and Year in Review (Deep): the moods that come with your days, times and tags, and your year in numbers.
+• MirrorNotes on Apple Watch: record a voice note, type a quick note or log a mood. Voice notes get a transcript on your iPhone.
+• Save mood check-ins to Apple Health if you choose (Settings › Journal).
+• Big journals are faster: the Entries list, search, Insights, the mood timeline and the calendar no longer re-read every entry whenever the screen changes, and opening an entry no longer loads the whole journal.
+• MirrorNotes opens a little faster and uses less memory.
+• Entry rows spell out the word count ("52 words" instead of "52w").
+• On the free plan, Insights shows one card about Core instead of two.

@@ -6,7 +6,15 @@ struct EntryDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.appDisplayMode) private var displayMode
     @Query private var insights: [Insight]
+    #if os(macOS)
+    /// The Mac pane's reflection and related entries read across the journal. iOS doesn't hold it:
+    /// opening an entry loaded every entry just for On This Day (audit 2026-11-04).
     @Query(sort: \Entry.createdAt, order: .reverse) private var allEntries: [Entry]
+    @Query private var scopeCollections: [JournalCollection]
+    @State private var insightEntriesMemo = InsightEntriesMemo()
+    /// What reflections read: the journal without collections kept out of insights.
+    private var insightEntries: [Entry] { insightEntriesMemo.entries(allEntries, collections: scopeCollections) }
+    #endif
     @Query private var collections: [JournalCollection]
     /// "Move to > New collection…" in the More menu.
     @State private var newCollectionFor: Entry?
@@ -23,6 +31,9 @@ struct EntryDetailView: View {
     /// recording): a voice-only entry from a device whose key this one lacks reads fine as
     /// text, but editing it would write its unreadable fields back.
     @State private var contentUnreadable = false
+    /// Entries from this day in other years, built in a task: a computed property scanned the whole
+    /// journal twice per render (audit 2026-11-04).
+    @State private var cachedOnThisDay: [Entry] = []
     @State private var relatedInsight: Insight? = nil
     #if os(macOS)
     @State private var macReflection: Insight? = nil
@@ -71,17 +82,57 @@ struct EntryDetailView: View {
         WritingFontChoice.resolved(entryDefault: entry.fontChoice, override: nil).swiftUIDesign
     }
 
-    private var onThisDayEntries: [Entry] {
-        let cal = Calendar.current
-        let comps = cal.dateComponents([.month, .day], from: entry.createdAt)
-        let thisYear = cal.component(.year, from: entry.createdAt)
-        return allEntries.filter { other in
-            guard other.id != entry.id else { return false }
-            let otherComps = cal.dateComponents([.year, .month, .day], from: other.createdAt)
-            return otherComps.month == comps.month
-                && otherComps.day == comps.day
-                && otherComps.year != thisYear
+    private var onThisDayEntries: [Entry] { cachedOnThisDay }
+
+    private var onThisDayKey: JournalCacheKey {
+        JournalCacheKey(entries: 0, checkIns: 0, revision: JournalRevision.shared.value, first: entry.id)
+    }
+
+    /// Entries on this entry's month and day in other years, newest first: one small date-range
+    /// fetch per year between the oldest and newest entry, instead of reading the whole journal.
+    private func computeOnThisDay() -> [Entry] {
+        Self.onThisDay(for: entry, in: modelContext)
+    }
+
+    static func onThisDay(for entry: Entry, in context: ModelContext, calendar cal: Calendar = .current) -> [Entry] {
+        let comps = cal.dateComponents([.year, .month, .day], from: entry.createdAt)
+        guard let month = comps.month, let day = comps.day, let ownYear = comps.year else { return [] }
+        func edge(_ order: SortOrder) -> Date? {
+            var d = FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: order)])
+            d.fetchLimit = 1
+            d.propertiesToFetch = [\.createdAt]
+            return (try? context.fetch(d))?.first?.createdAt
         }
+        guard let oldest = edge(.forward), let newest = edge(.reverse) else { return [] }
+        let ownID = entry.id
+        var matches: [Entry] = []
+        // A mistyped date decades away shouldn't turn this into hundreds of fetches.
+        let firstYear = max(cal.component(.year, from: oldest), ownYear - 100)
+        let lastYear = min(cal.component(.year, from: newest), ownYear + 100)
+        guard firstYear <= lastYear else { return [] }
+        for year in firstYear...lastYear where year != ownYear {
+            // Feb 29 in a year without one would roll over to Mar 1: skip, as the old filter did.
+            guard let start = cal.date(from: DateComponents(year: year, month: month, day: day)),
+                  cal.component(.month, from: start) == month, cal.component(.day, from: start) == day,
+                  let end = cal.date(byAdding: .day, value: 1, to: start) else { continue }
+            let descriptor = FetchDescriptor<Entry>(predicate: #Predicate { $0.createdAt >= start && $0.createdAt < end && $0.id != ownID },
+                                                    sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
+            matches += (try? context.fetch(descriptor)) ?? []
+        }
+        return matches.sorted { $0.createdAt > $1.createdAt }
+    }
+
+    /// Paper & Ink: time · mood dot and name · words, in one quiet line (was monospaced, with a pill).
+    private var paperMetaLine: some View {
+        var line = Text(entry.createdAt, format: .dateTime.hour().minute())
+        if let mood = entry.mood, !mood.isEmpty {
+            line = line + Text(" · ") + Text("●").foregroundStyle(MirrorTheme.moodColor(for: mood))
+                + Text(" " + MirrorTheme.localizedMoodName(for: mood))
+        }
+        line = line + Text(" · ") + Text(displayedWordCount == 1 ? "1 word" : "\(displayedWordCount) words")
+        return line
+            .scaledFont(14)
+            .foregroundStyle(MirrorTheme.textSecondary)
     }
 
     private var moodLabel: String? {
@@ -114,11 +165,16 @@ struct EntryDetailView: View {
                                 .foregroundStyle(MirrorTheme.textPrimary)
                                 .kerning(0.4)
                         } else {
+                            // Paper & Ink: the date in the reflection's serif.
                             Text(entry.createdAt, format: .dateTime.weekday(.wide).month(.wide).day().year())
-                                .scaledFont(18, weight: .semibold)
+                                .scaledFont(21, weight: .medium, design: .serif)
                                 .foregroundStyle(MirrorTheme.textPrimary)
                         }
 
+                        if displayMode != .sentinel {
+                            paperMetaLine
+                            ScratchReminderLine(entryID: entry.id)
+                        } else {
                         HStack(spacing: 6) {
                             Text(entry.createdAt, format: .dateTime.hour().minute())
                                 .scaledFont(14, weight: .medium, design: .monospaced)
@@ -147,6 +203,7 @@ struct EntryDetailView: View {
                             Text(displayedWordCount == 1 ? "1 word" : "\(displayedWordCount) words")
                                 .scaledFont(14, weight: .medium, design: .monospaced)
                                 .foregroundStyle(MirrorTheme.textTertiary)
+                        }
                         }
                     }
 
@@ -238,13 +295,18 @@ struct EntryDetailView: View {
                 if !onThisDayEntries.isEmpty {
                     OnThisDaySection(entries: onThisDayEntries, referenceDate: entry.createdAt)
                 }
+
+                // Entries that link here (only links the person made).
+                LinkedFromSection(entryID: entry.id)
             }
             .padding(16)
             .padding(.bottom, 32)
         }
+        .modifier(EntryLinkRouting())
         .modifier(ReaderMatchScrolling(matches: searchMatches, index: $matchIndex))
         .background(MirrorTheme.bgBase)
         .task(id: MatchKey(entryID: entry.id, terms: searchHighlight.terms, text: entry.text)) { locateMatches() }
+        .task(id: onThisDayKey) { cachedOnThisDay = computeOnThisDay() }
         .task(id: entry.id) {
             contentUnreadable = entry.contentDecryptionFailed
             let text = entry.text
@@ -351,6 +413,8 @@ struct EntryDetailView: View {
                         .foregroundStyle(MacTokens.secondaryInk)
                         .padding(.bottom, 10)
 
+                    ScratchReminderLine(entryID: entry.id)
+
                     macChips
                         .padding(.bottom, 26)
 
@@ -407,6 +471,8 @@ struct EntryDetailView: View {
                         OnThisDaySection(entries: onThisDayEntries, referenceDate: entry.createdAt)
                             .padding(.top, 30)
                     }
+                    LinkedFromSection(entryID: entry.id)
+                        .padding(.top, 30)
                 }
                 .frame(maxWidth: MacPrefs.lineWidth(lineWidthPreference).readerColumn, alignment: .leading)
                 .padding(.horizontal, 20)
@@ -416,9 +482,11 @@ struct EntryDetailView: View {
             }
             .modifier(MacNoScrollEdgeEffect())
             .modifier(ReaderMatchScrolling(matches: searchMatches, index: $matchIndex))
+            .modifier(EntryLinkRouting())
         }
         .background(MirrorTheme.bgBase)
         .task(id: MatchKey(entryID: entry.id, terms: searchHighlight.terms, text: entry.text)) { locateMatches() }
+        .task(id: onThisDayKey) { cachedOnThisDay = computeOnThisDay() }
         .task(id: entry.id) {
             contentUnreadable = entry.contentDecryptionFailed
             displayedWordCount = strippedWordCount(entry.text)
@@ -453,7 +521,7 @@ struct EntryDetailView: View {
             .first { insight in
                 !InsightService.isUngroundedFallback(insight.content)
                     && !InsightService.isUnsupportedLanguageNotice(insight.content)
-                    && InsightService.reflectedDay(of: insight, entriesNewestFirst: allEntries) == day
+                    && InsightService.reflectedDay(of: insight, entriesNewestFirst: insightEntries) == day
             }
     }
 
@@ -516,7 +584,7 @@ struct EntryDetailView: View {
     /// The reflection in the Insights cards' grammar, with the entry's own sentence highlighted
     /// as the Today board shows it. Display-time second quote and style, like everywhere else.
     private func macReflectionCard(_ insight: Insight) -> some View {
-        let shown = InsightService.reflectionForDisplay(insight.content, entries: allEntries, generatedAt: insight.generatedAt, style: ReflectionStyle.current)
+        let shown = InsightService.reflectionForDisplay(insight.content, entries: insightEntries, generatedAt: insight.generatedAt, style: ReflectionStyle.current)
         let parts = InsightService.isGrammarGrounded(insight.content) ? shown.parts : nil
         return VStack(alignment: .leading, spacing: 14) {
             InsightCardHeader("Daily Reflection", icon: "sparkles", trailing: {
@@ -1077,13 +1145,79 @@ private struct InlineEntryContent: View {
         return AttributedString(attr[idx...])
     }
 
+    /// A photo line's picture index, when the line is just a photo token that has its picture.
+    private func photoIndex(ofLine line: String) -> Int? {
+        guard let index = inlinePhotoIndex(from: line.trimmingCharacters(in: .whitespaces)), index < photoDataArray.count else { return nil }
+        return index
+    }
+
+    /// The reader's blocks: each line, except that tiled photo lines (`PhotoRuns`) gather into one
+    /// grid of square tiles. Same rule as the editor; the stored text keeps one token per line.
+    private enum Block { case line(Int), tiles([Int]) }
+
+    private var blocks: [Block] {
+        let lines = displayLines
+        let tiles = PhotoRuns.tileLines(count: lines.count, photoLine: { photoIndex(ofLine: lines[$0]) != nil }) { line in
+            guard let photo = photoIndex(ofLine: lines[line]) else { return false }
+            return PhotoRuns.isLandscape(photoDataArray[photo])
+        }
+        var result: [Block] = []
+        for index in lines.indices {
+            if tiles.contains(index) {
+                if case .tiles(let run) = result.last, run.last == index - 1 { result[result.count - 1] = .tiles(run + [index]) } else { result.append(.tiles([index])) }
+            } else {
+                result.append(.line(index))
+            }
+        }
+        return result
+    }
+
     var body: some View {
+        let lines = displayLines
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(Array(displayLines.enumerated()), id: \.offset) { index, line in
+            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
+                switch block {
+                case .tiles(let lineIndices):
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), alignment: .leading, spacing: 8) {
+                        ForEach(lineIndices, id: \.self) { lineIndex in
+                            if let photo = photoIndex(ofLine: lines[lineIndex]), let uiImage = UIImage(data: photoDataArray[photo]) {
+                                Color.clear
+                                    .aspectRatio(1, contentMode: .fit)
+                                    .overlay { Image(uiImage: uiImage).resizable().scaledToFill() }
+                                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                    .overlay {
+                                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                            .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                                    }
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                case .line(let index):
+                    lineView(lines[index], at: index)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// The link on a photo line, if one covers it (a suggestion's map opens Maps).
+    private func photoLink(atLine index: Int) -> URL? {
+        let start = paragraphStartOffset(at: index)
+        let length = (displayLines[index] as NSString).length
+        for range in inlineRanges {
+            guard let link = validatedLinkURL(from: range.linkURL) else { continue }
+            if range.location < start + length, range.location + max(range.length, 1) > start { return link }
+        }
+        return nil
+    }
+
+    @ViewBuilder
+    private func lineView(_ line: String, at index: Int) -> some View {
                 if let photoIndex = inlinePhotoIndex(from: line.trimmingCharacters(in: .whitespaces)),
                    photoIndex < photoDataArray.count,
                    let uiImage = UIImage(data: photoDataArray[photoIndex]) {
-                    Image(uiImage: uiImage)
+                    let picture = Image(uiImage: uiImage)
                         .resizable()
                         .scaledToFit()
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -1092,14 +1226,16 @@ private struct InlineEntryContent: View {
                                 .stroke(Color.primary.opacity(0.08), lineWidth: 1)
                         }
                         .padding(.vertical, 4)
+                    if let link = photoLink(atLine: index) {
+                        Link(destination: link) { picture }
+                    } else {
+                        picture
+                    }
                 } else if !line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     styledText(for: line, at: index)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .id(ReaderMatches.lineID(index))
                 }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder

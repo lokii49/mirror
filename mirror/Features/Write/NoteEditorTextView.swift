@@ -34,19 +34,23 @@ struct NoteEditorTextView: UIViewRepresentable {
     /// otherwise the panel replaces the keyboard.
     var panelAsPopover = false
     var onPhotoTapped: ((Int) -> Void)?
+    /// The hint on an empty editor; Write's "What's on your mind?" when nil (Scratch has its own).
+    var placeholder: String? = nil
 
     func makeUIView(context: Context) -> UITextView {
         // An explicit TextKit 1 stack: the editor reads `layoutManager` throughout, and the
         // checklist circles are drawn by ChecklistLayoutManager.
         let storage = NSTextStorage()
         let layoutManager = ChecklistLayoutManager()
-        layoutManager.setAccentColor(UIColor(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor), traits: .current)
+        layoutManager.setAccentColor(UIColor(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary), traits: .current)
         storage.addLayoutManager(layoutManager)
         storage.delegate = layoutManager.markerSpacing
         let container = NSTextContainer(size: CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
         container.widthTracksTextView = true
         layoutManager.addTextContainer(container)
         let textView = MirrorEditorTextView(frame: .zero, textContainer: container)
+        // VoiceOver names the field before reading what's in it (accessibility audit, 2026-11-07).
+        textView.accessibilityLabel = String(localized: "Entry")
         context.coordinator.textView = textView
         textView.caretAccessibilityActions = { [weak coordinator = context.coordinator, weak textView] in
             guard let coordinator, let textView else { return [] }
@@ -55,6 +59,12 @@ struct NoteEditorTextView: UIViewRepresentable {
         textView.editorUndo = context.coordinator.editorUndoManager
         context.coordinator.editorUndoManager.textView = textView
         textView.delegate = context.coordinator
+        // Writing Tools in its panel, plain-text results, photos and list markers left alone
+        // (WritingToolsGuard).
+        if #available(iOS 18.0, *) {
+            textView.writingToolsBehavior = .limited
+            textView.allowedWritingToolsResultOptions = [.plainText]
+        }
         textView.backgroundColor = .clear
         textView.isEditable = true
         textView.isSelectable = true
@@ -70,7 +80,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         textView.typingAttributes = context.coordinator.bodyAttributes
 
         let placeholder = UILabel()
-        placeholder.text = String(localized: "What's on your mind?")
+        placeholder.text = self.placeholder ?? String(localized: "What's on your mind?")
         placeholder.textColor = .tertiaryLabel
         placeholder.font = context.coordinator.serifBodyFont
         placeholder.adjustsFontForContentSizeCategory = true
@@ -113,7 +123,9 @@ struct NoteEditorTextView: UIViewRepresentable {
 
     func updateUIView(_ textView: UITextView, context: Context) {
         if let layoutManager = textView.layoutManager as? ChecklistLayoutManager {
-            let accent = UIColor(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
+            // The asset colour by name: `Color.accentColor` turned into a UIColor here, outside a
+            // view's environment, resolved to system blue (blue ticks, 2026-11-07).
+            let accent = UIColor(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
             if layoutManager.setAccentColor(accent, traits: textView.traitCollection) {
                 textView.setNeedsDisplay()
                 layoutManager.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: textView.textStorage.length))
@@ -216,6 +228,10 @@ struct NoteEditorTextView: UIViewRepresentable {
     }
 
     final class Coordinator: NSObject, UITextViewDelegate, UIGestureRecognizerDelegate, UIContextMenuInteractionDelegate {
+        /// The last non-empty selection, kept until the text changes: "Link to an Entry…" applies
+        /// the link after the alert and a picker sheet, and the text view may have dropped its
+        /// selection by then (it isn't first responder while the sheet is up).
+        private var lastLinkableSelection: NSRange?
         /// The paragraph styles as the editor last wrote them, until SwiftUI's next update. In the app
         /// a write through `parent.textStyleData` (WriteViewModel via a binding) does not read back
         /// until then, so a re-render right after a style change drew the old styles: a list button
@@ -348,6 +364,14 @@ struct NoteEditorTextView: UIViewRepresentable {
                     if (displayed as NSString).character(at: i) == 0xFFFC { attachCount += 1 }
                 }
                 let sortedTokens = photoTokens.sorted { parent.text.distance(from: parent.text.startIndex, to: $0.range.lowerBound) < parent.text.distance(from: parent.text.startIndex, to: $1.range.lowerBound) }
+                // A picture with a link (a suggestion's map) opens it, e.g. Apple Maps at the place.
+                if let attributed = textView.attributedText, charIndex < attributed.length,
+                   let url = (attributed.attribute(.link, at: charIndex, effectiveRange: nil) as? URL)
+                    ?? (attributed.attribute(.link, at: charIndex, effectiveRange: nil) as? String).flatMap(URL.init(string:)),
+                   ["http", "https"].contains(url.scheme?.lowercased() ?? "") {
+                    UIApplication.shared.open(url)
+                    return
+                }
                 if attachCount < sortedTokens.count, isPhotoReadable(sortedTokens[attachCount].index) {
                     parent.onPhotoTapped?(sortedTokens[attachCount].index)
                 }
@@ -541,8 +565,14 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         var bodyAttributes: [NSAttributedString.Key: Any] { bodyAttributes(fontChoice: entryDefaultFontChoice) }
 
+        @available(iOS 18.0, *)
+        func textView(_ textView: UITextView, writingToolsIgnoredRangesInEnclosingRange enclosingRange: NSRange) -> [NSValue] {
+            WritingToolsGuard.ignoredRanges(in: textView.text ?? "", enclosing: enclosingRange).map { NSValue(range: $0) }
+        }
+
         func textViewDidChange(_ textView: UITextView) {
             guard !isApplyingStyledText else { return }
+            lastLinkableSelection = nil
             if let paste = pastedIntoList {
                 let nsText = (textView.text ?? "") as NSString
                 let pasted = NSIntersectionRange(paste.range, NSRange(location: 0, length: nsText.length))
@@ -1196,8 +1226,22 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         func textViewDidChangeSelection(_ textView: UITextView) {
+            if parent.panelState.hasTextSelection != (textView.selectedRange.length > 0) {
+                parent.panelState.hasTextSelection = textView.selectedRange.length > 0
+            }
+            if textView.selectedRange.length > 0 { lastLinkableSelection = textView.selectedRange }
             guard !isApplyingStyledText, textView.isFirstResponder else { return }
             lastKnownCursorLocation = textView.selectedRange.location
+            // Photos are one attachment character on their own line, so line breaks before the
+            // caret count the same paragraphs as in the stored text. Counted only when asked.
+            parent.panelState.caretParagraph = { [weak textView] in
+                guard let textView else { return nil }
+                let shown = (textView.text ?? "") as NSString
+                let caret = min(textView.selectedRange.location, shown.length)
+                var paragraph = 0
+                for i in 0..<caret where shown.character(at: i) == 10 { paragraph += 1 }
+                return paragraph
+            }
             // The caret moves inside the composition; clamping it or rewriting typing attributes
             // there would break the input method.
             guard textView.markedTextRange == nil else { return }
@@ -1923,8 +1967,17 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
 
             var lastEnd = 0
+            // Runs of photo lines (Suggestions from your day brings up to 4 pictures): a landscape
+            // first picture (a map) stays full width, every other picture in the run is a square
+            // tile. A photo on its own is drawn as before. Display only: the stored text keeps one
+            // token per line, which every older version reads.
+            let tiles = PhotoRuns.tileMatches(allMatches.map(\.range), in: nsRaw) { range in
+                guard let index = inlinePhotoIndex(from: nsRaw.substring(with: range)),
+                      index < parent.photoDataArray.count else { return false }
+                return PhotoRuns.isLandscape(parent.photoDataArray[index])
+            }
 
-            for match in allMatches {
+            for (matchIndex, match) in allMatches.enumerated() {
                 let textRange = NSRange(location: lastEnd, length: match.range.location - lastEnd)
                 let textSegment = nsRaw.substring(with: textRange)
                 let rendered = renderedTextWithoutMarkdownMarkers(for: textSegment, startingParagraph: paragraphIndex(at: lastEnd), continuesLine: lastEnd > 0)
@@ -1932,7 +1985,7 @@ struct NoteEditorTextView: UIViewRepresentable {
 
                 let token = nsRaw.substring(with: match.range)
                 let photoIdx = inlinePhotoIndex(from: token) ?? 0
-                attributed.append(photoAttachmentString(at: photoIdx, width: width))
+                attributed.append(photoAttachmentString(at: photoIdx, width: width, tile: tiles.contains(matchIndex)))
                 lastEnd = NSMaxRange(match.range)
             }
 
@@ -2089,11 +2142,12 @@ struct NoteEditorTextView: UIViewRepresentable {
             return result
         }
 
-        private func photoAttachmentString(at photoIndex: Int, width: CGFloat) -> NSAttributedString {
-            let maxWidth = max(180, width - 8)
+        private func photoAttachmentString(at photoIndex: Int, width: CGFloat, tile: Bool = false) -> NSAttributedString {
+            // A tile is a third of the line, less two 8 pt gaps.
+            let maxWidth = tile ? max(72, floor((width - 8 - 16) / 3)) : max(180, width - 8)
             guard photoIndex < parent.photoDataArray.count,
                   let photo = photoCache.image(for: parent.photoDataArray[photoIndex], at: photoIndex, maxWidth: maxWidth,
-                                               displayScale: max(UITraitCollection.current.displayScale, 2)) else {
+                                               displayScale: max(UITraitCollection.current.displayScale, 2), square: tile) else {
                 return unreadablePhotoAttachmentString()
             }
 
@@ -3192,6 +3246,10 @@ struct NoteEditorTextView: UIViewRepresentable {
                 targetRange = bounded(selRange, in: attributed.string)
             } else if let existing = existingLinkRange(at: selRange.location, in: attributed) {
                 targetRange = existing
+            } else if let remembered = lastLinkableSelection,
+                      NSMaxRange(remembered) <= (attributed.string as NSString).length {
+                // The selection was dropped while the picker was up; the text hasn't changed since.
+                targetRange = remembered
             } else {
                 return
             }

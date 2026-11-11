@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(JournalingSuggestions)
+import JournalingSuggestions
+#endif
 #if canImport(UIKit)
 import UIKit
 #elseif canImport(AppKit)
@@ -15,41 +18,15 @@ extension WriteView {
     }
 
     var dateHeader: some View {
-        HStack(alignment: .center, spacing: 10) {
+        WriteHeaderRow {
             Button {
                 showDatePicker = true
             } label: {
-                HStack(spacing: 5) {
-                    if displayMode == .sentinel {
-                        Text(noteDate.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)).uppercased())
-                            .scaledFont(11.5, weight: .semibold, design: .monospaced)
-                            .foregroundStyle(MirrorTheme.textSecondary)
-                            .kerning(0.4)
-                    } else {
-                        Text(noteDate, format: Self.headerDateFormat(for: noteDate))
-                            .scaledFont(14, weight: .medium)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                    Image(systemName: "chevron.down")
-                        .scaledFont(9, weight: .semibold)
-                        .foregroundStyle(MirrorTheme.textSecondary)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(
-                    displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(MirrorTheme.inkRaised),
-                    in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 5, style: .continuous)) : AnyShape(Capsule())
-                )
-                .overlay {
-                    if displayMode == .sentinel {
-                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                            .stroke(MirrorTheme.inkBorder, lineWidth: 1)
-                    } else {
-                        Capsule().stroke(MirrorTheme.inkBorder, lineWidth: 1)
-                    }
-                }
+                // The date as the page's title (option A, owner 2026-11-06).
+                WriteDateTitle(date: noteDate, isSentinel: displayMode == .sentinel)
+                    .contentShape(Rectangle())
             }
+            .accessibilityHint("Changes the entry's date and time")
             .buttonStyle(.plain)
 
 
@@ -65,9 +42,7 @@ extension WriteView {
                         .kerning(0.5)
                 }
             }
-
-            Spacer(minLength: 0)
-
+        } trailing: {
             moodMenu
         }
         .padding(.horizontal, 18)
@@ -189,67 +164,11 @@ extension WriteView {
         }
     }
 
+    /// Option A (owner 2026-11-06), in both themes (owner: same design in both modes): an empty
+    /// mood is an invitation (dashed accent pill), a picked one shows its colour and name. Its
+    /// own struct: the header sits at the Debug stack limit.
     var signalLabel: some View {
-        Group {
-            HStack(spacing: 6) {
-                if isDetectingMood {
-                    ProgressView()
-                        .scaleEffect(0.65)
-                        .frame(width: 13, height: 13)
-                } else {
-                    if let selectedMood = viewModel.selectedMood {
-                        Circle()
-                            .fill(MirrorTheme.moodColor(for: selectedMood))
-                            .frame(width: 8, height: 8)
-                    } else if displayMode == .sentinel {
-                        Image(systemName: "waveform")
-                            .scaledFont(10, weight: .semibold)
-                            .foregroundStyle(MirrorTheme.ember)
-                    }
-                    Group {
-                        if let selectedMood = viewModel.selectedMood {
-                            Text(displayMode == .sentinel
-                                 ? MirrorTheme.localizedMoodName(for: selectedMood).uppercased()
-                                 : MirrorTheme.localizedMoodName(for: selectedMood))
-                        } else {
-                            Text(displayMode == .sentinel ? "SIGNAL" : "Mood")
-                        }
-                    }
-                        .scaledFont(displayMode == .sentinel ? 11.5 : 13, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
-                        .kerning(displayMode == .sentinel ? 0.4 : 0)
-                        .lineLimit(1)
-                        .foregroundStyle(
-                            viewModel.selectedMood == nil
-                                ? (displayMode == .sentinel ? MirrorTheme.ember : Color.secondary)
-                                : MirrorTheme.moodColor(for: viewModel.selectedMood ?? "")
-                        )
-                }
-                Image(systemName: "chevron.down")
-                    .scaledFont(10, weight: .semibold)
-                    .foregroundStyle(MirrorTheme.textSecondary)
-            }
-            .padding(.horizontal, 11)
-            .padding(.vertical, 7)
-            .background(
-                displayMode == .sentinel
-                    ? AnyShapeStyle(viewModel.selectedMood == nil ? MirrorTheme.ember.opacity(0.10) : MirrorTheme.moodColor(for: viewModel.selectedMood ?? "").opacity(0.14))
-                    : AnyShapeStyle(viewModel.selectedMood == nil && !isDetectingMood ? MirrorTheme.inkRaised : MirrorTheme.moodColor(for: viewModel.selectedMood ?? "").opacity(0.12)),
-                in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 5, style: .continuous)) : AnyShape(Capsule())
-            )
-            .overlay {
-                if displayMode == .sentinel {
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .stroke(
-                            viewModel.selectedMood == nil ? MirrorTheme.ember.opacity(0.35) : MirrorTheme.moodColor(for: viewModel.selectedMood ?? "").opacity(0.4),
-                            lineWidth: 1
-                        )
-                } else if viewModel.selectedMood == nil && !isDetectingMood {
-                    Capsule().stroke(MirrorTheme.inkBorder, lineWidth: 1)
-                }
-            }
-        }
-        .animation(.easeInOut(duration: 0.2), value: viewModel.selectedMood)
-        .animation(.easeInOut(duration: 0.2), value: isDetectingMood)
+        WriteMoodPill(mood: viewModel.selectedMood, isDetecting: isDetectingMood, isSentinel: displayMode == .sentinel)
     }
 
     /// Sentinel's replacement for the native Menu — SwiftUI's Menu can't be
@@ -276,6 +195,9 @@ extension WriteView {
                 .foregroundStyle(MirrorTheme.ember)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 11)
+                // The whole row is the target: with .plain, only drawn pixels take taps, so the
+                // empty space after the label (and the padding) did nothing.
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .disabled(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isDetectingMood || !canSuggestMood)
@@ -311,6 +233,9 @@ extension WriteView {
                             .padding(.horizontal, 14)
                             .padding(.vertical, 10)
                             .background(isSelected ? MirrorTheme.moodColor(for: mood).opacity(0.10) : Color.clear)
+                            // Whole row: an unselected row's clear background takes no taps,
+                            // so only the dot and the name did (owner, 2026-11-07).
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                     }
@@ -335,6 +260,7 @@ extension WriteView {
                     .foregroundStyle(MirrorTheme.textSecondary)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 11)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
@@ -355,126 +281,52 @@ extension WriteView {
         return draftVoiceNotes.isEmpty ? String(localized: "Record voice note") : String(localized: "Voice notes")
     }
 
-    /// On iPhone Duo all three (trash, check, focus) go to the vertical bar on the right, under the
-    /// status bar, instead of a horizontal top bar (owner, 2026-10-17). Elsewhere nothing moves.
-    @ToolbarContentBuilder
-    var toolbarItems: some ToolbarContent {
-        if entry != nil {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    startDeleteWithUndo()
-                } label: {
-                    Image(systemName: "trash")
-                        .scaledFont(18, weight: .semibold)
-                        .foregroundStyle(pendingDelete ? (displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor)) : AnyShapeStyle(.secondary))
-                        // The lid lifts as the entry goes to the undo countdown.
-                        .glyphBounce(whenTurnsOn: pendingDelete, byLayer: true)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Delete entry")
-            }
-            .preferringVerticalBar()
-
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    saveAndDismiss()
-                } label: {
-                    Image(systemName: "checkmark.circle.fill")
-                        .scaledFont(22, weight: .semibold)
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor))
-                }
-                .buttonStyle(.plain)
-                // Save anyway while a voice note is still transcribing (1.4) —
-                // continueTranscriptionAfterSaveAnyway hands the in-flight pass
-                // off to write straight into the saved entry once it finishes.
-                #if os(macOS)
-                .keyboardShortcut(.return, modifiers: .command)
-                #endif
-                .accessibilityLabel("Save entry")
-            }
-            .preferringVerticalBar()
-        } else {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    startDeleteWithUndo()
-                } label: {
-                    Image(systemName: "trash")
-                        .scaledFont(18, weight: .semibold)
-                        .foregroundStyle(
-                            pendingDelete
-                                ? (displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor))
-                                : (hasDraftContent ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
-                        )
-                        .glyphBounce(whenTurnsOn: pendingDelete, byLayer: true)
-                }
-                .buttonStyle(.plain)
-                .disabled(!hasDraftContent && !pendingDelete)
-                .accessibilityLabel("Discard draft")
-            }
-            .preferringVerticalBar()
-
-            // Save to Drafts, the newest drafts to continue, All Drafts…. Only the main editor:
-            // a prefilled one (widget prompt, Talk It Out) keeps its own text.
-            if takesSavedDrafts {
-                ToolbarItem(placement: .topBarLeading) {
-                    WriteDraftsMenu(canSave: hasDraftContent && !pendingDelete, save: saveToDrafts,
-                                    resume: continueSavedDraft)
-                }
-                .preferringVerticalBar()
-            }
-
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    saveDraft()
-                } label: {
-                    Image(systemName: "checkmark.circle.fill")
-                        .scaledFont(22, weight: .semibold)
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(
-                            hasDraftContent
-                                ? (displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor))
-                                : AnyShapeStyle(Color.secondary)
-                        )
-                        // One bounce when the first words make the entry saveable. Driven from
-                        // WriteView state a beat after the button enables: a bounce started in
-                        // the same update as the enable never shows (sim recording, 2026-10-16).
-                        .symbolEffect(.bounce, value: saveGlyphBounces)
-                }
-                .accessibilityLabel("Save entry")
-                .buttonStyle(.plain)
-                // Save anyway while a voice note is still transcribing (1.4) —
-                // continueTranscriptionAfterSaveAnyway hands the in-flight pass
-                // off to write straight into the saved entry once it finishes.
-                .disabled(!hasDraftContent)
-                #if os(macOS)
-                .keyboardShortcut(.return, modifiers: .command)
-                #endif
-                .accessibilityLabel("Save entry")
-            }
-            .preferringVerticalBar()
-        }
-    }
-
-    @ToolbarContentBuilder
-    var focusModeToolbarItem: some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
-            Button {
+    /// The Write toolbar as one concrete type. As `some ToolbarContent` built here, its nested
+    /// opaque types were resolved inside WriteView.body and, with focus mode's changes, overflowed
+    /// the Debug main-thread stack on the iPhone 14 Pro (2026-11-03).
+    var toolbarItems: WriteToolbar {
+        WriteToolbar(
+            isExistingEntry: entry != nil,
+            focusMode: focusMode,
+            pendingDelete: pendingDelete,
+            hasDraftContent: hasDraftContent,
+            takesSavedDrafts: takesSavedDrafts,
+            saveGlyphBounces: saveGlyphBounces,
+            isSentinel: displayMode == .sentinel,
+            delete: { startDeleteWithUndo() },
+            save: { if entry != nil { saveAndDismiss() } else { saveDraft() } },
+            saveToDrafts: { saveToDrafts() },
+            continueSavedDraft: { continueSavedDraft($0) },
+            toggleFocus: {
                 withAnimation(.easeInOut(duration: 0.2)) { focusMode.toggle() }
                 if focusMode { editorFocused = true }
-            } label: {
-                Image(systemName: focusMode
-                      ? "arrow.down.right.and.arrow.up.left"
-                      : "arrow.up.left.and.arrow.down.right")
-                    .scaledFont(17, weight: .medium)
-                    .foregroundStyle(MirrorTheme.textSecondary)
-                    .glyphReplaceTransition()
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(focusMode ? "Exit focus mode" : "Focus mode")
-        }
-        .preferringVerticalBar()
+            },
+            entryLinkPicker: $showEntryLinkPicker,
+            linkingEntryID: entry?.id,
+            linkToEntry: { applyTextCommand(.link(url: EntryLinks.urlString(for: $0))) },
+            isAddingAttachment: isAttachingPhoto
+        )
     }
+
+
+    #if os(iOS)
+    /// Something else holds the bottom slot (the follow-up chip, undo, saved, panels).
+    var keyboardHintBlocked: Bool {
+        focusMode || followUpQuestion != nil || pendingDelete || showSaved || isAttachingPhoto
+            || isScanningText || showFormattingPanel
+    }
+    #endif
+
+    /// DEBUG `--focusMode` opens the editor in focus mode, for device screenshots
+    /// (devicectl can launch but not tap).
+    static var startsInFocusMode: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains("--focusMode")
+        #else
+        false
+        #endif
+    }
+
 
     #if os(macOS)
     private func macParagraphLabel(_ style: NoteParagraphTextStyle) -> LocalizedStringKey {
@@ -666,8 +518,9 @@ struct FollowUpChip: View {
     @Environment(\.appDisplayMode) private var displayMode
     private var isSentinel: Bool { displayMode == .sentinel }
 
+    @AppStorage(GenerationDetails.key) private var showGenerationDetails = false
     private var engineTag: String? {
-        guard isSentinel, let engine else { return nil }
+        guard showGenerationDetails, let engine else { return nil }
         switch engine {
         case .gemma: return "GEMMA"
         case .foundationModels: return "FM"
@@ -744,14 +597,126 @@ struct WritingStarterChip: View {
     /// False on Free: the menu offers only the templates (no paywall before the first nudge).
     var showsTalkItOut = true
     let onTalkItOut: () -> Void
-    let onUseTemplate: (WritingTemplate) -> Void
+    /// The text a template starts the entry with, and where the caret goes in it.
+    let onUseTemplate: (_ text: String, _ cursorOffset: Int) -> Void
+    /// A Journaling Suggestion picked (iPhone; iPad from iPadOS 26): its title, a line per moment,
+    /// pictures and mood (`SuggestionInsert`).
+    var onSuggestion: ((SuggestionInsert) -> Void)? = nil
 
     @Environment(\.appDisplayMode) private var displayMode
+    @State private var showTemplateManager = false
+    /// Your templates, unsealed once and again when the manager closes (not on every render).
+    @State private var customTemplates: [CustomTemplate] = []
+    /// Between picking a suggestion and its lines and pictures landing (maps are drawn, pictures
+    /// prepared: often a second or two), so the pick visibly does something.
+    @State private var addingSuggestion = false
     private var isSentinel: Bool { displayMode == .sentinel }
     private var accent: Color { isSentinel ? MirrorTheme.ember : MirrorTheme.violet }
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+    /// Today's prompt, then another on ↻ (option B, owner 2026-11-07).
+    @State private var promptIndex = WritingPrompts.indexForToday()
+    /// Apple's Journaling Suggestions sheet, opened from "More ways to start".
+    @State private var showSuggestionsSheet = false
+
+    private var prompt: String { WritingPrompts.all[promptIndex % WritingPrompts.all.count] }
+
+    /// Option B (owner 2026-11-07, UI checklist §2): one inline prompt is the invitation; Talk it
+    /// out, templates and Suggestions from your day sit one tap away under "More ways to start".
+    /// Folds away once there's text (WriteView shows it on a blank new entry only).
     var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 8) {
+                Text(prompt)
+                    .scaledFont(19, design: .serif)
+                    .italic()
+                    .foregroundStyle(MirrorTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityLabel(Text("Prompt: \(prompt)"))
+                Button {
+                    withAnimation(.easeOut(duration: 0.2)) { promptIndex += 1 }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .scaledFont(15, weight: .semibold)
+                        .foregroundStyle(accent)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Another prompt")
+                .padding(.top, -8)
+            }
+            // Side by side; one under the other at accessibility sizes, where German broke
+            // "Möglichkeiten" mid-word beside "Diese Anregung nutzen" (AX1, 2026-11-07).
+            let actionsLayout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 0))
+                : AnyLayout(HStackLayout(spacing: 18))
+            actionsLayout {
+                if addingSuggestion {
+                    HStack(spacing: 6) {
+                        ProgressView().controlSize(.small).tint(accent)
+                        Text("Adding from your day…")
+                    }
+                } else {
+                    Button {
+                        let text = prompt + "\n"
+                        onUseTemplate(text, .max)
+                    } label: {
+                        // 44 pt tall to tap (accessibility audit); the row keeps its look.
+                        Text("Use this prompt")
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("write.usePrompt")
+                    starterMenu
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .scaledFont(14.5, weight: .medium)
+            .foregroundStyle(accent)
+            .frame(minHeight: 44)
+            .padding(.vertical, -6)
+        }
+        .modifier(SuggestionsPickerPresenter(isPresented: $showSuggestionsSheet, isAdding: $addingSuggestion) { insert in
+            onSuggestion?(insert)
+        })
+        #if DEBUG && os(iOS) && canImport(JournalingSuggestions)
+        .task {
+            // `--demoSuggestion=run|music|place`: applies a synthetic suggestion once, as a pick would.
+            guard let onSuggestion, #available(iOS 17.2, *), let demo = await SuggestionInsert.demoFromLaunchArguments() else { return }
+            onSuggestion(demo)
+        }
+        #endif
+        #if DEBUG
+        .task {
+            // `--seedLongDraft` (with `--scratchDraftStorage`): fills the blank entry with 30
+            // synthetic lines, cursor at the end, so a plain screenshot shows whether the line
+            // being typed sits above the keyboard (UI checklist; devicectl can't type).
+            guard ProcessInfo.processInfo.arguments.contains("--seedLongDraft") else { return }
+            let lines = (1...30).map { "Line \($0) of a long synthetic entry about a quiet walk by the river." }
+            onUseTemplate(lines.joined(separator: "\n") + "\nLAST LINE HERE", .max)
+        }
+        #endif
+    }
+
+    /// What VoiceOver says the menu holds; Suggestions only where the device offers them.
+    private var starterMenuLabel: LocalizedStringKey {
+        guard showsTalkItOut else { return "More ways to start" }
+        return onSuggestion != nil && DeviceFeature.journalingSuggestionsAvailable
+            ? "More ways to start: Talk it out, templates or Suggestions from your day"
+            : "More ways to start: Talk it out or templates"
+    }
+
+    private var starterMenu: some View {
         Menu {
+            if onSuggestion != nil, DeviceFeature.journalingSuggestionsAvailable {
+                Button { showSuggestionsSheet = true } label: {
+                    Label("Suggestions from your day", systemImage: "photo.on.rectangle.angled")
+                }
+                .accessibilityIdentifier("write.suggestions")
+            }
             if showsTalkItOut {
                 Button(action: onTalkItOut) {
                     Label(isSentinel ? "TALK IT OUT" : "Talk it out", systemImage: "bubble.left.and.text.bubble.right")
@@ -759,44 +724,42 @@ struct WritingStarterChip: View {
                 Divider()
             }
             ForEach(WritingTemplate.allCases) { template in
-                Button { onUseTemplate(template) } label: {
+                Button { onUseTemplate(template.seedText, template.cursorOffset) } label: {
                     Label(template.title, systemImage: template.icon)
                 }
             }
+            // Your own templates (this device only), then managing them.
+            if !customTemplates.isEmpty {
+                Divider()
+                ForEach(customTemplates) { template in
+                    Button { onUseTemplate(template.text, .max) } label: {
+                        Label(template.title, systemImage: "doc.text")
+                    }
+                }
+            }
+            Divider()
+            Button("Manage Templates…", systemImage: "slider.horizontal.3") { showTemplateManager = true }
         } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "bubble.left.and.text.bubble.right")
-                    .scaledFont(14, weight: .semibold)
-                    .foregroundStyle(accent)
-                Text(isSentinel ? "NEED A STARTING POINT?" : "Need a starting point?")
-                    .scaledFont(isSentinel ? 11.5 : 13, weight: isSentinel ? .semibold : .medium, design: isSentinel ? .monospaced : .default)
-                    .foregroundStyle(MirrorTheme.textSecondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .scaledFont(11, weight: .semibold)
-                    .foregroundStyle(MirrorTheme.textTertiary)
+            HStack(spacing: 4) {
+                Text("More ways to start")
+                Image(systemName: "chevron.down").scaledFont(11, weight: .semibold)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(
-                isSentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(Color(.secondarySystemGroupedBackground)),
-                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(accent.opacity(isSentinel ? 0.3 : 0.2), lineWidth: 1)
-            }
+            .frame(minHeight: 44)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(showsTalkItOut ? "Need a starting point? Talk it out, or use a template" : "Need a starting point?")
+        .accessibilityLabel(starterMenuLabel)
+        .accessibilityIdentifier("write.starter")
+        // Inside this struct, not on WriteView.body (Debug stack limit).
+        .sheet(isPresented: $showTemplateManager, onDismiss: { customTemplates = CustomTemplateStore.readable() }) {
+            TemplateManagerView()
+        }
+        .task { customTemplates = CustomTemplateStore.readable() }
     }
 }
 
 /// The Write header's progress toward the daily word goal: a thin ring the size of a glyph.
-private struct WordGoalRing: View {
+struct WordGoalRing: View {
     let progress: Double
 
     var body: some View {
@@ -810,5 +773,90 @@ private struct WordGoalRing: View {
         .frame(width: 11, height: 11)
         .animation(.easeOut(duration: 0.25), value: progress)
         .accessibilityHidden(true)
+    }
+}
+
+/// Write's date row: the date title, then the Mood pill at the trailing edge; at accessibility
+/// text sizes the pill goes on its own line under the date, where the two used to cut each other
+/// off ("7 Novemb…", "Energiege…", 2026-11-07 checks). Its own struct: Write's header sits at the
+/// Debug stack limit, where a ViewThatFits in the header overflowed it.
+struct WriteHeaderRow<Leading: View, Trailing: View>: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
+    private let leading: Leading
+    private let trailing: Trailing
+
+    init(@ViewBuilder leading: () -> Leading, @ViewBuilder trailing: () -> Trailing) {
+        self.leading = leading()
+        self.trailing = trailing()
+    }
+
+    var body: some View {
+        if typeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .center, spacing: 10) {
+                    leading
+                    Spacer(minLength: 0)
+                }
+                trailing
+            }
+        } else {
+            HStack(alignment: .center, spacing: 10) {
+                leading
+                Spacer(minLength: 0)
+                trailing
+            }
+        }
+    }
+}
+
+/// The classic Write header's mood button (option A): a dashed accent pill with a face while no
+/// mood is set, the mood's colour and name once one is.
+struct WriteMoodPill: View {
+    let mood: String?
+    let isDetecting: Bool
+    var isSentinel = false
+
+    var body: some View {
+        let accent = isSentinel ? MirrorTheme.ember : MirrorTheme.violet
+        let tint = mood.map { MirrorTheme.moodColor(for: $0) } ?? accent
+        HStack(spacing: 7) {
+            if isDetecting {
+                ProgressView()
+                    .scaleEffect(0.7)
+                    .frame(width: 16, height: 16)
+            } else if let mood {
+                Circle()
+                    .fill(tint)
+                    .frame(width: 10, height: 10)
+                Text(isSentinel ? MirrorTheme.localizedMoodName(for: mood).uppercased() : MirrorTheme.localizedMoodName(for: mood))
+                    .foregroundStyle(tint)
+            } else {
+                Image(systemName: isSentinel ? "waveform" : "face.smiling")
+                    .scaledFont(isSentinel ? 13 : 16, weight: .medium)
+                    .foregroundStyle(accent)
+            }
+            if mood == nil {
+                Text(isSentinel ? "SIGNAL" : "Mood")
+                    .foregroundStyle(accent)
+            }
+        }
+        .scaledFont(isSentinel ? 13.5 : 15, weight: .semibold, design: isSentinel ? .monospaced : .default)
+        .kerning(isSentinel ? 0.4 : 0)
+        .lineLimit(1)
+        // Shrinks before it truncates: "Настроен…" at xxxLarge, "M…" at AX5 (2026-11-07 checks).
+        .minimumScaleFactor(0.7)
+        .padding(.horizontal, 13)
+        .padding(.vertical, 9)
+        .background(mood == nil ? Color.clear : tint.opacity(0.12), in: Capsule())
+        .overlay {
+            if mood == nil {
+                Capsule().strokeBorder(accent.opacity(0.45), style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+            }
+        }
+        .contentShape(Capsule())
+        .animation(.easeInOut(duration: 0.2), value: mood)
+        .animation(.easeInOut(duration: 0.2), value: isDetecting)
+        // Beside the date title, which stops at the same size (WriteDateTitle).
+        .dynamicTypeSize(...DynamicTypeSize.accessibility3)
     }
 }

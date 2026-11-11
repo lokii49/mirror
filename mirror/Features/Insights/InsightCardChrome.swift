@@ -157,7 +157,7 @@ struct InsightCardChip: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            if let systemImage { Image(systemName: systemImage) }
+            if let systemImage { Image(systemName: systemImage).accessibilityHidden(true) }
             Text(title)
         }
         .scaledFont(isSentinel ? 9.5 : 11, weight: isSentinel ? .bold : .semibold, design: isSentinel ? .monospaced : .default)

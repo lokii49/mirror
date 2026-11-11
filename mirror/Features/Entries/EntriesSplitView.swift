@@ -9,6 +9,8 @@ import SwiftData
 /// of pushing.
 struct EntriesSplitView: View {
     var navResetID: UUID
+    /// Entries tapped again in the tab bar (see EntriesTabView.scrollToTopID).
+    var scrollToTopID: UUID? = nil
     var deepLinkEntryID: Binding<UUID?>
 
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -50,6 +52,7 @@ struct EntriesSplitView: View {
             HStack(spacing: 0) {
                 EntriesTabView(
                     navResetID: listResetID,
+                    scrollToTopID: scrollToTopID,
                     deepLinkEntryID: deepLinkEntryID,
                     macSelection: sideBySide ? $selection : nil,
                     ownsNavigationStack: false,

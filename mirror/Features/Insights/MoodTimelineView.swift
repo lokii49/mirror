@@ -7,7 +7,11 @@ struct MoodTimelineView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var hSizeClass
     @Environment(\.appDisplayMode) private var displayMode
-    @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
+    /// The whole journal. Read `entries`, which leaves out collections kept out of insights.
+    @Query(sort: \Entry.createdAt, order: .reverse) private var journalEntries: [Entry]
+    @Query private var scopeCollections: [JournalCollection]
+    @State private var insightEntries = InsightEntriesMemo()
+    private var entries: [Entry] { insightEntries.entries(journalEntries, collections: scopeCollections) }
     // Standalone daily mood check-ins. Merged with entry moods via `MoodLog`
     // into the chart / heatmap / distribution / average / low-mood-days banner
     // below. NOT the writing streak — that counts days written, and a mood tap
@@ -32,22 +36,11 @@ struct MoodTimelineView: View {
     @State private var cachedCurrentStreak: Int = 0
     @State private var cachedConsecutiveNegativeCount: Int = 0
 
-    /// Content hash of everything the mood caches depend on — entry moods +
-    /// dates AND check-in moods + dates. `.count` alone misses an in-place edit
-    /// or a remote insert-that-replaces-a-delete arriving via CloudKit.
-    private var moodDataCacheKey: Int {
-        var hasher = Hasher()
-        hasher.combine(entries.count)
-        for entry in entries {
-            hasher.combine(entry.encryptedMood)
-            hasher.combine(entry.createdAt)
-        }
-        hasher.combine(moodCheckIns.count)
-        for checkIn in moodCheckIns {
-            hasher.combine(checkIn.encryptedMood)
-            hasher.combine(checkIn.createdAt)
-        }
-        return hasher.finalize()
+    /// What the mood caches depend on: entry and check-in moods and dates. `.count` alone misses an
+    /// in-place edit or a CloudKit insert that replaces a delete; JournalRevision catches both. Count terms plus `JournalRevision` (any journal save or CloudKit import). Replaced a hash of
+    /// every entry's and check-in's mood and date that ran on each body evaluation.
+    private var moodDataCacheKey: JournalCacheKey {
+        JournalCacheKey(entries: entries.count, checkIns: moodCheckIns.count, revision: JournalRevision.shared.value)
     }
 
     private var contentMaxWidth: CGFloat { hSizeClass == .regular ? 700 : .infinity }
@@ -362,7 +355,8 @@ struct MoodTimelineView: View {
                 valueSuffix: averageMoodScore > 0 ? "/5" : "",
                 label: "Avg. score",
                 icon: "chart.bar",
-                color: averageMoodScore >= 3.5 ? .green : averageMoodScore >= 2.5 ? .orange : .red
+                // Plum like the score bar below it: the number, not a traffic light, says how it went.
+                color: MirrorTheme.primary
             )
             statPill(
                 value: "\(currentStreak)d",
@@ -424,17 +418,14 @@ struct MoodTimelineView: View {
                 if averageMoodScore >= 1.5 { return "Mixed, leaning low" }
                 return "Low mood"
             }()
-            let barColor: Color = averageMoodScore >= 3.5 ? .green : averageMoodScore >= 2.5 ? .orange : .red
+            // Paper & Ink: one accent. The dot's place on the Low → High track carries the
+            // meaning; the red-to-green track and traffic-light dot were a second palette.
+            let barColor: Color = MirrorTheme.violet
 
             VStack(spacing: 5) {
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
-                        LinearGradient(
-                            colors: [.red, .orange, .yellow, .green],
-                            startPoint: .leading, endPoint: .trailing
-                        )
-                        .opacity(0.35)
-                        .clipShape(Capsule())
+                        Capsule().fill(MirrorTheme.inkBorder).frame(height: 4)
 
                         Circle()
                             .fill(barColor)
@@ -751,7 +742,7 @@ struct MoodTimelineView: View {
                         .padding(.horizontal, 32)
                         .padding(.vertical, 14)
                         .background(
-                            LinearGradient(colors: [MirrorTheme.violet, Color.indigo], startPoint: .leading, endPoint: .trailing),
+                            MirrorTheme.accentGradient,
                             in: Capsule()
                         )
                 }
@@ -789,7 +780,7 @@ struct MoodTimelineView: View {
     private var previewStatsRow: some View {
         HStack(spacing: 12) {
             statPill(value: "4", label: "Moods logged", icon: "face.smiling", color: MirrorTheme.primary)
-            statPill(value: "3.0", valueSuffix: "/5", label: "Avg. score", icon: "chart.bar", color: .orange)
+            statPill(value: "3.0", valueSuffix: "/5", label: "Avg. score", icon: "chart.bar", color: MirrorTheme.primary)
             statPill(value: "3d", label: "Streak", icon: "flame.fill", color: .orange)
         }
     }
@@ -797,13 +788,11 @@ struct MoodTimelineView: View {
     @ViewBuilder
     private var previewMoodScaleRow: some View {
         let fraction: CGFloat = 0.5
-        let barColor: Color = .orange
+        let barColor: Color = MirrorTheme.violet
         VStack(spacing: 5) {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    LinearGradient(colors: [.red, .orange, .yellow, .green], startPoint: .leading, endPoint: .trailing)
-                        .opacity(0.35)
-                        .clipShape(Capsule())
+                    Capsule().fill(MirrorTheme.inkBorder).frame(height: 4)
                     Circle()
                         .fill(barColor)
                         .frame(width: 11, height: 11)
@@ -879,6 +868,22 @@ nonisolated enum MoodChartSeries {
             .map { day, group in MoodDayMean(day: day, score: group.map(\.score).reduce(0, +) / Double(group.count)) }
             .sorted { $0.day < $1.day }
     }
+
+    /// The daily means split into runs of consecutive days (UI checklist, 2026-11-07): the line
+    /// is drawn per run, so a day with no mood is a gap rather than a line drawn across it as if
+    /// it had a reading. Each mean comes with its run's number, for `LineMark(series:)`.
+    static func runs(_ means: [MoodDayMean], calendar: Calendar = .current) -> [(mean: MoodDayMean, run: Int)] {
+        var run = 0
+        var previous: Date?
+        return means.map { mean in
+            if let previous, let next = calendar.date(byAdding: .day, value: 1, to: previous),
+               !calendar.isDate(next, inSameDayAs: mean.day) {
+                run += 1
+            }
+            previous = mean.day
+            return (mean, run)
+        }
+    }
 }
 
 /// What VoiceOver says about the mood chart (its summary, and Audio Graphs through the chart
@@ -921,7 +926,7 @@ enum MoodChartSummary {
 }
 
 /// Audio Graphs for the mood chart: one series, the daily means the line draws.
-private struct MoodChartDescriptor: AXChartDescriptorRepresentable {
+struct MoodChartDescriptor: AXChartDescriptorRepresentable {
     let line: [MoodDayMean]
     let summary: String
 
@@ -976,11 +981,13 @@ private struct MoodChartCard: View {
             .foregroundStyle(.secondary)
 
             Chart {
-                ForEach(dailyLine, id: \.day) { day in
+                ForEach(MoodChartSeries.runs(dailyLine), id: \.mean.day) { point in
+                    let day = point.mean
                     #if !os(macOS)
                     AreaMark(
                         x: .value("Day", day.day, unit: .day),
-                        y: .value("Mood", day.score)
+                        y: .value("Mood", day.score),
+                        series: .value("Run", point.run)
                     )
                     .foregroundStyle(
                         LinearGradient(
@@ -993,17 +1000,14 @@ private struct MoodChartCard: View {
                     .accessibilityHidden(true)
                     #endif
 
+                    // One plum line per run of consecutive days (Paper & Ink: one accent; the
+                    // plum-to-ember gradient was Sentinel's second accent).
                     LineMark(
                         x: .value("Day", day.day, unit: .day),
-                        y: .value("Mood", day.score)
+                        y: .value("Mood", day.score),
+                        series: .value("Run", point.run)
                     )
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [MirrorTheme.violet, MirrorTheme.ember],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .foregroundStyle(MirrorTheme.violet)
                     #if os(macOS)
                     // Multiple moods can share a day. Avoid smoothing overshoot and the area
                     // renderer's duplicate-day wedges; show the recorded points and line.

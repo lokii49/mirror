@@ -5,7 +5,12 @@ extension WriteView {
     var tagsBar: some View {
         HStack(spacing: 0) {
             tagsScroller
+            // The word count and draft status stay at the default text size: at accessibility sizes
+            // they squeezed "Unfiled" to a sliver (AX3 pass, 2026-11-07). ViewThatFits here
+            // overflowed Write's Debug stack on launch, and a minimum width on the tags pushed
+            // German past the screen edge, so it's a cap only.
             writingStats
+                .dynamicTypeSize(...DynamicTypeSize.large)
                 .padding(.leading, 8)
                 .padding(.trailing, 20)
         }
@@ -86,31 +91,12 @@ extension WriteView {
                         }
                     }
                 } else {
+                    // Option A (owner 2026-11-06): the second row is quiet text, not more pills,
+                    // in both themes.
                     Button {
                         showTagInput = true
                     } label: {
-                        HStack(spacing: 3) {
-                            Image(systemName: "plus")
-                                .scaledFont(10, weight: .semibold)
-                            Text("tag")
-                                .scaledFont(displayMode == .sentinel ? 11 : 12, weight: displayMode == .sentinel ? .semibold : .medium, design: displayMode == .sentinel ? .monospaced : .default)
-                        }
-                        // Same pill as the date and Mood buttons above it: it used to be a grey
-                        // fill with tertiary text, which read as disabled.
-                        .foregroundStyle(MirrorTheme.textSecondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(MirrorTheme.inkRaised),
-                            in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
-                        )
-                        .overlay {
-                            if displayMode == .sentinel {
-                                RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1)
-                            } else {
-                                Capsule().stroke(MirrorTheme.inkBorder, lineWidth: 1)
-                            }
-                        }
+                        WriteHeaderTextLabel(title: "Add tag", systemImage: "number", isSentinel: displayMode == .sentinel)
                     }
                     .buttonStyle(.plain)
                 }

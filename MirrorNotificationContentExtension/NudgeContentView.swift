@@ -10,10 +10,12 @@ private enum NudgeExtensionTheme {
     static func hex(_ v: UInt32) -> Color {
         Color(red: Double((v >> 16) & 0xFF) / 255, green: Double((v >> 8) & 0xFF) / 255, blue: Double(v & 0xFF) / 255)
     }
-    static let inkRaised = hex(0x1C1830)
-    static let inkMid = hex(0x110E1C)
-    static let violet = hex(0x7C5CE4)
-    static let violetLight = hex(0xA78BFA)
+    static let inkRaised = hex(0x241C22)
+    static let inkMid = hex(0x1A1418)
+    static let violet = hex(0xC98BC6)
+    static let violetLight = hex(0xD8A3D4)
+    /// Under white text (MirrorTheme.buttonFill, dark): white at 7.4:1.
+    static let buttonFill = hex(0x8A3769)
     static let ember = hex(0xF97B8B)
     static let sentinelBg = hex(0x0B0B0E)
 }
@@ -149,7 +151,7 @@ struct NudgeContentView: View {
             if state.isSentinel {
                 RoundedRectangle(cornerRadius: 5).strokeBorder(NudgeExtensionTheme.ember, lineWidth: 1)
             } else {
-                Capsule().fill(NudgeExtensionTheme.violet)
+                Capsule().fill(NudgeExtensionTheme.buttonFill)
             }
         }
     }

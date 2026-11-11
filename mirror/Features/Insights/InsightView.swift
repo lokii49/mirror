@@ -5,10 +5,15 @@ import Charts
 struct InsightView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.appDisplayMode) private var displayMode
+    @AppStorage(GenerationDetails.key) private var showGenerationDetails = false
     @Environment(\.horizontalSizeClass) private var hSizeClass
     @State private var insightsFold: FoldSpan?
     @State private var insightsWidth: CGFloat = 0
-    @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
+    /// The whole journal. Read `entries`, which leaves out collections kept out of insights.
+    @Query(sort: \Entry.createdAt, order: .reverse) private var journalEntries: [Entry]
+    @Query private var scopeCollections: [JournalCollection]
+    @State private var insightEntries = InsightEntriesMemo()
+    private var entries: [Entry] { insightEntries.entries(journalEntries, collections: scopeCollections) }
     @Query private var insights: [Insight]
     @AppStorage(ReflectionStyle.storageKey) private var reflectionStyleRaw = ReflectionStyle.gentle.rawValue
     let viewModel: InsightViewModel
@@ -20,12 +25,17 @@ struct InsightView: View {
     @State private var digestExpanded = false
     @State private var pastNudgesExpanded = false
     @State private var pastDigestsExpanded = false
+    /// Past lists show the newest `pastListPreviewCount` until "Show all" (2026-11-03): the header
+    /// counts every one, and the rest had no way to be read.
+    @State private var pastNudgesShowAll = false
+    @State private var pastDigestsShowAll = false
     #if os(macOS)
     /// Which of the two pages this view backs on Mac (the iOS Insights tab shows both).
     var macPage: MacInsightPage = .today
     @State private var macInspectorOpen = false
     @State private var macToday: MacTodayContent? = nil
     @State private var macPastRows: [MacPastRow] = []
+    @State private var macPastShowAll = false
     #endif
 
     private var reflectionStyle: ReflectionStyle { ReflectionStyle(storedValue: reflectionStyleRaw) }
@@ -53,22 +63,11 @@ struct InsightView: View {
 
     // entries.count alone misses in-place edits: changing an existing entry's mood or date
     // (both editable) must also invalidate cachedThisMonthEntries/cachedCurrentStreak/
-    // cachedWeekMoodEvents. Check-in moods+dates folded in too (matching
-    // MoodTimelineView.moodDataCacheKey) so a CloudKit sync that swaps a
-    // check-in without changing the count still triggers a recompute.
-    private var entryCacheKey: Int {
-        var hasher = Hasher()
-        hasher.combine(entries.count)
-        for entry in entries {
-            hasher.combine(entry.encryptedMood)
-            hasher.combine(entry.createdAt)
-        }
-        hasher.combine(moodCheckIns.count)
-        for checkIn in moodCheckIns {
-            hasher.combine(checkIn.encryptedMood)
-            hasher.combine(checkIn.createdAt)
-        }
-        return hasher.finalize()
+    // cachedWeekMoodEvents, and a CloudKit sync can swap a check-in without changing the count.
+    // JournalRevision covers both. It replaced a hash of every entry's and check-in's mood and
+    // date that ran on each body evaluation (audit 2026-11-04).
+    private var entryCacheKey: JournalCacheKey {
+        JournalCacheKey(entries: entries.count, checkIns: moodCheckIns.count, revision: JournalRevision.shared.value)
     }
 
     private var sentinelStatusLine: some View {
@@ -146,7 +145,12 @@ struct InsightView: View {
             #endif
             .sheet(isPresented: $showPaywall) { PaywallView().environment(\.appDisplayMode, displayMode) }
             .sheet(isPresented: $showPaywallAfterFirstNudge) { PaywallView().environment(\.appDisplayMode, displayMode) }
-            .sheet(isPresented: $showSettings) { SettingsView().environment(\.appDisplayMode, displayMode) }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
+                    .environment(\.appDisplayMode, displayMode)
+                    // Shows the sheet can be swiped down; Settings' Done button closes it too.
+                    .presentationDragIndicator(.visible)
+            }
             #if DEBUG
             // `--openBrainView`: device/simulator screenshots land on Brain View without a tap
             // (devicectl can launch but not tap; same idea as ContentView's `--initialTab=`).
@@ -449,9 +453,13 @@ struct InsightView: View {
             .buttonStyle(.plain)
 
             if pastNudgesExpanded {
-                VStack(spacing: 10) {
-                    ForEach(pastNudges.prefix(14)) { insight in
+                // Lazy: "Show all" can be hundreds of cards.
+                LazyVStack(spacing: 10) {
+                    ForEach(pastNudgesShowAll ? pastNudges[...] : pastNudges.prefix(pastListPreviewCount)) { insight in
                         PastNudgeCard(insight: insight, aboutDay: cachedReflectedDays[insight.persistentModelID])
+                    }
+                    if !pastNudgesShowAll && pastNudges.count > pastListPreviewCount {
+                        ShowAllPastButton(count: pastNudges.count) { pastNudgesShowAll = true }
                     }
                 }
                 .transition(.move(edge: .top).combined(with: .opacity))
@@ -488,9 +496,12 @@ struct InsightView: View {
             .buttonStyle(.plain)
 
             if pastDigestsExpanded {
-                VStack(spacing: 10) {
-                    ForEach(pastDigests.prefix(14)) { insight in
+                LazyVStack(spacing: 10) {
+                    ForEach(pastDigestsShowAll ? pastDigests[...] : pastDigests.prefix(pastListPreviewCount)) { insight in
                         PastDigestCard(insight: insight)
+                    }
+                    if !pastDigestsShowAll && pastDigests.count > pastListPreviewCount {
+                        ShowAllPastButton(count: pastDigests.count) { pastDigestsShowAll = true }
                     }
                 }
                 .transition(.move(edge: .top).combined(with: .opacity))
@@ -603,7 +614,7 @@ struct InsightView: View {
                             .foregroundStyle(.orange)
                         Text(displayMode == .sentinel ? "\(currentStreak)D" : "\(currentStreak)d")
                             .scaledFont(displayMode == .sentinel ? 11.5 : 12, weight: .bold, design: displayMode == .sentinel ? .monospaced : .rounded)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(MirrorTheme.warningInk)
                     }
                     .padding(.horizontal, 9)
                     .padding(.vertical, 5)
@@ -639,20 +650,22 @@ struct InsightView: View {
                 accentColor: MirrorTheme.primary,
                 isExpanded: nudgeExpanded,
                 collapsedLineLimit: 5,
-                showSourceButton: displayMode == .sentinel,
+                showSourceButton: showGenerationDetails,
                 onToggleExpanded: {
                     withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
                         nudgeExpanded.toggle()
                     }
                 }
             )
-                .glowShadow(color: MirrorTheme.primary, radius: 32)
         case .needsMoreEntries(let remaining):
             NeedsMoreEntriesCard(remaining: remaining)
         case .subscriptionRequired:
+            // One lock card for Free, not two: when the digest is locked too, this card names both
+            // and This Week's lock card is left out (audit 2026-11-04). Saved reflections and digests
+            // still show below on every tier.
             UpgradePromptCard(
                 title: "MirrorNotes Core",
-                subtitle: "Daily reflections are part of Core.",
+                subtitle: digestIsLocked ? "Daily reflections and weekly digests are part of Core." : "Daily reflections are part of Core.",
                 onUpgrade: { showPaywall = true }
             )
         case .pendingNightlyGeneration:
@@ -714,6 +727,40 @@ struct InsightView: View {
         .buttonStyle(.plain)
     }
 
+    // MARK: - Patterns and Year in Review (Deep, app-counted)
+
+    private var patternsSection: some View {
+        NavigationLink {
+            PatternsView()
+        } label: {
+            ExplorationTile(
+                title: "Patterns",
+                subtitle: "Moods by day, time and tag",
+                icon: "square.grid.3x3.topleft.filled",
+                color: .pink,
+                badge: SubscriptionService.shared.isDeep ? nil : "Deep"
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("explore.patterns")
+    }
+
+    private var reviewSection: some View {
+        NavigationLink {
+            ReviewView()
+        } label: {
+            ExplorationTile(
+                title: displayMode == .sentinel ? "Debrief" : "Year in Review",
+                subtitle: ReviewStatsService.isReviewWeek() ? "Your last year in numbers" : "Your year so far",
+                icon: "calendar.badge.checkmark",
+                color: .mint,
+                badge: SubscriptionService.shared.isDeep ? nil : "Deep"
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("explore.review")
+    }
+
     // MARK: - Brain View
 
     private var brainSection: some View {
@@ -768,7 +815,25 @@ struct InsightView: View {
 
     // MARK: - Weekly Digest
 
+    private var digestIsLocked: Bool {
+        if case .subscriptionRequired = viewModel.digestState { return true }
+        return false
+    }
+
+    private var nudgeIsLocked: Bool {
+        if case .subscriptionRequired = viewModel.nudgeState { return true }
+        return false
+    }
+
+    @ViewBuilder
     private var digestSection: some View {
+        // Today's lock card already names the digest (see nudgeStatusContent).
+        if !(digestIsLocked && nudgeIsLocked) {
+            digestSectionContent
+        }
+    }
+
+    private var digestSectionContent: some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeader(
                 title: "This Week",
@@ -800,7 +865,7 @@ struct InsightView: View {
             WeeklyDigestView(
                 insight: insight,
                 isExpanded: digestExpanded,
-                showSourceButton: displayMode == .sentinel,
+                showSourceButton: showGenerationDetails,
                 onToggleExpanded: {
                     withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
                         digestExpanded.toggle()
@@ -813,7 +878,7 @@ struct InsightView: View {
             WeeklyDigestView(
                 insight: insight,
                 isExpanded: digestExpanded,
-                showSourceButton: displayMode == .sentinel,
+                showSourceButton: showGenerationDetails,
                 note: "Last week's digest — write 3 entries this week for a fresh one.",
                 sentinelNote: "LAST WEEK'S BRIEFING — 3 SIGNALS THIS WEEK FOR A NEW ONE",
                 onToggleExpanded: {
@@ -877,6 +942,8 @@ struct InsightView: View {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 2), spacing: 12) {
                 askSection
                 moodTimelineSection
+                patternsSection
+                reviewSection
             }
             brainSection
         }
@@ -892,16 +959,41 @@ private struct PastDigestCard: View {
     let insight: Insight
     @State private var expanded = false
     @Environment(\.appDisplayMode) private var displayMode
+    @AppStorage(GenerationDetails.key) private var showGenerationDetails = false
 
     var body: some View {
         WeeklyDigestView(
             insight: insight,
             isExpanded: expanded,
-            showSourceButton: displayMode == .sentinel,
+            showSourceButton: showGenerationDetails,
             onToggleExpanded: {
                 withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) { expanded.toggle() }
             }
         )
+    }
+}
+
+/// How many past reflections/digests show before "Show all".
+private let pastListPreviewCount = 14
+
+/// Under a past list cut at `pastListPreviewCount`: reveals the rest.
+private struct ShowAllPastButton: View {
+    let count: Int
+    let action: () -> Void
+    @Environment(\.appDisplayMode) private var displayMode
+
+    var body: some View {
+        Button(action: action) {
+            Text("Show all (\(count))")
+                .textCase(displayMode == .sentinel ? .uppercase : nil)
+                .scaledFont(displayMode == .sentinel ? 12 : 13, weight: .semibold,
+                            design: displayMode == .sentinel ? .monospaced : .default)
+                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -912,6 +1004,7 @@ private struct PastNudgeCard: View {
     @State private var isExpanded = false
     @State private var overflows = false
     @Environment(\.appDisplayMode) private var displayMode
+    @AppStorage(GenerationDetails.key) private var showGenerationDetails = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -920,7 +1013,7 @@ private struct PastNudgeCard: View {
                     .scaledFont(12, weight: .semibold)
                     .foregroundStyle(MirrorTheme.textSecondary)
                 Spacer()
-                if displayMode == .sentinel { InsightSourceButton(insight: insight) }
+                if showGenerationDetails { InsightSourceButton(insight: insight) }
                 Image(systemName: "sparkles")
                     .scaledFont(11, weight: .semibold)
                     .foregroundStyle(MirrorTheme.primary.opacity(0.5))
@@ -1008,14 +1101,14 @@ private struct SectionHeader<Trailing: View>: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: icon)
-                .scaledFont(13, weight: .bold)
-                .foregroundStyle(isSentinel ? MirrorTheme.ember : color)
-                .frame(width: 30, height: 30)
-                .background(
-                    (isSentinel ? MirrorTheme.ember : color).opacity(0.16),
-                    in: RoundedRectangle(cornerRadius: isSentinel ? 6 : 9, style: .continuous)
-                )
+            // Paper & Ink: a serif heading on the page, no icon tile (Sentinel keeps its tile).
+            if isSentinel {
+                Image(systemName: icon)
+                    .scaledFont(13, weight: .bold)
+                    .foregroundStyle(MirrorTheme.ember)
+                    .frame(width: 30, height: 30)
+                    .background(MirrorTheme.ember.opacity(0.16), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            }
             VStack(alignment: .leading, spacing: 1) {
                 if isSentinel {
                     Text(displayTitle)
@@ -1025,7 +1118,7 @@ private struct SectionHeader<Trailing: View>: View {
                         .kerning(0.5)
                 } else {
                     Text(displayTitle)
-                        .scaledFont(19, weight: .bold, design: .rounded)
+                        .scaledFont(21, weight: .medium, design: .serif)
                         .foregroundStyle(MirrorTheme.textPrimary)
                 }
                 displaySubtitle
@@ -1260,7 +1353,7 @@ struct NightlyPendingCard: View {
             .foregroundStyle(MirrorTheme.textSecondary)
         }
         .padding(22)
-        .themedCard(cornerRadius: 26, classicBase: .elevated)
+        .themedCard(cornerRadius: 22, classicBase: .elevated)
     }
 }
 
@@ -1398,7 +1491,7 @@ struct NeedsMoreEntriesCard: View {
                 .foregroundStyle(MirrorTheme.textTertiary)
         }
         .padding(20)
-        .themedHeroCard(cornerRadius: 24)
+        .themedHeroCard(cornerRadius: 22)
     }
 }
 
@@ -1449,7 +1542,7 @@ struct UpgradePromptCard: View {
             .buttonStyle(.plain)
         }
         .padding(20)
-        .themedCard(cornerRadius: 24)
+        .themedCard(cornerRadius: 22)
     }
 }
 
@@ -1635,6 +1728,15 @@ private struct InsightTextView: View {
                     ReflectedDayLabel(day: aboutDay, isSentinel: isSentinel)
                 }
             }
+            if !isSentinel {
+                // Paper & Ink: the reflection opens with a plum quote mark (the card's only accent).
+                Text("\u{201C}")
+                    .font(.system(size: 48, weight: .regular, design: .serif))
+                    .foregroundStyle(MirrorTheme.violet)
+                    .frame(height: 18, alignment: .top)
+                    .padding(.bottom, -6)
+                    .accessibilityHidden(true)
+            }
             Text(displayText ?? insight.content)
                 .readingFont(size: 18)
                 .lineSpacing(8)
@@ -1653,25 +1755,8 @@ private struct InsightTextView: View {
             }
         }
         .padding(22)
-        .themedHeroCard(cornerRadius: 26, classicBase: .hero)
-        .overlay {
-            RadialGradient(
-                colors: [accentColor.opacity(0.16), .clear],
-                center: .init(x: 0.90, y: 0.10),
-                startRadius: 0,
-                endRadius: 200
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-            .allowsHitTesting(false)
-        }
-        .overlay(alignment: .topTrailing) {
-            Text("\u{201C}")
-                .scaledFont(80, weight: .bold, design: .serif)
-                .foregroundStyle(MirrorTheme.violetLight.opacity(0.13))
-                // Below the header row: higher up, it sat on top of the timestamp.
-                .offset(x: -18, y: 40)
-                .allowsHitTesting(false)
-        }
+        // Paper & Ink: the hero lift alone (inkHero), no wash or watermark quote behind the text.
+        .themedHeroCard(cornerRadius: 22, classicBase: .hero)
     }
 }
 
@@ -1793,18 +1878,14 @@ private struct MoodWeekChartView: View {
             }
 
             Chart {
-                ForEach(dailyLine, id: \.day) { day in
+                // One line per run of consecutive days: a day with no mood is a gap (UI checklist).
+                ForEach(MoodChartSeries.runs(dailyLine), id: \.mean.day) { point in
                     LineMark(
-                        x: .value("Day", day.day, unit: .day),
-                        y: .value("Mood", day.score)
+                        x: .value("Day", point.mean.day, unit: .day),
+                        y: .value("Mood", point.mean.score),
+                        series: .value("Run", point.run)
                     )
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [MirrorTheme.violet, MirrorTheme.violetLight],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .foregroundStyle(MirrorTheme.violet)
                     .lineStyle(StrokeStyle(lineWidth: 2))
                     .interpolationMethod(.catmullRom)
                 }
@@ -1836,6 +1917,8 @@ private struct MoodWeekChartView: View {
                 }
             }
             .chartYScale(domain: 0...6)
+            // VoiceOver (UI checklist): the same summary and Audio Graph as the Mood Timeline.
+            .accessibilityChartDescriptor(MoodChartDescriptor(line: dailyLine, summary: MoodChartSummary.text(points)))
             .chartOverlay { proxy in
                 MoodDotScrubOverlay(proxy: proxy, dots: points, selected: $selected) { dot in
                     moodDotPreviewText(for: dot, entry: entry)
@@ -1848,6 +1931,8 @@ private struct MoodWeekChartView: View {
                             Text(v == 1 ? LocalizedStringKey("Low") : v == 3 ? LocalizedStringKey("Mid") : LocalizedStringKey("High"))
                                 .scaledFont(isSentinel ? 9.5 : 10, weight: isSentinel ? .semibold : .regular, design: isSentinel ? .monospaced : .default)
                                 .foregroundStyle(MirrorTheme.textSecondary)
+                                // Bold Text and larger sizes cut the word to "Hi…" without it.
+                                .fixedSize()
                         }
                     }
                 }
@@ -1924,6 +2009,43 @@ private struct MacPastRow: Identifiable {
     var madeOn: Date
     var aboutDay: Date?
     var text: String
+}
+
+/// One past reflection on the Mac board: three lines, and "Read more" when there's more
+/// (it used to stop at three lines with no way to read the rest, 2026-11-03).
+private struct MacPastReflectionRow: View {
+    let label: String
+    let text: String
+    @State private var isExpanded = false
+    @State private var overflows = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label)
+                .scaledFont(12)
+                .foregroundStyle(MacTokens.secondaryInk)
+            Text(text)
+                .readingFont(size: 15)
+                .lineSpacing(3)
+                .foregroundStyle(MacTokens.ink)
+                .collapsibleLines(3, isExpanded: isExpanded, overflows: $overflows)
+                .textSelection(.enabled)
+            if overflows {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { isExpanded.toggle() }
+                } label: {
+                    Text(isExpanded ? "Show less" : "Read more")
+                        .scaledFont(12, weight: .medium)
+                        .foregroundStyle(MacTokens.accentInk)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 3)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
 }
 
 extension InsightView {
@@ -2040,22 +2162,12 @@ extension InsightView {
                     .foregroundStyle(MacTokens.secondaryInk)
                     .padding(.top, 36)
                     .padding(.bottom, 10)
-                VStack(spacing: 0) {
-                    ForEach(Array(macPastRows.enumerated()), id: \.element.id) { index, row in
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(macPastLabel(row))
-                                .scaledFont(12)
-                                .foregroundStyle(MacTokens.secondaryInk)
-                            Text(Self.macCurlyQuotes(row.text))
-                                .readingFont(size: 15)
-                                .lineSpacing(3)
-                                .foregroundStyle(MacTokens.ink)
-                                .lineLimit(3)
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 13)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        if index < macPastRows.count - 1 {
+                let shown = macPastShowAll ? macPastRows[...] : macPastRows.prefix(pastListPreviewCount)
+                // Lazy: "Show all" can be hundreds of rows.
+                LazyVStack(spacing: 0) {
+                    ForEach(Array(shown.enumerated()), id: \.element.id) { index, row in
+                        MacPastReflectionRow(label: macPastLabel(row), text: Self.macCurlyQuotes(row.text))
+                        if index < shown.count - 1 {
                             Rectangle().fill(MacTokens.divider).frame(height: 1)
                         }
                     }
@@ -2063,6 +2175,17 @@ extension InsightView {
                 .background(MacTokens.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(MacTokens.divider, lineWidth: 1) }
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                if !macPastShowAll && macPastRows.count > pastListPreviewCount {
+                    Button {
+                        macPastShowAll = true
+                    } label: {
+                        Text("Show all (\(macPastRows.count))")
+                            .scaledFont(13, weight: .medium)
+                            .foregroundStyle(MacTokens.accentInk)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 10)
+                }
             }
         }
     }
@@ -2214,7 +2337,7 @@ extension InsightView {
         var onCard = Set<PersistentIdentifier>()
         if let loaded = macLoadedNudge { onCard.insert(loaded.persistentModelID) }
         if let newestToday = past.rows.first(where: { $0.periodIdentifier == todayID }) { onCard.insert(newestToday.persistentModelID) }
-        macPastRows = past.rows.filter { !onCard.contains($0.persistentModelID) }.prefix(14).map { insight in
+        macPastRows = past.rows.filter { !onCard.contains($0.persistentModelID) }.map { insight in
             MacPastRow(
                 id: insight.persistentModelID,
                 madeOn: insight.generatedAt,

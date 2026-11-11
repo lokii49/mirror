@@ -108,6 +108,12 @@ actor LocalLLMService {
     /// messages) without a slow real generation. Stripped from Release builds.
     nonisolated(unsafe) static var generateInterceptForTesting: ((String, String, LocalLLMTask, GemmaPlan) throws -> (text: String, engine: LLMEngine))?
 
+    /// Test-only: the same seam, scoped to one task tree (`$scopedInterceptForTesting.withValue`).
+    /// The global one above also answers any other test running in parallel that reaches
+    /// `generate`, which a test counting calls can't tell apart from its own; this one only
+    /// answers the test that set it. Checked first.
+    @TaskLocal static var scopedInterceptForTesting: (@Sendable (String, String, LocalLLMTask, GemmaPlan) throws -> (text: String, engine: LLMEngine))?
+
     /// Test-only: called at the start of every `resetContext()`.
     nonisolated(unsafe) static var resetContextObserverForTesting: (@Sendable () async -> Void)?
     #endif
@@ -181,6 +187,9 @@ actor LocalLLMService {
         // is a language Foundation Models cannot work in (Russian today), where Gemma still runs
         // if its model is installed. Devices without Apple Intelligence go straight to Gemma.
         #if DEBUG
+        if let intercept = Self.scopedInterceptForTesting {
+            return try intercept(systemPrompt, userMessage, task, gemmaPlan)
+        }
         if let intercept = Self.generateInterceptForTesting {
             return try intercept(systemPrompt, userMessage, task, gemmaPlan)
         }

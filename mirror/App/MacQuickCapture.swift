@@ -198,7 +198,7 @@ struct MacQuickCaptureView: View {
                 .padding(.horizontal, 11)
                 .frame(maxWidth: fill ? .infinity : nil)
                 .frame(height: 24)
-                .background(selected ? MacTokens.accent : Color.clear, in: Capsule())
+                .background(selected ? MacTokens.accentFill : Color.clear, in: Capsule())
                 .overlay { if !selected { Capsule().stroke(MacTokens.controlBorder, lineWidth: 1) } }
         }
         .buttonStyle(.plain)
@@ -233,7 +233,7 @@ struct MacQuickCaptureView: View {
                     .foregroundStyle(Color.white)
                     .padding(.horizontal, 16)
                     .frame(height: 30)
-                    .background(MacTokens.accent, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .background(MacTokens.accentFill, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                     .opacity(model.canSave ? 1 : 0.5)
             }
             .buttonStyle(.plain)

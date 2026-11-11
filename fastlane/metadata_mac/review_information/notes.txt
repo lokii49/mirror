@@ -1,0 +1,7 @@
+MirrorNotes runs all of its AI on the Mac. No account or login is needed: open the app and start writing.
+
+Paid plans: this version turns on the four auto-renewable subscriptions (Core and Deep, monthly and yearly, one subscription group shared with the iOS app). Writing, reading, search and iCloud sync stay free. Free users see the plans in Settings > Subscription and from the locked cards in Insights, with a 7-day free trial for new subscribers. Restore Purchases is on the plans screen; on macOS 15 and later, Redeem Code there and in Settings > Subscription opens Apple's offer code sheet.
+
+Reflections, Ask and digests need a few entries first (Insights shows how many more), so write a few short entries before reviewing them.
+
+On Macs without Apple Intelligence, the AI features first download an on-device model (about 800 MB).

@@ -5,7 +5,12 @@ struct MonthlyReportView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.horizontalSizeClass) private var hSizeClass
     @Environment(\.appDisplayMode) private var displayMode
-    @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
+    @AppStorage(GenerationDetails.key) private var showGenerationDetails = false
+    /// The whole journal. Read `entries`, which leaves out collections kept out of insights.
+    @Query(sort: \Entry.createdAt, order: .reverse) private var journalEntries: [Entry]
+    @Query private var scopeCollections: [JournalCollection]
+    @State private var insightEntries = InsightEntriesMemo()
+    private var entries: [Entry] { insightEntries.entries(journalEntries, collections: scopeCollections) }
     @Query private var insights: [Insight]
 
     @State private var showPaywall = false
@@ -64,6 +69,20 @@ struct MonthlyReportView: View {
             VStack(alignment: .leading, spacing: 16) {
                 heroCard
                 reportContent
+                // The month in numbers (Deep, app-counted): Year in Review's month view.
+                if SubscriptionService.shared.isDeep {
+                    NavigationLink {
+                        ReviewView(span: .month, anchor: selectedMonth)
+                    } label: {
+                        Label("This month in numbers", systemImage: "calendar.badge.checkmark")
+                            .scaledFont(15, weight: .semibold)
+                            .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet)
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("report.monthInNumbers")
+                }
             }
             .padding(16)
             .padding(.bottom, 24)
@@ -167,12 +186,12 @@ struct MonthlyReportView: View {
             #endif
         }
         .padding(20)
-        .themedCard(cornerRadius: 26)
+        .themedCard(cornerRadius: 22)
     }
 
     @ViewBuilder
     private func reportCard(_ insight: Insight) -> some View {
-        MonthlyReportCard(insight: insight, showSourceButton: displayMode == .sentinel)
+        MonthlyReportCard(insight: insight, showSourceButton: showGenerationDetails)
             .glowShadow(color: MirrorTheme.violet, radius: 28)
     }
 
@@ -365,7 +384,7 @@ struct MonthlyReportView: View {
             .foregroundStyle(MirrorTheme.textTertiary)
         }
         .padding(20)
-        .themedCard(cornerRadius: 24)
+        .themedCard(cornerRadius: 22)
     }
 
     private func endOfMonthTooFewEntriesCard(count: Int) -> some View {
@@ -411,7 +430,7 @@ struct MonthlyReportView: View {
             .foregroundStyle(MirrorTheme.textTertiary)
         }
         .padding(20)
-        .themedCard(cornerRadius: 24)
+        .themedCard(cornerRadius: 22)
     }
 
     private var deepLockedCard: some View {
@@ -456,13 +475,13 @@ struct MonthlyReportView: View {
                 .frame(height: 46)
             }
             .background(
-                LinearGradient(colors: displayMode == .sentinel ? [MirrorTheme.ember, .orange] : [MirrorTheme.violet, MirrorTheme.violetLight], startPoint: .leading, endPoint: .trailing),
+                LinearGradient(colors: displayMode == .sentinel ? [MirrorTheme.ember, .orange] : [MirrorTheme.buttonFill, MirrorTheme.hex(0x9A4478, 0x9A4478)], startPoint: .leading, endPoint: .trailing),
                 in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 8, style: .continuous)) : AnyShape(Capsule())
             )
             .buttonStyle(.plain)
         }
         .padding(20)
-        .themedCard(cornerRadius: 24)
+        .themedCard(cornerRadius: 22)
     }
 
     private var nightlyPendingCard: some View {
@@ -695,10 +714,10 @@ private struct MonthlyReportCard: View {
             }
         }
         .padding(22)
-        .themedHeroCard(cornerRadius: 26, classicBase: .elevated)
+        .themedHeroCard(cornerRadius: 22, classicBase: .elevated)
         .overlay {
             if !isSentinel {
-                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
                     .stroke(MirrorTheme.violet.opacity(0.25), lineWidth: 1)
             }
         }

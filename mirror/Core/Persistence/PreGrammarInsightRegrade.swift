@@ -41,7 +41,8 @@ enum PreGrammarInsightRegrade {
         guard defaults.integer(forKey: UngroundedInsightCleanup.backgroundingCountKey) >= 1 else { return }
 
         let insights = (try? context.fetch(FetchDescriptor<Insight>())) ?? []
-        let entries = ((try? context.fetch(FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)]))) ?? [])
+        let entries = InsightScope(context: context)
+            .filter((try? context.fetch(FetchDescriptor<Entry>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)]))) ?? [])
             .filter(InsightService.hasReadableContext)
         guard !insights.isEmpty, !entries.isEmpty else { return }
 

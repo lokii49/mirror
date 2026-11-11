@@ -28,20 +28,50 @@ struct PhotoAttachmentCache {
     private struct Entry {
         let fingerprint: Fingerprint
         let maxWidth: CGFloat
+        let square: Bool
         let photo: Photo?
     }
 
     private var entries: [Int: Entry] = [:]
 
     /// The decoded photo for `data` at photo index `index`, or nil when it doesn't decode.
-    mutating func image(for data: Data, at index: Int, maxWidth: CGFloat, displayScale: CGFloat) -> Photo? {
+    /// `square`: a centre-cropped `maxWidth` × `maxWidth` tile (a later photo in a run of photo lines).
+    mutating func image(for data: Data, at index: Int, maxWidth: CGFloat, displayScale: CGFloat, square: Bool = false) -> Photo? {
         let fingerprint = Fingerprint(data)
-        if let cached = entries[index], cached.fingerprint == fingerprint, cached.maxWidth == maxWidth {
+        if let cached = entries[index], cached.fingerprint == fingerprint, cached.maxWidth == maxWidth, cached.square == square {
             return cached.photo
         }
-        let photo = Self.decode(data, maxWidth: maxWidth, displayScale: displayScale)
-        entries[index] = Entry(fingerprint: fingerprint, maxWidth: maxWidth, photo: photo)
+        let photo = square ? Self.decodeSquare(data, side: maxWidth, displayScale: displayScale)
+                           : Self.decode(data, maxWidth: maxWidth, displayScale: displayScale)
+        entries[index] = Entry(fingerprint: fingerprint, maxWidth: maxWidth, square: square, photo: photo)
         return photo
+    }
+
+    /// A centre-cropped square of side `side` points, decoded only as large as the screen needs.
+    private static func decodeSquare(_ data: Data, side: CGFloat, displayScale: CGFloat) -> Photo? {
+        guard let original = originalPixelSize(of: data),
+              let source = CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary) else { return nil }
+        // The short side must cover the tile, so the long side is scaled by the aspect ratio.
+        let shortSide = min(original.width, original.height)
+        let longSide = max(original.width, original.height)
+        let wanted = side * displayScale * longSide / shortSide
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: Int(min(ceil(wanted), longSide)),
+        ]
+        guard let thumb = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+        let edge = min(thumb.width, thumb.height)
+        let crop = CGRect(x: (thumb.width - edge) / 2, y: (thumb.height - edge) / 2, width: edge, height: edge)
+        guard let squared = thumb.cropping(to: crop) else { return nil }
+        let rounded = UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: {
+            let f = UIGraphicsImageRendererFormat(); f.scale = displayScale; return f
+        }()).image { _ in
+            UIBezierPath(roundedRect: CGRect(x: 0, y: 0, width: side, height: side), cornerRadius: 10).addClip()
+            UIImage(cgImage: squared).draw(in: CGRect(x: 0, y: 0, width: side, height: side))
+        }
+        return Photo(image: rounded, displaySize: CGSize(width: side, height: side))
     }
 
     /// Same answer the editor drew: the cached decode when there is one for these bytes, else

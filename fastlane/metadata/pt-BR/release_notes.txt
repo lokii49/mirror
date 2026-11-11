@@ -1,9 +1,30 @@
-Planos pagos a partir de 15 de novembro
+Core e Deep chegaram
 
-• A partir de 15 de novembro, novas reflexões diárias, Pergunte ao Mirror, novos resumos semanais e relatórios mensais, a linha do tempo de humor e os widgets precisam de Core ou Deep. Escrever, ler, buscar e o backup no iCloud continuam grátis, para sempre. Novos assinantes têm 7 dias de teste grátis.
+• Novas reflexões diárias, Pergunte ao Mirror, novos resumos semanais e relatórios mensais, a linha do tempo de humor e os widgets agora precisam de Core ou Deep. Escrever, ler, buscar e o backup no iCloud continuam grátis, para sempre. Novos assinantes têm 7 dias de teste grátis.
 • Tudo o que já foi feito para você continua disponível para leitura em qualquer plano: reflexões, resumos e relatórios anteriores, no app e nos widgets.
 
 Também nesta atualização
 
-• Um download bem menor: de novo menos de 30 MB, em vez de mais de 300 MB.
-• O que você escreve de madrugada conta como parte da noite anterior. Registros feitos antes das 4 da manhã entram na reflexão do dia anterior, e o que você escrever mais tarde no dia ganha a sua própria reflexão diária.
+• Um visual novo, Paper & Ink: páginas cor de papel quente com um destaque ameixa, títulos com serifa e a reflexão de hoje no topo. As entradas mostram títulos, fotos, tags e “Hoje” / “Ontem”. O modo Sentinel foi aposentado, então agora todos veem este visual.
+• Tem um código de oferta da App Store? Toque em Resgatar código em Ajustes › Assinatura ou na tela de planos.
+• Ajustes tem um botão Concluído e uma alça, para deixar claro como fechar.
+• Se os planos não carregarem, Assinatura oferece Tentar novamente em vez de ficar carregando.
+• O modo foco agora mostra só as suas palavras: a barra de ferramentas, o ponto de partida e os cartões saem de cena, e um botão os traz de volta.
+• Na primeira vez que o teclado abre, uma dica mostra que deslizar para baixo na página o oculta.
+• Tocar em um dia no calendário de Entradas mantém esse dia à vista em vez de voltar para hoje.
+• Reflexões anteriores e resumos anteriores terminam com Mostrar tudo, para você ler todos.
+• Em Organizar, você pode adicionar a coleção Anotações para notas rápidas, listas e números. Reflexões, Perguntar, gráficos de humor e alertas de humor não a leem, e qualquer coleção pode ficar de fora do mesmo jeito.
+• Tocar em Entradas de novo leva a lista de volta ao topo.
+• Novo topo ao escrever: a data como título, o humor ao lado, Salvar como botão, e Apagar e o modo foco no menu ⋯.
+• Nova anotação pela Central de Controle, pela Siri ou pelo menu de Entradas, com checklists, listas numeradas e com marcadores, e Lembrar-me para um lembrete no horário que você escolher. O lembrete nunca mostra o texto da anotação.
+• Modelos: Revisão da noite, Plano semanal e Páginas matinais, além dos seus, só neste dispositivo.
+• Sugestões do seu dia: comece uma entrada com as sugestões de diário da Apple. Músicas, podcasts, treinos, lugares, pessoas e passos chegam como linhas curtas, com fotos, capas e um mapa do percurso ou do lugar. Toque num lugar ou no seu mapa para abri-lo no Mapas, ou numa música para encontrá-la no Apple Music.
+• Em aberto reúne todos os itens de lista não marcados das suas entradas.
+• Vincule uma entrada a outra e veja em «Vinculada de» o que aponta para ela.
+• Padrões e Retrospectiva do ano (Deep): os humores ligados aos seus dias, horários e tags, e seu ano em números.
+• MirrorNotes no Apple Watch: grave uma nota de voz, digite uma nota rápida ou registre o humor. As notas de voz são transcritas no iPhone.
+• Salve seus registros de humor no Apple Saúde, se quiser (Ajustes › Diário).
+• Diários grandes estão mais rápidos: a lista de Entradas, a busca, as Percepções, a linha do tempo de humor e o calendário não releem mais todas as entradas a cada mudança de tela, e abrir uma entrada não carrega mais o diário inteiro.
+• O MirrorNotes abre um pouco mais rápido e usa menos memória.
+• As entradas mostram o número de palavras por extenso (“52 palavras” em vez de “52 p”).
+• No plano gratuito, Percepções mostra um só cartão sobre o Core em vez de dois.

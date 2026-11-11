@@ -378,6 +378,7 @@ struct PhotoMarkerRepairTests {
         let config = ModelConfiguration(schema: MirrorModelContainer.schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: MirrorModelContainer.schema, configurations: [config])
         let context = container.mainContext
+        context.autosaveEnabled = false
         let damaged = Entry(text: "ab\n[[mirror-photo-0]]•  \nmilk")
         let healthy = Entry(text: "•  a line the user typed")
         context.insert(damaged); context.insert(healthy)
@@ -402,6 +403,7 @@ struct PhotoMarkerRepairTests {
         }
         let config = ModelConfiguration(schema: MirrorModelContainer.schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         let container = try ModelContainer(for: MirrorModelContainer.schema, configurations: [config])
+        container.mainContext.autosaveEnabled = false
         let damaged = Entry(text: "ab\n[[mirror-photo-0]]•  \nmilk")
         container.mainContext.insert(damaged)
         try container.mainContext.save()

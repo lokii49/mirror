@@ -69,29 +69,14 @@ struct WriteCollectionPicker: View {
     private var label: some View {
         switch style {
         case .chip:
-            let accent = displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary
-            let filed = selectedItem != nil
-            HStack(spacing: 4) {
-                Image(systemName: selectedItem?.icon ?? "folder")
-                    .scaledFont(11, weight: .semibold)
-                // Unfiled shows the icon alone, so the row looks as before for people who
-                // don't use collections.
-                if let item = selectedItem {
-                    Text(item.name)
-                        .lineLimit(1)
-                        .scaledFont(12, weight: displayMode == .sentinel ? .semibold : .medium, design: displayMode == .sentinel ? .monospaced : .default)
-                        .textCase(displayMode == .sentinel ? .uppercase : nil)
-                }
-            }
-            .foregroundStyle(filed ? AnyShapeStyle(accent) : AnyShapeStyle(.secondary))
-            // Unfiled is a bare icon: no capsule, so no inset before it.
-            .padding(.horizontal, filed ? 8 : 2)
-            .padding(.vertical, 4)
-            .background(
-                filed ? AnyShapeStyle(accent.opacity(0.10)) : AnyShapeStyle(Color.clear),
-                in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
-            )
-            .contentShape(Rectangle())
+            // Option A (owner 2026-11-06): the collection by name, as quiet text like Add tag, in
+            // both themes.
+            WriteHeaderTextLabel(title: "Unfiled",
+                                 systemImage: selectedItem?.icon ?? "folder",
+                                 isVerbatim: selectedItem != nil,
+                                 verbatim: selectedItem?.name,
+                                 tint: selectedItem == nil ? nil : (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet),
+                                 isSentinel: displayMode == .sentinel)
         case .macToolbar:
             Image(systemName: selectedItem == nil ? "folder" : "folder.fill")
                 .scaledFont(15)
@@ -142,5 +127,39 @@ enum WriteCollectionDefault {
         var descriptor = FetchDescriptor<JournalCollection>(predicate: #Predicate { $0.id == id })
         descriptor.fetchLimit = 1
         return ((try? context.fetchCount(descriptor)) ?? 0) > 0 ? id : nil
+    }
+}
+
+/// A quiet text button in the classic Write header's second row (collection, Add tag): icon and
+/// words in the secondary colour, no pill, a 32 pt target.
+struct WriteHeaderTextLabel: View {
+    var title: LocalizedStringKey
+    var systemImage: String
+    var isVerbatim = false
+    /// The user's own text (a collection name), shown as typed.
+    var verbatim: String? = nil
+    var tint: Color? = nil
+    /// Sentinel: the same quiet text in mono capitals.
+    var isSentinel = false
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: systemImage)
+                .scaledFont(isSentinel ? 12 : 13, weight: .semibold)
+            Group {
+                if isVerbatim, let verbatim {
+                    Text(verbatim)
+                } else {
+                    Text(title)
+                }
+            }
+            .scaledFont(isSentinel ? 12.5 : 14, weight: isSentinel ? .semibold : .medium, design: isSentinel ? .monospaced : .default)
+            .textCase(isSentinel ? .uppercase : nil)
+            .kerning(isSentinel ? 0.4 : 0)
+            .lineLimit(1)
+        }
+        .foregroundStyle(tint.map { AnyShapeStyle($0) } ?? AnyShapeStyle(MirrorTheme.textSecondary))
+        .frame(minHeight: 32)
+        .contentShape(Rectangle())
     }
 }

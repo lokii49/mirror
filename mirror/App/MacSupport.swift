@@ -88,6 +88,8 @@ struct MirrorMacCommands: Commands {
             .keyboardShortcut("n", modifiers: .command)
             Button("New Entry in New Window") { unlocked { openWindow(id: "new-entry") } }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
+            Button("New Scratch Note") { unlocked { ScratchNotePresenter.shared.pending = true } }
+                .keyboardShortcut("n", modifiers: [.command, .option])
             Divider()
             Button("Save Entry") { unlocked { editor?.save() } }
                 .keyboardShortcut(.return, modifiers: .command)
@@ -104,6 +106,9 @@ struct MirrorMacCommands: Commands {
                 .keyboardShortcut(.delete, modifiers: .command)
                 .disabled(entry == nil)
         }
+        // File › Import from iPhone or iPad: Take Photo, Scan Documents, Add Sketch (Continuity
+        // Camera) into the open entry.
+        ImportFromDevicesCommands()
         CommandGroup(after: .sidebar) {
             Button("Hide Sidebar") {
                 unlocked { NotificationCenter.default.post(name: .mirrorMacToggleSidebar, object: nil) }

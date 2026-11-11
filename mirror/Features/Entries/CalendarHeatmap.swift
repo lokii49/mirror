@@ -16,6 +16,9 @@ enum HeatmapMode: String, CaseIterable {
 
 struct CalendarHeatmap: View {
     let entries: [Entry]
+    /// Entries outside it (kept-out collections such as Scratch) still count as writing but never
+    /// colour a day with their mood, the same rule as the Mood Map widget.
+    var moodScope: InsightScope = .everything
     var selectedDate: Date?
     var onDaySelected: ((Date?) -> Void)?
 
@@ -33,6 +36,10 @@ struct CalendarHeatmap: View {
     @State private var viewDate: Date = Date()
     @Environment(\.appDisplayMode) private var displayMode
     @Environment(\.dynamicTypeSize) private var typeSize
+    /// Increase Contrast: future days and weekend initials step up one level so they stay legible.
+    @Environment(\.colorSchemeContrast) private var contrast
+    private var futureInk: HierarchicalShapeStyle { contrast == .increased ? .secondary : .quaternary }
+    private var weekendOpacity: Double { contrast == .increased ? 1 : 0.55 }
 
     // MARK: - Cache
 
@@ -136,6 +143,7 @@ struct CalendarHeatmap: View {
     private func representativeMood(for dayEntries: [Entry]) -> String? {
         let moodEntries = dayEntries
             .compactMap { entry -> (mood: String, createdAt: Date)? in
+                guard moodScope.includes(entry) else { return nil }
                 guard let mood = entry.mood, !mood.isEmpty else { return nil }
                 return (mood, entry.createdAt)
             }
@@ -172,7 +180,10 @@ struct CalendarHeatmap: View {
         .onChange(of: selectedDate) { _, newDate in
             if let newDate { viewDate = newDate }
         }
-        .task(id: entries.map(\.encryptedMood).hashValue) {
+        // Count, ends and JournalRevision: a mood or date edit saves, which bumps the revision.
+        // The old key hashed every entry's mood on each body evaluation and missed date edits.
+        .task(id: JournalCacheKey(entries: entries.count, checkIns: 0, revision: JournalRevision.shared.value,
+                                  first: entries.first?.id, last: entries.last?.id)) {
             var dict: [Date: [Entry]] = [:]
             for e in entries {
                 let day = cal.startOfDay(for: e.createdAt)
@@ -335,6 +346,7 @@ struct CalendarHeatmap: View {
             Image(systemName: icon)
                 .scaledFont(11, weight: .semibold)
                 .foregroundStyle(color)
+                .accessibilityHidden(true)
             Text(value)
                 .scaledFont(13, weight: .bold, design: displayMode == .sentinel ? .monospaced : .rounded)
                 .foregroundStyle(.primary)
@@ -357,12 +369,17 @@ struct CalendarHeatmap: View {
         onForward: @escaping () -> Void
     ) -> some View {
         HStack {
+            // 44 pt targets around the small chevrons, and VoiceOver hears which period is shown
+            // ("Back, November 2026"): UI checklist 2026-11-07.
             Button(action: onBack) {
                 Image(systemName: "chevron.left")
                     .scaledFont(13, weight: .semibold)
                     .foregroundStyle(canGoBack ? AnyShapeStyle(Color.secondary) : AnyShapeStyle(MirrorTheme.textSecondary.opacity(0.5)))
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .accessibilityLabel("Back")
+            .accessibilityValue(Text(verbatim: title))
             .buttonStyle(.plain)
             .disabled(!canGoBack)
 
@@ -370,7 +387,7 @@ struct CalendarHeatmap: View {
 
             VStack(spacing: 1) {
                 Text(title)
-                    .scaledFont(13, weight: .semibold)
+                    .scaledFont(displayMode == .sentinel ? 13 : 16, weight: displayMode == .sentinel ? .semibold : .medium, design: displayMode == .sentinel ? .default : .serif)
                     .foregroundStyle(.primary)
                 if let subtitle {
                     Text(subtitle)
@@ -385,12 +402,15 @@ struct CalendarHeatmap: View {
                 Image(systemName: "chevron.right")
                     .scaledFont(13, weight: .semibold)
                     .foregroundStyle(canGoForward ? AnyShapeStyle(Color.secondary) : AnyShapeStyle(MirrorTheme.textSecondary.opacity(0.5)))
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .accessibilityLabel("Next")
+            .accessibilityValue(Text(verbatim: title))
             .buttonStyle(.plain)
             .disabled(!canGoForward)
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 2)
     }
 
     // MARK: - Week View
@@ -454,7 +474,80 @@ struct CalendarHeatmap: View {
         )
     }
 
+    @ViewBuilder
     private func weekDayCell(for date: Date) -> some View {
+        if displayMode == .sentinel { inkWeekDayCell(for: date) } else { paperDayCell(for: date, numeralSize: 19).frame(maxWidth: .infinity) }
+    }
+
+    @ViewBuilder
+    private func monthStripCell(for date: Date) -> some View {
+        if displayMode == .sentinel { inkMonthStripCell(for: date) } else { paperDayCell(for: date, numeralSize: 17).frame(width: 36) }
+    }
+
+    /// Paper & Ink (owner 2026-11-07): a serif numeral on the page, today filled in plum, and a
+    /// short mood bar under any day with writing. Difficult moods keep their ink ring (the
+    /// colour-blind cue, `MirrorTheme.moodRing`); the day's count is in its VoiceOver label.
+    private func paperDayCell(for date: Date, numeralSize: CGFloat) -> some View {
+        let startOfDay = cal.startOfDay(for: date)
+        let isSelected = cal.isDate(date, inSameDayAs: selectedDate ?? .distantPast)
+        let isToday = cal.isDateInToday(date)
+        let isFuture = date > today
+        let isWeekend = cal.isDateInWeekend(date)
+        let cached = isFuture ? nil : dayCache[startOfDay]
+        let count = cached?.count ?? 0
+        let barColor = cached?.mood.map { MirrorTheme.moodColor(for: $0) } ?? MirrorTheme.primary
+        let ring = cached?.mood.flatMap(MirrorTheme.moodRing(for:))
+
+        return VStack(spacing: 5) {
+            Text(date.formatted(.dateTime.weekday(.narrow)))
+                .scaledFont(10, weight: .medium)
+                .foregroundStyle(isFuture ? futureInk : .tertiary)
+                .opacity(isWeekend ? weekendOpacity : 1)
+            Text(date.formatted(.dateTime.day()))
+                .font(.system(size: numeralSize, weight: isToday ? .semibold : .regular, design: .serif))
+                .monospacedDigit()
+                .foregroundStyle(isToday ? AnyShapeStyle(Color.white) : (isFuture ? AnyShapeStyle(futureInk) : AnyShapeStyle(MirrorTheme.textPrimary)))
+                .frame(maxWidth: .infinity, minHeight: numeralSize + 16)
+                .background {
+                    if isToday {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous).fill(MirrorTheme.buttonFill)
+                    }
+                }
+                .overlay {
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .strokeBorder(MirrorTheme.primary, lineWidth: 1.5)
+                            .padding(isToday ? -3 : 0)
+                    }
+                }
+            Capsule()
+                .fill(count > 0 ? barColor : Color.clear)
+                .overlay { if count > 0, let ring { Capsule().strokeBorder(ring, lineWidth: 1) } }
+                .frame(width: 20, height: 5)
+            // How many entries, when more than one (owner, 2026-11-07: a small count). Fixed size
+            // like the numerals; VoiceOver already reads the count in the day's label.
+            Text(verbatim: count > 1 ? "\(count)" : " ")
+                .font(.system(size: 10, weight: .medium))
+                .monospacedDigit()
+                .foregroundStyle(MirrorTheme.textSecondary)
+                .accessibilityHidden(true)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            guard !isFuture else { return }
+            haptic()
+            onDaySelected?(isSelected ? nil : startOfDay)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(HeatmapAccessibility.label(for: startOfDay, count: count))
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityAction {
+            guard !isFuture else { return }
+            onDaySelected?(isSelected ? nil : startOfDay)
+        }
+    }
+
+    private func inkWeekDayCell(for date: Date) -> some View {
         let startOfDay = cal.startOfDay(for: date)
         let isSelected = cal.isDate(date, inSameDayAs: selectedDate ?? .distantPast)
         let isToday = cal.isDateInToday(date)
@@ -465,8 +558,8 @@ struct CalendarHeatmap: View {
         return VStack(spacing: 4) {
             Text(date.formatted(.dateTime.weekday(.narrow)))
                 .scaledFont(10, weight: .medium)
-                .foregroundStyle(isFuture ? .quaternary : .tertiary)
-                .opacity(isWeekend ? 0.55 : 1)
+                .foregroundStyle(isFuture ? futureInk : .tertiary)
+                .opacity(isWeekend ? weekendOpacity : 1)
 
             RoundedRectangle(cornerRadius: displayMode == .sentinel ? 4 : 8, style: .continuous)
                 .fill(displayMode == .sentinel ? MirrorTheme.inkMid : (isFuture ? MirrorTheme.inkMid : color(for: startOfDay)))
@@ -487,7 +580,7 @@ struct CalendarHeatmap: View {
                     VStack(spacing: 2) {
                         Text(date.formatted(.dateTime.day()))
                             .font(displayMode == .sentinel ? MirrorTheme.mono(15, weight: isToday ? .bold : .semibold) : .system(size: 15, weight: isToday ? .bold : .semibold, design: .rounded))
-                            .foregroundStyle(isFuture ? .quaternary : .primary)
+                            .foregroundStyle(isFuture ? futureInk : .primary)
                         if count > 0 {
                             Text("\(count)")
                                 .scaledFont(10, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)
@@ -590,19 +683,25 @@ struct CalendarHeatmap: View {
                     .padding(.vertical, 2)
                 }
                 .horizontalEdgeFade()
-                .onAppear {
-                    if let todayInMonth = monthDays.first(where: { cal.isDateInToday($0) }) {
-                        proxy.scrollTo(todayInMonth, anchor: .center)
-                    }
-                }
-                .onChange(of: viewDate) { _, _ in
-                    if let todayInMonth = monthDays.first(where: { cal.isDateInToday($0) }) {
-                        proxy.scrollTo(todayInMonth, anchor: .center)
-                    } else if let first = monthDays.first {
-                        proxy.scrollTo(first, anchor: .leading)
-                    }
+                .onAppear { scrollMonthStrip(proxy) }
+                // Only a new month moves the strip. Tapping a day sets viewDate to that day, and
+                // re-centring on today then scrolled the tapped day out of sight (2026-11-03).
+                .onChange(of: viewDate) { old, new in
+                    guard !cal.isDate(old, equalTo: new, toGranularity: .month) else { return }
+                    scrollMonthStrip(proxy)
                 }
             }
+        }
+    }
+
+    /// The selected day if it's in this month, else today, else the month's first day.
+    private func scrollMonthStrip(_ proxy: ScrollViewProxy) {
+        if let selectedDate, let day = monthDays.first(where: { cal.isDate($0, inSameDayAs: selectedDate) }) {
+            proxy.scrollTo(day, anchor: .center)
+        } else if let todayInMonth = monthDays.first(where: { cal.isDateInToday($0) }) {
+            proxy.scrollTo(todayInMonth, anchor: .center)
+        } else if let first = monthDays.first {
+            proxy.scrollTo(first, anchor: .leading)
         }
     }
 
@@ -631,7 +730,7 @@ struct CalendarHeatmap: View {
         .padding(.horizontal, 7)
     }
 
-    private func monthStripCell(for date: Date) -> some View {
+    private func inkMonthStripCell(for date: Date) -> some View {
         let startOfDay = cal.startOfDay(for: date)
         let isSelected = cal.isDate(date, inSameDayAs: selectedDate ?? .distantPast)
         let isToday = cal.isDateInToday(date)
@@ -642,8 +741,8 @@ struct CalendarHeatmap: View {
         return VStack(spacing: 4) {
             Text(date.formatted(.dateTime.weekday(.narrow)))
                 .scaledFont(9, weight: .medium)
-                .foregroundStyle(isFuture ? .quaternary : .tertiary)
-                .opacity(isWeekend ? 0.55 : 1)
+                .foregroundStyle(isFuture ? futureInk : .tertiary)
+                .opacity(isWeekend ? weekendOpacity : 1)
 
             RoundedRectangle(cornerRadius: displayMode == .sentinel ? 4 : 7, style: .continuous)
                 .fill(displayMode == .sentinel ? MirrorTheme.inkMid : (isFuture ? MirrorTheme.inkMid : color(for: startOfDay)))
@@ -662,7 +761,7 @@ struct CalendarHeatmap: View {
                     VStack(spacing: 2) {
                         Text(date.formatted(.dateTime.day()))
                             .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: isToday ? .bold : .semibold) : .system(size: 13, weight: isToday ? .bold : .semibold, design: .rounded))
-                            .foregroundStyle(isFuture ? .quaternary : .primary)
+                            .foregroundStyle(isFuture ? futureInk : .primary)
                         if count > 0 {
                             Text("\(count)")
                                 .scaledFont(9, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)

@@ -24,10 +24,16 @@ enum DisplayMode: String, Codable {
     /// v1 — this is the first attribute added later to an existing model.
     private var displayModeRaw: String? = nil
 
+    /// Sentinel mode was retired in 3.1.8 (owner, 2026-11-07): every profile reads as the default
+    /// theme, whatever an older version stored or syncs. The stored value is left as it is, so
+    /// 3.1.7 and earlier keep showing what their owner picked there.
     var displayMode: DisplayMode {
-        get { displayModeRaw.flatMap(DisplayMode.init(rawValue:)) ?? .classic }
+        get { .classic }
         set { displayModeRaw = newValue.rawValue }
     }
+
+    /// The profile had Sentinel chosen before it was retired (for the one-time What's New note).
+    var hadChosenSentinel: Bool { displayModeRaw == DisplayMode.sentinel.rawValue }
 
     /// Stored as encoded Data, not a native array — matches Entry.swift's
     /// pattern of avoiding raw array attributes for CloudKit-synced models.

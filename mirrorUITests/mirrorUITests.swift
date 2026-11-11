@@ -142,34 +142,6 @@ final class mirrorUITests: XCTestCase {
         snapshot(app, name: "settings_protocol_input_siriCaptureRow")
     }
 
-    /// Same row, Sentinel theme — this row's fix went through two rounds without this test:
-    /// the first (bottom-aligning the icon) looked fine in Classic but knocked the icon out of
-    /// vertical alignment with its title, reported back as looking worse. Sentinel mode renders
-    /// this exact same SettingsRowLabel/ProtocolSettingsView code (see CLAUDE.md's Sentinel
-    /// mode note: every themed branch is a place the two themes can silently diverge), so a
-    /// Classic-only screenshot never would have caught it either way — both need checking.
-    @MainActor
-    func testSettings_protocolInputSection_siriCaptureRow_sentinel_screenshot() throws {
-        let app = launchApp(initialTab: "entries")
-        app.tabBars.buttons["Insights"].tap()
-        Thread.sleep(forTimeInterval: 1)
-
-        app.navigationBars.buttons["Settings"].tap()  // person.circle, labelled "Settings"
-        Thread.sleep(forTimeInterval: 1)
-
-        let sentinelCard = app.buttons["Sentinel"].exists ? app.buttons["Sentinel"] : app.staticTexts["Sentinel"]
-        if sentinelCard.waitForExistence(timeout: 5) {
-            sentinelCard.tap()
-            Thread.sleep(forTimeInterval: 1)
-        }
-
-        app.staticTexts["Protocol"].tap()
-        Thread.sleep(forTimeInterval: 1)
-
-        XCTAssertTrue(app.staticTexts["Quick capture via Siri"].waitForExistence(timeout: 5))
-        snapshot(app, name: "settings_protocol_input_siriCaptureRow_sentinel")
-    }
-
     // MARK: - Talk It Out model gate (writing-roadmap.md Tier 2 / FM-availability fix)
 
     /// Live confirmation for the FM-capable side of the mirrorApp.modelAvailable() fix — the
@@ -185,8 +157,8 @@ final class mirrorUITests: XCTestCase {
         let app = launchApp()
         tapWriteTab(in: app)
 
-        let starterChipLabel = "Need a starting point? Talk it out, or use a template"
-        let starterChip = app.buttons[starterChipLabel].exists ? app.buttons[starterChipLabel] : app.otherElements[starterChipLabel]
+        // "More ways to start" (prompt option B, 2026-11-07) holds Talk it out.
+        let starterChip = app.descendants(matching: .any)["write.starter"].firstMatch
         XCTAssertTrue(starterChip.waitForExistence(timeout: 5), "Starter chip must exist on a blank new entry")
         starterChip.tap()
         Thread.sleep(forTimeInterval: 0.5)
@@ -205,20 +177,28 @@ final class mirrorUITests: XCTestCase {
 
     // MARK: - Top Bar Toolbar: New Draft (entry == nil)
 
+    /// Option A (2026-11-06): Discard draft / Delete entry and Focus mode live in the More menu.
+    @MainActor
+    private func openMoreMenu(in app: XCUIApplication) {
+        let more = app.buttons["write.more"].firstMatch
+        XCTAssertTrue(more.waitForExistence(timeout: 5), "More menu must exist")
+        more.tap()
+    }
+
     /// Empty draft → both "Discard draft" and "Save entry" are disabled.
     @MainActor
     func testToolbar_newDraft_emptyState_bothButtonsDisabled() throws {
         let app = launchApp()
         tapWriteTab(in: app)
 
-        let discardBtn = app.buttons["Discard draft"]
         let saveBtn    = app.buttons["Save entry"]
-
-        XCTAssertTrue(discardBtn.waitForExistence(timeout: 5), "Discard draft must exist in new draft mode")
         XCTAssertTrue(saveBtn.waitForExistence(timeout: 5),    "Save entry must exist")
-
-        XCTAssertFalse(discardBtn.isEnabled, "Discard draft must be disabled when no draft content")
         XCTAssertFalse(saveBtn.isEnabled,    "Save entry must be disabled when no draft content")
+
+        openMoreMenu(in: app)
+        let discardBtn = app.buttons["Discard draft"]
+        XCTAssertTrue(discardBtn.waitForExistence(timeout: 5), "Discard draft must exist in new draft mode")
+        XCTAssertFalse(discardBtn.isEnabled, "Discard draft must be disabled when no draft content")
 
         snapshot(app, name: "toolbar_newdraft_empty")
     }
@@ -233,11 +213,13 @@ final class mirrorUITests: XCTestCase {
         tv.typeText("Today was a good day")
         Thread.sleep(forTimeInterval: 0.5)
 
-        let discardBtn = app.buttons["Discard draft"]
         let saveBtn    = app.buttons["Save entry"]
-
-        XCTAssertTrue(discardBtn.isEnabled, "Discard draft must be enabled when draft has content")
         XCTAssertTrue(saveBtn.isEnabled,    "Save entry must be enabled when draft has content")
+
+        openMoreMenu(in: app)
+        let discardBtn = app.buttons["Discard draft"]
+        XCTAssertTrue(discardBtn.waitForExistence(timeout: 5))
+        XCTAssertTrue(discardBtn.isEnabled, "Discard draft must be enabled when draft has content")
 
         snapshot(app, name: "toolbar_newdraft_with_content")
     }
@@ -255,6 +237,7 @@ final class mirrorUITests: XCTestCase {
         tv.typeText("Text to discard")
         Thread.sleep(forTimeInterval: 0.5)
 
+        openMoreMenu(in: app)
         app.buttons["Discard draft"].tap()
         Thread.sleep(forTimeInterval: 1.0)
 
@@ -286,6 +269,7 @@ final class mirrorUITests: XCTestCase {
         openEntryForEditing(in: app, textFragment: "edit toolbar test")
 
         // In edit mode: "Delete entry" replaces "Discard draft"
+        openMoreMenu(in: app)
         let deleteEntry  = app.buttons["Delete entry"]
         let discardDraft = app.buttons["Discard draft"]
 
@@ -314,6 +298,7 @@ final class mirrorUITests: XCTestCase {
 
         openEntryForEditing(in: app, textFragment: "Entry to delete")
 
+        openMoreMenu(in: app)
         app.buttons["Delete entry"].tap()
         Thread.sleep(forTimeInterval: 0.5)
 

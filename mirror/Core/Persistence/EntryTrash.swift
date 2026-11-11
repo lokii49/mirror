@@ -46,6 +46,8 @@ enum EntryTrash {
         for id in ids {
             WriteDraftStore.clearIncludingPreserved(slot: .entry(id))
         }
+        // A deleted Scratch note doesn't remind anyone about itself.
+        ScratchReminders.cancel(entryIDs: ids)
         if announce {
             NotificationCenter.default.post(name: .mirrorEntriesTrashed, object: nil, userInfo: ["ids": ids])
         }

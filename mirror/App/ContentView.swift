@@ -46,13 +46,21 @@ struct ContentView: View {
     @State private var insightViewModel = InsightViewModel()
     @State private var showPaywall = false
     @State private var entriesNavResetID = UUID()
+    /// Tapping Entries in the tab bar while already on it: the list scrolls back to the top (or
+    /// closes the open reader first). Insights gets this from the system; the Entries list sits
+    /// inside the split view's stack, where the system doesn't find it.
+    @State private var entriesScrollToTopID = UUID()
     @State private var showWhatsNew = false
+    /// What's New was due but another sheet held the screen: it opens once the screen is clear
+    /// (build 43 skipped it for the whole launch instead, so an update could show nothing).
+    @State private var whatsNewWaiting = false
     /// The paid-plans notice on its own, for installs that never get it in What's New.
-    @State private var showPaidPlansNotice = false
     @State private var showRatePrompt = false
     @State private var reviewPromptCoordinator = ReviewPromptCoordinator.shared
     @State private var showMoodCheckIn = false
     @State private var moodCheckInPresenter = MoodCheckInPresenter.shared
+    @State private var scratchNotePresenter = ScratchNotePresenter.shared
+    @State private var showScratchNote = false
     @State private var appLock = AppLock.shared
     @State private var deepLinkEntryID: UUID? = nil
     #if os(macOS)
@@ -125,6 +133,27 @@ struct ContentView: View {
     }
 
     /// DEBUG `--showRatePrompt`; always false in a Release build.
+    /// DEBUG `--testWhatsNew`: What's New opens under `--uitesting` too, so the device test copy
+    /// (which needs `--uitesting`) can show it. Pair with `-mirror.whatsNew.lastSeenVersion 3.1.7`.
+    private static var isWhatsNewTestLaunch: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("--testWhatsNew")
+        #else
+        return false
+        #endif
+    }
+
+    /// Opens What's New now if the screen is clear, else as soon as it is.
+    private func presentWhatsNewWhenClear() {
+        guard featureCardService.shouldShowWhatsNew, !showWhatsNew else { return }
+        if canPresentWhatsNew {
+            whatsNewWaiting = false
+            showWhatsNew = true
+        } else {
+            whatsNewWaiting = true
+        }
+    }
+
     private static var isRatePromptLaunch: Bool {
         #if DEBUG
         return ProcessInfo.processInfo.arguments.contains("--showRatePrompt")
@@ -133,14 +162,24 @@ struct ContentView: View {
         #endif
     }
 
-    /// Write, except DEBUG `--initialTab=entries`/`=insights` (headless simulator screenshots,
+    /// Write, except DEBUG `--initialTab=entries`/`=insights`/`=write` (headless simulator screenshots,
     /// where a mirror:// link would stop at the system's open confirmation).
     private static var launchTab: Int {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--initialTab=entries") { return 0 }
         if ProcessInfo.processInfo.arguments.contains("--initialTab=insights") { return 2 }
+        if ProcessInfo.processInfo.arguments.contains("--initialTab=write") { return 1 }
         #endif
         return 1
+    }
+
+    /// True when a DEBUG `--initialTab=` asked for a tab; onboarding's tab changes leave it alone.
+    private static var hasLaunchTabOverride: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains { $0.hasPrefix("--initialTab=") }
+        #else
+        return false
+        #endif
     }
 
     /// Widgets run in a separate process with no SwiftUI environment of their
@@ -171,10 +210,19 @@ struct ContentView: View {
         ReviewRequestManager.canPresentPrompt(
             pending: reviewPromptCoordinator.isPending,
             alreadyShown: ReviewRequestManager.hasShownEntryMilestonePrompt,
-            rootSheetUp: showPaywall || showWhatsNew || showPaidPlansNotice || showRatePrompt || showMoodCheckIn,
+            rootSheetUp: showPaywall || showWhatsNew || showRatePrompt || showMoodCheckIn || showScratchNote,
             childSheetUp: moodCheckInPresenter.blockedByOtherSheet,
             onboardingComplete: onboardingComplete
         )
+    }
+
+    /// What's New only on a screen with no other root sheet up or waiting (a cold launch from the
+    /// Scratch Note control or the check-in reminder opens that sheet first; presenting both
+    /// fails and can leave a flag stuck). It isn't marked seen, so it shows on a later launch.
+    private var canPresentWhatsNew: Bool {
+        !showPaywall && !showWhatsNew && !showRatePrompt && !showMoodCheckIn && !showScratchNote
+            && !scratchNotePresenter.pending && !moodCheckInPresenter.pending
+            && !moodCheckInPresenter.blockedByOtherSheet
     }
 
     /// The mood check-in sheet is triggered by tapping the daily reminder —
@@ -182,7 +230,16 @@ struct ContentView: View {
     /// in this session, `pending` simply carries to the next launch/tap.
     private var canPresentMoodCheckIn: Bool {
         moodCheckInPresenter.pending
-            && !showPaywall && !showWhatsNew && !showPaidPlansNotice && !showRatePrompt && !showMoodCheckIn
+            && !showPaywall && !showWhatsNew && !showRatePrompt && !showMoodCheckIn && !showScratchNote
+            && !moodCheckInPresenter.blockedByOtherSheet
+            && onboardingComplete
+    }
+
+    /// The quick note into Scratch (Control Center button, Entries menu, Mac File menu), once the
+    /// screen is free of other modals. Until then `pending` waits, like the mood check-in.
+    private var canPresentScratchNote: Bool {
+        scratchNotePresenter.pending
+            && !showPaywall && !showWhatsNew && !showRatePrompt && !showMoodCheckIn && !showScratchNote
             && !moodCheckInPresenter.blockedByOtherSheet
             && onboardingComplete
     }
@@ -228,9 +285,10 @@ struct ContentView: View {
             let checkIns = (try? modelContext.fetch(
                 FetchDescriptor<MoodCheckIn>(predicate: #Predicate { $0.createdAt >= startOfDay })
             )) ?? []
-            let todaysEntries = (try? modelContext.fetch(
+            // A note kept out of insights doesn't answer "how are you today?".
+            let todaysEntries = InsightScope(context: modelContext).filter((try? modelContext.fetch(
                 FetchDescriptor<Entry>(predicate: #Predicate { $0.createdAt >= startOfDay })
-            )) ?? []
+            )) ?? [])
             // Single "what was the mood, and when" rule — merges both sources.
             let byDay = MoodLog.dailyMoods(entries: todaysEntries, checkIns: checkIns, calendar: cal)
             guard byDay[startOfDay] == nil else { return }
@@ -258,6 +316,25 @@ struct ContentView: View {
         // display-mode environment below, so the toast follows the theme.
         .modifier(TrashUndoToast())
         .environment(\.appDisplayMode, displayMode)
+        #if os(iOS)
+        // Bars made after a theme switch take its title font (open screens keep theirs until reopened).
+        .onChange(of: displayMode, initial: true) { _, mode in
+            MirrorNavigationAppearance.apply(mode)
+            // Sentinel was retired in 3.1.8: remember whether this device had it on, so What's New
+            // explains the change only to those people.
+            if profiles.contains(where: \.hadChosenSentinel),
+               !UserDefaults.standard.bool(forKey: DeviceFeature.usedSentinelKey) {
+                UserDefaults.standard.set(true, forKey: DeviceFeature.usedSentinelKey)
+                // Sentinel forced Appearance to Dark, and leaving it set it back to System (the
+                // displayMode onChange below, which can't fire now). Once, on the first launch
+                // that finds Sentinel retired, so Paper & Ink opens as the person's system does.
+                if appearanceMode == "dark" {
+                    appearanceMode = "system"
+                    applyColorScheme(appearanceMode)
+                }
+            }
+        }
+        #endif
         // App Lock: the real cover is a window of its own (iOS) or one over every window (Mac),
         // which also covers sheets. This one only guarantees the first frame never shows the journal.
         .overlay {
@@ -300,14 +377,10 @@ struct ContentView: View {
             WhatsNewSheet(mode: .whatsNew)
                 .environment(\.appDisplayMode, displayMode)
         }
-        .sheet(isPresented: $showPaidPlansNotice) {
-            PaidPlansNoticeSheet()
-                .environment(\.appDisplayMode, displayMode)
-        }
         #if os(iOS)
         // Write focuses its editor on launch, and these sheets open over it a moment later: put the
         // keyboard away so it doesn't sit on top of the sheet (2026-10-09).
-        .onChange(of: showWhatsNew || showPaidPlansNotice || showMoodCheckIn || showRatePrompt || showPaywall) { _, covered in
+        .onChange(of: showWhatsNew || showMoodCheckIn || showRatePrompt || showPaywall || showScratchNote) { _, covered in
             if covered {
                 UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
             }
@@ -317,6 +390,16 @@ struct ContentView: View {
             // Neither UI tests nor the DEBUG --showRatePrompt launch may spend the real prompt.
             RateUsPromptSheet(consumesMilestone: !isUITesting && !Self.isRatePromptLaunch)
                 .environment(\.appDisplayMode, displayMode)
+        }
+        .sheet(isPresented: $showScratchNote) {
+            ScratchNoteSheet()
+                .environment(\.appDisplayMode, displayMode)
+        }
+        .onChange(of: canPresentScratchNote, initial: true) { _, canPresent in
+            // Re-read `pending`: with two Mac windows open, the first one to see it takes it.
+            guard canPresent, scratchNotePresenter.pending else { return }
+            scratchNotePresenter.pending = false
+            showScratchNote = true
         }
         .sheet(isPresented: $showMoodCheckIn) {
             MoodCheckInView()
@@ -375,20 +458,16 @@ struct ContentView: View {
         }
         .onChange(of: onboardingComplete) { _, complete in
             if complete {
-                selectedTab = 1
+                selectedTab = Self.hasLaunchTabOverride ? Self.launchTab : 1
                 selectedSidebarItem = .write
                 Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 800_000_000)
-                    if featureCardService.shouldShowWhatsNew {
-                        showWhatsNew = true
-                    } else if !isUITesting && PaidPlansNotice.shouldShow() {
-                        showPaidPlansNotice = true
-                    }
+                    presentWhatsNewWhenClear()
                 }
             }
         }
         .onAppear {
-            if !onboardingComplete {
+            if !onboardingComplete && !Self.hasLaunchTabOverride {
                 selectedTab = 0
                 selectedSidebarItem = .entries
             }
@@ -399,6 +478,12 @@ struct ContentView: View {
                     showMoodCheckIn = true
                 }
             }
+            if ProcessInfo.processInfo.arguments.contains("--showScratchNote") {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(3))
+                    showScratchNote = true
+                }
+            }
             if ProcessInfo.processInfo.arguments.contains("--showRatePrompt") {
                 Task { @MainActor in
                     try? await Task.sleep(for: .seconds(2))
@@ -406,17 +491,20 @@ struct ContentView: View {
                 }
             }
             #endif
-            if onboardingComplete && !isUITesting && featureCardService.shouldShowWhatsNew {
+            if onboardingComplete && (!isUITesting || Self.isWhatsNewTestLaunch) && featureCardService.shouldShowWhatsNew {
                 Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 500_000_000)
-                    showWhatsNew = true
+                    presentWhatsNewWhenClear()
                 }
-            } else if onboardingComplete && !isUITesting && PaidPlansNotice.shouldShow() {
-                // Installed fresh (onboarding marked What's New seen) or What's New had no notice.
-                Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 500_000_000)
-                    showPaidPlansNotice = true
-                }
+            }
+        }
+        // A What's New that waited for another sheet opens once that sheet is gone.
+        .onChange(of: canPresentWhatsNew) { _, clear in
+            guard clear, whatsNewWaiting else { return }
+            Task { @MainActor in
+                // Let the closing sheet finish its animation first: two at once drops one.
+                try? await Task.sleep(nanoseconds: 600_000_000)
+                if whatsNewWaiting { presentWhatsNewWhenClear() }
             }
         }
         // Drafts > Continue writing: the Write editor takes the draft (SavedDraftStore).
@@ -454,18 +542,14 @@ struct ContentView: View {
             case "mood-checkin":
                 // The Log Mood control; presents once the screen is free (canPresentMoodCheckIn).
                 moodCheckInPresenter.pending = true
+            case "scratch-note":
+                // The Scratch Note control; presents once the screen is free (canPresentScratchNote).
+                scratchNotePresenter.pending = true
             case "insights", "nudge":
                 selectedTab = 2
                 selectedSidebarItem = .insights
             case "upgrade":
-                // A widget can still link here from a locked view drawn before the tier key was
-                // written. Nothing is for sale while every feature is free.
-                if SubscriptionService.allFeaturesFree {
-                    selectedTab = 2
-                    selectedSidebarItem = .insights
-                } else {
-                    showPaywall = true
-                }
+                showPaywall = true
             case "entry":
                 if let idString = url.pathComponents.dropFirst().first,
                    let uuid = UUID(uuidString: idString) {
@@ -499,12 +583,15 @@ struct ContentView: View {
         let sentinel = displayMode == .sentinel
         let selection = Binding<AppSidebarItem>(
             get: { selectedSidebarItem ?? .write },
-            set: { selectedSidebarItem = $0 }
+            set: {
+                if $0 == .entries && selectedSidebarItem == .entries { entriesScrollToTopID = UUID() }
+                selectedSidebarItem = $0
+            }
         )
         return TabView(selection: selection) {
             Tab(sentinel ? "Log" : "Entries", systemImage: sentinel ? "viewfinder" : "book.closed", value: AppSidebarItem.entries) {
                 // List and reader side by side where there's room; compact keeps the pushed reader.
-                EntriesSplitView(navResetID: entriesNavResetID, deepLinkEntryID: $deepLinkEntryID)
+                EntriesSplitView(navResetID: entriesNavResetID, scrollToTopID: entriesScrollToTopID, deepLinkEntryID: $deepLinkEntryID)
             }
             Tab(sentinel ? "Transmission" : "Write", systemImage: sentinel ? "antenna.radiowaves.left.and.right" : "square.and.pencil", value: AppSidebarItem.write) {
                 WriteTabView(onSave: {
@@ -531,8 +618,15 @@ struct ContentView: View {
     // MARK: - iPhone layout (TabView), iOS 17
 
     private var phoneLayout: some View {
-        TabView(selection: $selectedTab) {
-            EntriesTabView(navResetID: entriesNavResetID, deepLinkEntryID: $deepLinkEntryID)
+        let selection = Binding<Int>(
+            get: { selectedTab },
+            set: {
+                if $0 == 0 && selectedTab == 0 { entriesScrollToTopID = UUID() }
+                selectedTab = $0
+            }
+        )
+        return TabView(selection: selection) {
+            EntriesTabView(navResetID: entriesNavResetID, scrollToTopID: entriesScrollToTopID, deepLinkEntryID: $deepLinkEntryID)
                 .tabItem { Label(displayMode == .sentinel ? "Log" : "Entries", systemImage: displayMode == .sentinel ? "viewfinder" : "book.closed") }
                 .tag(0)
 
@@ -689,6 +783,10 @@ struct ContentView: View {
             NavigationStack { MonthlyReportView(viewModel: insightViewModel) }
         case .mood:
             NavigationStack { MoodTimelineView() }
+        case .patterns:
+            NavigationStack { PatternsView() }
+        case .review:
+            NavigationStack { ReviewView() }
         case .ask:
             NavigationStack { AskView(viewModel: insightViewModel) }
         case .brain:

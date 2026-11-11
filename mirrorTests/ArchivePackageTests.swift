@@ -18,6 +18,13 @@ struct ArchivePackageTests {
         return container
     }
 
+    private func testContext() throws -> ModelContext {
+        let context = try container().mainContext
+        // Test containers are freed when the test ends; mainContext's own save timer firing after that traps in SwiftData.
+        context.autosaveEnabled = false
+        return context
+    }
+
     private static let jpeg = Data([0xFF, 0xD8, 0xFF, 0xE0] + Array(repeating: 7, count: 40))
     private static let m4a = Data([0, 0, 0, 0x20, 0x66, 0x74, 0x79, 0x70] + Array(repeating: 3, count: 40))
 
@@ -58,7 +65,7 @@ struct ArchivePackageTests {
     }
 
     @Test func roundTripPreservesEverything() async throws {
-        let source = try container().mainContext
+        let source = try testContext()
         let original = try #require(richEntry(in: source).archiveSnapshot())
         let root = try writePackage([original])
         defer { try? FileManager.default.removeItem(at: root.deletingLastPathComponent()) }
@@ -66,7 +73,7 @@ struct ArchivePackageTests {
         let read = try ArchivePackage.read(from: root)
         #expect(read.entries == [original])
 
-        let target = try container().mainContext
+        let target = try testContext()
         let plan = try await ArchiveTransfer.planImport(folder: root, existing: [])
         #expect(plan.new.count == 1)
         _ = try ArchiveTransfer.applyImport(plan, importChangedAsCopies: false, context: target)
@@ -75,7 +82,7 @@ struct ArchivePackageTests {
     }
 
     @Test func markdownHasEscapedFrontMatterAndLinkedMedia() throws {
-        let original = try #require(richEntry(in: try container().mainContext).archiveSnapshot())
+        let original = try #require(richEntry(in: try testContext()).archiveSnapshot())
         let root = try writePackage([original])
         defer { try? FileManager.default.removeItem(at: root.deletingLastPathComponent()) }
         let path = root.appendingPathComponent("entries/\(ArchivePackage.fileName(for: original))")
@@ -91,7 +98,7 @@ struct ArchivePackageTests {
     }
 
     @Test func importingTheSamePackageTwiceAddsNothing() async throws {
-        let context = try container().mainContext
+        let context = try testContext()
         let entry = richEntry(in: context)
         try context.save()
         let root = try writePackage([try #require(entry.archiveSnapshot())])
@@ -101,7 +108,7 @@ struct ArchivePackageTests {
     }
 
     @Test func changedEntriesAreNeverOverwrittenOnlyCopied() async throws {
-        let context = try container().mainContext
+        let context = try testContext()
         let entry = richEntry(in: context)
         try context.save()
         var packaged = try #require(entry.archiveSnapshot())
@@ -126,10 +133,10 @@ struct ArchivePackageTests {
     }
 
     @Test func undoKeepsEntriesEditedAfterImport() async throws {
-        let source = try container().mainContext
+        let source = try testContext()
         let root = try writePackage([try #require(richEntry(in: source).archiveSnapshot())])
         defer { try? FileManager.default.removeItem(at: root.deletingLastPathComponent()) }
-        let context = try container().mainContext
+        let context = try testContext()
         let batch = try ArchiveTransfer.applyImport(try await ArchiveTransfer.planImport(folder: root, existing: []),
                                                     importChangedAsCopies: false, context: context)
         try #require(try context.fetch(FetchDescriptor<Entry>()).first).text = "Edited after import."
@@ -146,7 +153,7 @@ struct ArchivePackageTests {
     }
 
     @Test func symlinkedAttachmentIsRejected() throws {
-        let original = try #require(richEntry(in: try container().mainContext).archiveSnapshot())
+        let original = try #require(richEntry(in: try testContext()).archiveSnapshot())
         let root = try writePackage([original])
         defer { try? FileManager.default.removeItem(at: root.deletingLastPathComponent()) }
         let photo = root.appendingPathComponent("attachments/\(original.id.uuidString.lowercased())/photo-1.jpg")
@@ -156,7 +163,7 @@ struct ArchivePackageTests {
     }
 
     @Test func tamperedAndOversizedPackagesFail() throws {
-        let original = try #require(richEntry(in: try container().mainContext).archiveSnapshot())
+        let original = try #require(richEntry(in: try testContext()).archiveSnapshot())
         let root = try writePackage([original])
         defer { try? FileManager.default.removeItem(at: root.deletingLastPathComponent()) }
         var tiny = ArchivePackage.Limits()
@@ -168,7 +175,7 @@ struct ArchivePackageTests {
     }
 
     @Test func unreadableEntriesAreListedNotWritten() async throws {
-        let context = try container().mainContext
+        let context = try testContext()
         let unreadable = Entry(text: "x")
         unreadable.encryptedText = "mirror:v1:" + Data(repeating: 9, count: 40).base64EncodedString()
         context.insert(unreadable)
@@ -188,7 +195,7 @@ struct ArchivePackageTests {
     }
 
     @Test func duplicateTimestampsGetDistinctFileNames() throws {
-        let context = try container().mainContext
+        let context = try testContext()
         let first = try #require(richEntry(in: context).archiveSnapshot())
         let second = try #require(richEntry(in: context).archiveSnapshot())
         #expect(first.createdAt == second.createdAt)

@@ -181,6 +181,10 @@ struct SavedViewsMenu<Label: View>: View {
                 }
             }
             if !sorted.isEmpty { Divider() }
+            Button("New Scratch Note", systemImage: JournalOrganizationStore.scratchIcon) {
+                ScratchNotePresenter.shared.pending = true
+            }
+            Divider()
             Button("Save current view…", systemImage: "bookmark.badge.plus", action: saveCurrent)
                 .disabled(!canSaveCurrent)
             Button("Manage collections and views…", systemImage: "slider.horizontal.3", action: manage)
@@ -213,16 +217,34 @@ struct OrganizationManagerSheet: View {
     @State private var creatingCollection = false
     @State private var pendingDelete: JournalCollection?
     @State private var errorMessage: String?
+    /// Collections pushed by id (a row's link, or the Mac harness).
+    @State private var path: [UUID] = []
 
     private var sortedCollections: [JournalCollection] {
         collections.sorted { ($0.sortIndex, $0.createdAt) < ($1.sortIndex, $1.createdAt) }
+    }
+    /// A footer on iOS; a row on Mac, where a list footer keeps one line's height and a longer
+    /// text ran into the row above.
+    private var collectionsFooter: some View {
+        Text("An entry can be in one collection. Deleting a collection keeps its entries; they move to Unfiled. Reflections read every collection except the ones kept out of them.")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// Offer Scratch only until some collection is kept out of reflections.
+    private var hasKeptOutCollection: Bool {
+        collections.contains { $0.payload?.keepsOutOfInsights == true }
     }
     private var sortedViews: [SavedEntryView] {
         views.sorted { ($0.sortIndex, $0.createdAt) < ($1.sortIndex, $1.createdAt) }
     }
 
     var body: some View {
-        PlatformNavigationStack {
+        // A real stack on Mac too (PlatformNavigationStack leaves it out there): the rows below push
+        // the library pages and a collection's own page, and without a stack the Mac showed them
+        // greyed out and did nothing on click.
+        NavigationStack(path: $path) {
             List {
                 Section {
                     ForEach(LibraryPage.allCases) { page in
@@ -236,21 +258,31 @@ struct OrganizationManagerSheet: View {
 
                 Section {
                     ForEach(sortedCollections) { collection in
-                        HStack {
-                            Label(collection.payload?.name ?? String(localized: "Locked collection"),
-                                  systemImage: collection.payload?.icon ?? "folder")
-                            Spacer()
-                            Text("\(JournalOrganizationStore.entryCount(in: collection.id, context: modelContext))")
-                                .foregroundStyle(.secondary)
-                                .monospacedDigit()
+                        NavigationLink(value: collection.id) {
+                            HStack {
+                                Label(collection.payload?.name ?? String(localized: "Locked collection"),
+                                      systemImage: collection.payload?.icon ?? "folder")
+                                Spacer()
+                                if collection.payload?.keepsOutOfInsights == true {
+                                    Image(systemName: "eye.slash")
+                                        .foregroundStyle(.secondary)
+                                        .accessibilityLabel("Kept out of reflections")
+                                }
+                                Text("\(JournalOrganizationStore.entryCount(in: collection.id, context: modelContext))")
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                            }
                         }
                         .contextMenu {
                             Button("Rename", systemImage: "pencil") { startRename(collection) }
                             Button("Delete", systemImage: "trash", role: .destructive) { pendingDelete = collection }
                         }
+                        // Explicit tints: the app's accent otherwise paints Delete purple too.
                         .swipeActions {
                             Button("Delete", role: .destructive) { pendingDelete = collection }
+                                .tint(.red)
                             Button("Rename") { startRename(collection) }
+                                .tint(.gray)
                         }
                     }
                     .onMove { from, to in
@@ -262,11 +294,32 @@ struct OrganizationManagerSheet: View {
                         nameDraft = ""
                         creatingCollection = true
                     }
+                    if !hasKeptOutCollection {
+                        Button {
+                            perform { try JournalOrganizationStore.addScratchCollection(in: modelContext) }
+                        } label: {
+                            Label {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Add Scratch for quick notes")
+                                    Text("Lists, numbers and reminders that reflections won't read.")
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                }
+                            } icon: {
+                                Image(systemName: JournalOrganizationStore.scratchIcon)
+                            }
+                        }
+                        .accessibilityIdentifier("collections.addScratch")
+                    }
+                    #if os(macOS)
+                    collectionsFooter
+                    #endif
                 } header: {
                     Text("Collections")
                 } footer: {
-                    Text("An entry can be in one collection. Deleting a collection keeps its entries; they move to Unfiled. Reflections still use all entries.")
-                        .fixedSize(horizontal: false, vertical: true)
+                    #if os(iOS)
+                    collectionsFooter
+                    #endif
                 }
 
                 Section {
@@ -284,7 +337,9 @@ struct OrganizationManagerSheet: View {
                             }
                             .swipeActions {
                                 Button("Delete", role: .destructive) { try? JournalOrganizationStore.delete(view, in: modelContext) }
+                                    .tint(.red)
                                 Button("Rename") { startRename(view) }
+                                    .tint(.gray)
                             }
                     }
                     .onMove { from, to in
@@ -299,6 +354,16 @@ struct OrganizationManagerSheet: View {
                 }
             }
             .navigationTitle("Organize")
+            .navigationDestination(for: UUID.self) { id in
+                if let collection = collections.first(where: { $0.id == id }) {
+                    CollectionSettingsView(collection: collection)
+                }
+            }
+            #if os(macOS) && DEBUG
+            .onReceive(NotificationCenter.default.publisher(for: .mirrorMacDebugOpenCollection)) { note in
+                if let id = note.object as? UUID { path = [id] }
+            }
+            #endif
             #if os(macOS)
             .frame(minWidth: 440, idealWidth: 480, minHeight: 480, idealHeight: 560)
             #endif
@@ -378,6 +443,87 @@ struct OrganizationManagerSheet: View {
     }
 }
 
+/// One collection: its name, whether reflections and insights read it, and delete.
+struct CollectionSettingsView: View {
+    let collection: JournalCollection
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+    @State private var name = ""
+    @State private var keepOut = false
+    @State private var confirmDelete = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        Form {
+            Section {
+                TextField("Name", text: $name)
+                    .onSubmit(saveName)
+            } header: {
+                // The Mac form already labels the field.
+                #if os(iOS)
+                Text("Name")
+                #endif
+            }
+            Section {
+                Toggle("Keep out of reflections", isOn: Binding(get: { keepOut }, set: setKeepOut))
+                    .accessibilityIdentifier("collection.keepOut")
+            } footer: {
+                Text("Entries here stay in your journal, search and streaks, but reflections, digests, reports, Ask, mood charts and mood alerts don't read them, and no mood is detected for them. Reflections already made don't change.")
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Section {
+                Button("Delete collection", role: .destructive) { confirmDelete = true }
+            }
+        }
+        #if os(macOS)
+        .formStyle(.grouped)
+        #endif
+        .navigationTitle(name.isEmpty ? String(localized: "Collection") : name)
+        .onAppear {
+            name = collection.payload?.name ?? ""
+            keepOut = collection.payload?.keepsOutOfInsights ?? false
+        }
+        .onDisappear(perform: saveName)
+        .confirmationDialog(String(localized: "Delete “\(collection.payload?.name ?? "")”?"), isPresented: $confirmDelete,
+                            titleVisibility: .visible) {
+            Button("Delete collection", role: .destructive) {
+                perform { try JournalOrganizationStore.delete(collection, in: modelContext) }
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Its \(JournalOrganizationStore.entryCount(in: collection.id, context: modelContext)) entries stay in your journal and move to Unfiled.")
+        }
+        .alert("Couldn't save", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(errorMessage ?? "")
+        }
+    }
+
+    private func setKeepOut(_ value: Bool) {
+        perform {
+            try JournalOrganizationStore.setKeepsOutOfInsights(collection, value, in: modelContext)
+            keepOut = value
+        }
+    }
+
+    private func saveName() {
+        // Deleted from here, or never readable: nothing to rename.
+        guard collection.modelContext != nil, !collection.isDeleted, let current = collection.payload?.name else { return }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != current else { return }
+        perform { try JournalOrganizationStore.rename(collection, to: trimmed, in: modelContext) }
+    }
+
+    private func perform(_ action: () throws -> Void) {
+        do { try action() } catch {
+            errorMessage = String(localized: "This device can't encrypt right now. Try again once it's unlocked.")
+        }
+    }
+}
+
 /// Name prompts the list needs (new collection from "Move to", save current view).
 struct OrganizationPrompts: ViewModifier {
     @Binding var newCollectionFor: Entry?
@@ -414,3 +560,10 @@ struct OrganizationPrompts: ViewModifier {
             }
     }
 }
+
+#if os(macOS) && DEBUG
+extension Notification.Name {
+    /// Snapshot mode only: pushes the collection whose id is the object, as a row click does.
+    static let mirrorMacDebugOpenCollection = Notification.Name("mirror.mac.debug.openCollection")
+}
+#endif

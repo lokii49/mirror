@@ -1,5 +1,6 @@
 import SwiftUI
 import RevenueCat
+import StoreKit
 import SwiftData
 
 struct PaywallView: View {
@@ -9,6 +10,7 @@ struct PaywallView: View {
     @State private var subscriptionService = SubscriptionService.shared
     @State private var selectedTier: PaywallTier
     @State private var selectedProductID = ""
+    @State private var showRedeemCode = false
 
     init(initialTier: PaywallTier = .core) {
         _selectedTier = State(initialValue: initialTier)
@@ -158,6 +160,8 @@ struct PaywallView: View {
             }
             .onChange(of: subscriptionService.corePackages) { _, _ in selectDefaultIfNeeded() }
             .onChange(of: subscriptionService.deepPackages) { _, _ in selectDefaultIfNeeded() }
+            // A redeemed code raises the tier, and the tier change above closes the paywall.
+            .modifier(RedeemCodeSheet(isPresented: $showRedeemCode))
         }
     }
 
@@ -202,9 +206,12 @@ struct PaywallView: View {
     private var heroSection: some View {
         ZStack(alignment: .topTrailing) {
             LinearGradient(
+                // Plum & Paper: deep plums only, so the white title and copy stay at 6:1 or
+                // better in both appearances (the old ends, violetLight under white, were ~2:1).
+                // Deep runs darker than Core so the two plans still read apart.
                 colors: selectedTier == .core
-                    ? [Color.indigo, MirrorTheme.primary, MirrorTheme.violet.opacity(0.85)]
-                    : [MirrorTheme.violet, Color.indigo, MirrorTheme.violetLight.opacity(0.85)],
+                    ? [MirrorTheme.hex(0x6E2A55, 0x6E2A55), MirrorTheme.buttonFill, MirrorTheme.hex(0x9A4478, 0x9A4478)]
+                    : [MirrorTheme.hex(0x4E1B3C, 0x4E1B3C), MirrorTheme.hex(0x6E2A55, 0x6E2A55), MirrorTheme.buttonFill],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -230,7 +237,9 @@ struct PaywallView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Group {
                         if isSentinel {
-                            Text(selectedTier == .core ? "SENTINEL CORE" : "SENTINEL DEEP")
+                            // The plan's own name, in Sentinel's uppercase (owner, 2026-11-06: not "Sentinel Core").
+                            Text(selectedTier == .core ? "MirrorNotes Core" : "MirrorNotes Deep")
+                                .textCase(.uppercase)
                                 .scaledFont(26, weight: .bold, design: .monospaced)
                                 .tracking(0.5)
                         } else {
@@ -327,7 +336,7 @@ struct PaywallView: View {
     /// "Current plan" for the subscriber's own tier, otherwise the tier's tagline.
     @ViewBuilder
     private func tierCaption(_ tier: PaywallTier, isSelected: Bool) -> some View {
-        let caption: LocalizedStringKey = subscriptionService.tier == tier.subscriptionTier && !SubscriptionService.allFeaturesFree
+        let caption: LocalizedStringKey = subscriptionService.tier == tier.subscriptionTier
             ? "Current plan"
             : (tier == .core ? "Most popular" : "More AI")
         Text(caption)
@@ -392,7 +401,7 @@ struct PaywallView: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .themedCard(cornerRadius: 24)
+        .themedCard(cornerRadius: 22)
         .animation(.easeInOut(duration: 0.2), value: selectedTier)
     }
 
@@ -469,7 +478,7 @@ struct PaywallView: View {
             }
         }
         .padding(20)
-        .themedCard(cornerRadius: 24)
+        .themedCard(cornerRadius: 22)
     }
 
     private var plansUnavailable: some View {
@@ -498,7 +507,7 @@ struct PaywallView: View {
 
     private var ctaTitle: LocalizedStringKey {
         if selectedIsCurrentPlan { return "Current plan" }
-        if subscriptionService.tier == .core && selectedTier == .deep && !SubscriptionService.allFeaturesFree {
+        if subscriptionService.tier == .core && selectedTier == .deep {
             return "Upgrade to Deep"
         }
         return showsTrial ? "Start Free Trial" : "Subscribe"
@@ -549,12 +558,23 @@ struct PaywallView: View {
                 .foregroundStyle(MirrorTheme.textTertiary)
                 .multilineTextAlignment(.center)
 
-            // One line when it fits; at large text sizes the three links stack instead of
-            // truncating ("Restore P… · Privacy…").
+            // One line when it fits, else purchase links over legal links; at large text sizes
+            // every link gets its own line instead of truncating ("Restore P… · Privacy…").
             ViewThatFits(in: .horizontal) {
-                HStack(spacing: 6) { footerLinks(separated: true) }
-                    .lineLimit(1)
-                VStack(spacing: 8) { footerLinks(separated: false) }
+                HStack(spacing: 6) {
+                    purchaseLinks(separated: true)
+                    legalLinks(separated: true, followsOthers: true)
+                }
+                .lineLimit(1)
+                VStack(spacing: 6) {
+                    HStack(spacing: 6) { purchaseLinks(separated: true) }
+                    HStack(spacing: 6) { legalLinks(separated: true, followsOthers: false) }
+                }
+                .lineLimit(1)
+                VStack(spacing: 8) {
+                    purchaseLinks(separated: false)
+                    legalLinks(separated: false, followsOthers: false)
+                }
             }
             .scaledFont(isSentinel ? 11 : 12, weight: .medium, design: isSentinel ? .monospaced : .default)
             .textCase(isSentinel ? .uppercase : nil)
@@ -569,18 +589,31 @@ struct PaywallView: View {
 }
 
 extension PaywallView {
+    /// Apple's offer-code sheet. Hidden for the iPhone app on a Mac, where RevenueCat found the older
+    /// StoreKit 1 version of this sheet crashes.
+    fileprivate var offersRedeemCode: Bool { RedeemCodeSheet.isAvailable }
+
     @ViewBuilder
-    fileprivate func footerLinks(separated: Bool) -> some View {
+    fileprivate func purchaseLinks(separated: Bool) -> some View {
         Button("Restore Purchases") {
             Task { await subscriptionService.restorePurchases() }
         }
         .buttonStyle(.plain)
-        if let privacyURL = AppConstants.privacyPolicyURL {
+        if offersRedeemCode {
             if separated { Text(verbatim: "·") }
+            Button("Redeem Code") { showRedeemCode = true }
+                .buttonStyle(.plain)
+        }
+    }
+
+    @ViewBuilder
+    fileprivate func legalLinks(separated: Bool, followsOthers: Bool) -> some View {
+        if let privacyURL = AppConstants.privacyPolicyURL {
+            if separated && followsOthers { Text(verbatim: "·") }
             Link("Privacy Policy", destination: privacyURL)
         }
         if let termsURL = AppConstants.termsOfUseURL {
-            if separated { Text(verbatim: "·") }
+            if separated && (followsOthers || AppConstants.privacyPolicyURL != nil) { Text(verbatim: "·") }
             Link("Terms of Use", destination: termsURL)
         }
     }

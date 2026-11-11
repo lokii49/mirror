@@ -1,9 +1,30 @@
-Bezahlpläne ab 15. November
+Core und Deep sind da
 
-• Ab 15. November brauchen neue tägliche Reflexionen, „Mirror fragen“, neue Wöchentliche Zusammenfassungen und Monatsberichte, die Stimmungs-Zeitleiste und die Widgets Core oder Deep. Schreiben, Lesen, Suche und iCloud-Backup bleiben für immer kostenlos. Neue Abonnenten können 7 Tage kostenlos testen.
+• Neue tägliche Reflexionen, „Mirror fragen“, neue Wöchentliche Zusammenfassungen und Monatsberichte, die Stimmungs-Zeitleiste und die Widgets brauchen jetzt Core oder Deep. Schreiben, Lesen, Suche und iCloud-Backup bleiben für immer kostenlos. Neue Abonnenten können 7 Tage kostenlos testen.
 • Alles, was schon für dich erstellt wurde, bleibt in jedem Plan lesbar: frühere Reflexionen, Zusammenfassungen und Berichte, in der App und in den Widgets.
 
 Außerdem in diesem Update
 
-• Deutlich kleinerer Download: wieder unter 30 MB statt über 300 MB.
-• Was du spät nachts schreibst, gehört zum Abend davor. Einträge vor 4 Uhr morgens werden mit dem Vortag reflektiert, und was du später am Tag schreibst, bekommt eine eigene tägliche Reflexion.
+• Ein neuer Look, Paper & Ink: warme Papierseiten mit einem Pflaumen-Akzent, Überschriften in Serifenschrift und die heutige Reflexion ganz oben. Einträge zeigen Titel, Fotos, Tags und „Heute“/„Gestern“. Der Sentinel-Modus wurde eingestellt, daher sehen jetzt alle diesen Look.
+• Du hast einen App Store-Angebotscode? Tippe in Einstellungen › Abonnement oder auf dem Planbildschirm auf „Code einlösen“.
+• Die Einstellungen haben jetzt eine „Fertig“-Taste und einen Griff, damit klar ist, wie man sie schließt.
+• Wenn die Pläne nicht laden, bietet „Abonnement“ „Erneut versuchen“, statt endlos zu laden.
+• Der Fokusmodus zeigt jetzt nur deine Worte: Symbolleiste, Schreibanstoß und Karten treten zurück, und eine Taste holt sie wieder.
+• Beim ersten Öffnen der Tastatur zeigt ein Tipp, dass du sie mit einem Wisch nach unten auf der Seite ausblendest.
+• Ein Tippen auf einen Tag im Kalender unter „Einträge“ lässt diesen Tag im Blick, statt zurück zu heute zu springen.
+• Frühere Reflexionen und Zusammenfassungen enden mit „Alle anzeigen“, damit du jede lesen kannst.
+• Unter „Ordnen“ kannst du die Sammlung „Notizen“ für schnelle Notizen, Listen und Nummern anlegen. Reflexionen, Fragen, Stimmungsdiagramme und Stimmungswarnungen lesen sie nicht, und jede Sammlung lässt sich genauso heraushalten.
+• Erneutes Tippen auf „Einträge“ scrollt die Liste wieder nach oben.
+• Neuer Kopf beim Schreiben: das Datum als Titel, die Stimmung daneben, Sichern als Taste, Löschen und Fokusmodus im ⋯-Menü.
+• Neue Notiz aus dem Kontrollzentrum, mit Siri oder im Einträge-Menü, mit Checklisten, nummerierten Listen und Aufzählungen sowie „Erinnern …“ für eine Erinnerung zur gewählten Zeit. Die Erinnerung zeigt nie den Text der Notiz.
+• Vorlagen: Abendrückblick, Wochenplan und Morgenseiten, dazu eigene, nur auf diesem Gerät.
+• Vorschläge aus deinem Tag: Beginne einen Eintrag mit Apples Journaling-Vorschlägen. Songs, Podcasts, Trainings, Orte, Personen und Schritte kommen als kurze Zeilen, mit Fotos, Covern und einer Karte deiner Route oder deines Orts. Tippe auf einen Ort oder seine Karte, um ihn in Karten zu öffnen, oder auf einen Song, um ihn in Apple Music zu finden.
+• „Noch offen“ zeigt alle nicht abgehakten Checklisten-Punkte deiner Einträge.
+• Verlinke Einträge miteinander und sieh unter „Verlinkt von“, was hierher verweist.
+• Muster und Jahresrückblick (Deep): welche Stimmungen zu Tagen, Uhrzeiten und Tags gehören, und dein Jahr in Zahlen.
+• MirrorNotes auf der Apple Watch: Sprachnotiz aufnehmen, schnelle Notiz tippen oder Stimmung eintragen. Sprachnotizen werden auf dem iPhone transkribiert.
+• Stimmungsabfragen auf Wunsch in Apple Health sichern (Einstellungen › Journal).
+• Große Tagebücher sind schneller: Die Eintragsliste, die Suche, Einblicke, der Stimmungsverlauf und der Kalender lesen nicht mehr bei jeder Änderung auf dem Bildschirm alle Einträge neu, und das Öffnen eines Eintrags lädt nicht mehr das ganze Tagebuch.
+• MirrorNotes startet etwas schneller und braucht weniger Arbeitsspeicher.
+• Einträge zeigen die Wortzahl ausgeschrieben („52 Wörter“ statt „52 W“).
+• Im kostenlosen Plan zeigt „Einblicke“ eine Karte zu Core statt zwei.

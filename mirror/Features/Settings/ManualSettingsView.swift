@@ -7,6 +7,8 @@ struct ManualSettingsView: View {
     @State private var showHowItWorks = false
     @State private var showFeatureGuide = false
     @State private var showAcknowledgments = false
+    /// The engine tags and "How this was generated" that Sentinel used to show (retired in 3.1.8).
+    @AppStorage(GenerationDetails.key) private var showGenerationDetails = false
 
     var body: some View {
         SettingsScroll {
@@ -21,7 +23,16 @@ struct ManualSettingsView: View {
                     }
                     .buttonStyle(.plain)
 
-                    if FeatureCardService.shared.shouldShowWhatsNew {
+                    SettingsDivider()
+
+                    Toggle(isOn: $showGenerationDetails) {
+                        SettingsRowLabel(title: "Show how insights are made", systemImage: "shield.lefthalf.filled", iconColor: MirrorTheme.violet)
+                    }
+                    .tint(MirrorTheme.violet)
+
+                    // Always there while this release has pages, seen or not: testers and anyone who
+                    // swiped the sheet away can open it again (owner, 2026-11-06).
+                    if !FeatureCardService.shared.whatsNewCards.isEmpty {
                         SettingsDivider()
 
                         Button { showFeatureGuide = true } label: {
@@ -162,6 +173,14 @@ struct ManualSettingsView: View {
                         icon: "lock.shield.fill",
                         color: .green
                     )
+                    // UI checklist 2026-11-07: what a day's colour and a chart point mean.
+                    privacyStep(
+                        number: "5",
+                        title: "How your moods are drawn",
+                        body: "On the calendar, a day shows the mood you logged most that day (when two tie, the later one). Charts place moods from Low to High by how pleasant they are, one point per day; a gap means a day with no mood.",
+                        icon: "chart.line.uptrend.xyaxis",
+                        color: MirrorTheme.violet
+                    )
                 }
                 .padding(20)
             }
@@ -209,7 +228,7 @@ struct ManualSettingsView: View {
             }
         }
         .padding(18)
-        .themedCard(cornerRadius: 20)
+        .themedCard(cornerRadius: 22)
     }
 
     private var appVersion: String {
