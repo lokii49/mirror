@@ -675,7 +675,9 @@ struct WriteView: View {
                 // When a caller explicitly asks for specific starting text, that intent wins
                 // outright — the stale draft is left untouched in storage (not cleared, no data
                 // loss), just not loaded into this particular prefilled session.
-                if initialText.isEmpty {
+                // Not while a discard waits on Undo: storage still holds the discarded draft until
+                // the countdown ends, and coming back to Write brought it back.
+                if initialText.isEmpty, !pendingDelete {
                     resumePendingSavedDraft(flushingEditor: false)
                     restoreDraftFromStorage()
                     prefillCollectionFromEntries()

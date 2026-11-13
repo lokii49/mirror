@@ -353,6 +353,10 @@ extension WriteView {
 
         // Clear content immediately so the view looks empty
         clearDraft()
+        // A new entry's saved draft goes now too; Undo puts it back from `undoSnapshot` (in memory).
+        // Keeping the stored copy through the countdown let Write bring the discarded draft back
+        // when it reappeared, its text with photo markers but no photos (owner, 14 Pro, 2026-11-13).
+        if entry == nil { clearDraftStorage() }
 
         deleteCountdown = 10
         withAnimation(.easeInOut(duration: 0.25)) { pendingDelete = true }
@@ -391,6 +395,11 @@ extension WriteView {
         additionalVoiceNoteData = undoSnapshot.additionalVoiceNoteData
         additionalVoiceNoteDurations = undoSnapshot.additionalVoiceNoteDurations
         additionalVoiceNoteTranscripts = undoSnapshot.additionalVoiceNoteTranscripts
+        // The stored draft was cleared at Discard: save what came back.
+        if entry == nil {
+            saveDraftAttachments()
+            flushDraftSave()
+        }
     }
 
     func deleteAndDismiss() {
@@ -703,7 +712,10 @@ extension WriteView {
     /// saveDraftToStorage (which runs on the debounced text path) — attachments
     /// change rarely and a voice note can be megabytes.
     func saveDraftAttachments() {
-        guard entry == nil, Self.usesPersistentDraftStorage() else { return }
+        // Not while a discard waits on Undo: the text isn't saved then either (scheduleDraftSave),
+        // and saving the emptied photos alone left the old text's photo markers with no photos,
+        // drawn as broken pictures when Write came back (owner, 14 Pro, 2026-11-13).
+        guard entry == nil, Self.usesPersistentDraftStorage(), !pendingDelete else { return }
         let notes = draftVoiceNotes.map {
             DraftAttachmentStore.VoiceNote(
                 data: $0.data,
