@@ -16,6 +16,16 @@ struct PhotoSizeTests {
         #expect(offsets.map(\.offset) == [7, 15])   // "Market\n" = 7; "+1 photo +\nBread\n" = 7+1+7
     }
 
+    @Test func aLonePhotoSetToThumbnailIsATileNotASizedPhoto() {
+        let text = "Market\n[[mirror-photo-0]]\nBread\n[[mirror-photo-1]]"
+        let data = PhotoSizes.setting(stored: PhotoSizes.thumbnail, atInlineOffset: 7, in: nil)
+        #expect(PhotoSizes.thumbnailPhotos(text: text, inlineStyleData: data) == [0])
+        #expect(PhotoSizes.sizedPhotos(text: text, inlineStyleData: data).isEmpty)   // it stays in a row
+        #expect(PhotoSizes.sizes(text: text, inlineStyleData: data).isEmpty)          // no width share
+        #expect(PhotoSize(stored: PhotoSizes.thumbnail) == .full)                      // older readers: full width
+        #expect(PhotoSizes.setting(stored: nil, atInlineOffset: 7, in: data) == nil)
+    }
+
     @Test func settingAndReadingSizes() {
         let text = "Market\n[[mirror-photo-0]]\nBread\n[[mirror-photo-1]]"
         var data = PhotoSizes.setting(.small, atInlineOffset: 7, in: nil)

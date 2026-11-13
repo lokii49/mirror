@@ -605,20 +605,21 @@ struct NoteEditorTextView: UIViewRepresentable {
             return nil
         }
 
-        /// Small / Medium / Full for a photo on a line of its own (tiles keep the tile size).
-        /// Small / Medium / Full Width for any photo on its own line. A photo next to other photos
-        /// (a row of thumbnails) also gets Thumbnail, its place in the row; choosing a size takes it
-        /// out of the row (owner, 14 Pro: the menu had no sizes on stacked photos).
+        /// Thumbnail / Small / Medium / Full Width for any photo on its own line. Next to other photos
+        /// (a row of thumbnails) Thumbnail is its place in the row and choosing a size takes it out
+        /// of the row (owner, 14 Pro: the menu had no sizes on stacked photos); alone, Thumbnail
+        /// draws it as one square tile (owner, 2026-11-13).
         private func photoSizeMenu(atCharacter charIndex: Int, in textView: UITextView) -> UIMenu? {
             guard let attributed = textView.attributedText, charIndex < attributed.length,
                   attributed.attribute(.attachment, at: charIndex, effectiveRange: nil) is PhotoAttachment else { return nil }
             let inRow = photoHasPhotoNeighbour(atCharacter: charIndex, in: attributed.string as NSString)
-            // "full" on a photo that's no longer in a row is just full width.
+            // "full" on a photo that's no longer in a row is just full width; "thumbnail" in a row is
+            // its place in the row.
             let raw = attributed.attribute(Self.photoSizeAttribute, at: charIndex, effectiveRange: nil) as? String
-            let stored = !inRow && raw == "full" ? nil : raw
-            var options: [(stored: String?, title: String)] = [("small", String(localized: "Small")), ("medium", String(localized: "Medium")),
+            let stored = inRow ? (raw == PhotoSizes.thumbnail ? nil : raw) : (raw == "full" ? nil : raw)
+            let options: [(stored: String?, title: String)] = [(inRow ? nil : PhotoSizes.thumbnail, String(localized: "Thumbnail")),
+                                                                ("small", String(localized: "Small")), ("medium", String(localized: "Medium")),
                                                                 (inRow ? "full" : nil, String(localized: "Full Width"))]
-            if inRow { options.insert((nil, String(localized: "Thumbnail")), at: 0) }
             let actions = options.map { option in
                 UIAction(title: option.title, state: option.stored == stored ? .on : .off) { [weak self, weak textView] _ in
                     guard let self, let textView else { return }
@@ -2297,12 +2298,17 @@ struct NoteEditorTextView: UIViewRepresentable {
             // token per line, which every older version reads.
             // Rows are found over every photo line; a photo given a size of its own then leaves its
             // row and is drawn alone at that size, while its neighbours stay thumbnails.
+            // A photo set to Thumbnail on its own is one square tile too.
             let sized = PhotoSizes.sizedPhotos(text: parent.text, inlineStyleData: parent.inlineStyleData)
+            let thumbnails = PhotoSizes.thumbnailPhotos(text: parent.text, inlineStyleData: parent.inlineStyleData)
             let tiles = PhotoRuns.tileMatches(allMatches.map(\.range), in: nsRaw) { range in
                 guard let index = inlinePhotoIndex(from: nsRaw.substring(with: range)),
                       index < parent.photoDataArray.count else { return false }
                 return PhotoRuns.isLandscape(parent.photoDataArray[index])
             }.filter { i in inlinePhotoIndex(from: nsRaw.substring(with: allMatches[i].range)).map { !sized.contains($0) } ?? true }
+                .union(allMatches.indices.filter { i in
+                    inlinePhotoIndex(from: nsRaw.substring(with: allMatches[i].range)).map { thumbnails.contains($0) } ?? false
+                })
 
             for (matchIndex, match) in allMatches.enumerated() {
                 let textRange = NSRange(location: lastEnd, length: match.range.location - lastEnd)

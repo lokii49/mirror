@@ -1138,11 +1138,14 @@ private struct InlineEntryContent: View {
         let lines = displayLines
         // Rows are found over every photo line; a photo with a size of its own then leaves its row
         // and is drawn alone, while its neighbours stay thumbnails.
+        // A photo set to Thumbnail on its own is a row of one.
         let sized = PhotoSizes.sizedPhotos(text: text, inlineStyleData: inlineStyleData)
+        let thumbnails = PhotoSizes.thumbnailPhotos(text: text, inlineStyleData: inlineStyleData)
         let tiles = PhotoRuns.tileLines(count: lines.count, photoLine: { photoIndex(ofLine: lines[$0]) != nil }) { line in
             guard let photo = photoIndex(ofLine: lines[line]) else { return false }
             return PhotoRuns.isLandscape(photoDataArray[photo])
         }.filter { line in photoIndex(ofLine: lines[line]).map { !sized.contains($0) } ?? true }
+            .union(lines.indices.filter { line in photoIndex(ofLine: lines[line]).map { thumbnails.contains($0) } ?? false })
         var result: [Block] = []
         for index in lines.indices {
             if tiles.contains(index) {

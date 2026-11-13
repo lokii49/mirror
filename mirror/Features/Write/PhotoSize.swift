@@ -34,6 +34,11 @@ nonisolated enum PhotoSize: String, CaseIterable, Sendable {
 }
 
 nonisolated enum PhotoSizes {
+    /// Stored on a photo on its own line to draw it as one square thumbnail, the size of a tile in a
+    /// row (owner, 2026-11-13). In a row it means what no size means there: a thumbnail. Versions
+    /// before it (and `PhotoSize(stored:)`) read it as full width.
+    static let thumbnail = "thumbnail"
+
     /// Each photo token in `text`, in order: its photo index and its offset in inline coordinates
     /// (a photo is one character there, its token isn't).
     static func inlineOffsets(in text: String) -> [(photoIndex: Int, offset: Int)] {
@@ -49,18 +54,27 @@ nonisolated enum PhotoSizes {
         return result
     }
 
-    /// Photos with a size of their own, "full" included, by photo index. They're drawn on their
-    /// own, not as thumbnails in a row (`PhotoRuns`).
-    static func sizedPhotos(text: String, inlineStyleData: Data?) -> Set<Int> {
+    /// Each photo's stored size ("small", "medium", "full", "thumbnail"), by photo index.
+    static func storedSizes(text: String, inlineStyleData: Data?) -> [Int: String] {
         guard let data = inlineStyleData,
               let ranges = try? JSONDecoder().decode(InlineStyleDocument.self, from: data).ranges,
-              ranges.contains(where: { $0.photoSize != nil }) else { return [] }
-        var result = Set<Int>()
-        for (photoIndex, offset) in inlineOffsets(in: text)
-            where ranges.contains(where: { $0.photoSize != nil && $0.location == offset }) {
-            result.insert(photoIndex)
+              ranges.contains(where: { $0.photoSize != nil }) else { return [:] }
+        var result: [Int: String] = [:]
+        for (photoIndex, offset) in inlineOffsets(in: text) {
+            if let stored = ranges.last(where: { $0.photoSize != nil && $0.location == offset })?.photoSize { result[photoIndex] = stored }
         }
         return result
+    }
+
+    /// Photos with a size of their own, "full" included, by photo index. They're drawn on their
+    /// own, not as thumbnails in a row (`PhotoRuns`). A thumbnail isn't one: it stays in its row.
+    static func sizedPhotos(text: String, inlineStyleData: Data?) -> Set<Int> {
+        Set(storedSizes(text: text, inlineStyleData: inlineStyleData).filter { $0.value != thumbnail }.keys)
+    }
+
+    /// Photos drawn as a square thumbnail even on their own, by photo index.
+    static func thumbnailPhotos(text: String, inlineStyleData: Data?) -> Set<Int> {
+        Set(storedSizes(text: text, inlineStyleData: inlineStyleData).filter { $0.value == thumbnail }.keys)
     }
 
     /// The stored size of one photo ("small", "medium", "full"), or nil when it has none.
