@@ -944,6 +944,21 @@ nonisolated struct ReaderTextSizes: Equatable, Sendable {
     }
 }
 
+/// A reader photo drawn at its `PhotoSize`: full width as before, or that share of the column.
+private struct PhotoSizeFrame: ViewModifier {
+    let size: PhotoSize
+
+    func body(content: Content) -> some View {
+        if size == .full {
+            content
+        } else {
+            content.containerRelativeFrame(.horizontal, alignment: .leading) { length, _ in
+                floor(length * size.widthFraction)
+            }
+        }
+    }
+}
+
 private struct InlineEntryContent: View {
     let text: String
     let textStyleData: Data?
@@ -1226,6 +1241,8 @@ private struct InlineEntryContent: View {
                                 .stroke(Color.primary.opacity(0.08), lineWidth: 1)
                         }
                         .padding(.vertical, 4)
+                        // Small / Medium (3.1.9): that share of the reading column, from the left.
+                        .modifier(PhotoSizeFrame(size: PhotoSizes.sizes(text: text, inlineStyleData: inlineStyleData)[photoIndex] ?? .full))
                     if let link = photoLink(atLine: index) {
                         Link(destination: link) { picture }
                     } else {

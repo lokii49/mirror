@@ -471,7 +471,8 @@ enum NoteEditorCodec {
                 && range.strikethrough == last.strikethrough
                 && range.highlightIndex == last.highlightIndex
                 && range.linkURL == last.linkURL
-                && range.textColorIndex == last.textColorIndex {
+                && range.textColorIndex == last.textColorIndex
+                && range.photoSize == last.photoSize {
                 result[result.count - 1] = InlineStyleRange(
                     location: last.location,
                     length: max(lastEnd, range.location + range.length) - last.location,
@@ -479,7 +480,8 @@ enum NoteEditorCodec {
                     underline: last.underline, strikethrough: last.strikethrough,
                     highlightIndex: last.highlightIndex,
                     linkURL: last.linkURL,
-                    textColorIndex: last.textColorIndex
+                    textColorIndex: last.textColorIndex,
+                    photoSize: last.photoSize
                 )
             } else {
                 result.append(range)
@@ -526,6 +528,32 @@ enum NoteEditorCodec {
         return text
     }
 
+    // MARK: - Styles on the trailing photos
+
+    /// Inline ranges on the photos after `body` (a size, a link), relative to the body's end. The
+    /// Mac editor keeps those photos out of its text, so it reads its ranges back without them;
+    /// `addingTrailingPhotoRanges` puts them back after the edited body. Photo k sits at a fixed
+    /// distance past the body (`appendingPhotoTokens` writes one token line per photo).
+    static func trailingPhotoRanges(in data: Data?, bodyLength: Int) -> [InlineStyleRange] {
+        (decodeInlineStyleDocument(data)?.ranges ?? []).compactMap { range in
+            guard range.location >= bodyLength else { return nil }
+            var relative = range
+            relative.location -= bodyLength
+            return relative
+        }
+    }
+
+    static func addingTrailingPhotoRanges(_ photoRanges: [InlineStyleRange], to data: Data?, bodyLength: Int) -> Data? {
+        guard !photoRanges.isEmpty else { return data }
+        var ranges = decodeInlineStyleDocument(data)?.ranges ?? []
+        ranges += photoRanges.map { range in
+            var absolute = range
+            absolute.location += bodyLength
+            return absolute
+        }
+        return try? JSONEncoder().encode(InlineStyleDocument(ranges: ranges))
+    }
+
     // MARK: - Safety gate
 
     /// True when an entry can be edited by the Mac editor without changing what iPhone and iPad
@@ -545,8 +573,12 @@ enum NoteEditorCodec {
         let rendered = render(text: body, textStyleData: textStyleData, inlineStyleData: inlineStyleData, entryFont: entryFont)
         let styles = extractTextStyleData(from: rendered.attributed, trailing: rendered.trailing, entryFont: entryFont)
         let inline = extractInlineStyleData(from: rendered.attributed)
+        // Ranges on the trailing photos aren't in the editor's text; the editor keeps them
+        // (`trailingPhotoRanges`), so only the body's must survive the round trip.
+        let bodyLength = (body as NSString).length
+        let storedBody = (decodeInlineStyleDocument(inlineStyleData)?.ranges ?? []).filter { $0.location < bodyLength }
         return normalizedParagraphs(styles, entryFont: entryFont) == normalizedParagraphs(textStyleData, entryFont: entryFont)
-            && decodeInlineStyleDocument(inline)?.ranges == decodeInlineStyleDocument(inlineStyleData)?.ranges
+            && (decodeInlineStyleDocument(inline)?.ranges ?? []) == storedBody
     }
 
     /// Stored style documents compared by meaning: absent font choices and indent levels mean

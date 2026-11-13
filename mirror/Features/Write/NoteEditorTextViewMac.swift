@@ -641,7 +641,11 @@ struct NoteEditorTextView: NSViewRepresentable {
 
         private func emit(storage: NSTextStorage, textView: NSTextView) {
             let style = NoteEditorCodec.extractTextStyleData(from: storage, trailing: trailing, entryFont: entryFont)
-            let inline = NoteEditorCodec.extractInlineStyleData(from: storage)
+            // The trailing photos' ranges (a size, a link) aren't in the editor's text: carry them
+            // past the edited body.
+            let photoRanges = NoteEditorCodec.trailingPhotoRanges(in: parent.inlineStyleData, bodyLength: (parent.text as NSString).length)
+            let inline = NoteEditorCodec.addingTrailingPhotoRanges(photoRanges, to: NoteEditorCodec.extractInlineStyleData(from: storage),
+                                                                   bodyLength: (textView.string as NSString).length)
             lastStyleData = style
             lastInlineData = inline
             parent.text = textView.string
@@ -871,9 +875,12 @@ struct NoteEditorTextView: NSViewRepresentable {
         /// row `i`; inline ranges move with their rows, as on iOS.
         private func replaceDocument(with rows: [(text: String, model: NoteEditorCodec.ParagraphModel)], rowOrder: [Int], in textView: MirrorNSTextView) {
             guard !rows.isEmpty, let storage = textView.textStorage else { return }
-            parent.inlineStyleData = NoteEditorCodec.remapInlineStyles(
-                NoteEditorCodec.extractInlineStyleData(from: storage), in: storage.string, rowOrder: rowOrder)
-            parent.text = rows.map(\.text).joined(separator: "\n")
+            let photoRanges = NoteEditorCodec.trailingPhotoRanges(in: parent.inlineStyleData, bodyLength: (storage.string as NSString).length)
+            let newText = rows.map(\.text).joined(separator: "\n")
+            parent.inlineStyleData = NoteEditorCodec.addingTrailingPhotoRanges(photoRanges, to: NoteEditorCodec.remapInlineStyles(
+                NoteEditorCodec.extractInlineStyleData(from: storage), in: storage.string, rowOrder: rowOrder),
+                bodyLength: (newText as NSString).length)
+            parent.text = newText
             // The stored document lists the empty last paragraph only when it is a list item.
             var models = rows.map(\.model)
             if let tail = rows.last, tail.text.isEmpty, !NoteEditorCodec.isListStyle(tail.model.style) { models.removeLast() }

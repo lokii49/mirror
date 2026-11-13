@@ -260,6 +260,8 @@ struct NoteEditorTextView: UIViewRepresentable {
         private static let highlightIndexAttribute = NSAttributedString.Key("mirror.highlightIndex")
         private static let textColorIndexAttribute = NSAttributedString.Key("mirror.textColorIndex")
         private static let indentLevelAttribute = NSAttributedString.Key("mirror.indentLevel")
+        /// `PhotoSize.rawValue` on a photo's attachment character (Small / Medium; none = Full).
+        static let photoSizeAttribute = NSAttributedString.Key("mirror.photoSize")
         private static let fontChoiceAttribute = NSAttributedString.Key("mirror.fontChoice")
         private var isApplyingStyledText = false
         private var lastRenderedText: String?
@@ -507,8 +509,65 @@ struct NoteEditorTextView: UIViewRepresentable {
                     guard let image = UIImage(data: data) else { return }
                     presentShareSheet(items: [image], from: textView, rect: CGRect(origin: location, size: CGSize(width: 1, height: 1)))
                 }
-                return UIMenu(title: "", children: [copy, save, share])
+                var children: [UIMenuElement] = [copy, save, share]
+                if let sizeMenu = self.photoSizeMenu(at: location, in: textView) { children.append(sizeMenu) }
+                return UIMenu(title: "", children: children)
             }
+        }
+
+        /// Small / Medium / Full for a photo on a line of its own (tiles keep the tile size).
+        private func photoSizeMenu(at location: CGPoint, in textView: UITextView) -> UIMenu? {
+            attachmentCharacterIndex(at: location, in: textView).flatMap { photoSizeMenu(atCharacter: $0, in: textView) }
+        }
+
+        /// A linked photo (a Suggestion's map) gets UIKit's link menu, not the photo menu above:
+        /// the size choice joins that menu.
+        func textView(_ textView: UITextView, menuConfigurationFor textItem: UITextItem, defaultMenu: UIMenu) -> UITextItem.MenuConfiguration? {
+            let range = textItem.range
+            let nsText = (textView.text ?? "") as NSString
+            guard range.length > 0, NSMaxRange(range) <= nsText.length,
+                  let photo = (range.location..<NSMaxRange(range)).first(where: { nsText.character(at: $0) == 0xFFFC }),
+                  let sizeMenu = photoSizeMenu(atCharacter: photo, in: textView) else {
+                return UITextItem.MenuConfiguration(menu: defaultMenu)
+            }
+            return UITextItem.MenuConfiguration(menu: UIMenu(children: defaultMenu.children + [sizeMenu]))
+        }
+
+        private func photoSizeMenu(atCharacter charIndex: Int, in textView: UITextView) -> UIMenu? {
+            guard let attributed = textView.attributedText, charIndex < attributed.length,
+                  let attachment = attributed.attribute(.attachment, at: charIndex, effectiveRange: nil) as? PhotoAttachment,
+                  !attachment.isTile else { return nil }
+            let current = PhotoSize(stored: attributed.attribute(Self.photoSizeAttribute, at: charIndex, effectiveRange: nil) as? String)
+            let titles: [(PhotoSize, String)] = [(.small, String(localized: "Small")), (.medium, String(localized: "Medium")),
+                                                  (.full, String(localized: "Full Width"))]
+            let actions = titles.map { size, title in
+                UIAction(title: title, state: size == current ? .on : .off) { [weak self, weak textView] _ in
+                    guard let self, let textView else { return }
+                    self.setPhotoSize(size, atCharacter: charIndex, in: textView)
+                }
+            }
+            return UIMenu(title: String(localized: "Photo Size"), options: .displayInline, children: actions)
+        }
+
+        private func setPhotoSize(_ size: PhotoSize, atCharacter charIndex: Int, in textView: UITextView) {
+            guard let attributed = textView.attributedText else { return }
+            let offset = displayToLogical(display: charIndex, map: buildLogicalOffsetMap(from: attributed))
+            parent.inlineStyleData = PhotoSizes.setting(size, atInlineOffset: offset, in: parent.inlineStyleData)
+            invalidateRenderedCache()
+            applyStyledText(to: textView, preservingSelection: true)
+            syncRenderedCache(from: textView)
+            commitUndoPoint(in: textView)
+        }
+
+        /// The attachment character under `location`, if there is one.
+        private func attachmentCharacterIndex(at location: CGPoint, in textView: UITextView) -> Int? {
+            let origin = textView.textContainerInset
+            let adjusted = CGPoint(x: location.x - origin.left, y: location.y - origin.top)
+            let charIndex = textView.layoutManager.characterIndex(for: adjusted, in: textView.textContainer,
+                                                                  fractionOfDistanceBetweenInsertionPoints: nil)
+            let nsText = (textView.text ?? "") as NSString
+            guard charIndex < nsText.length, nsText.character(at: charIndex) == 0xFFFC else { return nil }
+            return charIndex
         }
 
         private func photoAttachmentIndex(at location: CGPoint, in textView: UITextView) -> Int? {
@@ -2151,9 +2210,11 @@ struct NoteEditorTextView: UIViewRepresentable {
                 return unreadablePhotoAttachmentString()
             }
 
-            let attachment = NSTextAttachment()
+            let attachment = PhotoAttachment()
             attachment.image = photo.image
             attachment.bounds = CGRect(origin: CGPoint(x: 0, y: -4), size: photo.displaySize)
+            attachment.fullBounds = attachment.bounds
+            attachment.isTile = tile
 
             let result = NSMutableAttributedString(attachment: attachment)
             // Font/color matter here even though nothing visible renders them on the
@@ -3759,6 +3820,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 let highlightIndex = attrs[Self.highlightIndexAttribute] as? Int
                 let textColorIndex = attrs[Self.textColorIndexAttribute] as? Int
                 let linkURL = (attrs[.link] as? URL)?.absoluteString
+                let photoSize = attrs[Self.photoSizeAttribute] as? String
 
                 // Only store non-default inline attrs (skip title/heading/subheading bold — those are
                 // paragraph-level; the subheading font is semibold, which reads as bold)
@@ -3766,7 +3828,8 @@ struct NoteEditorTextView: UIViewRepresentable {
                 let isParaBold = (style == .heading || style == .title || style == .subheading)
                 let effectiveBold = bold && !isParaBold
 
-                guard effectiveBold || italic || underline || strikethrough || highlightIndex != nil || linkURL != nil || textColorIndex != nil else { return }
+                guard effectiveBold || italic || underline || strikethrough || highlightIndex != nil || linkURL != nil
+                    || textColorIndex != nil || photoSize != nil else { return }
 
                 let logicalStart = displayToLogical(display: range.location, map: logicalOffsets)
                 let logicalEnd = displayToLogical(display: NSMaxRange(range), map: logicalOffsets)
@@ -3782,7 +3845,8 @@ struct NoteEditorTextView: UIViewRepresentable {
                     strikethrough: strikethrough,
                     highlightIndex: highlightIndex,
                     linkURL: linkURL,
-                    textColorIndex: textColorIndex
+                    textColorIndex: textColorIndex,
+                    photoSize: photoSize
                 ))
             }
 
@@ -3793,6 +3857,11 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         func applyInlineStyles(to attributed: NSMutableAttributedString, from data: Data?) {
+            // Photos back to full width first: a size that was removed must not linger on an
+            // attachment reused from the rendered cache.
+            attributed.enumerateAttribute(.attachment, in: NSRange(location: 0, length: attributed.length)) { value, _, _ in
+                if let attachment = value as? PhotoAttachment, attachment.fullBounds.width > 0 { attachment.bounds = attachment.fullBounds }
+            }
             guard let data,
                   let doc = try? JSONDecoder().decode(InlineStyleDocument.self, from: data),
                   !doc.ranges.isEmpty else { return }
@@ -3844,6 +3913,22 @@ struct NoteEditorTextView: UIViewRepresentable {
                 if let url = validatedLinkURL(from: styleRange.linkURL) {
                     attributed.addAttribute(.link, value: url, range: displayRange)
                 }
+                if let stored = styleRange.photoSize, PhotoSize(stored: stored) != .full {
+                    attributed.addAttribute(Self.photoSizeAttribute, value: stored, range: displayRange)
+                    resizePhotoAttachments(in: displayRange, of: attributed, to: PhotoSize(stored: stored))
+                }
+            }
+        }
+
+        /// A photo drawn at Small or Medium: its attachment shrinks to that share of the line,
+        /// keeping its aspect. Tiles keep their size (a row of tiles is already small).
+        private func resizePhotoAttachments(in range: NSRange, of attributed: NSAttributedString, to size: PhotoSize) {
+            attributed.enumerateAttribute(.attachment, in: range) { value, _, _ in
+                // Always from the full bounds: an attachment can be drawn again from a cache.
+                guard let attachment = value as? PhotoAttachment, !attachment.isTile, attachment.fullBounds.width > 0 else { return }
+                let full = attachment.fullBounds
+                let width = floor(full.width * size.widthFraction)
+                attachment.bounds = CGRect(x: full.minX, y: full.minY, width: width, height: floor(full.height * width / full.width))
             }
         }
 
@@ -3927,7 +4012,8 @@ struct NoteEditorTextView: UIViewRepresentable {
                     && range.strikethrough == last.strikethrough
                     && range.highlightIndex == last.highlightIndex
                     && range.linkURL == last.linkURL
-                    && range.textColorIndex == last.textColorIndex {
+                    && range.textColorIndex == last.textColorIndex
+                    && range.photoSize == last.photoSize {
                     result[result.count - 1] = InlineStyleRange(
                         location: last.location,
                         length: max(lastEnd, range.location + range.length) - last.location,
@@ -3935,7 +4021,8 @@ struct NoteEditorTextView: UIViewRepresentable {
                         underline: last.underline, strikethrough: last.strikethrough,
                         highlightIndex: last.highlightIndex,
                         linkURL: last.linkURL,
-                        textColorIndex: last.textColorIndex
+                        textColorIndex: last.textColorIndex,
+                        photoSize: last.photoSize
                     )
                 } else {
                     result.append(range)
@@ -4393,6 +4480,13 @@ final class ChecklistMarkerSpacing: NSObject, NSTextStorageDelegate {
             textStorage.addAttribute(.kern, value: spacer.kern, range: NSRange(location: spacer.location, length: 1))
         }
     }
+}
+
+/// A photo in the editor: remembers its full-width bounds so a Small or Medium size is always
+/// worked out from them (`resizePhotoAttachments`), and whether it is drawn as a tile.
+final class PhotoAttachment: NSTextAttachment {
+    var fullBounds: CGRect = .zero
+    var isTile = false
 }
 
 final class MirrorEditorTextView: UITextView {

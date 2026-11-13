@@ -347,8 +347,10 @@ extension WriteView {
                 ForEach(photoDataArray.indices, id: \.self) { index in
                     MacPhotoTile(
                         data: photoDataArray[index],
+                        size: PhotoSizes.sizes(text: viewModel.text, inlineStyleData: inlineStyleData)[index] ?? .full,
                         onOpen: { fullscreenPhotoIndex = index },
-                        onRemove: { macRemovePhoto(at: index) }
+                        onRemove: { macRemovePhoto(at: index) },
+                        onSize: { macSetPhotoSize($0, at: index) }
                     )
                 }
                 MacPhotoDropZone(onChoose: { macChoosePhoto() }, onData: { macAttachPhoto(data: $0) })
@@ -394,9 +396,20 @@ extension WriteView {
 
     func macRemovePhoto(at index: Int) {
         guard photoDataArray.indices.contains(index) else { return }
+        let oldText = viewModel.text
         let body = NoteEditorCodec.splitTrailingPhotoTokens(viewModel.text).body
         photoDataArray.remove(at: index)
         viewModel.text = NoteEditorCodec.appendingPhotoTokens(to: body, count: photoDataArray.count)
+        // The other photos keep their sizes (and links).
+        inlineStyleData = PhotoSizes.removingPhoto(at: index, oldText: oldText, newText: viewModel.text, in: inlineStyleData)
+        if entry == nil { saveDraftToStorage() }
+    }
+
+    /// Small / Medium / Full from a thumbnail's menu: how the photo reads in the entry (the
+    /// reader on every device, and the iPhone and iPad editor). Mac's editor keeps thumbnails.
+    func macSetPhotoSize(_ size: PhotoSize, at index: Int) {
+        guard let offset = PhotoSizes.inlineOffsets(in: viewModel.text).first(where: { $0.photoIndex == index })?.offset else { return }
+        inlineStyleData = PhotoSizes.setting(size, atInlineOffset: offset, in: inlineStyleData)
         if entry == nil { saveDraftToStorage() }
     }
 
@@ -481,8 +494,10 @@ struct MacEditorColumn: ViewModifier {
 /// hover button.
 struct MacPhotoTile: View {
     let data: Data
+    var size: PhotoSize = .full
     let onOpen: () -> Void
     let onRemove: () -> Void
+    var onSize: (PhotoSize) -> Void = { _ in }
     @State private var image: NSImage?
     @State private var hovering = false
 
@@ -515,7 +530,16 @@ struct MacPhotoTile: View {
             }
         }
         .onHover { hovering = $0 }
-        .contextMenu { Button("Remove photo", role: .destructive, action: onRemove) }
+        .contextMenu {
+            Picker("Photo Size", selection: Binding(get: { size }, set: onSize)) {
+                Text("Small").tag(PhotoSize.small)
+                Text("Medium").tag(PhotoSize.medium)
+                Text("Full Width").tag(PhotoSize.full)
+            }
+            .pickerStyle(.inline)
+            Divider()
+            Button("Remove photo", role: .destructive, action: onRemove)
+        }
         .task(id: data.count) { image = Self.thumbnail(from: data) }
         .accessibilityLabel("Photo")
         .accessibilityAddTraits(.isButton)

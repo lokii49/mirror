@@ -124,6 +124,9 @@ nonisolated struct InlineStyleRange: Codable, Equatable, Sendable {
     /// Index into `TextColorPalette`. Optional with a decode default, same
     /// reasoning as `linkURL` — existing stored entries predate this field.
     var textColorIndex: Int? = nil
+    /// `PhotoSize.rawValue` on a photo's character (3.1.9): "small" or "medium"; nil is full
+    /// width. Optional with a decode default, like `linkURL`; older versions ignore it.
+    var photoSize: String? = nil
 }
 
 nonisolated struct InlineStyleDocument: Codable, Sendable {
