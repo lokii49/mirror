@@ -1255,6 +1255,8 @@ struct NoteEditorTextView: UIViewRepresentable {
             var snapshot: UIView
             var grabOffset: CGFloat
             var indicator: UIView
+            /// A photo's slot follows the finger: it's tall, so its middle lags far behind it.
+            var slotByFinger = false
         }
         private var checklistDrag: ChecklistDrag?
 
@@ -1265,8 +1267,10 @@ struct NoteEditorTextView: UIViewRepresentable {
             switch gesture.state {
             case .began:
                 guard let para = checklistMarkerParagraph(at: point, in: textView) else { return }
+                dragWindowPoint = gesture.location(in: nil)
                 beginRowDrag(paragraph: para, wholeEntry: false, at: point, in: textView, layout: lm)
             case .changed:
+                dragWindowPoint = gesture.location(in: nil)
                 updateRowDrag(at: point)
             case .ended:
                 endRowDrag(commit: true, in: textView, layout: lm)
@@ -1290,6 +1294,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             case .began:
                 photoHold = photoParagraph(at: point, in: textView).map { (point, $0) }
             case .changed:
+                dragWindowPoint = gesture.location(in: nil)
                 if checklistDrag == nil, let hold = photoHold, hypot(point.x - hold.point.x, point.y - hold.point.y) > 8 {
                     beginRowDrag(paragraph: hold.paragraph, wholeEntry: true, at: hold.point, in: textView, layout: lm)
                 }
@@ -1347,20 +1352,23 @@ struct NoteEditorTextView: UIViewRepresentable {
             lm.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: textView.textStorage.length))
             UIView.animate(withDuration: 0.15) { snapshot.transform = CGAffineTransform(scaleX: 1.02, y: 1.02) }
             checklistDrag = ChecklistDrag(row: row, target: row, block: lower..<upper, frames: frames, snapshot: snapshot,
-                                          grabOffset: point.y - frames[row].rect.midY, indicator: indicator)
+                                          grabOffset: point.y - frames[row].rect.midY, indicator: indicator, slotByFinger: wholeEntry)
+            startDragAutoScroll(in: textView)
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         }
 
         private func updateRowDrag(at point: CGPoint) {
             guard var drag = checklistDrag else { return }
-            let top = drag.frames[drag.block.lowerBound].rect.midY
-            let bottom = drag.frames[drag.block.upperBound - 1].rect.midY
+            // A little past the first and last rows' middles, so a row can land first or last.
+            let top = drag.frames[drag.block.lowerBound].rect.midY - 1
+            let bottom = drag.frames[drag.block.upperBound - 1].rect.midY + 1
             let centerY = min(max(point.y - drag.grabOffset, top), bottom)
             drag.snapshot.center.y = centerY
             // The other rows of the list, in order: the drop goes before the first whose middle
             // is below the dragged row's middle.
             let others = drag.block.filter { $0 != drag.row }
-            let before = others.filter { drag.frames[$0].rect.midY < centerY }.count
+            let probe = drag.slotByFinger ? point.y : centerY
+            let before = others.filter { drag.frames[$0].rect.midY < probe }.count
             let target = drag.block.lowerBound + before
             if target != drag.target {
                 drag.target = target
@@ -1378,6 +1386,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         private func endRowDrag(commit: Bool, in textView: UITextView, layout lm: ChecklistLayoutManager) {
+            stopDragAutoScroll()
             guard let drag = checklistDrag else { return }
             checklistDrag = nil
             drag.indicator.removeFromSuperview()
@@ -1392,6 +1401,52 @@ struct NoteEditorTextView: UIViewRepresentable {
             lm.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: textView.textStorage.length))
             settleDrag(drag, to: after[drag.target].rect, in: textView)
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+
+        // MARK: Auto-scroll while dragging a row
+
+        /// The finger in window coordinates, and the page that scrolls while a row is held near
+        /// its top or bottom edge (Write's scroll view; the keyboard and the bar over it count as
+        /// the edge, through the scroll view's insets). Without it a row could only move within
+        /// what was on screen, which with the keyboard up is a line or two.
+        private var dragWindowPoint: CGPoint?
+        private weak var dragScrollView: UIScrollView?
+        private var dragScrollLink: CADisplayLink?
+
+        private func startDragAutoScroll(in textView: UITextView) {
+            var view = textView.superview
+            while let current = view, !(current is UIScrollView) { view = current.superview }
+            dragScrollView = view as? UIScrollView
+            guard dragScrollView != nil, dragScrollLink == nil else { return }
+            let link = CADisplayLink(target: self, selector: #selector(dragAutoScrollTick(_:)))
+            link.add(to: .main, forMode: .common)
+            dragScrollLink = link
+        }
+
+        private func stopDragAutoScroll() {
+            dragScrollLink?.invalidate()
+            dragScrollLink = nil
+            dragWindowPoint = nil
+        }
+
+        @objc private func dragAutoScrollTick(_ link: CADisplayLink) {
+            guard checklistDrag != nil, let scrollView = dragScrollView, let textView, let windowPoint = dragWindowPoint else { return }
+            let finger = scrollView.convert(windowPoint, from: nil).y - scrollView.contentOffset.y
+            let insets = scrollView.adjustedContentInset
+            let visibleTop = insets.top
+            let visibleBottom = scrollView.bounds.height - insets.bottom
+            let zone: CGFloat = 64
+            var step: CGFloat = 0
+            if finger < visibleTop + zone { step = -min(zone, visibleTop + zone - finger) / 4 }
+            if finger > visibleBottom - zone { step = min(zone, finger - (visibleBottom - zone)) / 4 }
+            guard step != 0 else { return }
+            let minY = -insets.top
+            let maxY = max(minY, scrollView.contentSize.height - scrollView.bounds.height + insets.bottom)
+            let next = min(max(scrollView.contentOffset.y + step, minY), maxY)
+            guard next != scrollView.contentOffset.y else { return }
+            scrollView.contentOffset.y = next
+            // The page moved under a still finger: the row follows it in the text's coordinates.
+            updateRowDrag(at: textView.convert(windowPoint, from: nil))
         }
 
         private func settleDrag(_ drag: ChecklistDrag, to frame: CGRect, in textView: UITextView) {
