@@ -1268,6 +1268,9 @@ struct NoteEditorTextView: UIViewRepresentable {
             var indicator: UIView
             /// A photo's slot follows the finger: it's tall, so its middle lags far behind it.
             var slotByFinger = false
+            /// A photo lifts only its picture (a Small photo or a thumbnail doesn't fill the row):
+            /// where it was drawn, in text view coordinates. Nil for a checklist row.
+            var picture: CGRect?
         }
         private var checklistDrag: ChecklistDrag?
 
@@ -1292,43 +1295,43 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
         }
 
-        /// Where a photo hold started; the photo lifts once the finger moves.
-        private var photoHold: (point: CGPoint, paragraph: NSRange)?
+        /// Where a photo hold started and its photo's character; the photo lifts once the finger moves.
+        private var photoHold: (point: CGPoint, paragraph: NSRange, char: Int)?
         private var photoHoldMoved = false
         weak var photoDragRecognizer: UILongPressGestureRecognizer?
 
-        /// Touch and hold a photo on its own line: it lifts (with a tap of haptics). Slide to move it
-        /// anywhere in the entry, like a checklist item within its list (styles, links and sizes go
-        /// with it); let go without sliding for the photo menu. A shorter touch scrolls or taps.
+        /// Touch and hold a photo on its own line: the photo menu opens (with a tap of haptics),
+        /// nothing lifts (owner, 2026-11-13: a hold means the menu). Slide while still holding and the
+        /// menu closes and the picture lifts and moves anywhere in the entry, like a checklist item
+        /// within its list (styles, links and sizes go with it). A shorter touch scrolls or taps.
         @objc func handlePhotoDrag(_ gesture: UILongPressGestureRecognizer) {
             guard let textView = gesture.view as? UITextView, let lm = textView.layoutManager as? ChecklistLayoutManager else { return }
             let point = gesture.location(in: textView)
             switch gesture.state {
             case .began:
                 guard let paragraph = photoParagraph(at: point, in: textView) else { return }
-                photoHold = (point, paragraph)
-                dragWindowPoint = gesture.location(in: nil)
-                beginRowDrag(paragraph: paragraph, wholeEntry: true, at: point, in: textView, layout: lm)
+                let char = attachmentCharacterIndex(at: point, in: textView) ?? paragraph.location
+                photoHold = (point, paragraph, char)
+                photoHoldMoved = false
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                presentPhotoMenu(forCharacter: char, at: point)
             case .changed:
+                guard let hold = photoHold else { return }
                 dragWindowPoint = gesture.location(in: nil)
-                if let hold = photoHold, hypot(point.x - hold.point.x, point.y - hold.point.y) > 10 { photoHoldMoved = true }
-                updateRowDrag(at: point)
+                if !photoHoldMoved, hypot(point.x - hold.point.x, point.y - hold.point.y) > 10 {
+                    photoHoldMoved = true
+                    // Never the menu and a lifted photo on screen together.
+                    photoMenuInteraction?.dismissMenu()
+                    beginRowDrag(paragraph: hold.paragraph, wholeEntry: true, at: hold.point,
+                                 picture: attachmentRect(atCharacter: hold.char, in: textView), in: textView, layout: lm)
+                }
+                if photoHoldMoved { updateRowDrag(at: point) }
             case .ended:
-                let hold = photoHold
                 let moved = photoHoldMoved
                 photoHold = nil
                 photoHoldMoved = false
-                guard let hold else { return }
-                if moved {
-                    endRowDrag(commit: true, in: textView, layout: lm)
-                } else {
-                    endRowDrag(commit: false, in: textView, layout: lm)
-                    let char = attachmentCharacterIndex(at: hold.point, in: textView) ?? hold.paragraph.location
-                    // After the photo has settled back (`settleDrag`, 0.25 s).
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) { [weak self] in
-                        self?.presentPhotoMenu(forCharacter: char, at: hold.point)
-                    }
-                }
+                // Not moved: the menu that opened when the hold took stays up.
+                if moved { endRowDrag(commit: true, in: textView, layout: lm) }
             case .cancelled, .failed:
                 photoHold = nil
                 photoHoldMoved = false
@@ -1369,10 +1372,12 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         /// Lifts the row of `paragraph`: within its checklist, or anywhere in the entry for a photo.
-        private func beginRowDrag(paragraph para: NSRange, wholeEntry: Bool, at point: CGPoint, in textView: UITextView, layout lm: ChecklistLayoutManager) {
+        private func beginRowDrag(paragraph para: NSRange, wholeEntry: Bool, at point: CGPoint, picture: CGRect? = nil,
+                                  in textView: UITextView, layout lm: ChecklistLayoutManager) {
             let frames = rowFrames(in: textView)
-            guard let row = frames.firstIndex(where: { $0.chars.location == para.location }), frames[row].rect.height > 0,
-                  let snapshot = textView.resizableSnapshotView(from: frames[row].rect, afterScreenUpdates: false, withCapInsets: .zero) else { return }
+            guard let row = frames.firstIndex(where: { $0.chars.location == para.location }), frames[row].rect.height > 0 else { return }
+            let lifted = picture ?? frames[row].rect
+            guard let snapshot = textView.resizableSnapshotView(from: lifted, afterScreenUpdates: false, withCapInsets: .zero) else { return }
             let attributed = textView.attributedText ?? NSAttributedString()
             let isItem = { (i: Int) -> Bool in
                 let style = self.textStyle(at: frames[i].chars.location, in: attributed)
@@ -1386,7 +1391,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 while lower > 0 && isItem(lower - 1) { lower -= 1 }
                 while upper < frames.count && isItem(upper) { upper += 1 }
             }
-            snapshot.frame = frames[row].rect
+            snapshot.frame = lifted
             snapshot.layer.shadowColor = UIColor.black.cgColor
             snapshot.layer.shadowOpacity = 0.18
             snapshot.layer.shadowRadius = 10
@@ -1401,7 +1406,8 @@ struct NoteEditorTextView: UIViewRepresentable {
             lm.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: textView.textStorage.length))
             UIView.animate(withDuration: 0.15) { snapshot.transform = CGAffineTransform(scaleX: 1.02, y: 1.02) }
             checklistDrag = ChecklistDrag(row: row, target: row, block: lower..<upper, frames: frames, snapshot: snapshot,
-                                          grabOffset: point.y - frames[row].rect.midY, indicator: indicator, slotByFinger: wholeEntry)
+                                          grabOffset: point.y - frames[row].rect.midY, indicator: indicator, slotByFinger: wholeEntry,
+                                          picture: picture)
             startDragAutoScroll(in: textView)
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         }
@@ -1412,7 +1418,8 @@ struct NoteEditorTextView: UIViewRepresentable {
             let top = drag.frames[drag.block.lowerBound].rect.midY - 1
             let bottom = drag.frames[drag.block.upperBound - 1].rect.midY + 1
             let centerY = min(max(point.y - drag.grabOffset, top), bottom)
-            drag.snapshot.center.y = centerY
+            // A lifted picture keeps its place within its row.
+            drag.snapshot.center.y = centerY + (drag.picture.map { $0.midY - drag.frames[drag.row].rect.midY } ?? 0)
             // The other rows of the list, in order: the drop goes before the first whose middle
             // is below the dragged row's middle.
             let others = drag.block.filter { $0 != drag.row }
@@ -1439,16 +1446,24 @@ struct NoteEditorTextView: UIViewRepresentable {
             guard let drag = checklistDrag else { return }
             checklistDrag = nil
             drag.indicator.removeFromSuperview()
-            guard commit, drag.target != drag.row, var rows = editorRows(in: textView) else { return settleDrag(drag, to: drag.frames[drag.row].rect, in: textView) }
+            let home = drag.picture ?? drag.frames[drag.row].rect
+            guard commit, drag.target != drag.row, var rows = editorRows(in: textView) else { return settleDrag(drag, to: home, in: textView) }
             let moved = rows.remove(at: drag.row)
             rows.insert(moved, at: drag.target)
             commitRowOrder(rows, caret: textView.selectedRange.location, in: textView, slide: false)
             commitUndoPoint(in: textView)
             let after = rowFrames(in: textView)
-            guard drag.target < after.count else { return settleDrag(drag, to: drag.frames[drag.row].rect, in: textView) }
+            guard drag.target < after.count else { return settleDrag(drag, to: home, in: textView) }
             lm.hiddenCharacterRanges = [after[drag.target].chars]
             lm.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: textView.textStorage.length))
-            settleDrag(drag, to: after[drag.target].rect, in: textView)
+            // A picture settles where it's drawn now (its row's photo character).
+            var landing = after[drag.target].rect
+            if drag.picture != nil {
+                let chars = after[drag.target].chars
+                let photoChar = ((textView.text ?? "") as NSString).range(of: "\u{FFFC}", range: chars).location
+                if photoChar != NSNotFound, let rect = attachmentRect(atCharacter: photoChar, in: textView) { landing = rect }
+            }
+            settleDrag(drag, to: landing, in: textView)
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }
 
