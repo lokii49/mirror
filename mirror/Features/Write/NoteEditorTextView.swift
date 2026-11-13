@@ -74,9 +74,6 @@ struct NoteEditorTextView: UIViewRepresentable {
                 UTType.text.identifier, UTType.url.identifier, UTType.image.identifier
             ])
             textView.acceptsPastedImages = true
-            // Off by default on iPhone; on, so a photo can be dragged to another line. Text drags
-            // stay iPad-only (`textDraggableView(_:itemsForDrag:)`).
-            textView.textDragInteraction?.isEnabled = true
         }
         // Writing Tools in its panel, plain-text results, photos and list markers left alone
         // (WritingToolsGuard).
@@ -125,6 +122,15 @@ struct NoteEditorTextView: UIViewRepresentable {
         swipeLeft.direction = .left
         let drag = UILongPressGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleChecklistDrag(_:)))
         drag.minimumPressDuration = 0.3
+        // A photo on its own line moves the same way (3.1.9): hold it a moment, then move. Holding
+        // still lets the photo's menu open as before.
+        if onDropPhotos != nil {
+            let photoDrag = UILongPressGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePhotoDrag(_:)))
+            photoDrag.minimumPressDuration = 0.2
+            photoDrag.delegate = context.coordinator
+            textView.addGestureRecognizer(photoDrag)
+            context.coordinator.photoDragRecognizer = photoDrag
+        }
         for recognizer in [swipeRight, swipeLeft, drag] as [UIGestureRecognizer] {
             recognizer.delegate = context.coordinator
             textView.addGestureRecognizer(recognizer)
@@ -553,6 +559,8 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         private func photoSizeMenu(atCharacter charIndex: Int, in textView: UITextView) -> UIMenu? {
+            // The photo pressed: a drag lifted from this menu's preview moves it (see the drop delegate).
+            lastPressedPhoto = (charIndex, Date())
             guard let attributed = textView.attributedText, charIndex < attributed.length,
                   let attachment = attributed.attribute(.attachment, at: charIndex, effectiveRange: nil) as? PhotoAttachment,
                   !attachment.isTile else { return nil }
@@ -1127,14 +1135,18 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            // The photo hold shares the touch with the photo's menu (holding still opens it), never
+            // with scrolling: once it has begun, a move drags the photo, not the page.
+            if gestureRecognizer === photoDragRecognizer { return !(otherGestureRecognizer is UIPanGestureRecognizer) }
             // A drag owns the touch; the others share it as before.
-            !(gestureRecognizer is UILongPressGestureRecognizer && gestureRecognizer.view is MirrorEditorTextView)
+            return !(gestureRecognizer is UILongPressGestureRecognizer && gestureRecognizer.view is MirrorEditorTextView)
         }
 
         func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
             guard let textView = gestureRecognizer.view as? UITextView else { return true }
             let point = gestureRecognizer.location(in: textView)
             if gestureRecognizer is UISwipeGestureRecognizer { return listParagraph(at: point, in: textView) != nil }
+            if gestureRecognizer === photoDragRecognizer { return photoParagraph(at: point, in: textView) != nil }
             if gestureRecognizer is UILongPressGestureRecognizer { return checklistMarkerParagraph(at: point, in: textView) != nil }
             return true
         }
@@ -1190,81 +1202,133 @@ struct NoteEditorTextView: UIViewRepresentable {
             switch gesture.state {
             case .began:
                 guard let para = checklistMarkerParagraph(at: point, in: textView) else { return }
-                let frames = rowFrames(in: textView)
-                guard let row = frames.firstIndex(where: { $0.chars.location == para.location }), frames[row].rect.height > 0,
-                      let snapshot = textView.resizableSnapshotView(from: frames[row].rect, afterScreenUpdates: false, withCapInsets: .zero) else { return }
-                let attributed = textView.attributedText ?? NSAttributedString()
-                let isItem = { (i: Int) -> Bool in
-                    let style = self.textStyle(at: frames[i].chars.location, in: attributed)
-                    return style == .checklistUnchecked || style == .checklistChecked
-                }
-                var lower = row, upper = row + 1
-                while lower > 0 && isItem(lower - 1) { lower -= 1 }
-                while upper < frames.count && isItem(upper) { upper += 1 }
-                snapshot.frame = frames[row].rect
-                snapshot.layer.shadowColor = UIColor.black.cgColor
-                snapshot.layer.shadowOpacity = 0.18
-                snapshot.layer.shadowRadius = 10
-                snapshot.layer.shadowOffset = CGSize(width: 0, height: 4)
-                textView.addSubview(snapshot)
-                let indicator = UIView(frame: CGRect(x: textView.textContainerInset.left, y: 0, width: textView.bounds.width - textView.textContainerInset.left - textView.textContainerInset.right, height: 2))
-                indicator.backgroundColor = lm.accentColor
-                indicator.layer.cornerRadius = 1
-                indicator.isHidden = true
-                textView.addSubview(indicator)
-                lm.hiddenCharacterRanges = [frames[row].chars]
-                lm.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: textView.textStorage.length))
-                UIView.animate(withDuration: 0.15) { snapshot.transform = CGAffineTransform(scaleX: 1.02, y: 1.02) }
-                checklistDrag = ChecklistDrag(row: row, target: row, block: lower..<upper, frames: frames, snapshot: snapshot,
-                                              grabOffset: point.y - frames[row].rect.midY, indicator: indicator)
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                beginRowDrag(paragraph: para, wholeEntry: false, at: point, in: textView, layout: lm)
             case .changed:
-                guard var drag = checklistDrag else { return }
-                let top = drag.frames[drag.block.lowerBound].rect.midY
-                let bottom = drag.frames[drag.block.upperBound - 1].rect.midY
-                let centerY = min(max(point.y - drag.grabOffset, top), bottom)
-                drag.snapshot.center.y = centerY
-                // The other rows of the list, in order: the drop goes before the first whose middle
-                // is below the dragged row's middle.
-                let others = drag.block.filter { $0 != drag.row }
-                let before = others.filter { drag.frames[$0].rect.midY < centerY }.count
-                let target = drag.block.lowerBound + before
-                if target != drag.target {
-                    drag.target = target
-                    UISelectionFeedbackGenerator().selectionChanged()
-                }
-                // The line shows where it will land (nothing when it would stay put).
-                if target == drag.row {
-                    drag.indicator.isHidden = true
-                } else {
-                    let y = before < others.count ? drag.frames[others[before]].rect.minY : drag.frames[others[before - 1]].rect.maxY
-                    drag.indicator.frame.origin.y = y - 1
-                    drag.indicator.isHidden = false
-                }
-                checklistDrag = drag
+                updateRowDrag(at: point)
             case .ended:
-                guard let drag = checklistDrag else { return }
-                checklistDrag = nil
-                drag.indicator.removeFromSuperview()
-                guard drag.target != drag.row, var rows = editorRows(in: textView) else { return settleDrag(drag, to: drag.frames[drag.row].rect, in: textView) }
-                let moved = rows.remove(at: drag.row)
-                rows.insert(moved, at: drag.target)
-                commitRowOrder(rows, caret: textView.selectedRange.location, in: textView, slide: false)
-                commitUndoPoint(in: textView)
-                let after = rowFrames(in: textView)
-                guard drag.target < after.count else { return settleDrag(drag, to: drag.frames[drag.row].rect, in: textView) }
-                lm.hiddenCharacterRanges = [after[drag.target].chars]
-                lm.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: textView.textStorage.length))
-                settleDrag(drag, to: after[drag.target].rect, in: textView)
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                endRowDrag(commit: true, in: textView, layout: lm)
             case .cancelled, .failed:
-                guard let drag = checklistDrag else { return }
-                checklistDrag = nil
-                drag.indicator.removeFromSuperview()
-                settleDrag(drag, to: drag.frames[drag.row].rect, in: textView)
+                endRowDrag(commit: false, in: textView, layout: lm)
             default:
                 break
             }
+        }
+
+        /// Where a photo hold started; the photo lifts once the finger moves.
+        private var photoHold: (point: CGPoint, paragraph: NSRange)?
+        weak var photoDragRecognizer: UILongPressGestureRecognizer?
+
+        /// Touch and hold a photo on its own line, then move: it slides to another line anywhere in
+        /// the entry, like a checklist item within its list. Styles, links and sizes go with it.
+        @objc func handlePhotoDrag(_ gesture: UILongPressGestureRecognizer) {
+            guard let textView = gesture.view as? UITextView, let lm = textView.layoutManager as? ChecklistLayoutManager else { return }
+            let point = gesture.location(in: textView)
+            switch gesture.state {
+            case .began:
+                photoHold = photoParagraph(at: point, in: textView).map { (point, $0) }
+            case .changed:
+                if checklistDrag == nil, let hold = photoHold, hypot(point.x - hold.point.x, point.y - hold.point.y) > 8 {
+                    beginRowDrag(paragraph: hold.paragraph, wholeEntry: true, at: hold.point, in: textView, layout: lm)
+                }
+                updateRowDrag(at: point)
+            case .ended:
+                photoHold = nil
+                endRowDrag(commit: true, in: textView, layout: lm)
+            case .cancelled, .failed:
+                photoHold = nil
+                endRowDrag(commit: false, in: textView, layout: lm)
+            default:
+                break
+            }
+        }
+
+        /// The paragraph of the photo under `point`, when the photo is alone on its line.
+        func photoParagraph(at point: CGPoint, in textView: UITextView) -> NSRange? {
+            guard let char = attachmentCharacterIndex(at: point, in: textView) else { return nil }
+            let text = (textView.text ?? "") as NSString
+            let paragraph = text.paragraphRange(for: NSRange(location: char, length: 0))
+            guard text.substring(with: paragraph).trimmingCharacters(in: .whitespacesAndNewlines) == "\u{FFFC}" else { return nil }
+            return paragraph
+        }
+
+        /// Lifts the row of `paragraph`: within its checklist, or anywhere in the entry for a photo.
+        private func beginRowDrag(paragraph para: NSRange, wholeEntry: Bool, at point: CGPoint, in textView: UITextView, layout lm: ChecklistLayoutManager) {
+            let frames = rowFrames(in: textView)
+            guard let row = frames.firstIndex(where: { $0.chars.location == para.location }), frames[row].rect.height > 0,
+                  let snapshot = textView.resizableSnapshotView(from: frames[row].rect, afterScreenUpdates: false, withCapInsets: .zero) else { return }
+            let attributed = textView.attributedText ?? NSAttributedString()
+            let isItem = { (i: Int) -> Bool in
+                let style = self.textStyle(at: frames[i].chars.location, in: attributed)
+                return style == .checklistUnchecked || style == .checklistChecked
+            }
+            var lower = row, upper = row + 1
+            if wholeEntry {
+                lower = 0
+                upper = frames.count
+            } else {
+                while lower > 0 && isItem(lower - 1) { lower -= 1 }
+                while upper < frames.count && isItem(upper) { upper += 1 }
+            }
+            snapshot.frame = frames[row].rect
+            snapshot.layer.shadowColor = UIColor.black.cgColor
+            snapshot.layer.shadowOpacity = 0.18
+            snapshot.layer.shadowRadius = 10
+            snapshot.layer.shadowOffset = CGSize(width: 0, height: 4)
+            textView.addSubview(snapshot)
+            let indicator = UIView(frame: CGRect(x: textView.textContainerInset.left, y: 0, width: textView.bounds.width - textView.textContainerInset.left - textView.textContainerInset.right, height: 2))
+            indicator.backgroundColor = lm.accentColor
+            indicator.layer.cornerRadius = 1
+            indicator.isHidden = true
+            textView.addSubview(indicator)
+            lm.hiddenCharacterRanges = [frames[row].chars]
+            lm.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: textView.textStorage.length))
+            UIView.animate(withDuration: 0.15) { snapshot.transform = CGAffineTransform(scaleX: 1.02, y: 1.02) }
+            checklistDrag = ChecklistDrag(row: row, target: row, block: lower..<upper, frames: frames, snapshot: snapshot,
+                                          grabOffset: point.y - frames[row].rect.midY, indicator: indicator)
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        }
+
+        private func updateRowDrag(at point: CGPoint) {
+            guard var drag = checklistDrag else { return }
+            let top = drag.frames[drag.block.lowerBound].rect.midY
+            let bottom = drag.frames[drag.block.upperBound - 1].rect.midY
+            let centerY = min(max(point.y - drag.grabOffset, top), bottom)
+            drag.snapshot.center.y = centerY
+            // The other rows of the list, in order: the drop goes before the first whose middle
+            // is below the dragged row's middle.
+            let others = drag.block.filter { $0 != drag.row }
+            let before = others.filter { drag.frames[$0].rect.midY < centerY }.count
+            let target = drag.block.lowerBound + before
+            if target != drag.target {
+                drag.target = target
+                UISelectionFeedbackGenerator().selectionChanged()
+            }
+            // The line shows where it will land (nothing when it would stay put).
+            if target == drag.row {
+                drag.indicator.isHidden = true
+            } else {
+                let y = before < others.count ? drag.frames[others[before]].rect.minY : drag.frames[others[before - 1]].rect.maxY
+                drag.indicator.frame.origin.y = y - 1
+                drag.indicator.isHidden = false
+            }
+            checklistDrag = drag
+        }
+
+        private func endRowDrag(commit: Bool, in textView: UITextView, layout lm: ChecklistLayoutManager) {
+            guard let drag = checklistDrag else { return }
+            checklistDrag = nil
+            drag.indicator.removeFromSuperview()
+            guard commit, drag.target != drag.row, var rows = editorRows(in: textView) else { return settleDrag(drag, to: drag.frames[drag.row].rect, in: textView) }
+            let moved = rows.remove(at: drag.row)
+            rows.insert(moved, at: drag.target)
+            commitRowOrder(rows, caret: textView.selectedRange.location, in: textView, slide: false)
+            commitUndoPoint(in: textView)
+            let after = rowFrames(in: textView)
+            guard drag.target < after.count else { return settleDrag(drag, to: drag.frames[drag.row].rect, in: textView) }
+            lm.hiddenCharacterRanges = [after[drag.target].chars]
+            lm.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: textView.textStorage.length))
+            settleDrag(drag, to: after[drag.target].rect, in: textView)
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }
 
         private func settleDrag(_ drag: ChecklistDrag, to frame: CGRect, in textView: UITextView) {
@@ -2206,6 +2270,9 @@ struct NoteEditorTextView: UIViewRepresentable {
         var droppedPhotos: [Data] = []
         var droppedPhotoLoads = 0
         var lastDroppedPhotos: (photos: [Data], at: Date)?
+        var pendingPhotoMove: Int?
+        var photoMoveScheduled = false
+        var lastPressedPhoto: (char: Int, at: Date)?
 
         /// The photo index of the attachment at display offset `charIndex` (attachments map to
         /// tokens in text order, as `logicalText` does).
@@ -4320,10 +4387,13 @@ extension NoteEditorTextView.Coordinator: UITextDragDelegate, UITextDropDelegate
         let ns = (textView.text ?? "") as NSString
         guard start >= 0, end <= ns.length, start < end else { return dragRequest.suggestedItems }
         let photos = (start..<end).filter { ns.character(at: $0) == 0xFFFC }
-        // Text drags as before: iPad only (on iPhone the interaction is on just for photos).
-        guard !photos.isEmpty else { return UIDevice.current.userInterfaceIdiom == .phone ? [] : dragRequest.suggestedItems }
+        guard !photos.isEmpty else { return dragRequest.suggestedItems }
+        // Photos move with the editor's own hold-and-drag (`handlePhotoDrag`), as list items do:
+        // the system drag never took over from the photo's menu on iPhone (14 Pro, 2026-11-13).
+        if parent.onDropPhotos != nil { return [] }
         let paragraph = ns.paragraphRange(for: NSRange(location: photos[0], length: 0))
         let onItsOwn = photos.count == 1 && ns.substring(with: paragraph).trimmingCharacters(in: .whitespacesAndNewlines) == "\u{FFFC}"
+        lastPressedPhoto = (photos[0], Date())
         guard onItsOwn, let index = photoIndex(forAttachmentAt: photos[0], in: textView),
               let image = UIImage(data: parent.photoDataArray[index]) else { return [] }
         let item = UIDragItem(itemProvider: NSItemProvider(object: image))
@@ -4331,30 +4401,82 @@ extension NoteEditorTextView.Coordinator: UITextDragDelegate, UITextDropDelegate
         return [item]
     }
 
+    /// The row of the photo being dragged inside this editor, if the drop is one: from our drag
+    /// item, or, when iOS lifted the photo from its menu preview (its own drag item), from the
+    /// photo last pressed in this editor.
+    private func movingPhotoRow(in session: UIDropSession, textView: UITextView) -> Int? {
+        guard let local = session.localDragSession else { return nil }
+        if let row = local.items.lazy.compactMap({ $0.localObject as? PhotoRowDrag }).first?.row { return row }
+        guard let pressed = lastPressedPhoto, Date().timeIntervalSince(pressed.at) < 60,
+              local.items.contains(where: { $0.itemProvider.hasItemConformingToTypeIdentifier(UTType.image.identifier) }) else { return nil }
+        let ns = (textView.text ?? "") as NSString
+        guard pressed.char < ns.length, ns.character(at: pressed.char) == 0xFFFC else { return nil }
+        return paragraphIndex(atDisplayOffset: pressed.char, in: ns)
+    }
+
     func textDroppableView(_ textDroppableView: UIView & UITextDroppable, proposalForDrop drop: UITextDropRequest) -> UITextDropProposal {
+        guard let textView = textDroppableView as? UITextView else { return drop.suggestedProposal }
         let session = drop.dropSession
-        let movesPhoto = session.localDragSession?.items.contains { $0.localObject is PhotoRowDrag } ?? false
-        // Copy, not move: for a photo the editor moves the line itself, and for pictures from
-        // elsewhere nothing of UIKit's is inserted (both are handled in the paste transform).
-        if movesPhoto || (parent.onDropPhotos != nil && session.hasItemsConforming(toTypeIdentifiers: [UTType.image.identifier])) {
-            return UITextDropProposal(operation: .copy)
-        }
-        return drop.suggestedProposal
+        let movesPhoto = movingPhotoRow(in: session, textView: textView) != nil
+        let bringsPictures = parent.onDropPhotos != nil && session.localDragSession == nil
+            && session.hasItemsConforming(toTypeIdentifiers: [UTType.image.identifier])
+        guard movesPhoto || bringsPictures else { return drop.suggestedProposal }
+        // The editor performs these drops itself (willPerformDrop): on the 14 Pro UITextView
+        // inserted the dragged attachment as it was, without asking the paste delegate, which came
+        // back as a duplicate (attachments become tokens in text order). Copy, so the source is
+        // never deleted.
+        let proposal = UITextDropProposal(operation: .copy)
+        proposal.dropPerformer = .delegate
+        return proposal
     }
 
     func textDroppableView(_ textDroppableView: UIView & UITextDroppable, willPerformDrop drop: UITextDropRequest) {
         guard let textView = textDroppableView as? UITextView else { return }
-        pendingDropOffset = textView.offset(from: textView.beginningOfDocument, to: drop.dropPosition)
+        let offset = textView.offset(from: textView.beginningOfDocument, to: drop.dropPosition)
+        let session = drop.dropSession
+        if let row = movingPhotoRow(in: session, textView: textView) {
+            lastPressedPhoto = nil
+            DispatchQueue.main.async { [weak self, weak textView] in
+                guard let self, let textView else { return }
+                self.movePhotoRow(row, toDisplayOffset: offset, in: textView)
+            }
+            return
+        }
+        guard parent.onDropPhotos != nil, session.localDragSession == nil else { return }
+        let providers = session.items.map(\.itemProvider).filter { $0.hasItemConformingToTypeIdentifier(UTType.image.identifier) }
+        guard !providers.isEmpty else { return }
+        let ns = (textView.text ?? "") as NSString
+        let paragraph = paragraphIndex(atDisplayOffset: offset, in: ns)
+        var loaded = [Data?](repeating: nil, count: providers.count)
+        let group = DispatchGroup()
+        for (index, provider) in providers.enumerated() {
+            group.enter()
+            provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
+                DispatchQueue.main.async { loaded[index] = data; group.leave() }
+            }
+        }
+        group.notify(queue: .main) { [weak self] in
+            let photos = loaded.compactMap { $0 }
+            guard let self, !photos.isEmpty else { return }
+            self.parent.onDropPhotos?(photos, paragraph)
+        }
     }
 
     func textPasteConfigurationSupporting(_ textPasteConfigurationSupporting: UITextPasteConfigurationSupporting, transform item: UITextPasteItem) {
-        if let move = item.localObject as? PhotoRowDrag {
+        if let row = pendingPhotoMove ?? (item.localObject as? PhotoRowDrag)?.row {
+            // Every item of this drop is the moved photo: nothing of UIKit's goes in, and the line
+            // moves once.
             item.setNoResult()
+            guard !photoMoveScheduled else { return }
+            photoMoveScheduled = true
             let offset = pendingDropOffset
             DispatchQueue.main.async { [weak self] in
-                guard let self, let textView = self.textView, let offset else { return }
+                guard let self else { return }
+                self.pendingPhotoMove = nil
                 self.pendingDropOffset = nil
-                self.movePhotoRow(move.row, toDisplayOffset: offset, in: textView)
+                self.photoMoveScheduled = false
+                guard let textView = self.textView, let offset else { return }
+                self.movePhotoRow(row, toDisplayOffset: offset, in: textView)
             }
             return
         }
