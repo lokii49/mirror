@@ -93,11 +93,14 @@ spec['messages'].each do |m|
   end
 
   version = nil
+  skip_text = false
   if msg
     versions = api('GET', "/v1/retentionMessages/#{msg['id']}/versions")['data']
     version = versions.find { |v| v['attributes']['state'] == 'PREPARE_FOR_SUBMISSION' }
     if version.nil? && !versions.empty?
+      # In review or live: text changes need a new version, made in ASC (New Version) first.
       puts "  no editable version (states: #{versions.map { |v| v['attributes']['state'] }.join(', ')}); skipping text"
+      skip_text = true
     elsif version.nil?
       version = write('POST', '/v1/retentionMessageVersions', { data: {
         type: 'retentionMessageVersions',
@@ -110,6 +113,7 @@ spec['messages'].each do |m|
 
   have = version ? api('GET', "/v1/retentionMessageVersions/#{version['id']}/localizations?limit=50")['data'] : []
   m['localizations'].each do |locale, (header, body)|
+    break if skip_text
     loc = have.find { |l| l['attributes']['locale'] == locale }
     if loc.nil?
       write('POST', '/v1/retentionMessageLocalizations', { data: {
