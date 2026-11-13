@@ -20,7 +20,9 @@ nonisolated enum PhotoSize: String, CaseIterable, Sendable {
         }
     }
 
-    /// The stored value: nil for full width, so an entry without sizes stores nothing new.
+    /// The stored value: nil for full width, so an entry without sizes stores nothing new. A photo
+    /// in a row of thumbnails chosen to be full width stores "full" (`PhotoSizes.setting(stored:)`),
+    /// which takes it out of the row.
     var storedValue: String? { self == .full ? nil : rawValue }
 
     init(stored: String?) {
@@ -40,6 +42,20 @@ nonisolated enum PhotoSizes {
         for token in tokens {
             result.append((token.index, token.range.location - shift))
             shift += token.range.length - 1
+        }
+        return result
+    }
+
+    /// Photos with a size of their own, "full" included, by photo index. They're drawn on their
+    /// own, not as thumbnails in a row (`PhotoRuns`).
+    static func sizedPhotos(text: String, inlineStyleData: Data?) -> Set<Int> {
+        guard let data = inlineStyleData,
+              let ranges = try? JSONDecoder().decode(InlineStyleDocument.self, from: data).ranges,
+              ranges.contains(where: { $0.photoSize != nil }) else { return [] }
+        var result = Set<Int>()
+        for (photoIndex, offset) in inlineOffsets(in: text)
+            where ranges.contains(where: { $0.photoSize != nil && $0.location <= offset && offset < $0.location + $0.length }) {
+            result.insert(photoIndex)
         }
         return result
     }
@@ -84,6 +100,12 @@ nonisolated enum PhotoSizes {
     /// that character (a link) is kept; a range that covers more than the photo keeps its other
     /// characters as they were.
     static func setting(_ size: PhotoSize, atInlineOffset offset: Int, in inlineStyleData: Data?) -> Data? {
+        setting(stored: size.storedValue, atInlineOffset: offset, in: inlineStyleData)
+    }
+
+    /// The same with the stored value itself: "small", "medium", "full" (a photo taken out of a
+    /// row of thumbnails at full width) or nil (no size: full width alone, a thumbnail in a row).
+    static func setting(stored: String?, atInlineOffset offset: Int, in inlineStyleData: Data?) -> Data? {
         var ranges = inlineStyleData.flatMap { try? JSONDecoder().decode(InlineStyleDocument.self, from: $0).ranges } ?? []
         var result: [InlineStyleRange] = []
         for range in ranges {
@@ -113,7 +135,7 @@ nonisolated enum PhotoSizes {
             }
         }
         ranges = result
-        if let stored = size.storedValue {
+        if let stored {
             ranges.append(InlineStyleRange(location: offset, length: 1, bold: false, italic: false, underline: false,
                                            strikethrough: false, highlightIndex: nil, photoSize: stored))
         }

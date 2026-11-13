@@ -35,7 +35,6 @@ struct CollectionsBar: View {
     let lookup: CollectionLookup
     @Binding var scope: EntryFilterCriteria.CollectionScope
     let manage: () -> Void
-    @Environment(\.appDisplayMode) private var displayMode
     #if os(macOS)
     @Environment(\.modelContext) private var modelContext
     /// The chip an entry is being dragged over (Mac).
@@ -72,18 +71,18 @@ struct CollectionsBar: View {
 
     private func chip(_ value: EntryFilterCriteria.CollectionScope, title: String, icon: String) -> some View {
         let selected = scope == value
-        let accent = displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight
+        let accent = MirrorTheme.violetLight
         return Button {
             withAnimation(.easeInOut(duration: 0.2)) { scope = selected && value != .all ? .all : value }
         } label: {
             Label(title, systemImage: icon)
-                .scaledFont(displayMode == .sentinel ? 11 : 12, weight: displayMode == .sentinel ? .semibold : .medium, design: displayMode == .sentinel ? .monospaced : .default)
-                .textCase(displayMode == .sentinel ? .uppercase : nil)
+                .scaledFont(12, weight: .medium, design: .default)
+                .textCase(nil)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 .background(
-                    selected ? (displayMode == .sentinel ? MirrorTheme.ember.opacity(0.14) : MirrorTheme.violetDim) : MirrorTheme.inkRaised,
-                    in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 6, style: .continuous)) : AnyShape(Capsule())
+                    selected ? MirrorTheme.violetDim : MirrorTheme.inkRaised,
+                    in: AnyShape(Capsule())
                 )
                 .foregroundStyle(selected ? accent : MirrorTheme.textSecondary)
                 #if os(macOS)

@@ -5,19 +5,16 @@ struct WritingPromptCard: View {
     let onShuffle: () -> Void
     let onUse: () -> Void
 
-    @Environment(\.appDisplayMode) private var displayMode
-    private var isSentinel: Bool { displayMode == .sentinel }
-
     var body: some View {
-        let accent = isSentinel ? MirrorTheme.ember : Color.accentColor
+        let accent = Color.accentColor
 
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center) {
                 Text("Prompt")
-                    .scaledFont(10, weight: isSentinel ? .bold : .semibold, design: isSentinel ? .monospaced : .default)
+                    .scaledFont(10, weight: .semibold, design: .default)
                     .foregroundStyle(.tertiary)
                     .textCase(.uppercase)
-                    .tracking(isSentinel ? 0.6 : 0.8)
+                    .tracking(0.8)
                 Spacer()
                 Button(action: onShuffle) {
                     Image(systemName: "shuffle")
@@ -30,8 +27,7 @@ struct WritingPromptCard: View {
                 .buttonStyle(.plain)
             }
 
-            // Prompt copy stays serif in both modes — a sentence to read,
-            // not a HUD readout, same as PastNudgeCard's insight text.
+            // Prompt copy is serif — a sentence to read, same as PastNudgeCard's insight text.
             Text(prompt)
                 .scaledFont(16, design: .serif)
                 .foregroundStyle(.primary)
@@ -44,35 +40,25 @@ struct WritingPromptCard: View {
                 ))
 
             Button(action: onUse) {
-                Text(isSentinel ? "USE THIS PROMPT" : "Use this prompt")
-                    .scaledFont(isSentinel ? 11.5 : 12, weight: isSentinel ? .bold : .semibold, design: isSentinel ? .monospaced : .default)
-                    .kerning(isSentinel ? 0.3 : 0)
+                Text("Use this prompt")
+                    .scaledFont(12, weight: .semibold, design: .default)
+                    .kerning(0)
                     .foregroundStyle(accent)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
                     .background(
                         accent.opacity(0.10),
-                        in: isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
+                        in: AnyShape(Capsule())
                     )
-                    .overlay {
-                        if isSentinel {
-                            RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(accent.opacity(0.3), lineWidth: 1)
-                        }
-                    }
             }
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
         .background(
-            isSentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(Color(.secondarySystemGroupedBackground)),
-            in: RoundedRectangle(cornerRadius: isSentinel ? 8 : 16, style: .continuous)
+            AnyShapeStyle(Color(.secondarySystemGroupedBackground)),
+            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
         )
-        .overlay {
-            if isSentinel {
-                RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(MirrorTheme.ember.opacity(0.25), lineWidth: 1)
-            }
-        }
         .overlay(alignment: .leading) {
             RoundedRectangle(cornerRadius: 2, style: .continuous)
                 .fill(accent)
@@ -80,6 +66,6 @@ struct WritingPromptCard: View {
                 .padding(.vertical, 12)
         }
         .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 3)
-        .clipShape(RoundedRectangle(cornerRadius: isSentinel ? 8 : 16, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }

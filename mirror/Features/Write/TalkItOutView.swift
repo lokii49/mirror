@@ -29,10 +29,8 @@ struct TalkItOutView: View {
     var onFinish: (String) -> Void
     var onCancel: (() -> Void)? = nil
 
-    @Environment(\.appDisplayMode) private var displayMode
     @AppStorage(GenerationDetails.key) private var showGenerationDetails = false
-    private var isSentinel: Bool { displayMode == .sentinel }
-    private var accent: Color { isSentinel ? MirrorTheme.ember : MirrorTheme.violet }
+    private var accent: Color { MirrorTheme.violet }
     private var engineTag: String? {
         switch currentQuestionEngine {
         case .gemma: return "GEMMA"
@@ -56,8 +54,8 @@ struct TalkItOutView: View {
 
     @State private var turns: [(question: String, answer: String)] = []
     @State private var currentQuestion: String? = nil
-    /// nil for question 1 (seeded from WritingPrompts.all, no model involved). Surfaced only in
-    /// Sentinel mode — same X-ray attribution pattern as FollowUpChip (1.2) and
+    /// nil for question 1 (seeded from WritingPrompts.all, no model involved). Surfaced only with
+    /// "Show how insights are made" on — same X-ray attribution pattern as FollowUpChip (1.2) and
     /// InsightSignalSource, closing the "can't tell which engine produced a bad question" gap
     /// without adding persistence this feature deliberately avoids.
     @State private var currentQuestionEngine: LLMEngine? = nil
@@ -85,7 +83,7 @@ struct TalkItOutView: View {
                         ))
                 } else if isLoadingQuestion {
                     HStack(spacing: 8) {
-                        ProgressView().tint(isSentinel ? MirrorTheme.ember : .secondary)
+                        ProgressView().tint(Color.secondary)
                         Text("Thinking…")
                             .font(bodyFont(13, weight: .medium))
                             .foregroundStyle(MirrorTheme.textSecondary)
@@ -237,11 +235,11 @@ struct TalkItOutView: View {
                 Text(progressLabel)
                     .font(bodyFont(11, weight: .semibold))
                     .foregroundStyle(MirrorTheme.textTertiary)
-                    .tracking(isSentinel ? 0.6 : 0)
+                    .tracking(0)
             }
             Spacer()
             if !turns.isEmpty {
-                Button(isSentinel ? "FINISH" : "Finish") { finish() }
+                Button("Finish") { finish() }
                     .font(bodyFont(14, weight: .semibold))
                     .foregroundStyle(MirrorTheme.textSecondary)
             }
@@ -269,23 +267,15 @@ struct TalkItOutView: View {
 
     private var progressLabel: String {
         let position = min(turns.count + 1, Self.maxQuestions)
-        return isSentinel
-            ? String(localized: "\(position) OF \(Self.maxQuestions)")
-            : String(localized: "\(position) of \(Self.maxQuestions)")
+        return String(localized: "\(position) of \(Self.maxQuestions)")
     }
 
     private var nextButtonLabel: String {
         let isLastQuestion = turns.count + 1 >= Self.maxQuestions
-        if isSentinel {
-            return isLastQuestion ? String(localized: "DONE") : String(localized: "NEXT")
-        }
         return isLastQuestion ? String(localized: "Done") : String(localized: "Next")
     }
 
     private func bodyFont(_ size: CGFloat, weight: Font.Weight = .regular, serif: Bool = false) -> Font {
-        if isSentinel && !serif {
-            return MirrorTheme.mono(size * typeScale, weight: weight)
-        }
         return .system(size: size * typeScale, weight: weight, design: serif ? .serif : .default)
     }
 

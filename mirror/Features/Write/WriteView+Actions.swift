@@ -898,7 +898,6 @@ struct DraftSaveStatusLabel: View {
     /// The iPhone header's narrow slot: "Draft saved" with a checkmark and a short "Retry";
     /// VoiceOver still hears the full wording.
     var compact = false
-    @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
         Group {
@@ -938,7 +937,7 @@ struct DraftSaveStatusLabel: View {
                     Text("Not saved · Retry")
                         .lineLimit(1)
                 }
-                .scaledFont(displayMode == .sentinel ? 10 : 12, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
+                .scaledFont(12, weight: .semibold, design: .default)
                 .foregroundStyle(MirrorTheme.warningInk)
             }
             .buttonStyle(.plain)
@@ -948,7 +947,7 @@ struct DraftSaveStatusLabel: View {
 
     private func label(_ text: LocalizedStringKey) -> some View {
         Text(text)
-            .scaledFont(displayMode == .sentinel ? 10 : 12, weight: displayMode == .sentinel ? .medium : .regular, design: displayMode == .sentinel ? .monospaced : .default)
+            .scaledFont(12, weight: .regular, design: .default)
             .foregroundStyle(.tertiary)
             .lineLimit(1)
             .accessibilityIdentifier("draft.saveStatus")

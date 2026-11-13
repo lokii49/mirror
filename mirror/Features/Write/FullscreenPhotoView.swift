@@ -9,7 +9,6 @@ struct FullscreenPhotoView: View {
     @State private var offset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.appDisplayMode) private var displayMode
 
     private static var doneEdge: ToolbarItemPlacement {
         #if os(macOS)
@@ -80,13 +79,9 @@ struct FullscreenPhotoView: View {
                         onDismiss?()
                         dismiss()
                     } label: {
-                        if displayMode == .sentinel {
-                            Text("DONE").scaledFont(15, weight: .medium, design: .monospaced)
-                        } else {
-                            Text("Done").fontWeight(.medium)
-                        }
+                        Text("Done").fontWeight(.medium)
                     }
-                    .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : .white)
+                    .foregroundStyle(Color.white)
                     .cancelActionOnMac()
                 }
                 ToolbarItem(placement: Self.shareEdge) {

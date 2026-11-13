@@ -30,14 +30,9 @@ extension WriteView {
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(
-                            displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(Color(.secondarySystemFill)),
-                            in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
+                            AnyShapeStyle(Color(.secondarySystemFill)),
+                            in: AnyShape(Capsule())
                         )
-                        .overlay {
-                            if displayMode == .sentinel {
-                                RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1)
-                            }
-                        }
                         .onSubmit { commitTag() }
                         .submitLabel(.done)
                         .focused($tagFieldFocused)
@@ -71,32 +66,26 @@ extension WriteView {
                                 showTagInput = false
                                 if entry == nil { saveDraftToStorage() }
                             } label: {
-                                let accent = displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary
+                                let accent = MirrorTheme.primary
                                 Text("#\(MirrorTheme.localizedTagName(for: tag))")
-                                    .scaledFont(12, weight: displayMode == .sentinel ? .semibold : .medium, design: displayMode == .sentinel ? .monospaced : .default)
+                                    .scaledFont(12, weight: .medium, design: .default)
                                     .foregroundStyle(accent)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
                                     .background(
                                         accent.opacity(0.10),
-                                        in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
+                                        in: AnyShape(Capsule())
                                     )
-                                    .overlay {
-                                        if displayMode == .sentinel {
-                                            RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(accent.opacity(0.3), lineWidth: 1)
-                                        }
-                                    }
                             }
                             .buttonStyle(.plain)
                         }
                     }
                 } else {
-                    // Option A (owner 2026-11-06): the second row is quiet text, not more pills,
-                    // in both themes.
+                    // Option A (owner 2026-11-06): the second row is quiet text, not more pills.
                     Button {
                         showTagInput = true
                     } label: {
-                        WriteHeaderTextLabel(title: "Add tag", systemImage: "number", isSentinel: displayMode == .sentinel)
+                        WriteHeaderTextLabel(title: "Add tag", systemImage: "number")
                     }
                     .buttonStyle(.plain)
                 }
@@ -118,14 +107,9 @@ extension WriteView {
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(
-                        displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(Color(.secondarySystemFill)),
-                        in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
+                        AnyShapeStyle(Color(.secondarySystemFill)),
+                        in: AnyShape(Capsule())
                     )
-                    .overlay {
-                        if displayMode == .sentinel {
-                            RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1)
-                        }
-                    }
                 }
 
             }

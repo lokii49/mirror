@@ -34,7 +34,6 @@ struct CalendarHeatmap: View {
 
     @AppStorage("heatmapMode") private var mode: HeatmapMode = .month
     @State private var viewDate: Date = Date()
-    @Environment(\.appDisplayMode) private var displayMode
     @Environment(\.dynamicTypeSize) private var typeSize
     /// Increase Contrast: future days and weekend initials step up one level so they stay legible.
     @Environment(\.colorSchemeContrast) private var contrast
@@ -163,9 +162,6 @@ struct CalendarHeatmap: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if displayMode == .sentinel {
-                rankXPRow
-            }
             summaryRow
 
             Group {
@@ -212,47 +208,6 @@ struct CalendarHeatmap: View {
                 day = prev
             }
             cachedStreak = streak
-        }
-    }
-
-    // MARK: - Sentinel rank / XP row
-
-    private var rankXPRow: some View {
-        let xp = GamificationEngine.xp(for: entries)
-        let level = GamificationEngine.level(forXP: xp)
-        let rank = SentinelRank(level: level)
-        let intoLevel = GamificationEngine.xpIntoLevel(xp)
-        let forNext = GamificationEngine.xpForNextLevel()
-        let badge = Text("\(rank.rawValue.uppercased()) · LV\(level)")
-            .scaledFont(9.5, weight: .bold, design: .monospaced)
-            .foregroundStyle(MirrorTheme.ember)
-            .padding(.horizontal, 8).padding(.vertical, 4)
-            .background(MirrorTheme.ember.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
-        // At accessibility text sizes the badge takes its own line; beside the bar it broke mid-word.
-        return VStack(alignment: .leading, spacing: 6) {
-            if typeSize.isAccessibilitySize { badge }
-            HStack(spacing: 8) {
-                if !typeSize.isAccessibilitySize { badge }
-                xpBar(intoLevel: intoLevel, forNext: forNext)
-            }
-        }
-        .padding(.horizontal, 16)
-    }
-
-    private func xpBar(intoLevel: Int, forNext: Int) -> some View {
-        HStack(spacing: 8) {
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(MirrorTheme.inkBorder)
-                    Capsule()
-                        .fill(LinearGradient(colors: [MirrorTheme.violet, MirrorTheme.ember], startPoint: .leading, endPoint: .trailing))
-                        .frame(width: geo.size.width * CGFloat(intoLevel) / CGFloat(forNext))
-                }
-            }
-            .frame(height: 5)
-            Text("\(intoLevel)/\(forNext)")
-                .scaledFont(9.5, weight: .semibold, design: .monospaced)
-                .foregroundStyle(MirrorTheme.textTertiary)
         }
     }
 
@@ -317,9 +272,9 @@ struct CalendarHeatmap: View {
         } label: {
             HStack(spacing: 4) {
                 Text(mode.localizedName)
-                    .textCase(displayMode == .sentinel ? .uppercase : nil)
-                    .scaledFont(displayMode == .sentinel ? 11 : 12, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
-                    .kerning(displayMode == .sentinel ? 0.3 : 0)
+                    .textCase(nil)
+                    .scaledFont(12, weight: .semibold, design: .default)
+                    .kerning(0)
                 Image(systemName: "chevron.up.chevron.down")
                     .scaledFont(9, weight: .semibold)
             }
@@ -327,15 +282,11 @@ struct CalendarHeatmap: View {
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
             .background(
-                displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(MirrorTheme.inkRaised),
-                in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 5, style: .continuous)) : AnyShape(Capsule())
+                AnyShapeStyle(MirrorTheme.inkRaised),
+                in: AnyShape(Capsule())
             )
             .overlay {
-                if displayMode == .sentinel {
-                    RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1)
-                } else {
-                    Capsule().stroke(MirrorTheme.inkBorder, lineWidth: 1)
-                }
+                Capsule().stroke(MirrorTheme.inkBorder, lineWidth: 1)
             }
         }
         .buttonStyle(.plain)
@@ -348,12 +299,12 @@ struct CalendarHeatmap: View {
                 .foregroundStyle(color)
                 .accessibilityHidden(true)
             Text(value)
-                .scaledFont(13, weight: .bold, design: displayMode == .sentinel ? .monospaced : .rounded)
+                .scaledFont(13, weight: .bold, design: .rounded)
                 .foregroundStyle(.primary)
             Text(label)
-                .scaledFont(displayMode == .sentinel ? 10.5 : 12, weight: displayMode == .sentinel ? .semibold : .regular, design: displayMode == .sentinel ? .monospaced : .default)
-                .kerning(displayMode == .sentinel ? 0.2 : 0)
-                .textCase(displayMode == .sentinel ? .uppercase : nil)
+                .scaledFont(12, weight: .regular, design: .default)
+                .kerning(0)
+                .textCase(nil)
                 .foregroundStyle(.secondary)
         }
     }
@@ -387,7 +338,7 @@ struct CalendarHeatmap: View {
 
             VStack(spacing: 1) {
                 Text(title)
-                    .scaledFont(displayMode == .sentinel ? 13 : 16, weight: displayMode == .sentinel ? .semibold : .medium, design: displayMode == .sentinel ? .default : .serif)
+                    .scaledFont(16, weight: .medium, design: .serif)
                     .foregroundStyle(.primary)
                 if let subtitle {
                     Text(subtitle)
@@ -476,12 +427,12 @@ struct CalendarHeatmap: View {
 
     @ViewBuilder
     private func weekDayCell(for date: Date) -> some View {
-        if displayMode == .sentinel { inkWeekDayCell(for: date) } else { paperDayCell(for: date, numeralSize: 19).frame(maxWidth: .infinity) }
+        paperDayCell(for: date, numeralSize: 19).frame(maxWidth: .infinity)
     }
 
     @ViewBuilder
     private func monthStripCell(for date: Date) -> some View {
-        if displayMode == .sentinel { inkMonthStripCell(for: date) } else { paperDayCell(for: date, numeralSize: 17).frame(width: 36) }
+        paperDayCell(for: date, numeralSize: 17).frame(width: 36)
     }
 
     /// Paper & Ink (owner 2026-11-07): a serif numeral on the page, today filled in plum, and a
@@ -545,74 +496,6 @@ struct CalendarHeatmap: View {
             guard !isFuture else { return }
             onDaySelected?(isSelected ? nil : startOfDay)
         }
-    }
-
-    private func inkWeekDayCell(for date: Date) -> some View {
-        let startOfDay = cal.startOfDay(for: date)
-        let isSelected = cal.isDate(date, inSameDayAs: selectedDate ?? .distantPast)
-        let isToday = cal.isDateInToday(date)
-        let isFuture = date > today
-        let isWeekend = cal.isDateInWeekend(date)
-        let count = dayCache[startOfDay]?.count ?? 0
-
-        return VStack(spacing: 4) {
-            Text(date.formatted(.dateTime.weekday(.narrow)))
-                .scaledFont(10, weight: .medium)
-                .foregroundStyle(isFuture ? futureInk : .tertiary)
-                .opacity(isWeekend ? weekendOpacity : 1)
-
-            RoundedRectangle(cornerRadius: displayMode == .sentinel ? 4 : 8, style: .continuous)
-                .fill(displayMode == .sentinel ? MirrorTheme.inkMid : (isFuture ? MirrorTheme.inkMid : color(for: startOfDay)))
-                .overlay {
-                    if displayMode == .sentinel, !isFuture, count > 0 {
-                        RoundedRectangle(cornerRadius: 4, style: .continuous)
-                            .stroke(color(for: startOfDay), lineWidth: 1.5)
-                    } else if displayMode != .sentinel {
-                        // Difficult moods get an ink ring: the second cue for valence, since twelve
-                        // mood hues can't be told apart by colour-blind readers (MirrorTheme.moodRing).
-                        let ring = isFuture ? nil : dayCache[startOfDay]?.mood.flatMap(MirrorTheme.moodRing(for:))
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .strokeBorder(ring ?? MirrorTheme.inkBorder, style: StrokeStyle(lineWidth: ring == nil ? 1 : 1.5, dash: isFuture ? [3, 3] : []))
-                    }
-                }
-                .frame(height: 46)
-                .overlay {
-                    VStack(spacing: 2) {
-                        Text(date.formatted(.dateTime.day()))
-                            .font(displayMode == .sentinel ? MirrorTheme.mono(15, weight: isToday ? .bold : .semibold) : .system(size: 15, weight: isToday ? .bold : .semibold, design: .rounded))
-                            .foregroundStyle(isFuture ? futureInk : .primary)
-                        if count > 0 {
-                            Text("\(count)")
-                                .scaledFont(10, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)
-                                .foregroundStyle(displayMode == .sentinel ? color(for: startOfDay) : .white.opacity(0.8))
-                        }
-                    }
-                }
-                .overlay {
-                    if isToday || isSelected {
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(
-                                isSelected ? (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary) : Color.primary.opacity(0.4),
-                                lineWidth: isSelected ? 1.5 : 1
-                            )
-                    }
-                }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    guard !isFuture else { return }
-                    haptic()
-                    onDaySelected?(isSelected ? nil : startOfDay)
-                }
-                // VoiceOver read fragments ("12", "3") with no date and no button (backlog A19).
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(HeatmapAccessibility.label(for: startOfDay, count: count))
-                .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
-                .accessibilityAction {
-                    guard !isFuture else { return }
-                    onDaySelected?(isSelected ? nil : startOfDay)
-                }
-        }
-        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Month View (week-separated strip)
@@ -730,71 +613,6 @@ struct CalendarHeatmap: View {
         .padding(.horizontal, 7)
     }
 
-    private func inkMonthStripCell(for date: Date) -> some View {
-        let startOfDay = cal.startOfDay(for: date)
-        let isSelected = cal.isDate(date, inSameDayAs: selectedDate ?? .distantPast)
-        let isToday = cal.isDateInToday(date)
-        let isFuture = date > today
-        let isWeekend = cal.isDateInWeekend(date)
-        let count = dayCache[startOfDay]?.count ?? 0
-
-        return VStack(spacing: 4) {
-            Text(date.formatted(.dateTime.weekday(.narrow)))
-                .scaledFont(9, weight: .medium)
-                .foregroundStyle(isFuture ? futureInk : .tertiary)
-                .opacity(isWeekend ? weekendOpacity : 1)
-
-            RoundedRectangle(cornerRadius: displayMode == .sentinel ? 4 : 7, style: .continuous)
-                .fill(displayMode == .sentinel ? MirrorTheme.inkMid : (isFuture ? MirrorTheme.inkMid : color(for: startOfDay)))
-                .overlay {
-                    if displayMode == .sentinel, !isFuture, count > 0 {
-                        RoundedRectangle(cornerRadius: 4, style: .continuous)
-                            .stroke(color(for: startOfDay), lineWidth: 1.5)
-                    } else if displayMode != .sentinel {
-                        let ring = isFuture ? nil : dayCache[startOfDay]?.mood.flatMap(MirrorTheme.moodRing(for:))
-                        RoundedRectangle(cornerRadius: 7, style: .continuous)
-                            .strokeBorder(ring ?? MirrorTheme.inkBorder, style: StrokeStyle(lineWidth: ring == nil ? 1 : 1.5, dash: isFuture ? [3, 3] : []))
-                    }
-                }
-                .frame(width: 36, height: 44)
-                .overlay {
-                    VStack(spacing: 2) {
-                        Text(date.formatted(.dateTime.day()))
-                            .font(displayMode == .sentinel ? MirrorTheme.mono(13, weight: isToday ? .bold : .semibold) : .system(size: 13, weight: isToday ? .bold : .semibold, design: .rounded))
-                            .foregroundStyle(isFuture ? futureInk : .primary)
-                        if count > 0 {
-                            Text("\(count)")
-                                .scaledFont(9, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)
-                                .foregroundStyle(displayMode == .sentinel ? color(for: startOfDay) : .white.opacity(0.8))
-                        }
-                    }
-                }
-                .overlay {
-                    if isToday || isSelected {
-                        RoundedRectangle(cornerRadius: 7, style: .continuous)
-                            .stroke(
-                                isSelected ? (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary) : Color.primary.opacity(0.4),
-                                lineWidth: isSelected ? 1.5 : 1
-                            )
-                    }
-                }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    guard !isFuture else { return }
-                    haptic()
-                    onDaySelected?(isSelected ? nil : startOfDay)
-                }
-                // VoiceOver read fragments ("12", "3") with no date and no button (backlog A19).
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(HeatmapAccessibility.label(for: startOfDay, count: count))
-                .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
-                .accessibilityAction {
-                    guard !isFuture else { return }
-                    onDaySelected?(isSelected ? nil : startOfDay)
-                }
-        }
-    }
-
     // MARK: - Year View
 
     private var yearView: some View {
@@ -905,7 +723,7 @@ struct CalendarHeatmap: View {
                 if isToday || isSelected {
                     RoundedRectangle(cornerRadius: 3, style: .continuous)
                         .stroke(
-                            isSelected ? (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary) : Color.primary.opacity(0.45),
+                            isSelected ? MirrorTheme.primary : Color.primary.opacity(0.45),
                             lineWidth: isSelected ? 1.5 : 1
                         )
                 }

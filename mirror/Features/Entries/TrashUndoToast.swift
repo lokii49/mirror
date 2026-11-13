@@ -5,7 +5,6 @@ import SwiftData
 /// longer asks first: it's reversible, as in Notes and Mail. Undo restores from Recently Deleted.
 struct TrashUndoToast: ViewModifier {
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.appDisplayMode) private var displayMode
     @State private var trashedIDs: [UUID] = []
     @State private var hideTask: Task<Void, Never>?
     @State private var undoFailed = false
@@ -45,12 +44,12 @@ struct TrashUndoToast: ViewModifier {
                 .foregroundStyle(.secondary)
             Text(trashedIDs.count == 1 ? String(localized: "Moved to Recently Deleted")
                                        : String(localized: "\(trashedIDs.count) entries moved to Recently Deleted"))
-                .scaledFont(displayMode == .sentinel ? 12 : 14, weight: displayMode == .sentinel ? .semibold : .medium, design: displayMode == .sentinel ? .monospaced : .default)
+                .scaledFont(14, weight: .medium, design: .default)
                 .lineLimit(2)
             Spacer(minLength: 8)
             Button("Undo") { undo() }
                 .scaledFont(14, weight: .semibold)
-                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor)
+                .foregroundStyle(Color.accentColor)
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("trash.undo")
         }

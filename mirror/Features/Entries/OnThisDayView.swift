@@ -8,7 +8,6 @@ struct OnThisDayView: View {
     var onSelectEntry: (Entry) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
         NavigationStack {
@@ -27,7 +26,7 @@ struct OnThisDayView: View {
                 .padding(16)
             }
             .background(MirrorTheme.bgBase)
-            .navigationTitle(displayMode == .sentinel ? "TEMPORAL ECHO" : "On This Day")
+            .navigationTitle("On This Day")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -40,7 +39,6 @@ struct OnThisDayView: View {
 
 private struct OnThisDayCard: View {
     let entry: Entry
-    @Environment(\.appDisplayMode) private var displayMode
 
     private var yearsAgo: Int {
         max(1, Calendar.current.dateComponents([.year], from: entry.createdAt, to: Date()).year ?? 1)
@@ -64,17 +62,9 @@ private struct OnThisDayCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
-                Group {
-                    if displayMode == .sentinel {
-                        Text(yearsAgoLabel.uppercased())
-                            .scaledFont(11, weight: .bold, design: .monospaced)
-                            .tracking(0.6)
-                    } else {
-                        Text(yearsAgoLabel)
-                            .scaledFont(12, weight: .semibold)
-                    }
-                }
-                .foregroundStyle(moodColor)
+                Text(yearsAgoLabel)
+                    .scaledFont(12, weight: .semibold)
+                    .foregroundStyle(moodColor)
 
                 Circle().fill(moodColor.opacity(0.5)).frame(width: 3, height: 3)
 

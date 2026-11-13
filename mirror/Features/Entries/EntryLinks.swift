@@ -140,7 +140,6 @@ struct LinkedFromSection: View {
     let entryID: UUID
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openURL) private var openURL
-    @Environment(\.appDisplayMode) private var displayMode
     @State private var links: [EntryLinks.Backlink] = []
 
     var body: some View {
@@ -154,8 +153,8 @@ struct LinkedFromSection: View {
                 }
             if !links.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    Label(displayMode == .sentinel ? "LINKED FROM" : "Linked from", systemImage: "arrow.turn.up.left")
-                        .scaledFont(12, weight: .bold, design: displayMode == .sentinel ? .monospaced : .default)
+                    Label("Linked from", systemImage: "arrow.turn.up.left")
+                        .scaledFont(12, weight: .bold, design: .default)
                         .foregroundStyle(MirrorTheme.textTertiary)
                         .tracking(0.6)
                     ForEach(links) { link in

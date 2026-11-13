@@ -13,12 +13,11 @@ struct EntrySelectionBar: View {
     let done: () -> Void
 
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.appDisplayMode) private var displayMode
     @State private var creating = false
     @State private var name = ""
     @State private var failed = false
 
-    private var accent: Color { displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor }
+    private var accent: Color { Color.accentColor }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -28,7 +27,7 @@ struct EntrySelectionBar: View {
                     .scaledFont(15, weight: .medium)
                 Spacer(minLength: 4)
                 Text(count == 0 ? String(localized: "Select entries") : String(localized: "\(count) selected"))
-                    .scaledFont(displayMode == .sentinel ? 12 : 14, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
+                    .scaledFont(14, weight: .semibold, design: .default)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
                 Spacer(minLength: 4)
@@ -96,12 +95,11 @@ struct EntrySelectionBar: View {
 /// The row's selection mark while selecting.
 struct EntrySelectionMark: View {
     let selected: Bool
-    @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
         Image(systemName: selected ? "checkmark.circle.fill" : "circle")
             .scaledFont(22)
-            .foregroundStyle(selected ? AnyShapeStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor) : AnyShapeStyle(.tertiary))
+            .foregroundStyle(selected ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.tertiary))
             .contentTransition(.symbolEffect(.replace))
             .accessibilityHidden(true)
     }

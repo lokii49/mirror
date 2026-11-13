@@ -9,18 +9,16 @@ import AppKit
 /// highlight attribute. Each entry is a light/dark-adaptive `Color`
 /// (`MirrorTheme.hex`) — the original set was fixed light-mode RGB literals
 /// with no dark counterpart, so highlighted text read washed-out / low
-/// contrast in dark mode, and there was no Sentinel variant at all (audit 3.2).
+/// contrast in dark mode (audit 3.2).
 enum HighlightPalette {
     static func colors(for displayMode: DisplayMode) -> [Color] {
-        displayMode == .sentinel ? sentinel : classic
+        classic
     }
 
     /// VoiceOver label for swatch `index` — the swatches carry no visible
     /// text, so without this every one reads as just "button" (audit 3.1).
     static func name(for index: Int, displayMode: DisplayMode) -> String {
-        let names = displayMode == .sentinel
-            ? [String(localized: "Ember"), String(localized: "Amber"), String(localized: "Ash"), String(localized: "Rust"), String(localized: "Dusk violet")]
-            : [String(localized: "Pink"), String(localized: "Purple"), String(localized: "Orange"), String(localized: "Mint"), String(localized: "Blue")]
+        let names = [String(localized: "Pink"), String(localized: "Purple"), String(localized: "Orange"), String(localized: "Mint"), String(localized: "Blue")]
         guard names.indices.contains(index) else { return String(localized: "Highlight") }
         return names[index]
     }
@@ -34,17 +32,6 @@ enum HighlightPalette {
         MirrorTheme.hex(0x1F4D3B, 0xB3F2D9),   // mint
         MirrorTheme.hex(0x1F3D5C, 0xADD9FF),   // blue
     ]
-
-    /// Previously fell back to the Classic pastels, clashing with the
-    /// mono/ember language everything else in the panel branches for.
-    /// Stays in-family (ember + warm neutrals).
-    private static let sentinel: [Color] = [
-        MirrorTheme.ember,
-        MirrorTheme.hex(0xE0A050, 0xC47A20),   // amber
-        MirrorTheme.hex(0x8A8398, 0x6B6478),   // ash
-        MirrorTheme.hex(0xC06248, 0x9E4530),   // rust
-        MirrorTheme.hex(0x8A6FD1, 0x6B4FB0),   // dusk violet
-    ]
 }
 
 /// Foreground text colors for the Aa panel's Text Color row and the editor's
@@ -53,13 +40,11 @@ enum HighlightPalette {
 /// background wash — a highlight's pastel would fail contrast as text color.
 enum TextColorPalette {
     static func colors(for displayMode: DisplayMode) -> [Color] {
-        displayMode == .sentinel ? sentinel : classic
+        classic
     }
 
     static func name(for index: Int, displayMode: DisplayMode) -> String {
-        let names = displayMode == .sentinel
-            ? [String(localized: "Ember"), String(localized: "Amber"), String(localized: "Ash"), String(localized: "Rust"), String(localized: "Dusk violet")]
-            : [String(localized: "Red"), String(localized: "Orange"), String(localized: "Green"), String(localized: "Blue"), String(localized: "Purple")]
+        let names = [String(localized: "Red"), String(localized: "Orange"), String(localized: "Green"), String(localized: "Blue"), String(localized: "Purple")]
         guard names.indices.contains(index) else { return String(localized: "Text color") }
         return names[index]
     }
@@ -70,14 +55,6 @@ enum TextColorPalette {
         MirrorTheme.hex(0x1F7A4D, 0x5FE0A0),   // green
         MirrorTheme.hex(0x1F5FA8, 0x6FB8FF),   // blue
         MirrorTheme.hex(0x6A3FA0, 0xC79BFF),   // purple
-    ]
-
-    private static let sentinel: [Color] = [
-        MirrorTheme.ember,
-        MirrorTheme.hex(0xE0A050, 0xC47A20),   // amber
-        MirrorTheme.hex(0x8A8398, 0x6B6478),   // ash
-        MirrorTheme.hex(0xC06248, 0x9E4530),   // rust
-        MirrorTheme.hex(0x8A6FD1, 0x6B4FB0),   // dusk violet
     ]
 }
 
@@ -135,9 +112,8 @@ struct FormattingPanelView: View {
     /// The tallest the iPhone card gets before its content scrolls (large Dynamic Type sizes).
     static let maximumInputHeight: CGFloat = 420
 
-    private var isSentinel: Bool { displayMode == .sentinel }
-    private var accent: Color { isSentinel ? MirrorTheme.ember : Color.accentColor }
-    private var groupFill: Color { isSentinel ? MirrorTheme.inkMid : Color(.tertiarySystemFill) }
+    private var accent: Color { Color.accentColor }
+    private var groupFill: Color { Color(.tertiarySystemFill) }
     private var rowHeight: CGFloat { min(44 * typeScale, 72) }
     private var groupGap: CGFloat { 12 }
 
@@ -147,7 +123,7 @@ struct FormattingPanelView: View {
             // inset card left that backdrop showing as a grey frame.
             ScrollView { panelContent }
                 .scrollBounceBehavior(.basedOnSize)
-                .panelCard(isSentinel: isSentinel)
+                .panelCard(isSentinel: false)
         } else {
             panelContent
         }
@@ -200,7 +176,7 @@ struct FormattingPanelView: View {
                         .font(.system(size: 17 * typeScale, weight: .medium))
                         .foregroundStyle(Color.primary)
                         .frame(width: 44 * typeScale, height: 44 * typeScale)
-                        .closeButtonSurface(isSentinel: isSentinel)
+                        .closeButtonSurface(isSentinel: false)
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("closeFormatPanel")
@@ -211,16 +187,10 @@ struct FormattingPanelView: View {
 
     @ViewBuilder
     private func titleText(_ key: LocalizedStringKey) -> some View {
-        Group {
-            if isSentinel {
-                Text(key).font(MirrorTheme.mono(17 * typeScale, weight: .bold)).textCase(.uppercase).tracking(1.2)
-            } else {
-                Text(key).font(.system(size: 22 * typeScale, weight: .bold))
-            }
-        }
-        .foregroundStyle(Color.primary)
-        .lineLimit(1)
-        .minimumScaleFactor(0.5)
+        Text(key).font(.system(size: 22 * typeScale, weight: .bold))
+            .foregroundStyle(Color.primary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
     }
 
     // MARK: - Paragraph styles
@@ -249,7 +219,7 @@ struct FormattingPanelView: View {
                 .font(font)
                 .lineLimit(1)
                 .fixedSize()
-                .foregroundStyle(isActive ? (isSentinel ? MirrorTheme.inkBase : Color.white) : Color.primary)
+                .foregroundStyle(isActive ? Color.white : Color.primary)
                 .padding(.horizontal, 14)
                 .frame(height: rowHeight)
                 .background {
@@ -321,7 +291,7 @@ struct FormattingPanelView: View {
     }
 
     private var groupShape: AnyShape {
-        isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 6)) : AnyShape(Capsule())
+        AnyShape(Capsule())
     }
 
     private var divider: some View {
@@ -551,36 +521,23 @@ struct FormattingPanelView: View {
 private let panelCardFill = Color(uiColor: UIColor { $0.userInterfaceStyle == .dark ? .secondarySystemBackground : .systemBackground })
 
 private extension View {
-    /// The card that replaces the keyboard: an opaque sheet with a hairline top edge. Sentinel
-    /// keeps its ink card with an ember hairline.
-    @ViewBuilder
+    /// The card that replaces the keyboard: an opaque sheet with a hairline top edge.
     func panelCard(isSentinel: Bool) -> some View {
-        if isSentinel {
-            self
-                .background(MirrorTheme.inkRaised, in: RoundedRectangle(cornerRadius: 8))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(MirrorTheme.ember.opacity(0.3), lineWidth: 1))
-        } else {
-            // Square-topped and full width. iOS draws a rectangular, translucent keyboard backdrop
-            // behind any custom inputView, so rounded top corners left grey wedges of it showing
-            // (owner screenshot, 2026-10-16). The bottom corners sit on the display's own.
-            self
-                .background(panelCardFill)
-                .overlay(alignment: .top) {
-                    Rectangle().fill(Color.primary.opacity(0.08)).frame(height: 0.5)
-                }
-        }
+        // Square-topped and full width. iOS draws a rectangular, translucent keyboard backdrop
+        // behind any custom inputView, so rounded top corners left grey wedges of it showing
+        // (owner screenshot, 2026-10-16). The bottom corners sit on the display's own.
+        self
+            .background(panelCardFill)
+            .overlay(alignment: .top) {
+                Rectangle().fill(Color.primary.opacity(0.08)).frame(height: 0.5)
+            }
     }
 
-    @ViewBuilder
     func closeButtonSurface(isSentinel: Bool) -> some View {
-        if isSentinel {
-            self.background(Circle().fill(MirrorTheme.inkMid))
-        } else {
-            self
-                .background(Circle().fill(panelCardFill))
-                .overlay(Circle().stroke(Color.primary.opacity(0.1), lineWidth: 0.5))
-                .shadow(color: .black.opacity(0.08), radius: 6, y: 1)
-        }
+        self
+            .background(Circle().fill(panelCardFill))
+            .overlay(Circle().stroke(Color.primary.opacity(0.1), lineWidth: 0.5))
+            .shadow(color: .black.opacity(0.08), radius: 6, y: 1)
     }
 }
 #endif

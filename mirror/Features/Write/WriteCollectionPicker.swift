@@ -13,7 +13,6 @@ struct WriteCollectionPicker: View {
 
     @Query private var collections: [JournalCollection]
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.appDisplayMode) private var displayMode
     @State private var creating = false
     @State private var name = ""
     @State private var failed = false
@@ -69,14 +68,12 @@ struct WriteCollectionPicker: View {
     private var label: some View {
         switch style {
         case .chip:
-            // Option A (owner 2026-11-06): the collection by name, as quiet text like Add tag, in
-            // both themes.
+            // Option A (owner 2026-11-06): the collection by name, as quiet text like Add tag.
             WriteHeaderTextLabel(title: "Unfiled",
                                  systemImage: selectedItem?.icon ?? "folder",
                                  isVerbatim: selectedItem != nil,
                                  verbatim: selectedItem?.name,
-                                 tint: selectedItem == nil ? nil : (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet),
-                                 isSentinel: displayMode == .sentinel)
+                                 tint: selectedItem == nil ? nil : MirrorTheme.violet)
         case .macToolbar:
             Image(systemName: selectedItem == nil ? "folder" : "folder.fill")
                 .scaledFont(15)
@@ -130,7 +127,7 @@ enum WriteCollectionDefault {
     }
 }
 
-/// A quiet text button in the classic Write header's second row (collection, Add tag): icon and
+/// A quiet text button in the Write header's second row (collection, Add tag): icon and
 /// words in the secondary colour, no pill, a 32 pt target.
 struct WriteHeaderTextLabel: View {
     var title: LocalizedStringKey
@@ -139,13 +136,12 @@ struct WriteHeaderTextLabel: View {
     /// The user's own text (a collection name), shown as typed.
     var verbatim: String? = nil
     var tint: Color? = nil
-    /// Sentinel: the same quiet text in mono capitals.
     var isSentinel = false
 
     var body: some View {
         HStack(spacing: 5) {
             Image(systemName: systemImage)
-                .scaledFont(isSentinel ? 12 : 13, weight: .semibold)
+                .scaledFont(13, weight: .semibold)
             Group {
                 if isVerbatim, let verbatim {
                     Text(verbatim)
@@ -153,9 +149,9 @@ struct WriteHeaderTextLabel: View {
                     Text(title)
                 }
             }
-            .scaledFont(isSentinel ? 12.5 : 14, weight: isSentinel ? .semibold : .medium, design: isSentinel ? .monospaced : .default)
-            .textCase(isSentinel ? .uppercase : nil)
-            .kerning(isSentinel ? 0.4 : 0)
+            .scaledFont(14, weight: .medium, design: .default)
+            .textCase(nil)
+            .kerning(0)
             .lineLimit(1)
         }
         .foregroundStyle(tint.map { AnyShapeStyle($0) } ?? AnyShapeStyle(MirrorTheme.textSecondary))

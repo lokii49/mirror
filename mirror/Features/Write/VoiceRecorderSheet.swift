@@ -310,15 +310,13 @@ struct VoiceRecorderSheet: View {
     var onSave: (Data, TimeInterval) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.appDisplayMode) private var displayMode
     @Environment(\.openURL) private var openURL
     @State private var recorder = SegmentedVoiceRecorder()
     @State private var startedAt = Date()
     @State private var permissionDenied = false
     @State private var isSaving = false
 
-    private var isSentinel: Bool { displayMode == .sentinel }
-    private var accent: Color { isSentinel ? MirrorTheme.ember : Color.accentColor }
+    private var accent: Color { Color.accentColor }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -339,7 +337,7 @@ struct VoiceRecorderSheet: View {
             recordButton.padding(.top, 28).padding(.bottom, 24)
         }
         .padding(.horizontal, 20)
-        .background(isSentinel ? MirrorTheme.inkBase : Color(.systemBackground))
+        .background(Color(.systemBackground))
         #if os(macOS)
         .frame(minWidth: 520, idealWidth: 560, minHeight: 640, idealHeight: 680)
         // Escape closes it while nothing is recorded, like a swipe down on iPhone; with a
@@ -374,7 +372,7 @@ struct VoiceRecorderSheet: View {
                     .scaledFont(18, weight: .semibold)
                     .foregroundStyle(Color.primary)
                     .frame(width: 48, height: 48)
-                    .recorderCircle(isSentinel: isSentinel, fill: nil)
+                    .recorderCircle(isSentinel: false, fill: nil)
             }
             #if os(macOS)
             // The Mac draws a menu as a pop-up button with its own frame and chevron.
@@ -395,7 +393,7 @@ struct VoiceRecorderSheet: View {
                     .scaledFont(20, weight: .semibold)
                     .foregroundStyle(recorder.hasAudio ? Color.white : Color.secondary)
                     .frame(width: 48, height: 48)
-                    .recorderCircle(isSentinel: isSentinel, fill: recorder.hasAudio ? accent : nil)
+                    .recorderCircle(isSentinel: false, fill: recorder.hasAudio ? accent : nil)
             }
             .disabled(isSaving || recorder.isMerging)
             #if os(macOS)
@@ -410,13 +408,7 @@ struct VoiceRecorderSheet: View {
 
     private var titleBlock: some View {
         VStack(spacing: 4) {
-            Group {
-                if isSentinel {
-                    Text("New Recording").scaledFont(20, weight: .bold, design: .monospaced).textCase(.uppercase)
-                } else {
-                    Text("New Recording").scaledFont(26, weight: .bold)
-                }
-            }
+            Text("New Recording").scaledFont(26, weight: .bold)
             HStack(spacing: 10) {
                 Text(Self.dayAndTime(startedAt))
                 Text(formatDuration(recorder.elapsed)).monospacedDigit()
@@ -588,10 +580,7 @@ struct VoiceRecorderSheet: View {
 private extension View {
     @ViewBuilder
     func recorderCircle(isSentinel: Bool, fill: Color?) -> some View {
-        if isSentinel {
-            self.background(Circle().fill(fill ?? MirrorTheme.inkMid))
-                .overlay(Circle().stroke(MirrorTheme.ember.opacity(0.3), lineWidth: 1))
-        } else if let fill {
+        if let fill {
             self.background(Circle().fill(fill))
         } else if #available(iOS 26, macOS 26, *) {
             self.glassEffect(.regular.interactive(), in: Circle())

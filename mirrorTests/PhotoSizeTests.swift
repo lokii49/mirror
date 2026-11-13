@@ -117,4 +117,16 @@ struct PhotoSizeTests {
         let afterFirst = PhotoSizes.removingPhoto(at: 0, oldText: old, newText: new, in: data)
         #expect(PhotoSizes.sizes(text: new, inlineStyleData: afterFirst) == [1: .medium])
     }
+
+    @Test func aSizedPhotoLeavesTheRowAndThumbnailPutsItBack() {
+        let text = "Trip\n[[mirror-photo-0]]\n[[mirror-photo-1]]\n[[mirror-photo-2]]"
+        let offsets = PhotoSizes.inlineOffsets(in: text).map(\.offset)
+        var data = PhotoSizes.setting(stored: "full", atInlineOffset: offsets[1], in: nil)
+        #expect(PhotoSizes.sizedPhotos(text: text, inlineStyleData: data) == [1])
+        #expect(PhotoSizes.sizes(text: text, inlineStyleData: data).isEmpty, "full is not a smaller size")
+        data = PhotoSizes.setting(stored: "small", atInlineOffset: offsets[2], in: data)
+        #expect(PhotoSizes.sizedPhotos(text: text, inlineStyleData: data) == [1, 2])
+        data = PhotoSizes.setting(stored: nil, atInlineOffset: offsets[1], in: data)
+        #expect(PhotoSizes.sizedPhotos(text: text, inlineStyleData: data) == [2])
+    }
 }

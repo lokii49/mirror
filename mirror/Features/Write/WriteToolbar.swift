@@ -122,7 +122,7 @@ struct WriteMoreMenu: View {
             Image(systemName: "ellipsis")
                 .scaledFont(17, weight: .semibold)
                 .foregroundStyle(pendingDelete
-                                 ? (isSentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(Color.accentColor))
+                                 ? AnyShapeStyle(Color.accentColor)
                                  : AnyShapeStyle(MirrorTheme.textSecondary))
                 .frame(minWidth: 30, minHeight: 30)
                 .contentShape(Rectangle())
@@ -134,7 +134,7 @@ struct WriteMoreMenu: View {
 }
 
 /// Save as words, not a glyph: filled in the accent when there's something to save, the system's
-/// disabled look otherwise (enough contrast in both themes and both appearances).
+/// disabled look otherwise (enough contrast in both appearances).
 struct WriteSaveButton: View {
     let enabled: Bool
     let isSentinel: Bool
@@ -154,12 +154,12 @@ struct WriteSaveButton: View {
     private var button: some View {
         Button(action: save) {
             Text("Save")
-                .textCase(isSentinel ? .uppercase : nil)
-                .scaledFont(isSentinel ? 13 : 16, weight: .semibold, design: isSentinel ? .monospaced : .default)
+                .textCase(nil)
+                .scaledFont(16, weight: .semibold, design: .default)
                 .padding(.horizontal, 4)
         }
         .buttonBorderShape(.capsule)
-        .tint(isSentinel ? MirrorTheme.ember : MirrorTheme.violet)
+        .tint(MirrorTheme.violet)
         // Save anyway while a voice note is still transcribing (1.4):
         // continueTranscriptionAfterSaveAnyway hands the in-flight pass off to the saved entry.
         .disabled(!enabled)

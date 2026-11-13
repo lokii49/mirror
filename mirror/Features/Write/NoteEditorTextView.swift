@@ -46,7 +46,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         // checklist circles are drawn by ChecklistLayoutManager.
         let storage = NSTextStorage()
         let layoutManager = ChecklistLayoutManager()
-        layoutManager.setAccentColor(UIColor(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary), traits: .current)
+        layoutManager.setAccentColor(UIColor(MirrorTheme.primary), traits: .current)
         storage.addLayoutManager(layoutManager)
         storage.delegate = layoutManager.markerSpacing
         let container = NSTextContainer(size: CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
@@ -158,7 +158,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         if let layoutManager = textView.layoutManager as? ChecklistLayoutManager {
             // The asset colour by name: `Color.accentColor` turned into a UIColor here, outside a
             // view's environment, resolved to system blue (blue ticks, 2026-11-07).
-            let accent = UIColor(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
+            let accent = UIColor(MirrorTheme.primary)
             if layoutManager.setAccentColor(accent, traits: textView.traitCollection) {
                 textView.setNeedsDisplay()
                 layoutManager.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: textView.textStorage.length))
@@ -604,26 +604,41 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         /// Small / Medium / Full for a photo on a line of its own (tiles keep the tile size).
+        /// Small / Medium / Full Width for any photo on its own line. A photo next to other photos
+        /// (a row of thumbnails) also gets Thumbnail, its place in the row; choosing a size takes it
+        /// out of the row (owner, 14 Pro: the menu had no sizes on stacked photos).
         private func photoSizeMenu(atCharacter charIndex: Int, in textView: UITextView) -> UIMenu? {
             guard let attributed = textView.attributedText, charIndex < attributed.length,
-                  let attachment = attributed.attribute(.attachment, at: charIndex, effectiveRange: nil) as? PhotoAttachment,
-                  !attachment.isTile else { return nil }
-            let current = PhotoSize(stored: attributed.attribute(Self.photoSizeAttribute, at: charIndex, effectiveRange: nil) as? String)
-            let titles: [(PhotoSize, String)] = [(.small, String(localized: "Small")), (.medium, String(localized: "Medium")),
-                                                  (.full, String(localized: "Full Width"))]
-            let actions = titles.map { size, title in
-                UIAction(title: title, state: size == current ? .on : .off) { [weak self, weak textView] _ in
+                  attributed.attribute(.attachment, at: charIndex, effectiveRange: nil) is PhotoAttachment else { return nil }
+            let stored = attributed.attribute(Self.photoSizeAttribute, at: charIndex, effectiveRange: nil) as? String
+            let inRow = photoHasPhotoNeighbour(atCharacter: charIndex, in: attributed.string as NSString)
+            var options: [(stored: String?, title: String)] = [("small", String(localized: "Small")), ("medium", String(localized: "Medium")),
+                                                                (inRow ? "full" : nil, String(localized: "Full Width"))]
+            if inRow { options.insert((nil, String(localized: "Thumbnail")), at: 0) }
+            let actions = options.map { option in
+                UIAction(title: option.title, state: option.stored == stored ? .on : .off) { [weak self, weak textView] _ in
                     guard let self, let textView else { return }
-                    self.setPhotoSize(size, atCharacter: charIndex, in: textView)
+                    self.setPhotoSize(stored: option.stored, atCharacter: charIndex, in: textView)
                 }
             }
             return UIMenu(title: String(localized: "Photo Size"), image: UIImage(systemName: "arrow.up.left.and.arrow.down.right"), children: actions)
         }
 
-        private func setPhotoSize(_ size: PhotoSize, atCharacter charIndex: Int, in textView: UITextView) {
+        /// Whether the line above or below this photo's line is also just a photo.
+        private func photoHasPhotoNeighbour(atCharacter charIndex: Int, in text: NSString) -> Bool {
+            let paragraph = text.paragraphRange(for: NSRange(location: charIndex, length: 0))
+            func isPhotoLine(_ range: NSRange) -> Bool {
+                text.substring(with: range).trimmingCharacters(in: .whitespacesAndNewlines) == "\u{FFFC}"
+            }
+            if paragraph.location > 0, isPhotoLine(text.paragraphRange(for: NSRange(location: paragraph.location - 1, length: 0))) { return true }
+            if NSMaxRange(paragraph) < text.length, isPhotoLine(text.paragraphRange(for: NSRange(location: NSMaxRange(paragraph), length: 0))) { return true }
+            return false
+        }
+
+        private func setPhotoSize(stored: String?, atCharacter charIndex: Int, in textView: UITextView) {
             guard let attributed = textView.attributedText else { return }
             let offset = displayToLogical(display: charIndex, map: buildLogicalOffsetMap(from: attributed))
-            parent.inlineStyleData = PhotoSizes.setting(size, atInlineOffset: offset, in: parent.inlineStyleData)
+            parent.inlineStyleData = PhotoSizes.setting(stored: stored, atInlineOffset: offset, in: parent.inlineStyleData)
             invalidateRenderedCache()
             applyStyledText(to: textView, preservingSelection: true)
             syncRenderedCache(from: textView)
@@ -2233,11 +2248,16 @@ struct NoteEditorTextView: UIViewRepresentable {
             // first picture (a map) stays full width, every other picture in the run is a square
             // tile. A photo on its own is drawn as before. Display only: the stored text keeps one
             // token per line, which every older version reads.
-            let tiles = PhotoRuns.tileMatches(allMatches.map(\.range), in: nsRaw) { range in
+            // A photo given a size of its own is drawn alone at that size, so it breaks the row.
+            let sized = PhotoSizes.sizedPhotos(text: parent.text, inlineStyleData: parent.inlineStyleData)
+            let rowCandidates = allMatches.indices.filter { i in
+                inlinePhotoIndex(from: nsRaw.substring(with: allMatches[i].range)).map { !sized.contains($0) } ?? true
+            }
+            let tiles = Set(PhotoRuns.tileMatches(rowCandidates.map { allMatches[$0].range }, in: nsRaw) { range in
                 guard let index = inlinePhotoIndex(from: nsRaw.substring(with: range)),
                       index < parent.photoDataArray.count else { return false }
                 return PhotoRuns.isLandscape(parent.photoDataArray[index])
-            }
+            }.map { rowCandidates[$0] })
 
             for (matchIndex, match) in allMatches.enumerated() {
                 let textRange = NSRange(location: lastEnd, length: match.range.location - lastEnd)
@@ -3446,7 +3466,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         /// outright (like `applyHighlight` does for `.backgroundColor`) would
         /// leave the run with no explicit color at all, falling back to
         /// whatever `textView.textColor`/UIKit default applies — wrong, and
-        /// potentially invisible in Sentinel/dark mode. Must restore the
+        /// potentially invisible in dark mode. Must restore the
         /// style's own base color, not just delete the key.
         private func baseForegroundColor(for style: NoteParagraphTextStyle) -> UIColor {
             switch style {
@@ -4122,9 +4142,13 @@ struct NoteEditorTextView: UIViewRepresentable {
                 if let url = validatedLinkURL(from: styleRange.linkURL) {
                     attributed.addAttribute(.link, value: url, range: displayRange)
                 }
-                if let stored = styleRange.photoSize, PhotoSize(stored: stored) != .full {
+                if let stored = styleRange.photoSize {
+                    // "full" too: it's what keeps a photo out of a row of thumbnails, and it must
+                    // survive the next read of the ranges back from the text.
                     attributed.addAttribute(Self.photoSizeAttribute, value: stored, range: displayRange)
-                    resizePhotoAttachments(in: displayRange, of: attributed, to: PhotoSize(stored: stored))
+                    if PhotoSize(stored: stored) != .full {
+                        resizePhotoAttachments(in: displayRange, of: attributed, to: PhotoSize(stored: stored))
+                    }
                 }
             }
         }
