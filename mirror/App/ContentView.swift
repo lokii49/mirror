@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// Exposes the user's chosen display mode (Classic / Sentinel) down the view
+/// Exposes the user's display mode down the view
 /// tree. Root-level so any screen can branch without re-querying UserProfile.
 private struct DisplayModeKey: EnvironmentKey {
     static let defaultValue: DisplayMode = .classic
@@ -93,15 +93,8 @@ struct ContentView: View {
     @AppStorage("moodCheckInMinute") private var moodCheckInMinute: Int = 0
     @AppStorage("moodCheckInShownDay") private var moodCheckInShownDay: String = ""
 
-    /// Sentinel is a HUD — it reads as "futuristic" only against a dark
-    /// canvas, the same way a cockpit display or mission-control screen
-    /// always renders dark regardless of the room's lighting. Forces dark
-    /// whenever Sentinel is active; onChange(of: displayMode) below keeps
-    /// the stored Appearance setting itself in sync so Settings never
-    /// shows "System" while the app is actually pinned dark.
     private func applyColorScheme(_ mode: String) {
         #if os(macOS)
-        // Sentinel is not offered on Mac yet, so only the stored Appearance choice applies.
         switch mode {
         case "light": NSApp.appearance = NSAppearance(named: .aqua)
         case "dark":  NSApp.appearance = NSAppearance(named: .darkAqua)
@@ -109,14 +102,10 @@ struct ContentView: View {
         }
         #else
         let style: UIUserInterfaceStyle
-        if displayMode == .sentinel {
-            style = .dark
-        } else {
-            switch mode {
-            case "light": style = .light
-            case "dark":  style = .dark
-            default:      style = .unspecified
-            }
+        switch mode {
+        case "light": style = .light
+        case "dark":  style = .dark
+        default:      style = .unspecified
         }
         for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) {
             scene.windows.forEach { $0.overrideUserInterfaceStyle = style }
@@ -248,7 +237,6 @@ struct ContentView: View {
 
     private var displayMode: DisplayMode {
         #if os(macOS)
-        // Sentinel is not on Mac yet (default theme first), even if the profile synced it from iPhone.
         return .classic
         #else
         return UserProfile.canonical(in: profiles)?.displayMode ?? .classic
@@ -354,14 +342,8 @@ struct ContentView: View {
             syncWidgetDisplayMode()
         }
         .onChange(of: appearanceMode) { _, new in applyColorScheme(new) }
-        .onChange(of: displayMode) { _, newMode in
-            if newMode == .sentinel {
-                if appearanceMode == "system" || appearanceMode == "light" {
-                    appearanceMode = "dark"
-                }
-            } else {
-                appearanceMode = "system"
-            }
+        .onChange(of: displayMode) { _, _ in
+            appearanceMode = "system"
             applyColorScheme(appearanceMode)
             syncWidgetDisplayMode()
         }
@@ -614,7 +596,6 @@ struct ContentView: View {
     /// No size-class branch may wrap a tab's content, or that rebuild comes back.
     @available(iOS 18.0, *)
     private var adaptiveTabLayout: some View {
-        let sentinel = displayMode == .sentinel
         let selection = Binding<AppSidebarItem>(
             get: { selectedSidebarItem ?? .write },
             set: {
@@ -623,17 +604,17 @@ struct ContentView: View {
             }
         )
         return TabView(selection: selection) {
-            Tab(sentinel ? "Log" : "Entries", systemImage: sentinel ? "viewfinder" : "book.closed", value: AppSidebarItem.entries) {
+            Tab("Entries", systemImage: "book.closed", value: AppSidebarItem.entries) {
                 // List and reader side by side where there's room; compact keeps the pushed reader.
                 EntriesSplitView(navResetID: entriesNavResetID, scrollToTopID: entriesScrollToTopID, deepLinkEntryID: $deepLinkEntryID)
             }
-            Tab(sentinel ? "Transmission" : "Write", systemImage: sentinel ? "antenna.radiowaves.left.and.right" : "square.and.pencil", value: AppSidebarItem.write) {
+            Tab("Write", systemImage: "square.and.pencil", value: AppSidebarItem.write) {
                 WriteTabView(onSave: {
                     selectedSidebarItem = .entries
                     entriesNavResetID = UUID()
                 })
             }
-            Tab(sentinel ? "Briefing" : "Insights", systemImage: sentinel ? "target" : "sparkles", value: AppSidebarItem.insights) {
+            Tab("Insights", systemImage: "sparkles", value: AppSidebarItem.insights) {
                 InsightView(viewModel: insightViewModel)
             }
             // No Settings tab (owner, 2026-10-16; it was one where there's room since
@@ -645,7 +626,7 @@ struct ContentView: View {
         .tabViewStyle(.sidebarAdaptable)
         .toolbarBackground(MirrorTheme.inkMid, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
-        .tint(sentinel ? MirrorTheme.ember : MirrorTheme.primary)
+        .tint(MirrorTheme.primary)
     }
     #endif
 
@@ -661,25 +642,25 @@ struct ContentView: View {
         )
         return TabView(selection: selection) {
             EntriesTabView(navResetID: entriesNavResetID, scrollToTopID: entriesScrollToTopID, deepLinkEntryID: $deepLinkEntryID)
-                .tabItem { Label(displayMode == .sentinel ? "Log" : "Entries", systemImage: displayMode == .sentinel ? "viewfinder" : "book.closed") }
+                .tabItem { Label("Entries", systemImage: "book.closed") }
                 .tag(0)
 
             WriteTabView(onSave: {
                 selectedTab = 0
                 entriesNavResetID = UUID()
             })
-            .tabItem { Label(displayMode == .sentinel ? "Transmission" : "Write", systemImage: displayMode == .sentinel ? "antenna.radiowaves.left.and.right" : "square.and.pencil") }
+            .tabItem { Label("Write", systemImage: "square.and.pencil") }
             .tag(1)
 
             InsightView(viewModel: insightViewModel)
-                .tabItem { Label(displayMode == .sentinel ? "Briefing" : "Insights", systemImage: displayMode == .sentinel ? "target" : "sparkles") }
+                .tabItem { Label("Insights", systemImage: "sparkles") }
                 .tag(2)
         }
         #if os(iOS)
         .toolbarBackground(MirrorTheme.inkMid, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
         #endif
-        .tint(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
+        .tint(MirrorTheme.primary)
     }
 
     // MARK: - Mac layout (sidebar + detail, list and reader side by side for Entries)

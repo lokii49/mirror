@@ -10,10 +10,6 @@ private let wBgTop    = WidgetTheme.bgTop
 private let wBgBottom = WidgetTheme.bgBottom
 private let wViolet   = WidgetTheme.violet
 private let wViLight  = WidgetTheme.violetLight
-private let wEmber    = WidgetTheme.ember
-private let wSentinelBg = WidgetTheme.sentinelBg
-
-private func widgetIsSentinel() -> Bool { WidgetShared.isSentinel() }
 
 private let entryDayFormatter: DateFormatter = {
     let f = DateFormatter()
@@ -110,16 +106,14 @@ struct EntriesMapWidgetView: View {
         WidgetTheme.moodColor(for: mood) ?? Color.accentColor.opacity(0.6)
     }
 
-    private let sentinel = widgetIsSentinel()
-
     var body: some View {
         if isUnlocked {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text(sentinel ? "LOG" : "Entries")
-                        .font(sentinel ? .system(size: 10, weight: .bold, design: .monospaced) : .system(size: 11, weight: .bold, design: .rounded))
-                        .tracking(sentinel ? 1.2 : 0)
-                        .foregroundStyle(sentinel ? wEmber.opacity(0.7) : .white.opacity(0.50))
+                    Text("Entries")
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .tracking(0)
+                        .foregroundStyle(.white.opacity(0.50))
                     Spacer()
                     if streak > 0 {
                         HStack(spacing: 3) {
@@ -132,7 +126,7 @@ struct EntriesMapWidgetView: View {
                     } else if wroteToday {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 11))
-                            .foregroundStyle(sentinel ? wEmber : wViLight)
+                            .foregroundStyle(wViLight)
                     }
                 }
                 LazyVGrid(
@@ -141,13 +135,13 @@ struct EntriesMapWidgetView: View {
                 ) {
                     ForEach(days, id: \.self) { day in
                         let isToday = key(day) == todayKey
-                        RoundedRectangle(cornerRadius: sentinel ? 1.5 : 3)
+                        RoundedRectangle(cornerRadius: 3)
                             .fill(cellColor(for: day))
                             .aspectRatio(1, contentMode: .fit)
                             .overlay(
                                 isToday
-                                    ? RoundedRectangle(cornerRadius: sentinel ? 1.5 : 3)
-                                        .strokeBorder(sentinel ? wEmber : wViLight, lineWidth: 1.5)
+                                    ? RoundedRectangle(cornerRadius: 3)
+                                        .strokeBorder(wViLight, lineWidth: 1.5)
                                     : nil
                             )
                     }
@@ -156,29 +150,21 @@ struct EntriesMapWidgetView: View {
             }
             .padding(12)
             .containerBackground(for: .widget) {
-                if sentinel {
-                    wSentinelBg
-                } else {
-                    LinearGradient(colors: [wBgTop, wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
-                }
+                LinearGradient(colors: [wBgTop, wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
             }
             .widgetURL(URL(string: "mirror://entries"))
         } else {
             VStack(spacing: 6) {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(sentinel ? wEmber.opacity(0.5) : .white.opacity(0.35))
-                WidgetShared.lockedTierLabel(sentinel: sentinel)
-                    .font(sentinel ? .system(size: 10, weight: .semibold, design: .monospaced) : .system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.35))
+                WidgetShared.lockedTierLabel(sentinel: false)
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
                     .foregroundStyle(.white.opacity(0.45))
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .containerBackground(for: .widget) {
-                if sentinel {
-                    wSentinelBg
-                } else {
-                    LinearGradient(colors: [wBgTop.opacity(0.8), wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
-                }
+                LinearGradient(colors: [wBgTop.opacity(0.8), wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
             }
             .widgetURL(URL(string: "mirror://upgrade"))
         }

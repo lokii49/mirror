@@ -13,10 +13,6 @@ private let nudgeDayFormatter: DateFormatter = {
 private let wBgTop     = WidgetTheme.bgTop
 private let wBgBottom  = WidgetTheme.bgBottom
 private let wViLight   = WidgetTheme.violetLight
-private let wEmber     = WidgetTheme.ember
-private let wSentinelBg = WidgetTheme.sentinelBg
-
-private func widgetIsSentinel() -> Bool { WidgetShared.isSentinel() }
 
 // MARK: - Timeline
 
@@ -59,16 +55,13 @@ struct NudgeWidgetProvider: TimelineProvider {
 
 private struct NudgeSmallView: View {
     let entry: NudgeWidgetEntry
-    private let sentinel = widgetIsSentinel()
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            if !sentinel {
-                Text("\u{201C}")
-                    .font(.system(size: 96, weight: .black, design: .serif))
-                    .foregroundStyle(wViLight.opacity(0.15))
-                    .offset(x: -6, y: -18)
-            }
+            Text("\u{201C}")
+                .font(.system(size: 96, weight: .black, design: .serif))
+                .foregroundStyle(wViLight.opacity(0.15))
+                .offset(x: -6, y: -18)
 
             VStack(alignment: .leading, spacing: 0) {
                 Spacer(minLength: 0)
@@ -76,44 +69,40 @@ private struct NudgeSmallView: View {
                 if let text = entry.nudgeText, entry.isToday || !WidgetShared.isSubscribed() {
                     if !entry.isToday {
                         Text("Earlier")
-                            .font(.system(size: 9, weight: .semibold, design: sentinel ? .monospaced : .default))
+                            .font(.system(size: 9, weight: .semibold, design: .default))
                             .textCase(.uppercase)
                             .tracking(1.2)
                             .foregroundStyle(.white.opacity(0.45))
                             .padding(.bottom, 4)
                     }
                     Text(text)
-                        .font(sentinel ? .system(size: 12, weight: .medium, design: .monospaced) : .system(size: 13, weight: .regular, design: .serif))
+                        .font(.system(size: 13, weight: .regular, design: .serif))
                         .foregroundStyle(.white)
                         .lineLimit(6)
                         .lineSpacing(3)
                         .fixedSize(horizontal: false, vertical: false)
                 } else {
-                    Text(sentinel ? "SIGNAL PENDING…" : "Your nudge\narrives soon…")
-                        .font(sentinel ? .system(size: 12, weight: .medium, design: .monospaced) : .system(size: 13, weight: .regular, design: .serif))
+                    Text("Your nudge\narrives soon…")
+                        .font(.system(size: 13, weight: .regular, design: .serif))
                         .foregroundStyle(.white.opacity(0.50))
-                        .italic(!sentinel)
+                        .italic()
                 }
 
                 Spacer(minLength: 10)
 
                 HStack(spacing: 4) {
-                    Image(systemName: sentinel ? "target" : "sparkles")
+                    Image(systemName: "sparkles")
                         .font(.system(size: 8, weight: .semibold))
-                    Text(sentinel ? "BRIEFING" : "DAILY NUDGE")
-                        .font(.system(size: 8, weight: .bold, design: sentinel ? .monospaced : .default))
+                    Text("DAILY NUDGE")
+                        .font(.system(size: 8, weight: .bold, design: .default))
                         .tracking(1.8)
                 }
-                .foregroundStyle(sentinel ? wEmber.opacity(0.75) : wViLight.opacity(0.60))
+                .foregroundStyle(wViLight.opacity(0.60))
             }
             .padding(14)
         }
         .containerBackground(for: .widget) {
-            if sentinel {
-                wSentinelBg
-            } else {
-                LinearGradient(colors: [wBgTop, wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
-            }
+            LinearGradient(colors: [wBgTop, wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
         }
         .widgetURL(URL(string: "mirror://insights"))
     }
@@ -123,16 +112,13 @@ private struct NudgeSmallView: View {
 
 private struct NudgeMediumView: View {
     let entry: NudgeWidgetEntry
-    private let sentinel = widgetIsSentinel()
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            if !sentinel {
-                Text("\u{201C}")
-                    .font(.system(size: 120, weight: .black, design: .serif))
-                    .foregroundStyle(wViLight.opacity(0.13))
-                    .offset(x: -8, y: -22)
-            }
+            Text("\u{201C}")
+                .font(.system(size: 120, weight: .black, design: .serif))
+                .foregroundStyle(wViLight.opacity(0.13))
+                .offset(x: -8, y: -22)
 
             VStack(alignment: .leading, spacing: 0) {
                 Spacer(minLength: 0)
@@ -140,51 +126,47 @@ private struct NudgeMediumView: View {
                 if let text = entry.nudgeText, entry.isToday || !WidgetShared.isSubscribed() {
                     if !entry.isToday {
                         Text("Earlier")
-                            .font(.system(size: 9, weight: .semibold, design: sentinel ? .monospaced : .default))
+                            .font(.system(size: 9, weight: .semibold, design: .default))
                             .textCase(.uppercase)
                             .tracking(1.2)
                             .foregroundStyle(.white.opacity(0.45))
                             .padding(.bottom, 4)
                     }
                     Text(text)
-                        .font(sentinel ? .system(size: 13, weight: .medium, design: .monospaced) : .system(size: 14, weight: .regular, design: .serif))
+                        .font(.system(size: 14, weight: .regular, design: .serif))
                         .foregroundStyle(.white)
                         .lineLimit(5)
                         .lineSpacing(3)
                 } else {
-                    Text(sentinel ? "SIGNAL PENDING…" : "Your nudge arrives soon…")
-                        .font(sentinel ? .system(size: 13, weight: .medium, design: .monospaced) : .system(size: 14, weight: .regular, design: .serif))
+                    Text("Your nudge arrives soon…")
+                        .font(.system(size: 14, weight: .regular, design: .serif))
                         .foregroundStyle(.white.opacity(0.50))
-                        .italic(!sentinel)
+                        .italic()
                 }
 
                 Spacer(minLength: 12)
 
                 HStack {
                     HStack(spacing: 4) {
-                        Image(systemName: sentinel ? "target" : "sparkles")
+                        Image(systemName: "sparkles")
                             .font(.system(size: 9, weight: .semibold))
-                        Text(sentinel ? "BRIEFING" : "DAILY NUDGE")
-                            .font(.system(size: 9, weight: .bold, design: sentinel ? .monospaced : .default))
+                        Text("DAILY NUDGE")
+                            .font(.system(size: 9, weight: .bold, design: .default))
                             .tracking(1.8)
                     }
-                    .foregroundStyle(sentinel ? wEmber.opacity(0.75) : wViLight.opacity(0.60))
+                    .foregroundStyle(wViLight.opacity(0.60))
 
                     Spacer()
 
-                    Text(sentinel ? "OPEN BRIEFING →" : "Tap to reflect →")
-                        .font(.system(size: 11, weight: sentinel ? .bold : .semibold, design: sentinel ? .monospaced : .rounded))
-                        .foregroundStyle(sentinel ? wEmber.opacity(0.7) : wViLight.opacity(0.55))
+                    Text("Tap to reflect →")
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundStyle(wViLight.opacity(0.55))
                 }
             }
             .padding(16)
         }
         .containerBackground(for: .widget) {
-            if sentinel {
-                wSentinelBg
-            } else {
-                LinearGradient(colors: [wBgTop, wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
-            }
+            LinearGradient(colors: [wBgTop, wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
         }
         .widgetURL(URL(string: "mirror://insights"))
     }
@@ -193,27 +175,21 @@ private struct NudgeMediumView: View {
 // MARK: - Locked
 
 private struct NudgeLockedView: View {
-    private let sentinel = widgetIsSentinel()
-
     var body: some View {
         VStack(spacing: 10) {
-            Image(systemName: sentinel ? "target" : "sparkles")
+            Image(systemName: "sparkles")
                 .font(.system(size: 24, weight: .semibold))
-                .foregroundStyle(sentinel ? wEmber.opacity(0.8) : .white.opacity(0.7))
-            Text(sentinel ? "BRIEFING" : "Daily Nudge")
-                .font(sentinel ? .system(size: 12, weight: .bold, design: .monospaced) : .system(size: 13, weight: .bold))
+                .foregroundStyle(.white.opacity(0.7))
+            Text("Daily Nudge")
+                .font(.system(size: 13, weight: .bold))
                 .foregroundStyle(.white)
-            WidgetShared.lockedTierLabel(sentinel: sentinel)
-                .font(sentinel ? .system(size: 10, weight: .medium, design: .monospaced) : .system(size: 11))
+            WidgetShared.lockedTierLabel(sentinel: false)
+                .font(.system(size: 11))
                 .foregroundStyle(.white.opacity(0.55))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .containerBackground(for: .widget) {
-            if sentinel {
-                wSentinelBg
-            } else {
-                LinearGradient(colors: [wBgTop.opacity(0.8), wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
-            }
+            LinearGradient(colors: [wBgTop.opacity(0.8), wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
         }
         .widgetURL(URL(string: "mirror://upgrade"))
     }
