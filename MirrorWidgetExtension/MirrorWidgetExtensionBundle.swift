@@ -11,6 +11,7 @@ struct MirrorWidgetExtensionBundle: WidgetBundle {
         MirrorPromptWidget()
         MirrorWeeklyDigestWidget()
         MirrorMonthlyReportWidget()
+        MirrorStillOpenWidget()
         #if os(iOS)
         if #available(iOS 18.0, *) {
             MirrorNewEntryControl()

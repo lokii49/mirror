@@ -127,6 +127,7 @@
 				Widget/EntriesMapWidget.swift,
 				Widget/MonthlyReportWidget.swift,
 				Widget/MoodMapWidget.swift,
+				Widget/StillOpenWidget.swift,
 				Widget/WeeklyDigestWidget.swift,
 				Widget/WriteWidget.swift,
 			);
@@ -148,6 +149,8 @@
 				Widget/EntriesMapWidget.swift,
 				Widget/MonthlyReportWidget.swift,
 				Widget/MoodMapWidget.swift,
+				Widget/StillOpenWidget.swift,
+				Widget/StillOpenWidgetData.swift,
 				Widget/WeeklyDigestWidget.swift,
 				Widget/WidgetTheme.swift,
 				Widget/WriteWidget.swift,

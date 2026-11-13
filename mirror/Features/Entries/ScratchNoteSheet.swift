@@ -10,6 +10,16 @@ final class ScratchNotePresenter {
     private init() {}
 
     var pending = false
+    /// How the note opens, from the Still Open widget's buttons (`mirror://scratch-note?start=…`).
+    /// Read once by the sheet when it appears.
+    var start: ScratchNoteStart?
+    /// The Still Open page, from the widget (`mirror://still-open`). Shares the sheet's slot.
+    var stillOpenPending = false
+}
+
+/// The Still Open widget's three buttons.
+enum ScratchNoteStart: String {
+    case checklist, numbered, reminder
 }
 
 /// A quick note saved into Scratch: lists, numbers and reminders that reflections don't read.
@@ -153,6 +163,8 @@ struct ScratchNoteSheet: View {
             }
             #endif
             editorFocused = true
+            applyStart(ScratchNotePresenter.shared.start)
+            ScratchNotePresenter.shared.start = nil
         }
         // Debounced like Write's draft: one encrypted write after typing pauses.
         .task(id: draftKey) {
@@ -185,6 +197,26 @@ struct ScratchNoteSheet: View {
     /// The draft is written again when the text or its list styles change.
     private var draftKey: String {
         "\(text.hashValue)-\(textStyleData?.hashValue ?? 0)-\(inlineStyleData?.hashValue ?? 0)"
+    }
+
+    /// The widget's Checklist / Numbered buttons turn the first line into that list; with a draft
+    /// already there, the draft is left as it is. Reminder opens the time picker.
+    private func applyStart(_ start: ScratchNoteStart?) {
+        switch start {
+        case .checklist?, .numbered?:
+            guard trimmed.isEmpty else { return }
+            let style: NoteParagraphTextStyle = start == .checklist ? .checklistUnchecked : .numberedList
+            text = ""
+            textStyleData = try? JSONEncoder().encode(NoteTextStyleDocument(paragraphStyles: [style], indentLevels: nil, fontChoices: nil))
+        case .reminder?:
+            Task { @MainActor in
+                // After the sheet has finished presenting, or the picker is dropped.
+                try? await Task.sleep(for: .milliseconds(500))
+                showReminderPicker = true
+            }
+        case nil:
+            break
+        }
     }
 
     private func send(_ newCommand: NoteTextCommand) {

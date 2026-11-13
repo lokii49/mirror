@@ -640,6 +640,8 @@ struct mirrorApp: App {
         // Scratch reminders whose note was deleted on another device.
         await ScratchReminders.dropOrphans(in: context)
         await mirrorApp.runDailyNudgeIfNeeded(context: context)
+        // Ticks made on the Still Open widget since the app was last open.
+        StillOpenWidgetSync.applyPendingTicks(context: context)
         mirrorApp.updateWidgetHeatmaps(context: context)
         mirrorApp.syncNudgeToWidget(context: context)
         // Catch-all for the two insight widgets: a digest/report generated in a
@@ -1314,6 +1316,7 @@ struct mirrorApp: App {
     @MainActor
     static func updateWidgetHeatmaps(context: ModelContext) {
         PerfSignpost.interval("widget.heatmaps") { buildWidgetHeatmaps(context: context) }
+        PerfSignpost.interval("widget.stillOpen") { StillOpenWidgetSync.sync(context: context) }
         WidgetCenter.shared.reloadAllTimelines()
     }
 

@@ -107,6 +107,7 @@ enum WidgetBridge {
     /// `widget.displayMode`, which are settings.
     static let journalDerivedKeys = insightTextKeys + [
         "widget.entries.heatmap", "widget.mood.heatmap", "widget.streak", "widget.wrote.today",
+        StillOpenWidgetData.snapshotKey, StillOpenWidgetData.ticksKey,
     ]
 
     /// The reflection, digest and monthly text. The heatmap and streak keys are rewritten from the

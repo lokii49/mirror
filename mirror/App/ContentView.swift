@@ -60,6 +60,8 @@ struct ContentView: View {
     @State private var showMoodCheckIn = false
     @State private var moodCheckInPresenter = MoodCheckInPresenter.shared
     @State private var scratchNotePresenter = ScratchNotePresenter.shared
+    /// The Scratch Note sheet slot shows the Still Open page instead (the widget's list link).
+    @State private var scratchSheetShowsStillOpen = false
     @State private var showScratchNote = false
     @State private var appLock = AppLock.shared
     @State private var deepLinkEntryID: UUID? = nil
@@ -221,7 +223,7 @@ struct ContentView: View {
     /// fails and can leave a flag stuck). It isn't marked seen, so it shows on a later launch.
     private var canPresentWhatsNew: Bool {
         !showPaywall && !showWhatsNew && !showRatePrompt && !showMoodCheckIn && !showScratchNote
-            && !scratchNotePresenter.pending && !moodCheckInPresenter.pending
+            && !scratchNotePresenter.pending && !scratchNotePresenter.stillOpenPending && !moodCheckInPresenter.pending
             && !moodCheckInPresenter.blockedByOtherSheet
     }
 
@@ -238,7 +240,7 @@ struct ContentView: View {
     /// The quick note into Scratch (Control Center button, Entries menu, Mac File menu), once the
     /// screen is free of other modals. Until then `pending` waits, like the mood check-in.
     private var canPresentScratchNote: Bool {
-        scratchNotePresenter.pending
+        (scratchNotePresenter.pending || scratchNotePresenter.stillOpenPending)
             && !showPaywall && !showWhatsNew && !showRatePrompt && !showMoodCheckIn && !showScratchNote
             && !moodCheckInPresenter.blockedByOtherSheet
             && onboardingComplete
@@ -392,13 +394,24 @@ struct ContentView: View {
                 .environment(\.appDisplayMode, displayMode)
         }
         .sheet(isPresented: $showScratchNote) {
-            ScratchNoteSheet()
-                .environment(\.appDisplayMode, displayMode)
+            if scratchSheetShowsStillOpen {
+                LibrarySheet(page: .stillOpen)
+                    .environment(\.appDisplayMode, displayMode)
+                    // Tapping an item's words: close this sheet and open its entry in Entries.
+                    .onReceive(NotificationCenter.default.publisher(for: .mirrorOpenEntryFromLibrary)) { note in
+                        showScratchNote = false
+                        if let id = note.object as? UUID { openEntryFromStillOpen(id) }
+                    }
+            } else {
+                ScratchNoteSheet()
+                    .environment(\.appDisplayMode, displayMode)
+            }
         }
         .onChange(of: canPresentScratchNote, initial: true) { _, canPresent in
             // Re-read `pending`: with two Mac windows open, the first one to see it takes it.
-            guard canPresent, scratchNotePresenter.pending else { return }
-            scratchNotePresenter.pending = false
+            guard canPresent, scratchNotePresenter.pending || scratchNotePresenter.stillOpenPending else { return }
+            scratchSheetShowsStillOpen = !scratchNotePresenter.pending
+            if scratchNotePresenter.pending { scratchNotePresenter.pending = false } else { scratchNotePresenter.stillOpenPending = false }
             showScratchNote = true
         }
         .sheet(isPresented: $showMoodCheckIn) {
@@ -543,8 +556,14 @@ struct ContentView: View {
                 // The Log Mood control; presents once the screen is free (canPresentMoodCheckIn).
                 moodCheckInPresenter.pending = true
             case "scratch-note":
-                // The Scratch Note control; presents once the screen is free (canPresentScratchNote).
+                // The Scratch Note control and the Still Open widget's buttons (`?start=`); presents
+                // once the screen is free (canPresentScratchNote).
+                scratchNotePresenter.start = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                    .queryItems?.first(where: { $0.name == "start" })?.value.flatMap(ScratchNoteStart.init(rawValue:))
                 scratchNotePresenter.pending = true
+            case "still-open":
+                // The Still Open widget; in the Scratch Note's sheet slot, so it waits the same way.
+                scratchNotePresenter.stillOpenPending = true
             case "insights", "nudge":
                 selectedTab = 2
                 selectedSidebarItem = .insights
@@ -561,6 +580,21 @@ struct ContentView: View {
                 break
             }
         }
+    }
+
+    /// An item's words tapped on the Still Open page opened from the widget: the entry, in Entries.
+    private func openEntryFromStillOpen(_ id: UUID) {
+        #if os(macOS)
+        NotificationCenter.default.post(name: .mirrorMacOpenEntry, object: nil, userInfo: ["id": id])
+        #else
+        // After the sheet has gone, or the push is dropped under it.
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(450))
+            deepLinkEntryID = id
+            selectedTab = 0
+            selectedSidebarItem = .entries
+        }
+        #endif
     }
 
     // MARK: - One TabView for every size class (iOS 18+)
