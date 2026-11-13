@@ -520,7 +520,9 @@ struct NoteEditorTextView: UIViewRepresentable {
                   let photoIndex = photoAttachmentIndex(at: location, in: textView),
                   isPhotoReadable(photoIndex) else { return nil }
             let data = parent.photoDataArray[photoIndex]
-            return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { _ in
+            // The pressed photo's character, so the menu lifts that photo, not the whole editor.
+            let identifier = attachmentCharacterIndex(at: location, in: textView).map { NSNumber(value: $0) }
+            return UIContextMenuConfiguration(identifier: identifier, previewProvider: nil) { _ in
                 let copy = UIAction(title: String(localized: "Copy"), image: UIImage(systemName: "doc.on.doc")) { _ in
                     if let image = UIImage(data: data) { UIPasteboard.general.image = image }
                 }
@@ -538,6 +540,55 @@ struct NoteEditorTextView: UIViewRepresentable {
                 if let sizeMenu = self.photoSizeMenu(at: location, in: textView) { children.append(sizeMenu) }
                 return UIMenu(title: "", children: children)
             }
+        }
+
+        /// The menu lifts only the pressed photo (owner, 14 Pro: with the whole editor as the
+        /// preview every photo looked lifted, though the choice applied to one).
+        func contextMenuInteraction(_ interaction: UIContextMenuInteraction, configuration: UIContextMenuConfiguration,
+                                    highlightPreviewForItemWithIdentifier identifier: any NSCopying) -> UITargetedPreview? {
+            photoPreview(for: identifier, in: interaction.view as? UITextView)
+        }
+
+        func contextMenuInteraction(_ interaction: UIContextMenuInteraction, configuration: UIContextMenuConfiguration,
+                                    dismissalPreviewForItemWithIdentifier identifier: any NSCopying) -> UITargetedPreview? {
+            photoPreview(for: identifier, in: interaction.view as? UITextView)
+        }
+
+        func contextMenuInteraction(_ interaction: UIContextMenuInteraction,
+                                    previewForHighlightingMenuWithConfiguration configuration: UIContextMenuConfiguration) -> UITargetedPreview? {
+            photoPreview(for: configuration.identifier, in: interaction.view as? UITextView)
+        }
+
+        func contextMenuInteraction(_ interaction: UIContextMenuInteraction,
+                                    previewForDismissingMenuWithConfiguration configuration: UIContextMenuConfiguration) -> UITargetedPreview? {
+            photoPreview(for: configuration.identifier, in: interaction.view as? UITextView)
+        }
+
+        /// The photo at the character in `identifier`, cut out of the editor with its rounded corners.
+        private func photoPreview(for identifier: NSCopying?, in textView: UITextView?) -> UITargetedPreview? {
+            guard let textView, let char = (identifier as? NSNumber)?.intValue,
+                  let rect = attachmentRect(atCharacter: char, in: textView) else { return nil }
+            let parameters = UIPreviewParameters()
+            parameters.visiblePath = UIBezierPath(roundedRect: rect, cornerRadius: 12)
+            parameters.backgroundColor = .clear
+            return UITargetedPreview(view: textView, parameters: parameters,
+                                     target: UIPreviewTarget(container: textView, center: CGPoint(x: rect.midX, y: rect.midY)))
+        }
+
+        /// The drawn rect of the attachment at display offset `char`, in text view coordinates.
+        func attachmentRect(atCharacter char: Int, in textView: UITextView) -> CGRect? {
+            let ns = (textView.text ?? "") as NSString
+            guard char < ns.length, ns.character(at: char) == 0xFFFC else { return nil }
+            let glyphs = textView.layoutManager.glyphRange(forCharacterRange: NSRange(location: char, length: 1), actualCharacterRange: nil)
+            guard glyphs.length > 0 else { return nil }
+            var rect = textView.layoutManager.boundingRect(forGlyphRange: glyphs, in: textView.textContainer)
+            if let attachment = textView.attributedText?.attribute(.attachment, at: char, effectiveRange: nil) as? NSTextAttachment,
+               attachment.bounds.width > 0 {
+                // The glyph's box includes line spacing; the picture is the attachment's bounds.
+                rect = CGRect(x: rect.minX, y: rect.maxY - attachment.bounds.height + attachment.bounds.minY,
+                              width: attachment.bounds.width, height: attachment.bounds.height)
+            }
+            return rect.offsetBy(dx: textView.textContainerInset.left, dy: textView.textContainerInset.top)
         }
 
         /// Small / Medium / Full for a photo on a line of its own (tiles keep the tile size).
