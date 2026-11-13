@@ -944,7 +944,8 @@ nonisolated struct ReaderTextSizes: Equatable, Sendable {
     }
 }
 
-/// A reader photo drawn at its `PhotoSize`: full width as before, or that share of the column.
+/// A reader photo drawn at its `PhotoSize`: full width as before, or that share of the reading
+/// column (the width this line is offered, not the scroll view's: on iPad and Mac they differ).
 private struct PhotoSizeFrame: ViewModifier {
     let size: PhotoSize
 
@@ -952,10 +953,25 @@ private struct PhotoSizeFrame: ViewModifier {
         if size == .full {
             content
         } else {
-            content.containerRelativeFrame(.horizontal, alignment: .leading) { length, _ in
-                floor(length * size.widthFraction)
-            }
+            FractionWidthLayout(fraction: size.widthFraction) { content }
         }
+    }
+}
+
+/// Lays its one child out at `fraction` of the offered width, from the leading edge, and takes
+/// the full width itself so the line still starts where the others do.
+private struct FractionWidthLayout: Layout {
+    let fraction: Double
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard let child = subviews.first else { return .zero }
+        let childSize = child.sizeThatFits(ProposedViewSize(width: proposal.width.map { floor($0 * fraction) }, height: nil))
+        return CGSize(width: proposal.width ?? childSize.width, height: childSize.height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        subviews.first?.place(at: bounds.origin, anchor: .topLeading,
+                              proposal: ProposedViewSize(width: floor(bounds.width * fraction), height: nil))
     }
 }
 

@@ -63,6 +63,40 @@ struct PhotoSizeTests {
         #expect(PhotoSizes.sizes(text: newText, inlineStyleData: merged) == [1: .small])
     }
 
+    @Test func macKeepsTheSizeWhenTheBodyStartsOrEndsEmpty() {
+        // A photo attached to an empty entry sits at offset 0; typing a first letter moves it to 2.
+        let empty = NoteEditorCodec.appendingPhotoTokens(to: "", count: 1)
+        let sized = PhotoSizes.setting(.small, atInlineOffset: PhotoSizes.inlineOffsets(in: empty)[0].offset, in: nil)
+        let kept = NoteEditorCodec.trailingPhotoRanges(in: sized, bodyLength: 0)
+        let typed = NoteEditorCodec.addingTrailingPhotoRanges(kept, to: nil, bodyLength: 1)
+        #expect(PhotoSizes.sizes(text: NoteEditorCodec.appendingPhotoTokens(to: "A", count: 1), inlineStyleData: typed) == [0: .small])
+        // And back: the body emptied again.
+        let keptAgain = NoteEditorCodec.trailingPhotoRanges(in: typed, bodyLength: 1)
+        let cleared = NoteEditorCodec.addingTrailingPhotoRanges(keptAgain, to: nil, bodyLength: 0)
+        #expect(PhotoSizes.sizes(text: empty, inlineStyleData: cleared) == [0: .small])
+        // Two photos under an empty body: the second keeps its own size.
+        let two = NoteEditorCodec.appendingPhotoTokens(to: "", count: 2)
+        let second = PhotoSizes.setting(.medium, atInlineOffset: PhotoSizes.inlineOffsets(in: two)[1].offset, in: nil)
+        let moved = NoteEditorCodec.addingTrailingPhotoRanges(NoteEditorCodec.trailingPhotoRanges(in: second, bodyLength: 0), to: nil, bodyLength: 4)
+        #expect(PhotoSizes.sizes(text: NoteEditorCodec.appendingPhotoTokens(to: "Walk", count: 2), inlineStyleData: moved) == [1: .medium])
+    }
+
+    @Test func theSizeMovesWithItsRowAndWithEdits() {
+        // Rows: "Milk", photo, "Eggs" (inline coordinates: the photo is one character).
+        let inlineText = "Milk\n\u{FFFC}\nEggs"
+        let sized = PhotoSizes.setting(.small, atInlineOffset: 5, in: nil)
+        // Reorder: the photo row goes first (as sorting or deleting checked items moves rows).
+        let reordered = NoteEditorCodec.remapInlineStyles(sized, in: inlineText, rowOrder: [1, 0, 2])
+        #expect(doc(reordered) .map(\.location) == [0])
+        #expect(doc(reordered).first?.photoSize == "small")
+        // Typing three characters before the photo shifts it.
+        let typed = NoteEditorCodec.adjustInlineStyles(sized, replacing: NSRange(location: 0, length: 0), withLength: 3)
+        #expect(doc(typed).first?.location == 8)
+        #expect(doc(typed).first?.photoSize == "small")
+        // Deleting the photo's character drops its size.
+        #expect(NoteEditorCodec.adjustInlineStyles(sized, replacing: NSRange(location: 5, length: 1), withLength: 0) == nil)
+    }
+
     @Test func aSizedTrailingPhotoStaysEditableOnMac() {
         let body = "Morning walk"
         let text = NoteEditorCodec.appendingPhotoTokens(to: body, count: 1)

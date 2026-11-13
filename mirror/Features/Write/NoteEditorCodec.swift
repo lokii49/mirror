@@ -530,25 +530,37 @@ enum NoteEditorCodec {
 
     // MARK: - Styles on the trailing photos
 
-    /// Inline ranges on the photos after `body` (a size, a link), relative to the body's end. The
-    /// Mac editor keeps those photos out of its text, so it reads its ranges back without them;
+    /// Inline ranges on the photos after `body` (a size, a link), by photo order. The Mac editor
+    /// keeps those photos out of its text, so it reads its ranges back without them;
     /// `addingTrailingPhotoRanges` puts them back after the edited body. Photo k sits at a fixed
-    /// distance past the body (`appendingPhotoTokens` writes one token line per photo).
-    static func trailingPhotoRanges(in data: Data?, bodyLength: Int) -> [InlineStyleRange] {
+    /// place past the body (`appendingPhotoTokens` writes one token line per photo): offset 2k
+    /// when the body is empty, else body length + 1 + 2k. A range is kept only when it starts on
+    /// a photo; `range.location` in the result is 0 (the photo's own character).
+    struct TrailingPhotoRange: Equatable {
+        var photo: Int
+        var range: InlineStyleRange
+    }
+
+    static func trailingPhotoOffset(_ photo: Int, bodyLength: Int) -> Int {
+        bodyLength == 0 ? 2 * photo : bodyLength + 1 + 2 * photo
+    }
+
+    static func trailingPhotoRanges(in data: Data?, bodyLength: Int) -> [TrailingPhotoRange] {
         (decodeInlineStyleDocument(data)?.ranges ?? []).compactMap { range in
-            guard range.location >= bodyLength else { return nil }
-            var relative = range
-            relative.location -= bodyLength
-            return relative
+            let first = trailingPhotoOffset(0, bodyLength: bodyLength)
+            guard range.location >= first, (range.location - first) % 2 == 0 else { return nil }
+            var own = range
+            own.location = 0
+            return TrailingPhotoRange(photo: (range.location - first) / 2, range: own)
         }
     }
 
-    static func addingTrailingPhotoRanges(_ photoRanges: [InlineStyleRange], to data: Data?, bodyLength: Int) -> Data? {
+    static func addingTrailingPhotoRanges(_ photoRanges: [TrailingPhotoRange], to data: Data?, bodyLength: Int) -> Data? {
         guard !photoRanges.isEmpty else { return data }
         var ranges = decodeInlineStyleDocument(data)?.ranges ?? []
-        ranges += photoRanges.map { range in
-            var absolute = range
-            absolute.location += bodyLength
+        ranges += photoRanges.map { item in
+            var absolute = item.range
+            absolute.location = trailingPhotoOffset(item.photo, bodyLength: bodyLength)
             return absolute
         }
         return try? JSONEncoder().encode(InlineStyleDocument(ranges: ranges))
