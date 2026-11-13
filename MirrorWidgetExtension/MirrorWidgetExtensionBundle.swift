@@ -4,6 +4,8 @@ import SwiftUI
 @main
 struct MirrorWidgetExtensionBundle: WidgetBundle {
     var body: some Widget {
+        // Gallery order (owner, 2026-11-13): Still Open first, the monthly report last.
+        MirrorStillOpenWidget()
         MirrorWriteWidget()
         MirrorEntriesMapWidget()
         MirrorMoodMapWidget()
@@ -11,7 +13,6 @@ struct MirrorWidgetExtensionBundle: WidgetBundle {
         MirrorPromptWidget()
         MirrorWeeklyDigestWidget()
         MirrorMonthlyReportWidget()
-        MirrorStillOpenWidget()
         #if os(iOS)
         if #available(iOS 18.0, *) {
             MirrorNewEntryControl()

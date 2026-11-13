@@ -126,9 +126,13 @@ struct NoteEditorTextView: UIViewRepresentable {
         // still lets the photo's menu open as before.
         if onDropPhotos != nil {
             let photoDrag = UILongPressGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePhotoDrag(_:)))
-            photoDrag.minimumPressDuration = 0.2
+            // Long enough that touching a photo and then scrolling scrolls (at 0.2 s a short rest
+            // before a scroll moved the photo instead; simulator XCUITest, 2026-11-13).
+            photoDrag.minimumPressDuration = 0.45
             photoDrag.delegate = context.coordinator
             textView.addGestureRecognizer(photoDrag)
+            // Letting go of a held photo isn't a tap (it opened the full-screen viewer under the menu).
+            tapGesture.require(toFail: photoDrag)
             context.coordinator.photoDragRecognizer = photoDrag
         }
         for recognizer in [swipeRight, swipeLeft, drag] as [UIGestureRecognizer] {
@@ -141,7 +145,11 @@ struct NoteEditorTextView: UIViewRepresentable {
             return coordinator.checklistMarkerParagraph(at: point, in: textView) != nil
         }
 
-        textView.addInteraction(UIContextMenuInteraction(delegate: context.coordinator))
+        // The photo menu (Copy, Save to Photos, Share, Photo Size), opened by the editor when a held
+        // photo is let go without moving (`handlePhotoDrag`).
+        let photoMenu = UIEditMenuInteraction(delegate: context.coordinator)
+        textView.addInteraction(photoMenu)
+        context.coordinator.photoMenuInteraction = photoMenu
 
         return textView
     }
@@ -252,7 +260,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         Coordinator(parent: self)
     }
 
-    final class Coordinator: NSObject, UITextViewDelegate, UIGestureRecognizerDelegate, UIContextMenuInteractionDelegate {
+    final class Coordinator: NSObject, UITextViewDelegate, UIGestureRecognizerDelegate, UIEditMenuInteractionDelegate {
         /// The last non-empty selection, kept until the text changes: "Link to an Entry…" applies
         /// the link after the alert and a picker sheet, and the text view may have dropped its
         /// selection by then (it isn't first responder while the sheet is up).
@@ -513,116 +521,89 @@ struct NoteEditorTextView: UIViewRepresentable {
             commitUndoPoint(in: textView)
         }
 
-        // MARK: - Photo context menu (UIContextMenuInteractionDelegate)
+        // MARK: - Photo menu (UIEditMenuInteraction)
 
-        func contextMenuInteraction(_ interaction: UIContextMenuInteraction, configurationForMenuAtLocation location: CGPoint) -> UIContextMenuConfiguration? {
-            guard let textView = interaction.view as? UITextView,
-                  let photoIndex = photoAttachmentIndex(at: location, in: textView),
-                  isPhotoReadable(photoIndex) else { return nil }
+        weak var photoMenuInteraction: UIEditMenuInteraction?
+        /// The photo character the menu being presented is for.
+        private var photoMenuCharacter: Int?
+
+        /// Opens the photo menu over the photo at `charIndex` (a hold let go without moving).
+        func presentPhotoMenu(forCharacter charIndex: Int, at point: CGPoint) {
+            photoMenuCharacter = charIndex
+            photoMenuInteraction?.presentEditMenu(with: UIEditMenuConfiguration(identifier: nil, sourcePoint: point))
+        }
+
+        func editMenuInteraction(_ interaction: UIEditMenuInteraction, menuFor configuration: UIEditMenuConfiguration,
+                                 suggestedActions: [UIMenuElement]) -> UIMenu? {
+            guard let textView = interaction.view as? UITextView, let char = photoMenuCharacter else { return nil }
+            return photoMenu(atCharacter: char, sourcePoint: configuration.sourcePoint, in: textView)
+        }
+
+        func editMenuInteraction(_ interaction: UIEditMenuInteraction, willDismissMenuFor configuration: UIEditMenuConfiguration,
+                                 animator: any UIEditMenuInteractionAnimating) {
+            photoMenuCharacter = nil
+        }
+
+        /// Copy, Save to Photos, Share, Open Link (a linked photo) and Photo Size.
+        private func photoMenu(atCharacter charIndex: Int, sourcePoint: CGPoint, in textView: UITextView) -> UIMenu? {
+            guard let photoIndex = photoIndex(forAttachmentAt: charIndex, in: textView), isPhotoReadable(photoIndex) else { return nil }
             let data = parent.photoDataArray[photoIndex]
-            // The pressed photo's character, so the menu lifts that photo, not the whole editor.
-            let identifier = attachmentCharacterIndex(at: location, in: textView).map { NSNumber(value: $0) }
-            return UIContextMenuConfiguration(identifier: identifier, previewProvider: nil) { _ in
-                let copy = UIAction(title: String(localized: "Copy"), image: UIImage(systemName: "doc.on.doc")) { _ in
-                    if let image = UIImage(data: data) { UIPasteboard.general.image = image }
-                }
-                let save = UIAction(title: String(localized: "Save to Photos"), image: UIImage(systemName: "square.and.arrow.down")) { _ in
-                    guard let image = UIImage(data: data) else { return }
-                    PHPhotoLibrary.shared().performChanges({
-                        PHAssetChangeRequest.creationRequestForAsset(from: image)
-                    }, completionHandler: nil)
-                }
-                let share = UIAction(title: String(localized: "Share"), image: UIImage(systemName: "square.and.arrow.up")) { [weak textView] _ in
-                    guard let image = UIImage(data: data) else { return }
-                    presentShareSheet(items: [image], from: textView, rect: CGRect(origin: location, size: CGSize(width: 1, height: 1)))
-                }
-                var children: [UIMenuElement] = [copy, save, share]
-                if let sizeMenu = self.photoSizeMenu(at: location, in: textView) { children.append(sizeMenu) }
-                return UIMenu(title: "", children: children)
+            let copy = UIAction(title: String(localized: "Copy"), image: UIImage(systemName: "doc.on.doc")) { _ in
+                if let image = UIImage(data: data) { UIPasteboard.general.image = image }
             }
-        }
-
-        /// The menu lifts only the pressed photo (owner, 14 Pro: with the whole editor as the
-        /// preview every photo looked lifted, though the choice applied to one).
-        func contextMenuInteraction(_ interaction: UIContextMenuInteraction, configuration: UIContextMenuConfiguration,
-                                    highlightPreviewForItemWithIdentifier identifier: any NSCopying) -> UITargetedPreview? {
-            photoPreview(for: identifier, in: interaction.view as? UITextView)
-        }
-
-        func contextMenuInteraction(_ interaction: UIContextMenuInteraction, configuration: UIContextMenuConfiguration,
-                                    dismissalPreviewForItemWithIdentifier identifier: any NSCopying) -> UITargetedPreview? {
-            photoPreview(for: identifier, in: interaction.view as? UITextView)
-        }
-
-        func contextMenuInteraction(_ interaction: UIContextMenuInteraction,
-                                    previewForHighlightingMenuWithConfiguration configuration: UIContextMenuConfiguration) -> UITargetedPreview? {
-            photoPreview(for: configuration.identifier, in: interaction.view as? UITextView)
-        }
-
-        func contextMenuInteraction(_ interaction: UIContextMenuInteraction,
-                                    previewForDismissingMenuWithConfiguration configuration: UIContextMenuConfiguration) -> UITargetedPreview? {
-            photoPreview(for: configuration.identifier, in: interaction.view as? UITextView)
-        }
-
-        /// The photo at the character in `identifier`, cut out of the editor with its rounded corners.
-        private func photoPreview(for identifier: NSCopying?, in textView: UITextView?) -> UITargetedPreview? {
-            guard let textView, let char = (identifier as? NSNumber)?.intValue,
-                  let rect = attachmentRect(atCharacter: char, in: textView) else { return nil }
-            // A snapshot of just the picture, placed over it: with the editor itself as the preview
-            // view, iOS hid the whole editor while the menu was up (owner's recording, 14 Pro).
-            guard let snapshot = textView.resizableSnapshotView(from: rect, afterScreenUpdates: false, withCapInsets: .zero) else { return nil }
-            snapshot.frame = CGRect(origin: .zero, size: rect.size)
-            let parameters = UIPreviewParameters()
-            parameters.visiblePath = UIBezierPath(roundedRect: snapshot.bounds, cornerRadius: 12)
-            parameters.backgroundColor = .clear
-            return UITargetedPreview(view: snapshot, parameters: parameters,
-                                     target: UIPreviewTarget(container: textView, center: CGPoint(x: rect.midX, y: rect.midY)))
-        }
-
-        /// The drawn rect of the attachment at display offset `char`, in text view coordinates.
-        func attachmentRect(atCharacter char: Int, in textView: UITextView) -> CGRect? {
-            let ns = (textView.text ?? "") as NSString
-            guard char < ns.length, ns.character(at: char) == 0xFFFC else { return nil }
-            let glyphs = textView.layoutManager.glyphRange(forCharacterRange: NSRange(location: char, length: 1), actualCharacterRange: nil)
-            guard glyphs.length > 0 else { return nil }
-            let lm = textView.layoutManager
-            var rect = lm.boundingRect(forGlyphRange: glyphs, in: textView.textContainer)
-            if let attachment = textView.attributedText?.attribute(.attachment, at: char, effectiveRange: nil) as? NSTextAttachment,
-               attachment.bounds.width > 0 {
-                // The picture sits on the baseline, shifted by its bounds' origin (the glyph's box
-                // also holds the line and paragraph spacing).
-                let line = lm.lineFragmentRect(forGlyphAt: glyphs.location, effectiveRange: nil)
-                let baseline = line.minY + lm.location(forGlyphAt: glyphs.location).y
-                rect = CGRect(x: line.minX + lm.location(forGlyphAt: glyphs.location).x,
-                              y: baseline - attachment.bounds.maxY,
-                              width: attachment.bounds.width, height: attachment.bounds.height)
+            let save = UIAction(title: String(localized: "Save to Photos"), image: UIImage(systemName: "square.and.arrow.down")) { _ in
+                guard let image = UIImage(data: data) else { return }
+                PHPhotoLibrary.shared().performChanges({
+                    PHAssetChangeRequest.creationRequestForAsset(from: image)
+                }, completionHandler: nil)
             }
-            return rect.offsetBy(dx: textView.textContainerInset.left, dy: textView.textContainerInset.top)
+            let share = UIAction(title: String(localized: "Share"), image: UIImage(systemName: "square.and.arrow.up")) { [weak textView] _ in
+                guard let image = UIImage(data: data) else { return }
+                presentShareSheet(items: [image], from: textView, rect: CGRect(origin: sourcePoint, size: CGSize(width: 1, height: 1)))
+            }
+            var children: [UIMenuElement] = [copy, save, share]
+            if let attributed = textView.attributedText, charIndex < attributed.length,
+               let url = (attributed.attribute(.link, at: charIndex, effectiveRange: nil) as? URL)
+                ?? (attributed.attribute(.link, at: charIndex, effectiveRange: nil) as? String).flatMap(URL.init(string:)),
+               ["http", "https"].contains(url.scheme?.lowercased() ?? "") {
+                children.insert(UIAction(title: String(localized: "Open Link"), image: UIImage(systemName: "safari")) { _ in
+                    UIApplication.shared.open(url)
+                }, at: 0)
+            }
+            // Photo Size first: the menu is one bar, and later items sit behind its chevron.
+            if let sizeMenu = photoSizeMenu(atCharacter: charIndex, in: textView) { children.insert(sizeMenu, at: 0) }
+            return UIMenu(title: "", children: children)
         }
 
-        /// Small / Medium / Full for a photo on a line of its own (tiles keep the tile size).
-        private func photoSizeMenu(at location: CGPoint, in textView: UITextView) -> UIMenu? {
-            attachmentCharacterIndex(at: location, in: textView).flatMap { photoSizeMenu(atCharacter: $0, in: textView) }
+        /// The photo index of the attachment at display offset `charIndex` (attachments map to
+        /// tokens in text order, as `logicalText` does).
+        func photoIndex(forAttachmentAt charIndex: Int, in textView: UITextView) -> Int? {
+            let displayed = (textView.attributedText?.string ?? "") as NSString
+            guard charIndex < displayed.length, displayed.character(at: charIndex) == 0xFFFC else { return nil }
+            var ordinal = 0
+            for i in 0..<charIndex where displayed.character(at: i) == 0xFFFC { ordinal += 1 }
+            let tokens = allPhotoTokens(in: parent.text).sorted {
+                parent.text.distance(from: parent.text.startIndex, to: $0.range.lowerBound) <
+                parent.text.distance(from: parent.text.startIndex, to: $1.range.lowerBound)
+            }
+            guard ordinal < tokens.count, tokens[ordinal].index < parent.photoDataArray.count else { return nil }
+            return tokens[ordinal].index
         }
 
-        /// A linked photo (a Suggestion's map) gets UIKit's link menu, not the photo menu above:
-        /// the size choice joins that menu.
+        /// UIKit's own menus never open on a photo (plain or linked): a held photo lifts, and the
+        /// editor opens its photo menu when it's let go without moving (14 Pro: UIKit's menus
+        /// took the press some of the time, and lifted the whole editor).
         func textView(_ textView: UITextView, menuConfigurationFor textItem: UITextItem, defaultMenu: UIMenu) -> UITextItem.MenuConfiguration? {
             let range = textItem.range
             let nsText = (textView.text ?? "") as NSString
             guard range.length > 0, NSMaxRange(range) <= nsText.length,
-                  let photo = (range.location..<NSMaxRange(range)).first(where: { nsText.character(at: $0) == 0xFFFC }) else {
+                  (range.location..<NSMaxRange(range)).contains(where: { nsText.character(at: $0) == 0xFFFC }) else {
                 return UITextItem.MenuConfiguration(menu: defaultMenu)
             }
-            // A plain photo has one menu, the editor's own (Copy, Save to Photos, Share, size):
-            // UIKit's attachment menu took the press some of the time (14 Pro), with other items.
-            guard case .link = textItem.content else { return nil }
-            guard let sizeMenu = photoSizeMenu(atCharacter: photo, in: textView) else {
-                return UITextItem.MenuConfiguration(menu: defaultMenu)
-            }
-            return UITextItem.MenuConfiguration(menu: UIMenu(children: defaultMenu.children + [sizeMenu]))
+            return nil
         }
 
+        /// Small / Medium / Full for a photo on a line of its own (tiles keep the tile size).
         private func photoSizeMenu(atCharacter charIndex: Int, in textView: UITextView) -> UIMenu? {
             guard let attributed = textView.attributedText, charIndex < attributed.length,
                   let attachment = attributed.attribute(.attachment, at: charIndex, effectiveRange: nil) as? PhotoAttachment,
@@ -636,7 +617,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                     self.setPhotoSize(size, atCharacter: charIndex, in: textView)
                 }
             }
-            return UIMenu(title: String(localized: "Photo Size"), options: .displayInline, children: actions)
+            return UIMenu(title: String(localized: "Photo Size"), image: UIImage(systemName: "arrow.up.left.and.arrow.down.right"), children: actions)
         }
 
         private func setPhotoSize(_ size: PhotoSize, atCharacter charIndex: Int, in textView: UITextView) {
@@ -1198,11 +1179,15 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-            // The photo hold shares the touch with the photo's menu (holding still opens it), never
-            // with scrolling: once it has begun, a move drags the photo, not the page.
-            if gestureRecognizer === photoDragRecognizer { return !(otherGestureRecognizer is UIPanGestureRecognizer) }
             // A drag owns the touch; the others share it as before.
             return !(gestureRecognizer is UILongPressGestureRecognizer && gestureRecognizer.view is MirrorEditorTextView)
+        }
+
+        /// The text view's own holds (selection, its menus) wait for the photo hold to fail, so a
+        /// held photo is the editor's alone.
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            gestureRecognizer === photoDragRecognizer && otherGestureRecognizer.view === gestureRecognizer.view
+                && otherGestureRecognizer is UILongPressGestureRecognizer
         }
 
         func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
@@ -1283,27 +1268,44 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         /// Where a photo hold started; the photo lifts once the finger moves.
         private var photoHold: (point: CGPoint, paragraph: NSRange)?
+        private var photoHoldMoved = false
         weak var photoDragRecognizer: UILongPressGestureRecognizer?
 
-        /// Touch and hold a photo on its own line, then move: it slides to another line anywhere in
-        /// the entry, like a checklist item within its list. Styles, links and sizes go with it.
+        /// Touch and hold a photo on its own line: it lifts (with a tap of haptics). Slide to move it
+        /// anywhere in the entry, like a checklist item within its list (styles, links and sizes go
+        /// with it); let go without sliding for the photo menu. A shorter touch scrolls or taps.
         @objc func handlePhotoDrag(_ gesture: UILongPressGestureRecognizer) {
             guard let textView = gesture.view as? UITextView, let lm = textView.layoutManager as? ChecklistLayoutManager else { return }
             let point = gesture.location(in: textView)
             switch gesture.state {
             case .began:
-                photoHold = photoParagraph(at: point, in: textView).map { (point, $0) }
+                guard let paragraph = photoParagraph(at: point, in: textView) else { return }
+                photoHold = (point, paragraph)
+                dragWindowPoint = gesture.location(in: nil)
+                beginRowDrag(paragraph: paragraph, wholeEntry: true, at: point, in: textView, layout: lm)
             case .changed:
                 dragWindowPoint = gesture.location(in: nil)
-                if checklistDrag == nil, let hold = photoHold, hypot(point.x - hold.point.x, point.y - hold.point.y) > 8 {
-                    beginRowDrag(paragraph: hold.paragraph, wholeEntry: true, at: hold.point, in: textView, layout: lm)
-                }
+                if let hold = photoHold, hypot(point.x - hold.point.x, point.y - hold.point.y) > 10 { photoHoldMoved = true }
                 updateRowDrag(at: point)
             case .ended:
+                let hold = photoHold
+                let moved = photoHoldMoved
                 photoHold = nil
-                endRowDrag(commit: true, in: textView, layout: lm)
+                photoHoldMoved = false
+                guard let hold else { return }
+                if moved {
+                    endRowDrag(commit: true, in: textView, layout: lm)
+                } else {
+                    endRowDrag(commit: false, in: textView, layout: lm)
+                    let char = attachmentCharacterIndex(at: hold.point, in: textView) ?? hold.paragraph.location
+                    // After the photo has settled back (`settleDrag`, 0.25 s).
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) { [weak self] in
+                        self?.presentPhotoMenu(forCharacter: char, at: hold.point)
+                    }
+                }
             case .cancelled, .failed:
                 photoHold = nil
+                photoHoldMoved = false
                 endRowDrag(commit: false, in: textView, layout: lm)
             default:
                 break
