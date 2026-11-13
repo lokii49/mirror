@@ -170,6 +170,12 @@ struct ScratchNoteSheet: View {
         .task(id: draftKey) {
             guard loaded else { return }
             do { try await Task.sleep(for: .milliseconds(400)) } catch { return }
+            // Nothing typed (the widget's Checklist button sets only a style): no draft, or the
+            // next plain note would open as that list.
+            guard !trimmed.isEmpty else {
+                WriteDraftStore.clear(slot: .scratchNote)
+                return
+            }
             var draft = WriteDraftStore.Payload()
             draft.text = text
             draft.textStyleData = textStyleData

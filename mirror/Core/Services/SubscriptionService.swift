@@ -277,6 +277,8 @@ final class SubscriptionService {
         guard let defaults = UserDefaults(suiteName: WidgetShared.appGroupID) else { return }
         guard defaults.string(forKey: "widget.tier") != tier.rawValue else { return }
         defaults.set(tier.rawValue, forKey: "widget.tier")
+        // Rebuilds the Still Open snapshot for the new plan (and reloads every widget).
+        Task { @MainActor in WidgetSaveRefresher.shared.refreshNow() }
         WidgetCenter.shared.reloadAllTimelines()
     }
 

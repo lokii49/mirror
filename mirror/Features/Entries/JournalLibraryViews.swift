@@ -107,6 +107,8 @@ struct StillOpenView: View {
         .navigationTitle("Still Open")
         .task {
             guard !loaded else { return }
+            // Ticks made on the widget that the app-active pass hasn't applied yet.
+            StillOpenWidgetSync.applyPendingTicks(context: modelContext)
             groups = OpenChecklistItems.groups(in: modelContext)
             loaded = true
         }

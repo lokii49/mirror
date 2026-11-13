@@ -93,8 +93,12 @@ private struct StillOpenRow: View {
                 Image(systemName: ticked ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: size + 3, weight: .regular))
                     .foregroundStyle(ticked ? WidgetTheme.violetLight : .white.opacity(0.55))
+                    // A miss falls through to the widget's link and opens the app: give the
+                    // circle a target wider than itself.
+                    .frame(width: size + 15, height: size + 9)
                     .contentShape(Rectangle())
             }
+            .padding(.leading, -6)
             .buttonStyle(.plain)
             .accessibilityLabel(ticked ? Text("Untick") : Text("Tick"))
             .accessibilityValue(Text(item.text))
@@ -209,8 +213,14 @@ private struct StillOpenSmallView: View {
             } else if entry.items.isEmpty {
                 StillOpenEmpty()
             } else {
-                ForEach(entry.items.prefix(3)) { item in
-                    StillOpenRow(item: item, ticked: entry.ticked.contains(item.id), size: 12)
+                ViewThatFits(in: .vertical) {
+                    ForEach([3, 2, 1], id: \.self) { rows in
+                        VStack(alignment: .leading, spacing: 6) {
+                            ForEach(Array(entry.items.prefix(rows))) { item in
+                                StillOpenRow(item: item, ticked: entry.ticked.contains(item.id), size: 12)
+                            }
+                        }
+                    }
                 }
             }
             Spacer(minLength: 0)
@@ -225,32 +235,77 @@ private struct StillOpenSmallView: View {
 
 private struct StillOpenListView: View {
     let entry: StillOpenEntry
-    let rows: Int
     let large: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: large ? 8 : 6) {
+        // As many rows as the widget's height takes (an SE's medium has room for two).
+        ViewThatFits(in: .vertical) {
+            ForEach(large ? [7, 6, 5, 4, 3] : [3, 2, 1], id: \.self) { rows in
+                content(rows: rows)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .stillOpenBackground()
+        .widgetURL(entry.unlocked ? StillOpenLink.list : StillOpenLink.upgrade)
+    }
+
+    private func content(rows: Int) -> some View {
+        VStack(alignment: .leading, spacing: large ? 7 : 5) {
             StillOpenTitle(count: entry.unlocked && entry.total > 0 ? entry.total : nil, size: large ? 17 : 15)
             if !entry.unlocked {
                 StillOpenLocked()
             } else if entry.items.isEmpty {
                 StillOpenEmpty()
-            } else {
-                ForEach(Array(entry.items.prefix(rows))) { item in
-                    StillOpenRow(item: item, ticked: entry.ticked.contains(item.id), size: large ? 14 : 13)
+            } else if large {
+                // Grouped by the entry's day, like the Still Open page.
+                ForEach(StillOpenDayGroup.groups(Array(entry.items.prefix(rows)))) { group in
+                    Text(group.label)
+                        .font(.system(size: 10, weight: .semibold))
+                        .textCase(.uppercase)
+                        .tracking(0.8)
+                        .foregroundStyle(.white.opacity(0.5))
+                        .padding(.top, 2)
+                    ForEach(group.items) { item in
+                        StillOpenRow(item: item, ticked: entry.ticked.contains(item.id), size: 14)
+                    }
                 }
                 if entry.total > rows {
                     Text("+\(entry.total - rows) more")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(WidgetTheme.violetLight)
                 }
+            } else {
+                ForEach(Array(entry.items.prefix(rows))) { item in
+                    StillOpenRow(item: item, ticked: entry.ticked.contains(item.id), size: 13)
+                }
             }
             Spacer(minLength: 0)
             StillOpenAddButtons(height: large ? 32 : 28)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .stillOpenBackground()
-        .widgetURL(entry.unlocked ? StillOpenLink.list : StillOpenLink.upgrade)
+    }
+}
+
+/// The large widget's day headings: Today, Yesterday, or the date.
+private struct StillOpenDayGroup: Identifiable {
+    let day: Date
+    var items: [StillOpenWidgetData.Item]
+    var id: Date { day }
+
+    var label: String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(day) { return String(localized: "Today") }
+        if calendar.isDateInYesterday(day) { return String(localized: "Yesterday") }
+        return day.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
+    }
+
+    static func groups(_ items: [StillOpenWidgetData.Item]) -> [StillOpenDayGroup] {
+        var result: [StillOpenDayGroup] = []
+        for item in items {
+            let day = Calendar.current.startOfDay(for: item.day)
+            if result.last?.day == day { result[result.count - 1].items.append(item) }
+            else { result.append(.init(day: day, items: [item])) }
+        }
+        return result
     }
 }
 
@@ -290,8 +345,8 @@ struct StillOpenWidgetView: View {
 
     var body: some View {
         switch family {
-        case .systemMedium: StillOpenListView(entry: entry, rows: 3, large: false)
-        case .systemLarge: StillOpenListView(entry: entry, rows: 7, large: true)
+        case .systemMedium: StillOpenListView(entry: entry, large: false)
+        case .systemLarge: StillOpenListView(entry: entry, large: true)
         #if os(iOS)
         case .accessoryRectangular: StillOpenRectangularView(entry: entry)
         #endif

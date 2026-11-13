@@ -73,7 +73,7 @@ struct StillOpenWidgetTests {
         // Eggs is still Eggs; index 2 was "Butter" when the widget drew it, the entry says Bread now.
         StillOpenWidgetData.toggle(.init(entryID: item.id, index: 1, hash: StillOpenWidgetData.lineHash("Eggs")), in: d)
         StillOpenWidgetData.toggle(.init(entryID: item.id, index: 2, hash: StillOpenWidgetData.lineHash("Butter")), in: d)
-        #expect(StillOpenWidgetSync.applyPendingTicks(context: context, defaults: d) == 1)
+        #expect(StillOpenWidgetSync.applyPendingTicks(context: context, defaults: d, subscribed: true) == 1)
         #expect(NoteEditorCodec.decodeTextStyleDocument(item.textStyleData)?.paragraphStyles
                 == [.checklistUnchecked, .checklistChecked, .checklistUnchecked])
         #expect(StillOpenWidgetData.ticks(in: d).isEmpty, "handled once, applied or not")
@@ -87,11 +87,22 @@ struct StillOpenWidgetTests {
         let d = defaults()
         _ = entry("Batteries", [.checklistUnchecked], in: context)
         try context.save()
-        StillOpenWidgetSync.sync(context: context, force: true, defaults: d)
+        StillOpenWidgetSync.sync(context: context, force: true, defaults: d, subscribed: true)
         let first = d.data(forKey: StillOpenWidgetData.snapshotKey)
         #expect(StillOpenWidgetData.snapshot(in: d)?.total == 1)
         #expect(!StillOpenWidgetData.write(StillOpenWidgetData.snapshot(in: d)!, in: d), "same snapshot is not rewritten")
         #expect(d.data(forKey: StillOpenWidgetData.snapshotKey) == first)
+    }
+
+    @Test func freeWritesNoItemText() throws {
+        let context = try context()
+        let d = defaults()
+        _ = entry("Batteries", [.checklistUnchecked], in: context)
+        try context.save()
+        StillOpenWidgetSync.sync(context: context, force: true, defaults: d, subscribed: false)
+        #expect(StillOpenWidgetData.snapshot(in: d) == .init(items: [], total: 0))
+        StillOpenWidgetSync.sync(context: context, defaults: d, subscribed: true)
+        #expect(StillOpenWidgetData.snapshot(in: d)?.items.map(\.text) == ["Batteries"], "a plan change rebuilds without force")
     }
 
     @Test func deleteEverythingClearsTheWidgetKeys() {

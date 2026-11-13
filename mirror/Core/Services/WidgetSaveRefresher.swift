@@ -34,10 +34,21 @@ final class WidgetSaveRefresher {
     /// The app is backgrounding: run a pending refresh now rather than after the debounce, so
     /// saving and leaving straight away still updates the widgets.
     func flushNow() {
+        // Last, so a Still Open rebuild the heatmap refresh below schedules runs now too.
+        defer { if let container { StillOpenWidgetSync.flushPending(context: container.mainContext) } }
         guard pending != nil, let container else { return }
         pending?.cancel()
         pending = nil
         mirrorApp.updateWidgetHeatmaps(context: container.mainContext)
+    }
+
+    /// Now, whatever is pending (the plan changed: the Still Open list fills or empties).
+    func refreshNow() {
+        guard let container else { return }
+        pending?.cancel()
+        pending = nil
+        mirrorApp.updateWidgetHeatmaps(context: container.mainContext)
+        StillOpenWidgetSync.flushPending(context: container.mainContext)
     }
 
     private func schedule(container: ModelContainer) {

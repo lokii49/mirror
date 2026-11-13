@@ -8,20 +8,49 @@ import WidgetKit
 enum StillOpenWidgetSync {
     /// The journal revision and container the snapshot was last built from, so a foreground with
     /// nothing changed decrypts nothing.
-    private static var builtFor: (container: ObjectIdentifier, revision: Int)?
+    private static var builtFor: (container: ObjectIdentifier, revision: Int, subscribed: Bool)?
+    /// Skips entries already read without an open item (one per store).
+    private static var memo: (container: ObjectIdentifier?, memo: OpenChecklistItems.Memo) = (nil, .init())
 
     /// Rebuilds the snapshot when the journal changed since the last build. Reloads the widget
     /// only when what it shows changed.
     static func sync(context: ModelContext, force: Bool = false,
-                     defaults: UserDefaults? = UserDefaults(suiteName: WidgetShared.appGroupID)) {
-        let key = (container: ObjectIdentifier(context.container), revision: JournalRevision.shared.value)
-        if !force, let builtFor, builtFor.container == key.container, builtFor.revision == key.revision { return }
-        let groups = OpenChecklistItems.groups(in: context)
-        let snapshot = snapshot(from: groups)
+                     defaults: UserDefaults? = UserDefaults(suiteName: WidgetShared.appGroupID),
+                     subscribed: Bool = WidgetShared.isSubscribed()) {
+        // The list is Core: on Free nothing is decrypted and no item text goes to the app group.
+        let key = (container: ObjectIdentifier(context.container), revision: JournalRevision.shared.value, subscribed: subscribed)
+        if !force, let builtFor, builtFor.container == key.container, builtFor.revision == key.revision,
+           builtFor.subscribed == key.subscribed { return }
+        if memo.container != key.container { memo = (key.container, OpenChecklistItems.Memo()) }
+        let snapshot = subscribed ? snapshot(from: OpenChecklistItems.groups(in: context, memo: memo.memo)) : .init(items: [], total: 0)
         builtFor = key
         if StillOpenWidgetData.write(snapshot, in: defaults) {
             WidgetCenter.shared.reloadTimelines(ofKind: StillOpenWidgetData.widgetKind)
         }
+    }
+
+    private static var pending: Task<Void, Never>?
+
+    /// After a save: rebuilds once the journal has been quiet for a few seconds. Reading every
+    /// styled entry costs about as much as the heatmaps' own fetch (~250 ms at 5,000 entries on
+    /// the simulator), so it doesn't ride on every save; the widget isn't on screen while the app
+    /// is, and backgrounding (`flushPending`) and app-active rebuild it straight away.
+    static func scheduleSync(context: ModelContext) {
+        pending?.cancel()
+        pending = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled else { return }
+            pending = nil
+            PerfSignpost.interval("widget.stillOpen") { sync(context: context) }
+        }
+    }
+
+    /// The app is leaving: run a waiting rebuild now.
+    static func flushPending(context: ModelContext) {
+        guard let task = pending else { return }
+        task.cancel()
+        pending = nil
+        PerfSignpost.interval("widget.stillOpen") { sync(context: context) }
     }
 
     /// Newest entry first, its items in order, at most `maxItems`, each clipped.
@@ -45,7 +74,8 @@ enum StillOpenWidgetSync {
     /// Returns how many were applied.
     @discardableResult
     static func applyPendingTicks(context: ModelContext,
-                                  defaults: UserDefaults? = UserDefaults(suiteName: WidgetShared.appGroupID)) -> Int {
+                                  defaults: UserDefaults? = UserDefaults(suiteName: WidgetShared.appGroupID),
+                                  subscribed: Bool = WidgetShared.isSubscribed()) -> Int {
         let ticks = StillOpenWidgetData.ticks(in: defaults)
         guard !ticks.isEmpty else { return 0 }
         var applied = 0
@@ -60,7 +90,7 @@ enum StillOpenWidgetSync {
         if MirrorEncryption.canEncrypt(creatingIfNeeded: false) {
             StillOpenWidgetData.setTicks([], in: defaults)
         }
-        sync(context: context, force: true, defaults: defaults)
+        sync(context: context, force: true, defaults: defaults, subscribed: subscribed)
         return applied
     }
 }

@@ -11,6 +11,13 @@ enum OpenChecklistItems {
         let text: String
     }
 
+    /// Entries whose style document was read and had no unticked item, by a signature of the
+    /// sealed document. Kept by a caller that runs often (the Still Open widget's sync).
+    @MainActor
+    final class Memo {
+        var closed: [UUID: Int] = [:]
+    }
+
     struct Group: Identifiable {
         let entryID: UUID
         let createdAt: Date
@@ -37,17 +44,27 @@ enum OpenChecklistItems {
     /// Every entry with an open item, newest first. Only entries that carry a style document are
     /// decrypted, and their text only when that document has an unchecked line.
     @MainActor
-    static func groups(in context: ModelContext) -> [Group] {
+    static func groups(in context: ModelContext, memo: Memo? = nil) -> [Group] {
         var descriptor = FetchDescriptor<Entry>(predicate: #Predicate { $0.encryptedTextStyleData != nil },
                                                 sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
         descriptor.propertiesToFetch = [\.id, \.createdAt, \.encryptedTextStyleData]
         let candidates = (try? context.fetch(descriptor)) ?? []
         var result: [Group] = []
         for entry in candidates {
+            // Most entries have a style document and no checklist: with a memo, one whose sealed
+            // document hasn't changed since it was last read without an open item is skipped
+            // without decrypting (5,000 entries: ~300 ms per pass before, on the simulator).
+            let signature = entry.encryptedTextStyleData?.hashValue ?? 0
+            if let memo, memo.closed[entry.id] == signature { continue }
             let styleData = entry.textStyleData
             guard let styles = NoteEditorCodec.decodeTextStyleDocument(styleData)?.paragraphStyles,
-                  styles.contains(.checklistUnchecked),
-                  let text = entry.decryptedText else { continue }
+                  styles.contains(.checklistUnchecked) else {
+                // Only a document that opened counts as read (a locked key must be tried again).
+                if styleData != nil { memo?.closed[entry.id] = signature }
+                continue
+            }
+            memo?.closed[entry.id] = nil
+            guard let text = entry.decryptedText else { continue }
             let lines = uncheckedLines(text: text, textStyleData: styleData)
             if !lines.isEmpty { result.append(Group(entryID: entry.id, createdAt: entry.createdAt, lines: lines)) }
         }
