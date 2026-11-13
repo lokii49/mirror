@@ -397,7 +397,14 @@ struct WriteView: View {
                             panelState: panelState,
                             displayMode: displayMode,
                             panelAsPopover: usesPopoverPanel,
-                            onPhotoTapped: { idx in fullscreenPhotoIndex = idx }
+                            onPhotoTapped: { idx in fullscreenPhotoIndex = idx },
+                            onDropPhotos: { photos, paragraph in
+                                #if os(macOS)
+                                photos.forEach { macAttachPhoto(data: $0) }
+                                #else
+                                insertDroppedPhotos(photos, afterParagraph: paragraph)
+                                #endif
+                            }
                         )
                         .padding(.horizontal, 20)
                         .padding(.top, 4)

@@ -1,6 +1,7 @@
 #if os(macOS)
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 // The Mac rich-text editor: an NSTextView whose text is the entry's logical text. Paragraph
 // styles, indents and per-paragraph fonts live in custom attributes (see NoteEditorCodec) and
@@ -277,6 +278,50 @@ final class MirrorNSTextView: NSTextView {
         if window != nil { onAttachToWindow?() }
     }
 
+    /// Pictures dropped on the text (3.1.9): handed to Write, which attaches them like a pasted
+    /// photo. Nil (Scratch Note, the reader's editor) keeps drops text-only.
+    var onDropImages: (([Data]) -> Void)? {
+        didSet {
+            var types: [NSPasteboard.PasteboardType] = [.string]
+            if onDropImages != nil { types += [.tiff, .png, .fileURL] }
+            registerForDraggedTypes(types)
+        }
+    }
+
+    private func droppedImages(from pasteboard: NSPasteboard) -> [Data] {
+        guard onDropImages != nil else { return [] }
+        if let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty {
+            return urls.compactMap { url in (try? Data(contentsOf: url)).flatMap { NSImage(data: $0) != nil ? $0 : nil } }
+        }
+        if let images = pasteboard.readObjects(forClasses: [NSImage.self]) as? [NSImage] {
+            return images.compactMap(\.tiffRepresentation)
+        }
+        return []
+    }
+
+    private func hasDroppableImages(_ pasteboard: NSPasteboard) -> Bool {
+        guard onDropImages != nil, pasteboard.string(forType: .string) == nil else { return false }
+        return pasteboard.canReadObject(forClasses: [NSImage.self], options: nil)
+            || pasteboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true,
+                                                                           .urlReadingContentsConformToTypes: [UTType.image.identifier]])
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        hasDroppableImages(sender.draggingPasteboard) ? .copy : super.draggingEntered(sender)
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        hasDroppableImages(sender.draggingPasteboard) ? .copy : super.draggingUpdated(sender)
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        guard hasDroppableImages(sender.draggingPasteboard) else { return super.performDragOperation(sender) }
+        let images = droppedImages(from: sender.draggingPasteboard)
+        guard !images.isEmpty else { return false }
+        onDropImages?(images)
+        return true
+    }
+
     /// Anything pasted is plain text: rich pasteboard content would bring fonts, colors and
     /// attachments that bypass the model attributes and would never survive a save.
     override func paste(_ sender: Any?) {
@@ -381,6 +426,9 @@ struct NoteEditorTextView: NSViewRepresentable {
     var onPhotoTapped: ((Int) -> Void)?
     /// The hint on an empty editor; Write's "What's on your mind?" when nil (Scratch has its own).
     var placeholder: String? = nil
+    /// Pictures dropped on the text (3.1.9). On Mac they join the photos under the editor; the
+    /// paragraph is always nil.
+    var onDropPhotos: (([Data], Int?) -> Void)? = nil
     /// Not read: it makes SwiftUI call `updateNSView` when Text size changes in Settings.
     @AppStorage(MacPrefs.sizeKey) var textSizePreference: Double = MacPrefs.defaultSize
 
@@ -427,6 +475,9 @@ struct NoteEditorTextView: NSViewRepresentable {
         textView.allowsImageEditing = false
         textView.isGrammarCheckingEnabled = false
         textView.registerForDraggedTypes([.string])
+        if coordinator.parent.onDropPhotos != nil {
+            textView.onDropImages = { [weak coordinator] images in coordinator?.parent.onDropPhotos?(images, nil) }
+        }
         textView.linkTextAttributes = [.foregroundColor: NSColor.linkColor, .underlineStyle: NSUnderlineStyle.single.rawValue]
         textView.delegate = coordinator
         storage.delegate = coordinator

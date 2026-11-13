@@ -34,6 +34,25 @@ extension WriteView {
     /// 2026-11-07): the title as a Heading, its lines, the pictures one per line (the first full
     /// width, later ones as square tiles), and the cursor on an empty line underneath. Setting the
     /// text after the pictures keeps the cursor below them, not beside the last one.
+    /// Pictures dropped or pasted into the editor (3.1.9): prepared like any attached photo and
+    /// put in after `afterParagraph` (the drop point; the caret's paragraph for a paste), one per
+    /// line, so several become a row of tiles.
+    func insertDroppedPhotos(_ photos: [Data], afterParagraph: Int?) {
+        #if os(iOS)
+        isAttachingPhoto = true
+        Task {
+            var prepared: [Data] = []
+            for data in photos {
+                prepared.append(await Task.detached(priority: .userInitiated) { preparedInlinePhotoData(from: data) }.value)
+            }
+            let start = photoDataArray.count
+            photoDataArray.append(contentsOf: prepared)
+            setSuggestionText(SuggestionInsert(), tokens: prepared.indices.map { inlinePhotoToken(at: start + $0) }, afterParagraph: afterParagraph)
+            isAttachingPhoto = false
+        }
+        #endif
+    }
+
     func applySuggestion(_ insert: SuggestionInsert) {
         if let mood = insert.mood, viewModel.selectedMood == nil { viewModel.selectedMood = mood }
         #if os(iOS)
@@ -64,12 +83,12 @@ extension WriteView {
     /// On a blank entry the suggestion becomes the text; after writing it's added at the end, after
     /// a blank line, keeping the entry's paragraph styles and links (`SuggestionInsert.appended`).
     /// Places, songs and the map open Maps / Music / Podcasts as ordinary entry links.
-    private func setSuggestionText(_ insert: SuggestionInsert, tokens: [String], mapLeads: Bool = false) {
+    private func setSuggestionText(_ insert: SuggestionInsert, tokens: [String], mapLeads: Bool = false, afterParagraph paragraph: Int? = nil) {
         guard !insert.text(withPhotoTokens: tokens).isEmpty else { return }
         let existingStyles = viewModel.textStyleData.flatMap { try? JSONDecoder().decode(NoteTextStyleDocument.self, from: $0) }
         let existingInline = inlineStyleData.flatMap { try? JSONDecoder().decode(InlineStyleDocument.self, from: $0) }?.ranges ?? []
         // After the paragraph the cursor is in (UI checklist 2026-11-07); the end when there's none.
-        let afterParagraph = panelState.caretParagraph?()
+        let afterParagraph = paragraph ?? panelState.caretParagraph?()
         let result = insert.inserted(into: viewModel.text, afterParagraph: afterParagraph, existingStyles: existingStyles,
                                      existingInline: existingInline, tokens: tokens, mapLeads: mapLeads, entryFont: entryFontChoiceRaw)
         viewModel.text = result.text
