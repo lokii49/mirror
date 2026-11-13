@@ -1,13 +1,12 @@
 import SwiftUI
 
-/// "About" in Classic, "Manual" in Sentinel — how the app works, what's
+/// "About" — how the app works, what's
 /// new, privacy policy, rating, feedback, version.
 struct ManualSettingsView: View {
-    @Environment(\.appDisplayMode) private var displayMode
     @State private var showHowItWorks = false
     @State private var showFeatureGuide = false
     @State private var showAcknowledgments = false
-    /// The engine tags and "How this was generated" that Sentinel used to show (retired in 3.1.8).
+    /// The engine tags and "How this was generated" on insight cards.
     @AppStorage(GenerationDetails.key) private var showGenerationDetails = false
 
     var body: some View {
@@ -51,7 +50,7 @@ struct ManualSettingsView: View {
                             }
                         }
                         .buttonStyle(.plain)
-                        .sheet(isPresented: $showFeatureGuide) { WhatsNewSheet(mode: .whatsNew).environment(\.appDisplayMode, displayMode) }
+                        .sheet(isPresented: $showFeatureGuide) { WhatsNewSheet(mode: .whatsNew) }
                     }
 
                     SettingsDivider()
@@ -135,7 +134,7 @@ struct ManualSettingsView: View {
             .padding(.bottom, 24)
         }
         .background(MirrorTheme.bgBase)
-        .settingsNavigationTitle(displayMode == .sentinel ? "Manual" : "About")
+        .settingsNavigationTitle("About")
         .navigationBarTitleDisplayMode(.large)
         .sheet(isPresented: $showHowItWorks) { howMirrorWorksSheet }
         .sheet(isPresented: $showAcknowledgments) { acknowledgmentsSheet }

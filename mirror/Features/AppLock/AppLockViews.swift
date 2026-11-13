@@ -9,20 +9,12 @@ import AppKit
 // shows the shape of the page. iOS covers each window scene with a window of its own above alert
 // level, which also covers sheets and alerts; the Mac covers every app window, sheets included.
 
-/// The theme the app is in, for views that live outside ContentView's environment (the cover
-/// windows). ContentView keeps this in the app group for the widgets.
-private var currentDisplayMode: DisplayMode {
-    UserDefaults(suiteName: "group.com.lokesh.mirror")?.string(forKey: "widget.displayMode")
-        .flatMap(DisplayMode.init(rawValue:)) ?? .classic
-}
-
 struct AppLockScreen: View {
     /// False for the app-switcher cover: content hidden, nothing to unlock.
     var interactive = true
     @State private var lock = AppLock.shared
-    @Environment(\.appDisplayMode) private var displayMode
 
-    private var accent: Color { displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary }
+    private var accent: Color { MirrorTheme.primary }
 
     var body: some View {
         ZStack {
@@ -35,7 +27,7 @@ struct AppLockScreen: View {
                         .frame(width: 72, height: 72)
                         .background(accent.opacity(0.12), in: Circle())
                     Text("MirrorNotes is locked")
-                        .scaledFont(displayMode == .sentinel ? 17 : 20, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
+                        .scaledFont(20, weight: .semibold, design: .default)
                         .foregroundStyle(MirrorTheme.textPrimary)
                     Button {
                         Task { await lock.unlock() }
@@ -83,7 +75,7 @@ struct AppLockScreen: View {
     }
 }
 
-/// Settings > Your Data (Archive in Sentinel; iCloud & Privacy on the Mac).
+/// Settings > Your Data (iCloud & Privacy on the Mac).
 struct AppLockSettingsGroup: View {
     @State private var lock = AppLock.shared
     @State private var working = false
@@ -197,8 +189,7 @@ enum AppLockCoverWindows {
                 }
                 matchStyle(window)
                 // A fresh root each time, so what's shown matches the state now.
-                let root = UIHostingController(rootView: AppLockScreen(interactive: lock.isLocked)
-                    .environment(\.appDisplayMode, currentDisplayMode))
+                let root = UIHostingController(rootView: AppLockScreen(interactive: lock.isLocked))
                 root.view.backgroundColor = .clear
                 window.rootViewController = root
                 window.isHidden = false
@@ -211,7 +202,7 @@ enum AppLockCoverWindows {
         }
     }
 
-    /// Light/dark and tint as the app's own windows have them (Sentinel forces dark; ContentView
+    /// Light/dark and tint as the app's own windows have them (ContentView
     /// sets it on the windows that exist at the time, which may be before this one). Without the
     /// tint, Color.accentColor in the cover resolves to system blue on a device.
     private static func matchStyle(_ cover: UIWindow) {
@@ -306,8 +297,7 @@ enum AppLockMacCovers {
         // The frame view, not the content view, so the title bar and toolbar are covered too.
         guard let frameView = window.contentView?.superview else { return }
         let isMain = window.identifier?.rawValue.hasPrefix("main") == true
-        let host = NSHostingView(rootView: AppLockScreen(interactive: isMain || !hasMainWindow)
-            .environment(\.appDisplayMode, currentDisplayMode))
+        let host = NSHostingView(rootView: AppLockScreen(interactive: isMain || !hasMainWindow))
         host.frame = frameView.bounds
         host.autoresizingMask = [.width, .height]
         frameView.addSubview(host, positioned: .above, relativeTo: nil)

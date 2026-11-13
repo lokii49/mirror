@@ -2,13 +2,12 @@ import SwiftUI
 import SwiftData
 import UserNotifications
 
-/// "Journal" in Classic, "Protocol" in Sentinel — schedule and behavior
+/// "Journal" — schedule and behavior
 /// settings for nudges, digests, transcription, and notifications. Pushed
 /// from the root Config screen rather than living inline, since this was
 /// the largest single group crowding the old single-screen Settings.
 struct ProtocolSettingsView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.appDisplayMode) private var displayMode
     @State private var subscriptionService = SubscriptionService.shared
 
     @AppStorage("nudgeHour") private var nudgeHour: Int = 8
@@ -211,7 +210,7 @@ struct ProtocolSettingsView: View {
                             }
                         }
                         .buttonStyle(.plain)
-                        .sheet(isPresented: $showSubscription) { SubscriptionView().environment(\.appDisplayMode, displayMode) }
+                        .sheet(isPresented: $showSubscription) { SubscriptionView() }
                     }
 
                     SettingsDivider()
@@ -308,14 +307,8 @@ struct ProtocolSettingsView: View {
                             .padding(.top, -4)
                             .fixedSize(horizontal: false, vertical: true)
                         Group {
-                            // "How this was generated" opens only from Sentinel on iPhone (and on Mac):
-                            // don't name it to Classic iPhone users, who can't reach it (backlog A18).
                             #if os(iOS)
-                            if displayMode == .classic {
-                                Text("Only changes how today's reflection reads in the app. The quote is always your own words. The widget, notifications and past reflections stay as they are.")
-                            } else {
-                                Text("Only changes how today's reflection reads in the app. The quote is always your own words. The widget, notifications, past reflections and \u{201C}How this was generated\u{201D} stay as they are.")
-                            }
+                            Text("Only changes how today's reflection reads in the app. The quote is always your own words. The widget, notifications and past reflections stay as they are.")
                             #else
                             Text("Only changes how today's reflection reads in the app. The quote is always your own words. The widget, notifications, past reflections and \u{201C}How this was generated\u{201D} stay as they are.")
                             #endif
@@ -343,7 +336,7 @@ struct ProtocolSettingsView: View {
                     }
                     .buttonStyle(.plain)
                     .sheet(isPresented: $showRecentlyDeleted) {
-                        LibrarySheet(page: .recentlyDeleted).environment(\.appDisplayMode, displayMode)
+                        LibrarySheet(page: .recentlyDeleted)
                     }
 
                     SettingsDivider()
@@ -483,7 +476,6 @@ struct ProtocolSettingsView: View {
                     .buttonStyle(.plain)
                     .sheet(isPresented: $showLanguagePicker) {
                         TranscriptionLanguagePickerView(selected: $transcriptionLanguage)
-                            .environment(\.appDisplayMode, displayMode)
                     }
 
                     SettingsDivider()
@@ -513,7 +505,7 @@ struct ProtocolSettingsView: View {
             .padding(.bottom, 24)
         }
         .background(MirrorTheme.bgBase)
-        .settingsNavigationTitle(displayMode == .sentinel ? "Protocol" : "Journal")
+        .settingsNavigationTitle("Journal")
         .navigationBarTitleDisplayMode(.large)
         .task { await checkNotificationPermission() }
     }
