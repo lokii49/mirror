@@ -568,10 +568,14 @@ struct NoteEditorTextView: UIViewRepresentable {
         private func photoPreview(for identifier: NSCopying?, in textView: UITextView?) -> UITargetedPreview? {
             guard let textView, let char = (identifier as? NSNumber)?.intValue,
                   let rect = attachmentRect(atCharacter: char, in: textView) else { return nil }
+            // A snapshot of just the picture, placed over it: with the editor itself as the preview
+            // view, iOS hid the whole editor while the menu was up (owner's recording, 14 Pro).
+            guard let snapshot = textView.resizableSnapshotView(from: rect, afterScreenUpdates: false, withCapInsets: .zero) else { return nil }
+            snapshot.frame = CGRect(origin: .zero, size: rect.size)
             let parameters = UIPreviewParameters()
-            parameters.visiblePath = UIBezierPath(roundedRect: rect, cornerRadius: 12)
+            parameters.visiblePath = UIBezierPath(roundedRect: snapshot.bounds, cornerRadius: 12)
             parameters.backgroundColor = .clear
-            return UITargetedPreview(view: textView, parameters: parameters,
+            return UITargetedPreview(view: snapshot, parameters: parameters,
                                      target: UIPreviewTarget(container: textView, center: CGPoint(x: rect.midX, y: rect.midY)))
         }
 
@@ -581,11 +585,16 @@ struct NoteEditorTextView: UIViewRepresentable {
             guard char < ns.length, ns.character(at: char) == 0xFFFC else { return nil }
             let glyphs = textView.layoutManager.glyphRange(forCharacterRange: NSRange(location: char, length: 1), actualCharacterRange: nil)
             guard glyphs.length > 0 else { return nil }
-            var rect = textView.layoutManager.boundingRect(forGlyphRange: glyphs, in: textView.textContainer)
+            let lm = textView.layoutManager
+            var rect = lm.boundingRect(forGlyphRange: glyphs, in: textView.textContainer)
             if let attachment = textView.attributedText?.attribute(.attachment, at: char, effectiveRange: nil) as? NSTextAttachment,
                attachment.bounds.width > 0 {
-                // The glyph's box includes line spacing; the picture is the attachment's bounds.
-                rect = CGRect(x: rect.minX, y: rect.maxY - attachment.bounds.height + attachment.bounds.minY,
+                // The picture sits on the baseline, shifted by its bounds' origin (the glyph's box
+                // also holds the line and paragraph spacing).
+                let line = lm.lineFragmentRect(forGlyphAt: glyphs.location, effectiveRange: nil)
+                let baseline = line.minY + lm.location(forGlyphAt: glyphs.location).y
+                rect = CGRect(x: line.minX + lm.location(forGlyphAt: glyphs.location).x,
+                              y: baseline - attachment.bounds.maxY,
                               width: attachment.bounds.width, height: attachment.bounds.height)
             }
             return rect.offsetBy(dx: textView.textContainerInset.left, dy: textView.textContainerInset.top)
@@ -602,8 +611,13 @@ struct NoteEditorTextView: UIViewRepresentable {
             let range = textItem.range
             let nsText = (textView.text ?? "") as NSString
             guard range.length > 0, NSMaxRange(range) <= nsText.length,
-                  let photo = (range.location..<NSMaxRange(range)).first(where: { nsText.character(at: $0) == 0xFFFC }),
-                  let sizeMenu = photoSizeMenu(atCharacter: photo, in: textView) else {
+                  let photo = (range.location..<NSMaxRange(range)).first(where: { nsText.character(at: $0) == 0xFFFC }) else {
+                return UITextItem.MenuConfiguration(menu: defaultMenu)
+            }
+            // A plain photo has one menu, the editor's own (Copy, Save to Photos, Share, size):
+            // UIKit's attachment menu took the press some of the time (14 Pro), with other items.
+            guard case .link = textItem.content else { return nil }
+            guard let sizeMenu = photoSizeMenu(atCharacter: photo, in: textView) else {
                 return UITextItem.MenuConfiguration(menu: defaultMenu)
             }
             return UITextItem.MenuConfiguration(menu: UIMenu(children: defaultMenu.children + [sizeMenu]))
