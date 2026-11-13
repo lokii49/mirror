@@ -60,6 +60,14 @@ nonisolated enum PhotoSizes {
         return result
     }
 
+    /// The stored size of one photo ("small", "medium", "full"), or nil when it has none.
+    static func storedSize(ofPhoto photoIndex: Int, text: String, inlineStyleData: Data?) -> String? {
+        guard let offset = inlineOffsets(in: text).first(where: { $0.photoIndex == photoIndex })?.offset,
+              let data = inlineStyleData,
+              let ranges = try? JSONDecoder().decode(InlineStyleDocument.self, from: data).ranges else { return nil }
+        return ranges.last(where: { $0.photoSize != nil && $0.location <= offset && offset < $0.location + $0.length })?.photoSize
+    }
+
     /// The size of each photo that isn't full width, by photo index.
     static func sizes(text: String, inlineStyleData: Data?) -> [Int: PhotoSize] {
         guard let data = inlineStyleData,

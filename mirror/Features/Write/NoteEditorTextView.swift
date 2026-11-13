@@ -2248,16 +2248,14 @@ struct NoteEditorTextView: UIViewRepresentable {
             // first picture (a map) stays full width, every other picture in the run is a square
             // tile. A photo on its own is drawn as before. Display only: the stored text keeps one
             // token per line, which every older version reads.
-            // A photo given a size of its own is drawn alone at that size, so it breaks the row.
+            // Rows are found over every photo line; a photo given a size of its own then leaves its
+            // row and is drawn alone at that size, while its neighbours stay thumbnails.
             let sized = PhotoSizes.sizedPhotos(text: parent.text, inlineStyleData: parent.inlineStyleData)
-            let rowCandidates = allMatches.indices.filter { i in
-                inlinePhotoIndex(from: nsRaw.substring(with: allMatches[i].range)).map { !sized.contains($0) } ?? true
-            }
-            let tiles = Set(PhotoRuns.tileMatches(rowCandidates.map { allMatches[$0].range }, in: nsRaw) { range in
+            let tiles = PhotoRuns.tileMatches(allMatches.map(\.range), in: nsRaw) { range in
                 guard let index = inlinePhotoIndex(from: nsRaw.substring(with: range)),
                       index < parent.photoDataArray.count else { return false }
                 return PhotoRuns.isLandscape(parent.photoDataArray[index])
-            }.map { rowCandidates[$0] })
+            }.filter { i in inlinePhotoIndex(from: nsRaw.substring(with: allMatches[i].range)).map { !sized.contains($0) } ?? true }
 
             for (matchIndex, match) in allMatches.enumerated() {
                 let textRange = NSRange(location: lastEnd, length: match.range.location - lastEnd)

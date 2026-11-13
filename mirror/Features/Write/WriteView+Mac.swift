@@ -347,10 +347,12 @@ extension WriteView {
                 ForEach(photoDataArray.indices, id: \.self) { index in
                     MacPhotoTile(
                         data: photoDataArray[index],
-                        size: PhotoSizes.sizes(text: viewModel.text, inlineStyleData: inlineStyleData)[index] ?? .full,
+                        storedSize: PhotoSizes.storedSize(ofPhoto: index, text: viewModel.text, inlineStyleData: inlineStyleData),
+                        // Two or more photos at the end are a row of thumbnails in the reader.
+                        inRow: photoDataArray.count > 1,
                         onOpen: { fullscreenPhotoIndex = index },
                         onRemove: { macRemovePhoto(at: index) },
-                        onSize: { macSetPhotoSize($0, at: index) }
+                        onSize: { macSetPhotoSize(stored: $0, at: index) }
                     )
                 }
                 MacPhotoDropZone(onChoose: { macChoosePhoto() }, onData: { macAttachPhoto(data: $0) })
@@ -407,9 +409,9 @@ extension WriteView {
 
     /// Small / Medium / Full from a thumbnail's menu: how the photo reads in the entry (the
     /// reader on every device, and the iPhone and iPad editor). Mac's editor keeps thumbnails.
-    func macSetPhotoSize(_ size: PhotoSize, at index: Int) {
+    func macSetPhotoSize(stored: String?, at index: Int) {
         guard let offset = PhotoSizes.inlineOffsets(in: viewModel.text).first(where: { $0.photoIndex == index })?.offset else { return }
-        inlineStyleData = PhotoSizes.setting(size, atInlineOffset: offset, in: inlineStyleData)
+        inlineStyleData = PhotoSizes.setting(stored: stored, atInlineOffset: offset, in: inlineStyleData)
         if entry == nil { saveDraftToStorage() }
     }
 
@@ -494,10 +496,12 @@ struct MacEditorColumn: ViewModifier {
 /// hover button.
 struct MacPhotoTile: View {
     let data: Data
-    var size: PhotoSize = .full
+    /// The photo's stored size ("small", "medium", "full") or nil (thumbnail in a row; full alone).
+    var storedSize: String? = nil
+    var inRow = false
     let onOpen: () -> Void
     let onRemove: () -> Void
-    var onSize: (PhotoSize) -> Void = { _ in }
+    var onSize: (String?) -> Void = { _ in }
     @State private var image: NSImage?
     @State private var hovering = false
 
@@ -531,10 +535,13 @@ struct MacPhotoTile: View {
         }
         .onHover { hovering = $0 }
         .contextMenu {
-            Picker("Photo Size", selection: Binding(get: { size }, set: onSize)) {
-                Text("Small").tag(PhotoSize.small)
-                Text("Medium").tag(PhotoSize.medium)
-                Text("Full Width").tag(PhotoSize.full)
+            Picker("Photo Size", selection: Binding(get: { storedSize }, set: onSize)) {
+                // In a row, no size means a thumbnail and Full Width is stored; alone, no size is
+                // full width (same rule as the iPhone editor).
+                if inRow { Text("Thumbnail").tag(String?.none) }
+                Text("Small").tag(String?.some("small"))
+                Text("Medium").tag(String?.some("medium"))
+                Text("Full Width").tag(inRow ? String?.some("full") : String?.none)
             }
             .pickerStyle(.inline)
             Divider()
