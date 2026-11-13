@@ -559,8 +559,6 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         private func photoSizeMenu(atCharacter charIndex: Int, in textView: UITextView) -> UIMenu? {
-            // The photo pressed: a drag lifted from this menu's preview moves it (see the drop delegate).
-            lastPressedPhoto = (charIndex, Date())
             guard let attributed = textView.attributedText, charIndex < attributed.length,
                   let attachment = attributed.attribute(.attachment, at: charIndex, effectiveRange: nil) as? PhotoAttachment,
                   !attachment.isTile else { return nil }
@@ -2263,31 +2261,11 @@ struct NoteEditorTextView: UIViewRepresentable {
         /// when drawn: ~31 ms per re-render with three 12 MP photos on an iPhone 14 Pro.
         private var photoCache = PhotoAttachmentCache()
 
-        /// Drag and drop: where the current drop lands (display offset), and the pictures of a
-        /// drop or paste while they load.
-        var pendingDropOffset: Int?
+        /// Paste: where the pictures go (display offset of the caret), and the pictures while they load.
         var pendingDropTarget: Int?
         var droppedPhotos: [Data] = []
         var droppedPhotoLoads = 0
         var lastDroppedPhotos: (photos: [Data], at: Date)?
-        var pendingPhotoMove: Int?
-        var photoMoveScheduled = false
-        var lastPressedPhoto: (char: Int, at: Date)?
-
-        /// The photo index of the attachment at display offset `charIndex` (attachments map to
-        /// tokens in text order, as `logicalText` does).
-        func photoIndex(forAttachmentAt charIndex: Int, in textView: UITextView) -> Int? {
-            let displayed = (textView.attributedText?.string ?? "") as NSString
-            guard charIndex < displayed.length else { return nil }
-            var ordinal = 0
-            for i in 0..<charIndex where displayed.character(at: i) == 0xFFFC { ordinal += 1 }
-            let tokens = allPhotoTokens(in: parent.text).sorted {
-                parent.text.distance(from: parent.text.startIndex, to: $0.range.lowerBound) <
-                parent.text.distance(from: parent.text.startIndex, to: $1.range.lowerBound)
-            }
-            guard ordinal < tokens.count, tokens[ordinal].index < parent.photoDataArray.count else { return nil }
-            return tokens[ordinal].index
-        }
 
         /// Drawn for a token whose photo is missing or won't decode. It must be a real attachment
         /// character: `logicalText` turns each one back into its token, and photo lookups count
@@ -4370,12 +4348,6 @@ nonisolated func preparedInlinePhotoData(fromFileAt url: URL) throws -> Data {
 #if os(iOS)
 // MARK: - Drag and drop (3.1.9)
 
-/// A photo dragged inside the editor: the row (paragraph) it sits on. Local to this app.
-final class PhotoRowDrag: NSObject {
-    let row: Int
-    init(row: Int) { self.row = row }
-}
-
 extension NoteEditorTextView.Coordinator: UITextDragDelegate, UITextDropDelegate, UITextPasteDelegate {
     /// Text drags as before. A photo drags as the picture (an image for other apps) carrying its
     /// row; a selection that mixes photos with text can't be dragged, since UIKit's move would
@@ -4386,67 +4358,34 @@ extension NoteEditorTextView.Coordinator: UITextDragDelegate, UITextDropDelegate
         let end = textView.offset(from: textView.beginningOfDocument, to: dragRequest.dragRange.end)
         let ns = (textView.text ?? "") as NSString
         guard start >= 0, end <= ns.length, start < end else { return dragRequest.suggestedItems }
-        let photos = (start..<end).filter { ns.character(at: $0) == 0xFFFC }
-        guard !photos.isEmpty else { return dragRequest.suggestedItems }
-        // Photos move with the editor's own hold-and-drag (`handlePhotoDrag`), as list items do:
-        // the system drag never took over from the photo's menu on iPhone (14 Pro, 2026-11-13).
-        if parent.onDropPhotos != nil { return [] }
-        let paragraph = ns.paragraphRange(for: NSRange(location: photos[0], length: 0))
-        let onItsOwn = photos.count == 1 && ns.substring(with: paragraph).trimmingCharacters(in: .whitespacesAndNewlines) == "\u{FFFC}"
-        lastPressedPhoto = (photos[0], Date())
-        guard onItsOwn, let index = photoIndex(forAttachmentAt: photos[0], in: textView),
-              let image = UIImage(data: parent.photoDataArray[index]) else { return [] }
-        let item = UIDragItem(itemProvider: NSItemProvider(object: image))
-        item.localObject = PhotoRowDrag(row: paragraphIndex(atDisplayOffset: photos[0], in: ns))
-        return [item]
-    }
-
-    /// The row of the photo being dragged inside this editor, if the drop is one: from our drag
-    /// item, or, when iOS lifted the photo from its menu preview (its own drag item), from the
-    /// photo last pressed in this editor.
-    private func movingPhotoRow(in session: UIDropSession, textView: UITextView) -> Int? {
-        guard let local = session.localDragSession else { return nil }
-        if let row = local.items.lazy.compactMap({ $0.localObject as? PhotoRowDrag }).first?.row { return row }
-        guard let pressed = lastPressedPhoto, Date().timeIntervalSince(pressed.at) < 60,
-              local.items.contains(where: { $0.itemProvider.hasItemConformingToTypeIdentifier(UTType.image.identifier) }) else { return nil }
-        let ns = (textView.text ?? "") as NSString
-        guard pressed.char < ns.length, ns.character(at: pressed.char) == 0xFFFC else { return nil }
-        return paragraphIndex(atDisplayOffset: pressed.char, in: ns)
+        // Text drags as before. Nothing with a photo in it: UIKit's move would hand each picture
+        // the next one's data (attachments become tokens in text order). Photos move with the
+        // editor's own hold-and-drag (`handlePhotoDrag`).
+        return (start..<end).contains { ns.character(at: $0) == 0xFFFC } ? [] : dragRequest.suggestedItems
     }
 
     func textDroppableView(_ textDroppableView: UIView & UITextDroppable, proposalForDrop drop: UITextDropRequest) -> UITextDropProposal {
-        guard let textView = textDroppableView as? UITextView else { return drop.suggestedProposal }
         let session = drop.dropSession
-        let movesPhoto = movingPhotoRow(in: session, textView: textView) != nil
-        let bringsPictures = parent.onDropPhotos != nil && session.localDragSession == nil
-            && session.hasItemsConforming(toTypeIdentifiers: [UTType.image.identifier])
-        guard movesPhoto || bringsPictures else { return drop.suggestedProposal }
-        // The editor performs these drops itself (willPerformDrop): on the 14 Pro UITextView
-        // inserted the dragged attachment as it was, without asking the paste delegate, which came
-        // back as a duplicate (attachments become tokens in text order). Copy, so the source is
-        // never deleted.
+        let hasPictures = session.hasItemsConforming(toTypeIdentifiers: [UTType.image.identifier])
+        guard hasPictures else { return drop.suggestedProposal }
+        // A picture dragged from inside the app (a photo lifted from its menu preview): never
+        // inserted, since UITextView would insert the attachment itself and it would come back as
+        // a duplicate (14 Pro, 2026-11-13).
+        guard session.localDragSession == nil, parent.onDropPhotos != nil else { return UITextDropProposal(operation: .cancel) }
+        // Pictures from another app: the editor inserts them itself in willPerformDrop.
         let proposal = UITextDropProposal(operation: .copy)
         proposal.dropPerformer = .delegate
         return proposal
     }
 
     func textDroppableView(_ textDroppableView: UIView & UITextDroppable, willPerformDrop drop: UITextDropRequest) {
-        guard let textView = textDroppableView as? UITextView else { return }
-        let offset = textView.offset(from: textView.beginningOfDocument, to: drop.dropPosition)
+        guard let textView = textDroppableView as? UITextView, parent.onDropPhotos != nil else { return }
         let session = drop.dropSession
-        if let row = movingPhotoRow(in: session, textView: textView) {
-            lastPressedPhoto = nil
-            DispatchQueue.main.async { [weak self, weak textView] in
-                guard let self, let textView else { return }
-                self.movePhotoRow(row, toDisplayOffset: offset, in: textView)
-            }
-            return
-        }
-        guard parent.onDropPhotos != nil, session.localDragSession == nil else { return }
+        guard session.localDragSession == nil else { return }
         let providers = session.items.map(\.itemProvider).filter { $0.hasItemConformingToTypeIdentifier(UTType.image.identifier) }
         guard !providers.isEmpty else { return }
-        let ns = (textView.text ?? "") as NSString
-        let paragraph = paragraphIndex(atDisplayOffset: offset, in: ns)
+        let offset = textView.offset(from: textView.beginningOfDocument, to: drop.dropPosition)
+        let paragraph = paragraphIndex(atDisplayOffset: offset, in: (textView.text ?? "") as NSString)
         var loaded = [Data?](repeating: nil, count: providers.count)
         let group = DispatchGroup()
         for (index, provider) in providers.enumerated() {
@@ -4463,31 +4402,14 @@ extension NoteEditorTextView.Coordinator: UITextDragDelegate, UITextDropDelegate
     }
 
     func textPasteConfigurationSupporting(_ textPasteConfigurationSupporting: UITextPasteConfigurationSupporting, transform item: UITextPasteItem) {
-        if let row = pendingPhotoMove ?? (item.localObject as? PhotoRowDrag)?.row {
-            // Every item of this drop is the moved photo: nothing of UIKit's goes in, and the line
-            // moves once.
-            item.setNoResult()
-            guard !photoMoveScheduled else { return }
-            photoMoveScheduled = true
-            let offset = pendingDropOffset
-            DispatchQueue.main.async { [weak self] in
-                guard let self else { return }
-                self.pendingPhotoMove = nil
-                self.pendingDropOffset = nil
-                self.photoMoveScheduled = false
-                guard let textView = self.textView, let offset else { return }
-                self.movePhotoRow(row, toDisplayOffset: offset, in: textView)
-            }
-            return
-        }
         let provider = item.itemProvider
         guard parent.onDropPhotos != nil, provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) else {
             item.setDefaultResult()
             return
         }
         item.setNoResult()
-        // Where they go: the drop point, or the caret for a paste.
-        let target: Int? = pendingDropOffset ?? textView.map { $0.selectedRange.location }
+        // Where they go: the caret (a paste; drops from other apps are performed in willPerformDrop).
+        let target: Int? = textView.map { $0.selectedRange.location }
         pendingDropTarget = target
         droppedPhotoLoads += 1
         provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { [weak self] data, _ in
@@ -4502,7 +4424,6 @@ extension NoteEditorTextView.Coordinator: UITextDragDelegate, UITextDropDelegate
                 var photos: [Data] = []
                 for data in self.droppedPhotos where !photos.contains(data) { photos.append(data) }
                 self.droppedPhotos = []
-                self.pendingDropOffset = nil
                 let now = Date()
                 if let last = self.lastDroppedPhotos, now.timeIntervalSince(last.at) < 1, last.photos == photos { return }
                 self.lastDroppedPhotos = (photos, now)
@@ -4512,24 +4433,6 @@ extension NoteEditorTextView.Coordinator: UITextDragDelegate, UITextDropDelegate
                 self.parent.onDropPhotos?(photos, paragraph)
             }
         }
-    }
-
-    /// The photo on row `row` moved to the drop point: before the row dropped on when it lands at
-    /// that row's start, after it otherwise. Styles, links and sizes move with their rows.
-    func movePhotoRow(_ row: Int, toDisplayOffset offset: Int, in textView: UITextView) {
-        guard var rows = editorRows(in: textView), rows.indices.contains(row) else { return }
-        let ns = (textView.text ?? "") as NSString
-        let clamped = max(0, min(offset, ns.length))
-        let dropRow = paragraphIndex(atDisplayOffset: clamped, in: ns)
-        let atRowStart = clamped == 0 || ns.character(at: clamped - 1) == 10
-        var target = min(atRowStart ? dropRow : dropRow + 1, rows.count)
-        guard target != row, target != row + 1 else { return }
-        let moved = rows.remove(at: row)
-        if target > row { target -= 1 }
-        rows.insert(moved, at: target)
-        commitRowOrder(rows, caret: textView.selectedRange.location, in: textView, slide: true)
-        commitUndoPoint(in: textView)
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
     /// Index of the paragraph holding display offset `offset` (the last one past the end).

@@ -290,7 +290,9 @@ final class MirrorNSTextView: NSTextView {
 
     private func droppedImages(from pasteboard: NSPasteboard) -> [Data] {
         guard onDropImages != nil else { return [] }
-        if let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty {
+        if let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true,
+                                                                                 .urlReadingContentsConformToTypes: [UTType.image.identifier]]) as? [URL],
+           !urls.isEmpty {
             return urls.compactMap { url in (try? Data(contentsOf: url)).flatMap { NSImage(data: $0) != nil ? $0 : nil } }
         }
         if let images = pasteboard.readObjects(forClasses: [NSImage.self]) as? [NSImage] {
@@ -299,11 +301,17 @@ final class MirrorNSTextView: NSTextView {
         return []
     }
 
+    /// Image files (Finder), or image data (Photos, Safari). Finder and Safari also put a string
+    /// (a path, a URL) on the pasteboard, so the string doesn't decide; text dragged from a page
+    /// carries no image data.
     private func hasDroppableImages(_ pasteboard: NSPasteboard) -> Bool {
-        guard onDropImages != nil, pasteboard.string(forType: .string) == nil else { return false }
-        return pasteboard.canReadObject(forClasses: [NSImage.self], options: nil)
-            || pasteboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true,
-                                                                           .urlReadingContentsConformToTypes: [UTType.image.identifier]])
+        guard onDropImages != nil else { return false }
+        if pasteboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true,
+                                                                        .urlReadingContentsConformToTypes: [UTType.image.identifier]]) {
+            return true
+        }
+        return pasteboard.availableType(from: [.tiff, .png, NSPasteboard.PasteboardType(UTType.jpeg.identifier),
+                                               NSPasteboard.PasteboardType(UTType.heic.identifier)]) != nil
     }
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
