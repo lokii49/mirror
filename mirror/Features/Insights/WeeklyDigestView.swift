@@ -7,13 +7,10 @@ struct WeeklyDigestView: View {
     var showSourceButton: Bool = false
     /// A line under the header, e.g. "Last week's digest — write 3 entries this week for a
     /// fresh one." It used to sit above the card as a loose label; inside the header it is
-    /// part of the card's grammar. Sentinel gets `sentinelNote` instead.
+    /// part of the card's grammar.
     var note: LocalizedStringKey? = nil
     var sentinelNote: LocalizedStringKey? = nil
     var onToggleExpanded: (() -> Void)? = nil
-
-    @Environment(\.appDisplayMode) private var displayMode
-    private var isSentinel: Bool { displayMode == .sentinel }
 
     private var sections: [(title: String, body: String)] {
         parseDigest(insight.content)
@@ -36,10 +33,10 @@ struct WeeklyDigestView: View {
                 InsightCardStamp(date: insight.generatedAt, format: .dateTime.month(.abbreviated).day())
             } subline: {
                 if let note {
-                    Label(isSentinel ? (sentinelNote ?? note) : note, systemImage: "arrow.triangle.2.circlepath")
-                        .scaledFont(isSentinel ? 11 : 12, weight: isSentinel ? .bold : .medium, design: isSentinel ? .monospaced : .default)
-                        .kerning(isSentinel ? 0.4 : 0)
-                        .foregroundStyle(isSentinel ? MirrorTheme.ember.opacity(0.85) : MirrorTheme.textSecondary)
+                    Label(note, systemImage: "arrow.triangle.2.circlepath")
+                        .scaledFont(12, weight: .medium, design: .default)
+                        .kerning(0)
+                        .foregroundStyle(MirrorTheme.textSecondary)
                 }
             }
             .padding(.bottom, 16)
@@ -50,7 +47,7 @@ struct WeeklyDigestView: View {
                         .readingFont(size: 15)
                         .lineSpacing(6)
                         .foregroundStyle(MirrorTheme.textPrimary)
-                        .selectableUnlessSentinel(isSentinel)
+                        .textSelection(.enabled)
                 } else {
                     VStack(alignment: .leading, spacing: 18) {
                         ForEach(sections, id: \.title) { section in
@@ -71,7 +68,7 @@ struct WeeklyDigestView: View {
                         .lineSpacing(6)
                         .foregroundStyle(MirrorTheme.textPrimary)
                         .lineLimit(4)
-                        .selectableUnlessSentinel(isSentinel)
+                        .textSelection(.enabled)
                 }
             }
 
@@ -171,9 +168,6 @@ struct DigestSectionView: View {
     let title: String
     let content: String
 
-    @Environment(\.appDisplayMode) private var displayMode
-    private var isSentinel: Bool { displayMode == .sentinel }
-
     // `title` is normalized to the canonical section id before display.
     private var displayName: LocalizedStringKey {
         switch title {
@@ -217,28 +211,20 @@ struct DigestSectionView: View {
                     .scaledFont(10, weight: .bold)
                     .accessibilityHidden(true)
                 Text(displayName)
-                    .scaledFont(10, weight: .bold, design: isSentinel ? .monospaced : .default)
-                    .textCase(isSentinel ? .uppercase : nil)
+                    .scaledFont(10, weight: .bold, design: .default)
+                    .textCase(nil)
                     .tracking(0.6)
             }
             .foregroundStyle(sectionColor)
             .padding(.horizontal, 9)
             .padding(.vertical, 4)
-            .background(
-                sectionColor.opacity(0.12),
-                in: isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
-            )
-            .overlay {
-                if isSentinel {
-                    RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(sectionColor.opacity(0.3), lineWidth: 1)
-                }
-            }
+            .background(sectionColor.opacity(0.12), in: Capsule())
 
             Text(content)
                 .readingFont(size: 15)
                 .lineSpacing(6)
                 .foregroundStyle(MirrorTheme.textPrimary)
-                .selectableUnlessSentinel(isSentinel)
+                .textSelection(.enabled)
         }
     }
 }

@@ -28,21 +28,3 @@ struct InsightSourceButton: View {
         .sheet(isPresented: $show) { InsightSourceSheet(insight: insight) }
     }
 }
-
-/// `.textSelection(.enabled)` and `.textSelection(.disabled)` resolve to
-/// different types, so the choice can't be a ternary at the call site. Sentinel
-/// insight bodies stay non-selectable to keep the mono/terminal read clean;
-/// Classic keeps copy-to-select.
-struct ConditionalTextSelection: ViewModifier {
-    let enabled: Bool
-    func body(content: Content) -> some View {
-        if enabled { content.textSelection(.enabled) }
-        else { content.textSelection(.disabled) }
-    }
-}
-
-extension View {
-    func selectableUnlessSentinel(_ isSentinel: Bool) -> some View {
-        modifier(ConditionalTextSelection(enabled: !isSentinel))
-    }
-}

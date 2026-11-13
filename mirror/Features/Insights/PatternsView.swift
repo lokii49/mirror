@@ -18,8 +18,6 @@ struct PatternsView: View {
     @State private var result: PatternsService.Result?
     @State private var collectionNames: [String: String] = [:]
 
-    private var isSentinel: Bool { displayMode == .sentinel }
-
     private struct LoadKey: Hashable {
         var journal: JournalCacheKey
         var allTime: Bool
@@ -41,7 +39,7 @@ struct PatternsView: View {
         #if os(macOS)
         .macPage("Patterns")
         #endif
-        .navigationTitle(isSentinel ? "PATTERNS" : "Patterns")
+        .navigationTitle("Patterns")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
@@ -62,7 +60,7 @@ struct PatternsView: View {
 
                 if let result {
                     if result.isEmpty {
-                        PatternsEmptyCard(isSentinel: isSentinel)
+                        PatternsEmptyCard()
                     } else {
                         section("By day of the week", rows: result.weekdays, label: weekdayLabel)
                         section("By time of day", rows: result.timesOfDay, label: bandLabel)
@@ -94,16 +92,16 @@ struct PatternsView: View {
         if !rows.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
                 Text(title)
-                    .textCase(isSentinel ? .uppercase : nil)
-                    .scaledFont(isSentinel ? 12 : 15, weight: .semibold, design: isSentinel ? .monospaced : .default)
+                    .textCase(nil)
+                    .scaledFont(15, weight: .semibold, design: .default)
                     .foregroundStyle(MirrorTheme.textPrimary)
                 ForEach(rows) { row in
-                    PatternRowView(label: label(row.key), row: row, isSentinel: isSentinel)
+                    PatternRowView(label: label(row.key), row: row)
                 }
             }
             .padding(16)
-            .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: isSentinel ? 6 : 16, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: isSentinel ? 6 : 16, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1))
+            .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1))
         }
     }
 
@@ -161,23 +159,22 @@ struct PatternsView: View {
 private struct PatternRowView: View {
     let label: String
     let row: PatternsService.Row
-    let isSentinel: Bool
 
     var body: some View {
         let tint = MirrorTheme.moodColor(for: row.topMood)
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(label)
-                    .scaledFont(isSentinel ? 12.5 : 15, weight: .medium, design: isSentinel ? .monospaced : .default)
+                    .scaledFont(15, weight: .medium, design: .default)
                     .foregroundStyle(MirrorTheme.textPrimary)
                     .lineLimit(1)
                 Spacer(minLength: 8)
                 Circle().fill(tint).frame(width: 8, height: 8)
-                Text(isSentinel ? MirrorTheme.localizedMoodName(for: row.topMood).uppercased() : MirrorTheme.localizedMoodName(for: row.topMood))
-                    .scaledFont(isSentinel ? 12 : 14, weight: .semibold, design: isSentinel ? .monospaced : .default)
+                Text(MirrorTheme.localizedMoodName(for: row.topMood))
+                    .scaledFont(14, weight: .semibold, design: .default)
                     .foregroundStyle(MirrorTheme.textPrimary)
                 Text("\(row.count) of \(row.total)")
-                    .scaledFont(isSentinel ? 11.5 : 13, design: isSentinel ? .monospaced : .default)
+                    .scaledFont(13, design: .default)
                     .monospacedDigit()
                     .foregroundStyle(MirrorTheme.textSecondary)
             }
@@ -196,15 +193,13 @@ private struct PatternRowView: View {
 }
 
 private struct PatternsEmptyCard: View {
-    let isSentinel: Bool
-
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: "square.grid.3x3.topleft.filled")
                 .scaledFont(28)
                 .foregroundStyle(MirrorTheme.textTertiary)
             Text("Not enough moods yet")
-                .scaledFont(16, weight: .semibold, design: isSentinel ? .monospaced : .default)
+                .scaledFont(16, weight: .semibold, design: .default)
             Text("A pattern shows once a group has 3 moods. Pick a mood when you write, or log one from Insights.")
                 .scaledFont(13)
                 .foregroundStyle(MirrorTheme.textSecondary)
@@ -222,7 +217,6 @@ struct DeepLockCard: View {
     let sentinelTitle: LocalizedStringKey
     let message: LocalizedStringKey
     let unlock: () -> Void
-    @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
         VStack(spacing: 18) {
@@ -232,8 +226,8 @@ struct DeepLockCard: View {
                     .scaledFont(28, weight: .semibold)
                     .foregroundStyle(MirrorTheme.violetLight)
             }
-            Text(displayMode == .sentinel ? sentinelTitle : title)
-                .scaledFont(displayMode == .sentinel ? 20 : 22, weight: .bold, design: displayMode == .sentinel ? .monospaced : .rounded)
+            Text(title)
+                .scaledFont(22, weight: .bold, design: .rounded)
             Text(message)
                 .scaledFont(14)
                 .foregroundStyle(.secondary)

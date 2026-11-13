@@ -7,8 +7,7 @@ import SwiftUI
 struct BrainConstellationView: View {
     let graph: BrainGraph
     let onNodeTap: (BrainNode) -> Void
-    @Environment(\.appDisplayMode) private var displayMode
-    private var hubColor: Color { displayMode == .sentinel ? MirrorTheme.ember : Self.violetHubColor }
+    private var hubColor: Color { Self.violetHubColor }
 
     @State private var steadyScale: CGFloat = 1
     @State private var steadyOffset: CGSize = .zero
@@ -214,7 +213,7 @@ struct BrainConstellationView: View {
             .clipShape(Capsule())
             Text("Good")
         }
-        .scaledFont(displayMode == .sentinel ? 10 : 11, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)
+        .scaledFont(11, weight: .medium, design: .default)
         .foregroundStyle(.white.opacity(0.75))
         .padding(.horizontal, 10)
         .padding(.vertical, 6)

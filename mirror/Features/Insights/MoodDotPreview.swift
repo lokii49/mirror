@@ -51,9 +51,6 @@ struct MoodDotScrubOverlay: View {
     /// draws empty or with the previous dot's text for a frame.
     @State private var calloutText = ""
 
-    @Environment(\.appDisplayMode) private var displayMode
-    private var isSentinel: Bool { displayMode == .sentinel }
-
     var body: some View {
         GeometryReader { geo in
             let plot = proxy.plotFrame.map { geo[$0] } ?? CGRect(origin: .zero, size: geo.size)
@@ -84,17 +81,17 @@ struct MoodDotScrubOverlay: View {
 
     private var callout: some View {
         Text(calloutText)
-            .scaledFont(isSentinel ? 11.5 : 13, weight: .medium, design: isSentinel ? .monospaced : .default)
+            .scaledFont(13, weight: .medium, design: .default)
             .foregroundStyle(MirrorTheme.textPrimary)
             .lineLimit(3)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: isSentinel ? 4 : 12, style: .continuous))
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: isSentinel ? 4 : 12, style: .continuous)
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .stroke(
-                        isSentinel ? MirrorTheme.ember.opacity(0.45) : MirrorTheme.moodColor(for: selected?.mood ?? "").opacity(0.5),
+                        MirrorTheme.moodColor(for: selected?.mood ?? "").opacity(0.5),
                         lineWidth: 1
                     )
             }

@@ -31,7 +31,6 @@ struct ReviewView: View {
         _anchor = State(initialValue: start)
     }
 
-    private var isSentinel: Bool { displayMode == .sentinel }
     private var calendar: Calendar { .current }
 
     private var period: DateInterval {
@@ -70,7 +69,7 @@ struct ReviewView: View {
         #if os(macOS)
         .macPage("Year in Review")
         #endif
-        .navigationTitle(isSentinel ? "ANNUAL DEBRIEF" : "Year in Review")
+        .navigationTitle("Year in Review")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
@@ -95,8 +94,8 @@ struct ReviewView: View {
                         .accessibilityLabel("Previous")
                     Spacer()
                     Text(periodTitle)
-                        .scaledFont(isSentinel ? 18 : 22, weight: .bold, design: isSentinel ? .monospaced : .default)
-                        .textCase(isSentinel ? .uppercase : nil)
+                        .scaledFont(22, weight: .bold, design: .default)
+                        .textCase(nil)
                         .accessibilityAddTraits(.isHeader)
                     Spacer()
                     Button { step(1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }
@@ -104,7 +103,7 @@ struct ReviewView: View {
                         .accessibilityLabel("Next")
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violet)
+                .foregroundStyle(MirrorTheme.violet)
 
                 if let stats {
                     if stats.isEmpty {
@@ -164,7 +163,7 @@ struct ReviewView: View {
     private func tile(value: Int, label: LocalizedStringKey) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(value, format: .number)
-                .scaledFont(isSentinel ? 24 : 28, weight: .bold, design: isSentinel ? .monospaced : .rounded)
+                .scaledFont(28, weight: .bold, design: .rounded)
                 .foregroundStyle(MirrorTheme.textPrimary)
                 .monospacedDigit()
             Text(label)
@@ -173,8 +172,8 @@ struct ReviewView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: isSentinel ? 6 : 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: isSentinel ? 6 : 16, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1))
+        .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1))
         .accessibilityElement(children: .combine)
     }
 
@@ -248,15 +247,15 @@ struct ReviewView: View {
     private func card<Content: View>(_ title: LocalizedStringKey, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title)
-                .textCase(isSentinel ? .uppercase : nil)
-                .scaledFont(isSentinel ? 12 : 15, weight: .semibold, design: isSentinel ? .monospaced : .default)
+                .textCase(nil)
+                .scaledFont(15, weight: .semibold, design: .default)
             content()
         }
         .foregroundStyle(MirrorTheme.textPrimary)
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: isSentinel ? 6 : 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: isSentinel ? 6 : 16, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1))
+        .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(MirrorTheme.inkBorder, lineWidth: 1))
     }
 
     // MARK: Load

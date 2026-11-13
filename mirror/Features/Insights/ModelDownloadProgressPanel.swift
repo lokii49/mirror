@@ -28,9 +28,7 @@ struct ModelDownloadProgressPanel: View {
     let onPause: () -> Void
     let onResume: () -> Void
 
-    @Environment(\.appDisplayMode) private var displayMode
-    private var isSentinel: Bool { displayMode == .sentinel }
-    private var accent: Color { isSentinel ? MirrorTheme.ember : MirrorTheme.primary }
+    private var accent: Color { MirrorTheme.primary }
 
     enum Phase: Equatable {
         case downloading, paused, pausedFromStart, verifying
@@ -68,7 +66,7 @@ struct ModelDownloadProgressPanel: View {
         if let snap = snapshot {
             VStack(alignment: alignment, spacing: 10) {
                 HStack(spacing: 12) {
-                    ModelDownloadBar(fraction: snap.fraction, phase: snap.phase, accent: accent, isSentinel: isSentinel)
+                    ModelDownloadBar(fraction: snap.fraction, phase: snap.phase, accent: accent)
                     toggleButton(snap.phase)
                 }
                 HStack(alignment: .firstTextBaseline) {
@@ -77,9 +75,9 @@ struct ModelDownloadProgressPanel: View {
                     statusLabel(snap)
                 }
                 if showsBackgroundHint {
-                    Text(isSentinel ? "DOWNLOADING IN BACKGROUND — DO NOT FORCE-QUIT" : "Downloading in the background — lock your phone or switch apps freely, just don't force-quit.")
-                        .scaledFont(isSentinel ? 9.5 : 11, weight: isSentinel ? .semibold : .regular, design: isSentinel ? .monospaced : .default)
-                        .kerning(isSentinel ? 0.3 : 0)
+                    Text("Downloading in the background — lock your phone or switch apps freely, just don't force-quit.")
+                        .scaledFont(11, weight: .regular, design: .default)
+                        .kerning(0)
                         .foregroundStyle(MirrorTheme.textTertiary)
                         .multilineTextAlignment(alignment == .center ? .center : .leading)
                         .frame(maxWidth: .infinity, alignment: alignment == .center ? .center : .leading)
@@ -97,15 +95,15 @@ struct ModelDownloadProgressPanel: View {
     private func bytesLabel(_ snap: Snapshot) -> some View {
         Group {
             if snap.phase == .verifying {
-                Text(isSentinel ? "VERIFYING…" : "Verifying…")
+                Text("Verifying…")
             } else if snap.phase == .pausedFromStart {
-                Text(isSentinel ? "PAUSED (WILL RESTART FROM 0%)" : "Paused (will restart from 0%)")
+                Text("Paused (will restart from 0%)")
             } else {
                 Text("\(Self.byteFormatter.string(fromByteCount: snap.written)) of \(Self.byteFormatter.string(fromByteCount: snap.expected))")
                     .contentTransition(.numericText(value: Double(snap.written)))
             }
         }
-        .font(isSentinel ? MirrorTheme.mono(12, weight: .medium) : .system(size: 12, weight: .medium).monospacedDigit())
+        .font(.system(size: 12, weight: .medium).monospacedDigit())
         .foregroundStyle(MirrorTheme.textSecondary)
         .lineLimit(1)
         .minimumScaleFactor(0.8)
@@ -121,13 +119,13 @@ struct ModelDownloadProgressPanel: View {
                     .contentTransition(.numericText(value: snap.fraction))
                     .foregroundStyle(accent)
             case .paused:
-                Text(isSentinel ? "PAUSED" : "Paused")
+                Text("Paused")
                     .foregroundStyle(MirrorTheme.textSecondary)
             case .pausedFromStart, .verifying:
                 EmptyView()
             }
         }
-        .font(isSentinel ? MirrorTheme.mono(12, weight: .bold) : .system(size: 12, weight: .semibold).monospacedDigit())
+        .font(.system(size: 12, weight: .semibold).monospacedDigit())
         .transition(.opacity)
         .animation(.linear(duration: 0.35), value: snap.fraction)
     }
@@ -165,7 +163,7 @@ struct ModelDownloadProgressPanel: View {
     }
 
     private var buttonShape: AnyShape {
-        isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 7, style: .continuous)) : AnyShape(Circle())
+        AnyShape(Circle())
     }
 }
 
@@ -175,10 +173,9 @@ private struct ModelDownloadBar: View {
     let fraction: Double
     let phase: ModelDownloadProgressPanel.Phase
     let accent: Color
-    let isSentinel: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private var height: CGFloat { isSentinel ? 6 : 8 }
+    private var height: CGFloat { 8 }
     private var isMoving: Bool { (phase == .downloading || phase == .verifying) && !reduceMotion }
 
     var body: some View {
@@ -208,7 +205,7 @@ private struct ModelDownloadBar: View {
     }
 
     private var shape: AnyShape {
-        isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 2, style: .continuous)) : AnyShape(Capsule())
+        AnyShape(Capsule())
     }
 }
 
@@ -240,19 +237,16 @@ struct ModelDownloadButton: View {
     var compact = false
     let action: () -> Void
 
-    @Environment(\.appDisplayMode) private var displayMode
-    private var isSentinel: Bool { displayMode == .sentinel }
-
     var body: some View {
         Button(action: action) {
             HStack(spacing: compact ? 8 : 10) {
                 Image(systemName: systemImage)
                     .scaledFont(compact ? 12 : 14, weight: .bold)
                     .frame(width: compact ? 22 : 28, height: compact ? 22 : 28)
-                    .background(.white.opacity(0.2), in: isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 5, style: .continuous)) : AnyShape(Circle()))
+                    .background(.white.opacity(0.2), in: Circle())
                 Text(title)
-                    .scaledFont(isSentinel ? compact ? 12 : 14 : compact ? 14 : 16, weight: isSentinel ? .bold : .semibold, design: isSentinel ? .monospaced : .default)
-                    .kerning(isSentinel ? 0.4 : 0)
+                    .scaledFont(compact ? 14 : 16, weight: .semibold, design: .default)
+                    .kerning(0)
                     // A second line only when the title doesn't fit (large text sizes). Not an
                     // @Environment(\.dynamicTypeSize) check: that property on this struct made
                     // SettingsView crash on open in Debug builds on device (2026-10-24).
@@ -261,7 +255,7 @@ struct ModelDownloadButton: View {
                 if let byteCount {
                     Spacer(minLength: 8)
                     Text(ByteCountFormatter.string(fromByteCount: byteCount, countStyle: .file))
-                        .font(isSentinel ? MirrorTheme.mono(compact ? 10.5 : 12, weight: .semibold) : .system(size: compact ? 12 : 13, weight: .semibold).monospacedDigit())
+                        .font(.system(size: compact ? 12 : 13, weight: .semibold).monospacedDigit())
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
                         .background(.white.opacity(0.18), in: Capsule())
@@ -276,15 +270,15 @@ struct ModelDownloadButton: View {
             .contentShape(shape)
         }
         .buttonStyle(PressScaleButtonStyle())
-        .shadow(color: (isSentinel ? MirrorTheme.ember : MirrorTheme.primary).opacity(compact ? 0.18 : 0.26), radius: compact ? 8 : 14, x: 0, y: compact ? 3 : 6)
+        .shadow(color: MirrorTheme.primary.opacity(compact ? 0.18 : 0.26), radius: compact ? 8 : 14, x: 0, y: compact ? 3 : 6)
     }
 
     private var fill: AnyShapeStyle {
-        isSentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(MirrorTheme.accentGradient)
+        AnyShapeStyle(MirrorTheme.accentGradient)
     }
 
     private var shape: AnyShape {
-        isSentinel ? AnyShape(RoundedRectangle(cornerRadius: 8, style: .continuous)) : AnyShape(RoundedRectangle(cornerRadius: compact ? 12 : 16, style: .continuous))
+        AnyShape(RoundedRectangle(cornerRadius: compact ? 12 : 16, style: .continuous))
     }
 }
 
