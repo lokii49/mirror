@@ -50,7 +50,9 @@ def write(method, path, body)
     puts "  [dry run] #{method} #{path} #{body && JSON.generate(body)[0, 160]}"
     return nil
   end
-  api(method, path, body)
+  res = api(method, path, body)
+  puts "  #{method} #{path} ok"
+  res
 end
 
 spec = JSON.parse(File.read(File.join(__dir__, 'retention_messages.json')))
