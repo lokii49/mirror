@@ -129,4 +129,14 @@ struct PhotoSizeTests {
         data = PhotoSizes.setting(stored: nil, atInlineOffset: offsets[1], in: data)
         #expect(PhotoSizes.sizedPhotos(text: text, inlineStyleData: data) == [2])
     }
+
+    @Test func aSpreadSizeRangeOnlySizesItsOwnPhoto() throws {
+        // An earlier build let "full" spread from photo 0 over the typed text and the photos after it.
+        let text = "[[mirror-photo-0]]\n[[mirror-photo-1]]\n[[mirror-photo-2]]"
+        let spread = InlineStyleRange(location: 0, length: 5, bold: false, italic: false, underline: false,
+                                      strikethrough: false, highlightIndex: nil, photoSize: "full")
+        let data = try JSONEncoder().encode(InlineStyleDocument(ranges: [spread]))
+        #expect(PhotoSizes.sizedPhotos(text: text, inlineStyleData: data) == [0])
+        #expect(PhotoSizes.storedSize(ofPhoto: 2, text: text, inlineStyleData: data) == nil)
+    }
 }

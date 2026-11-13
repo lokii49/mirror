@@ -3,6 +3,9 @@ import Foundation
 /// How wide a photo is drawn in an entry (3.1.9, owner 2026-11-13: Small / Medium / Full in the
 /// photo's long-press menu). Full is today's look and the default.
 ///
+/// A size belongs to the photo its range starts on, and only to it: a longer range (an earlier
+/// build let the size spread to text typed after the photo) never sizes later photos.
+///
 /// Stored as `InlineStyleRange.photoSize` on the photo's one character in inline coordinates
 /// (`InlineStyleRange.location`), the way a linked photo stores its link. The `[[mirror-photo-N]]`
 /// token never changes, so versions before 3.1.9 still show the photo, full width, and drop the
@@ -54,7 +57,7 @@ nonisolated enum PhotoSizes {
               ranges.contains(where: { $0.photoSize != nil }) else { return [] }
         var result = Set<Int>()
         for (photoIndex, offset) in inlineOffsets(in: text)
-            where ranges.contains(where: { $0.photoSize != nil && $0.location <= offset && offset < $0.location + $0.length }) {
+            where ranges.contains(where: { $0.photoSize != nil && $0.location == offset }) {
             result.insert(photoIndex)
         }
         return result
@@ -65,7 +68,7 @@ nonisolated enum PhotoSizes {
         guard let offset = inlineOffsets(in: text).first(where: { $0.photoIndex == photoIndex })?.offset,
               let data = inlineStyleData,
               let ranges = try? JSONDecoder().decode(InlineStyleDocument.self, from: data).ranges else { return nil }
-        return ranges.last(where: { $0.photoSize != nil && $0.location <= offset && offset < $0.location + $0.length })?.photoSize
+        return ranges.last(where: { $0.photoSize != nil && $0.location == offset })?.photoSize
     }
 
     /// The size of each photo that isn't full width, by photo index.
@@ -75,7 +78,7 @@ nonisolated enum PhotoSizes {
               ranges.contains(where: { $0.photoSize != nil }) else { return [:] }
         var result: [Int: PhotoSize] = [:]
         for (photoIndex, offset) in inlineOffsets(in: text) {
-            if let range = ranges.last(where: { $0.photoSize != nil && $0.location <= offset && offset < $0.location + $0.length }) {
+            if let range = ranges.last(where: { $0.photoSize != nil && $0.location == offset }) {
                 let size = PhotoSize(stored: range.photoSize)
                 if size != .full { result[photoIndex] = size }
             }

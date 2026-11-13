@@ -535,7 +535,8 @@ struct MacPhotoTile: View {
         }
         .onHover { hovering = $0 }
         .contextMenu {
-            Picker("Photo Size", selection: Binding(get: { storedSize }, set: onSize)) {
+            // "full" on a lone photo is just full width (it was stored while the photo was in a row).
+            Picker("Photo Size", selection: Binding(get: { !inRow && storedSize == "full" ? nil : storedSize }, set: onSize)) {
                 // In a row, no size means a thumbnail and Full Width is stored; alone, no size is
                 // full width (same rule as the iPhone editor).
                 if inRow { Text("Thumbnail").tag(String?.none) }

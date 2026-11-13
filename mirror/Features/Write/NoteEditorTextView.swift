@@ -389,7 +389,9 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             // Photo attachment tap
             let char = nsText.character(at: charIndex)
-            if char == 0xFFFC {
+            // On the picture itself: the nearest character is the photo even in the blank space
+            // beside a thumbnail or a Small photo, where a tap should place the caret.
+            if char == 0xFFFC, attachmentRect(atCharacter: charIndex, in: textView).map({ $0.insetBy(dx: -4, dy: -4).contains(location) }) ?? true {
                 // Find which photo token this corresponds to
                 let displayed = textView.attributedText?.string ?? ""
                 let photoTokens = allPhotoTokens(in: parent.text)
@@ -610,8 +612,10 @@ struct NoteEditorTextView: UIViewRepresentable {
         private func photoSizeMenu(atCharacter charIndex: Int, in textView: UITextView) -> UIMenu? {
             guard let attributed = textView.attributedText, charIndex < attributed.length,
                   attributed.attribute(.attachment, at: charIndex, effectiveRange: nil) is PhotoAttachment else { return nil }
-            let stored = attributed.attribute(Self.photoSizeAttribute, at: charIndex, effectiveRange: nil) as? String
             let inRow = photoHasPhotoNeighbour(atCharacter: charIndex, in: attributed.string as NSString)
+            // "full" on a photo that's no longer in a row is just full width.
+            let raw = attributed.attribute(Self.photoSizeAttribute, at: charIndex, effectiveRange: nil) as? String
+            let stored = !inRow && raw == "full" ? nil : raw
             var options: [(stored: String?, title: String)] = [("small", String(localized: "Small")), ("medium", String(localized: "Medium")),
                                                                 (inRow ? "full" : nil, String(localized: "Full Width"))]
             if inRow { options.insert((nil, String(localized: "Thumbnail")), at: 0) }
@@ -1198,6 +1202,13 @@ struct NoteEditorTextView: UIViewRepresentable {
             return !(gestureRecognizer is UILongPressGestureRecognizer && gestureRecognizer.view is MirrorEditorTextView)
         }
 
+        /// The photo hold only takes touches that start on a picture: elsewhere it never joins the
+        /// touch, so text selection and the checklist drag start as fast as before.
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+            guard gestureRecognizer === photoDragRecognizer, let textView = gestureRecognizer.view as? UITextView else { return true }
+            return photoParagraph(at: touch.location(in: textView), in: textView) != nil
+        }
+
         /// The text view's own holds (selection, its menus) wait for the photo hold to fail, so a
         /// held photo is the editor's alone.
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer) -> Bool {
@@ -1327,9 +1338,30 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
         }
 
+        /// The drawn rect of the attachment at display offset `char`, in text view coordinates: it
+        /// sits on the baseline, shifted by its bounds' origin (the glyph's box also holds the line
+        /// and paragraph spacing).
+        func attachmentRect(atCharacter char: Int, in textView: UITextView) -> CGRect? {
+            let ns = (textView.text ?? "") as NSString
+            guard char < ns.length, ns.character(at: char) == 0xFFFC,
+                  let attachment = textView.attributedText?.attribute(.attachment, at: char, effectiveRange: nil) as? NSTextAttachment,
+                  attachment.bounds.width > 0 else { return nil }
+            let lm = textView.layoutManager
+            let glyphs = lm.glyphRange(forCharacterRange: NSRange(location: char, length: 1), actualCharacterRange: nil)
+            guard glyphs.length > 0 else { return nil }
+            let line = lm.lineFragmentRect(forGlyphAt: glyphs.location, effectiveRange: nil)
+            let origin = lm.location(forGlyphAt: glyphs.location)
+            let rect = CGRect(x: line.minX + origin.x, y: line.minY + origin.y - attachment.bounds.maxY,
+                              width: attachment.bounds.width, height: attachment.bounds.height)
+            return rect.offsetBy(dx: textView.textContainerInset.left, dy: textView.textContainerInset.top)
+        }
+
         /// The paragraph of the photo under `point`, when the photo is alone on its line.
         func photoParagraph(at point: CGPoint, in textView: UITextView) -> NSRange? {
-            guard let char = attachmentCharacterIndex(at: point, in: textView) else { return nil }
+            // On the picture itself: the nearest character can be a photo while the finger is in
+            // the blank space beside a thumbnail or a Small photo.
+            guard let char = attachmentCharacterIndex(at: point, in: textView),
+                  let rect = attachmentRect(atCharacter: char, in: textView), rect.insetBy(dx: -4, dy: -4).contains(point) else { return nil }
             let text = (textView.text ?? "") as NSString
             let paragraph = text.paragraphRange(for: NSRange(location: char, length: 0))
             guard text.substring(with: paragraph).trimmingCharacters(in: .whitespacesAndNewlines) == "\u{FFFC}" else { return nil }
@@ -2564,6 +2596,9 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         private func updateTypingAttributes(for textView: UITextView) {
             guard textView.markedTextRange == nil else { return }
+            // A photo's size belongs to that photo: text typed after it (Return included) never
+            // carries it, or a size range would grow over later photos.
+            defer { textView.typingAttributes.removeValue(forKey: Self.photoSizeAttribute) }
             // A checklist marker's spacer is kerned (ChecklistMarkerSpacing); typed text must not be.
             if textView.typingAttributes[.kern] != nil { textView.typingAttributes.removeValue(forKey: .kern) }
             let nsText = (textView.text ?? "") as NSString
@@ -4047,7 +4082,22 @@ struct NoteEditorTextView: UIViewRepresentable {
                 let highlightIndex = attrs[Self.highlightIndexAttribute] as? Int
                 let textColorIndex = attrs[Self.textColorIndexAttribute] as? Int
                 let linkURL = (attrs[.link] as? URL)?.absoluteString
-                let photoSize = attrs[Self.photoSizeAttribute] as? String
+                // A size only ever applies to a photo's own character: if it spread to text (typed
+                // after a sized photo by an earlier build), it's dropped from the text here and
+                // kept on each photo in the run as a range of its own.
+                var photoSize = attrs[Self.photoSizeAttribute] as? String
+                if let size = photoSize {
+                    let ns = attributed.string as NSString
+                    let isOnlyAPhoto = range.length == 1 && ns.character(at: range.location) == 0xFFFC
+                    if !isOnlyAPhoto {
+                        photoSize = nil
+                        for i in range.location..<NSMaxRange(range) where ns.character(at: i) == 0xFFFC {
+                            let start = displayToLogical(display: i, map: logicalOffsets)
+                            ranges.append(InlineStyleRange(location: start, length: 1, bold: false, italic: false, underline: false,
+                                                           strikethrough: false, highlightIndex: nil, photoSize: size))
+                        }
+                    }
+                }
 
                 // Only store non-default inline attrs (skip title/heading/subheading bold — those are
                 // paragraph-level; the subheading font is semibold, which reads as bold)
@@ -4143,9 +4193,15 @@ struct NoteEditorTextView: UIViewRepresentable {
                 if let stored = styleRange.photoSize {
                     // "full" too: it's what keeps a photo out of a row of thumbnails, and it must
                     // survive the next read of the ranges back from the text.
-                    attributed.addAttribute(Self.photoSizeAttribute, value: stored, range: displayRange)
-                    if PhotoSize(stored: stored) != .full {
-                        resizePhotoAttachments(in: displayRange, of: attributed, to: PhotoSize(stored: stored))
+                    // Only the photo the range starts on (`PhotoSizes`): a range that spread over
+                    // typed text or later photos (an earlier build) must not size them too.
+                    let ns = attributed.string as NSString
+                    let photo = NSRange(location: displayRange.location, length: 1)
+                    if ns.character(at: photo.location) == 0xFFFC {
+                        attributed.addAttribute(Self.photoSizeAttribute, value: stored, range: photo)
+                        if PhotoSize(stored: stored) != .full {
+                            resizePhotoAttachments(in: photo, of: attributed, to: PhotoSize(stored: stored))
+                        }
                     }
                 }
             }
@@ -4549,6 +4605,18 @@ extension NoteEditorTextView.Coordinator: UITextDragDelegate, UITextDropDelegate
         let provider = item.itemProvider
         guard parent.onDropPhotos != nil, provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) else {
             item.setDefaultResult()
+            return
+        }
+        // Text that carries pictures (a selection copied from an entry, a web page): the words go in
+        // as plain text. Its pictures would arrive as bare attachments, which the editor reads
+        // back as the next photos' tokens; pictures alone come through the photo path below.
+        if provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier)
+            || provider.hasItemConformingToTypeIdentifier(UTType.rtf.identifier)
+            || provider.hasItemConformingToTypeIdentifier(UTType.flatRTFD.identifier) {
+            _ = provider.loadObject(ofClass: NSString.self) { string, _ in
+                let text = (string as? String)?.replacingOccurrences(of: "\u{FFFC}", with: "") ?? ""
+                DispatchQueue.main.async { item.setResult(string: text) }
+            }
             return
         }
         item.setNoResult()
