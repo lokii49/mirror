@@ -271,17 +271,22 @@ nonisolated enum PhotoRuns {
     /// Spaces around a token don't count: the reader trims them too (`photoIndex(ofLine:)`), and the
     /// editor and reader must agree on what a row is (owner, 14 Pro 2026-11-13: a second photo drawn
     /// full width under a thumbnail).
+    private static func isSpace(_ c: unichar) -> Bool { Unicode.Scalar(c).map { CharacterSet.whitespaces.contains($0) } ?? false }
+
+    /// Whether the token at `r` is the only thing on its line (spaces aside), as the reader's
+    /// photo lines are. A Thumbnail photo sharing its line with words is drawn full width.
+    static func aloneOnLine(_ r: NSRange, in text: NSString) -> Bool {
+        var start = r.location
+        while start > 0, isSpace(text.character(at: start - 1)) { start -= 1 }
+        var end = NSMaxRange(r)
+        while end < text.length, isSpace(text.character(at: end)) { end += 1 }
+        let startOK = start == 0 || text.character(at: start - 1) == 10
+        let endOK = end == text.length || text.character(at: end) == 10
+        return startOK && endOK
+    }
+
     static func tileMatches(_ ranges: [NSRange], in text: NSString, isLandscape: (NSRange) -> Bool) -> Set<Int> {
-        func isSpace(_ c: unichar) -> Bool { Unicode.Scalar(c).map { CharacterSet.whitespaces.contains($0) } ?? false }
-        func aloneOnLine(_ r: NSRange) -> Bool {
-            var start = r.location
-            while start > 0, isSpace(text.character(at: start - 1)) { start -= 1 }
-            var end = NSMaxRange(r)
-            while end < text.length, isSpace(text.character(at: end)) { end += 1 }
-            let startOK = start == 0 || text.character(at: start - 1) == 10
-            let endOK = end == text.length || text.character(at: end) == 10
-            return startOK && endOK
-        }
+        func aloneOnLine(_ r: NSRange) -> Bool { Self.aloneOnLine(r, in: text) }
         /// Only spaces and exactly one line break between two tokens: the next line.
         func onNextLine(_ a: NSRange, _ b: NSRange) -> Bool {
             guard b.location > NSMaxRange(a) else { return false }

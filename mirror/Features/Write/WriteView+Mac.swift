@@ -350,6 +350,8 @@ extension WriteView {
                         storedSize: PhotoSizes.storedSize(ofPhoto: index, text: viewModel.text, inlineStyleData: inlineStyleData),
                         // Two or more photos at the end are a row of thumbnails in the reader.
                         inRow: photoDataArray.count > 1,
+                        // The reader draws a landscape first photo of the row full width (a map).
+                        leadsRow: index == 0 && photoDataArray.count > 1 && PhotoRuns.isLandscape(photoDataArray[index]),
                         onOpen: { fullscreenPhotoIndex = index },
                         onRemove: { macRemovePhoto(at: index) },
                         onSize: { macSetPhotoSize(stored: $0, at: index) }
@@ -499,6 +501,7 @@ struct MacPhotoTile: View {
     /// The photo's stored size ("small", "medium", "full") or nil (thumbnail in a row; full alone).
     var storedSize: String? = nil
     var inRow = false
+    var leadsRow = false
     let onOpen: () -> Void
     let onRemove: () -> Void
     var onSize: (String?) -> Void = { _ in }
@@ -537,11 +540,17 @@ struct MacPhotoTile: View {
         .contextMenu {
             // "full" on a lone photo is just full width (it was stored while the photo was in a row);
             // "thumbnail" in a row is its place in the row.
+            // The tick is what the reader draws: in a row no size is a thumbnail, except a landscape
+            // first photo (full width); "thumbnail" is one anywhere. Thumbnail stores nothing where no
+            // size already draws one (an unneeded range makes Mac 1.1.8 read the entry only).
+            let rowTile = inRow && !leadsRow
             Picker("Photo Size", selection: Binding(get: {
-                inRow ? (storedSize ?? PhotoSizes.thumbnail) : (storedSize == "full" ? nil : storedSize)
-            }, set: onSize)) {
-                // Thumbnail always stores "thumbnail"; in a row, no size is a thumbnail too and Full
-                // Width is stored; alone, no size is full width (same rule as the iPhone editor).
+                storedSize == PhotoSizes.thumbnail ? PhotoSizes.thumbnail
+                    : storedSize == "full" ? (inRow ? "full" : nil)
+                    : storedSize ?? (rowTile ? PhotoSizes.thumbnail : nil)
+            }, set: { value in onSize(value == PhotoSizes.thumbnail && rowTile ? nil : value) })) {
+                // In a row, Full Width is stored; alone, no size is full width (same rule as the
+                // iPhone editor).
                 Text("Thumbnail").tag(String?.some(PhotoSizes.thumbnail))
                 Text("Small").tag(String?.some("small"))
                 Text("Medium").tag(String?.some("medium"))

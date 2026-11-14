@@ -617,10 +617,13 @@ struct NoteEditorTextView: UIViewRepresentable {
             // a row it may not be drawn in (owner, 14 Pro: Thumbnail ticked on a full-width photo).
             let raw = attributed.attribute(Self.photoSizeAttribute, at: charIndex, effectiveRange: nil) as? String
             let shown: String? = attachment.isTile ? PhotoSizes.thumbnail : (raw == "small" || raw == "medium" ? raw : nil)
-            // Thumbnail always stores "thumbnail" (alone: a square tile; in a row: its place there).
-            // Full Width stores "full" next to other photos, which takes it out of their row.
+            // Thumbnail stores nothing where no size already draws a tile (a row photo that isn't a
+            // leading landscape picture): an unneeded range would make the entry read-only on Mac
+            // 1.1.8. Elsewhere (alone, or a row's map) it stores "thumbnail". Full Width stores
+            // "full" next to other photos, which takes it out of their row.
+            let thumbnailStored = inRow && !photoLeadsRowAsMap(atCharacter: charIndex, in: attributed.string as NSString) ? nil : PhotoSizes.thumbnail
             let options: [(stored: String?, shown: String?, title: String)] = [
-                (PhotoSizes.thumbnail, PhotoSizes.thumbnail, String(localized: "Thumbnail")),
+                (thumbnailStored, PhotoSizes.thumbnail, String(localized: "Thumbnail")),
                 ("small", "small", String(localized: "Small")), ("medium", "medium", String(localized: "Medium")),
                 (inRow ? "full" : nil, nil, String(localized: "Full Width"))]
             let actions = options.map { option in
@@ -630,6 +633,18 @@ struct NoteEditorTextView: UIViewRepresentable {
                 }
             }
             return UIMenu(title: String(localized: "Photo Size"), image: UIImage(systemName: "arrow.up.left.and.arrow.down.right"), children: actions)
+        }
+
+        /// A landscape picture first in a run of photo lines: no size draws it full width (a map).
+        private func photoLeadsRowAsMap(atCharacter charIndex: Int, in text: NSString) -> Bool {
+            let paragraph = text.paragraphRange(for: NSRange(location: charIndex, length: 0))
+            if paragraph.location > 0 {
+                let above = text.paragraphRange(for: NSRange(location: paragraph.location - 1, length: 0))
+                if text.substring(with: above).trimmingCharacters(in: .whitespacesAndNewlines) == "\u{FFFC}" { return false }
+            }
+            guard let textView, let index = photoIndex(forAttachmentAt: charIndex, in: textView),
+                  index < parent.photoDataArray.count else { return false }
+            return PhotoRuns.isLandscape(parent.photoDataArray[index])
         }
 
         /// Whether the line above or below this photo's line is also just a photo.
@@ -2310,7 +2325,8 @@ struct NoteEditorTextView: UIViewRepresentable {
                 return PhotoRuns.isLandscape(parent.photoDataArray[index])
             }.filter { i in inlinePhotoIndex(from: nsRaw.substring(with: allMatches[i].range)).map { !sized.contains($0) } ?? true }
                 .union(allMatches.indices.filter { i in
-                    inlinePhotoIndex(from: nsRaw.substring(with: allMatches[i].range)).map { thumbnails.contains($0) } ?? false
+                    PhotoRuns.aloneOnLine(allMatches[i].range, in: nsRaw)
+                        && (inlinePhotoIndex(from: nsRaw.substring(with: allMatches[i].range)).map { thumbnails.contains($0) } ?? false)
                 })
 
             for (matchIndex, match) in allMatches.enumerated() {
