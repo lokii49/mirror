@@ -3438,7 +3438,12 @@ struct NoteEditorTextView: UIViewRepresentable {
             updatePlaceholder(in: textView)
             refreshActiveParagraphStyle(in: textView)
             refreshActiveInlineStyles(in: textView)
-            committedSnapshot = currentSnapshot(of: textView)
+            // What was restored, not read back through the bindings: a value just written to
+            // SwiftUI state can still read as the old one here, and the next update then took the
+            // restored document for an outside change and cleared Redo (2026-11-14).
+            committedSnapshot = EditorSnapshot(text: snapshot.text, textStyleData: snapshot.textStyleData,
+                                               inlineStyleData: snapshot.inlineStyleData, photos: snapshot.photos,
+                                               selection: textView.selectedRange)
             publishUndoState()
         }
 
