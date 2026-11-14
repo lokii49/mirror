@@ -268,19 +268,36 @@ nonisolated enum PhotoRuns {
     }
 
     /// `ranges`: the token ranges in `text`, in order. Returns the indices into `ranges` drawn as tiles.
+    /// Spaces around a token don't count: the reader trims them too (`photoIndex(ofLine:)`), and the
+    /// editor and reader must agree on what a row is (owner, 14 Pro 2026-11-13: a second photo drawn
+    /// full width under a thumbnail).
     static func tileMatches(_ ranges: [NSRange], in text: NSString, isLandscape: (NSRange) -> Bool) -> Set<Int> {
+        func isSpace(_ c: unichar) -> Bool { Unicode.Scalar(c).map { CharacterSet.whitespaces.contains($0) } ?? false }
         func aloneOnLine(_ r: NSRange) -> Bool {
-            let end = NSMaxRange(r)
-            let startOK = r.location == 0 || text.character(at: r.location - 1) == 10
+            var start = r.location
+            while start > 0, isSpace(text.character(at: start - 1)) { start -= 1 }
+            var end = NSMaxRange(r)
+            while end < text.length, isSpace(text.character(at: end)) { end += 1 }
+            let startOK = start == 0 || text.character(at: start - 1) == 10
             let endOK = end == text.length || text.character(at: end) == 10
             return startOK && endOK
+        }
+        /// Only spaces and exactly one line break between two tokens: the next line.
+        func onNextLine(_ a: NSRange, _ b: NSRange) -> Bool {
+            guard b.location > NSMaxRange(a) else { return false }
+            var breaks = 0
+            for i in NSMaxRange(a)..<b.location {
+                let c = text.character(at: i)
+                if c == 10 { breaks += 1 } else if !isSpace(c) { return false }
+            }
+            return breaks == 1
         }
         var result = Set<Int>()
         var i = 0
         while i < ranges.count {
             guard aloneOnLine(ranges[i]) else { i += 1; continue }
             var j = i
-            while j + 1 < ranges.count, aloneOnLine(ranges[j + 1]), ranges[j + 1].location == NSMaxRange(ranges[j]) + 1 { j += 1 }
+            while j + 1 < ranges.count, aloneOnLine(ranges[j + 1]), onNextLine(ranges[j], ranges[j + 1]) { j += 1 }
             if j > i {
                 let first = isLandscape(ranges[i]) ? i + 1 : i
                 for k in first...j { result.insert(k) }

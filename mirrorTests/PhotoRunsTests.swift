@@ -32,6 +32,14 @@ struct PhotoRunsTests {
         #expect(tiles("look [[mirror-photo-0]]\n[[mirror-photo-1]]").isEmpty)
     }
 
+    /// Spaces around a token don't break a row: the reader trims them, so the editor must too.
+    @Test func spacesAroundTokensKeepTheRow() {
+        #expect(tiles("[[mirror-photo-0]] \n[[mirror-photo-1]]") == [0, 1])
+        #expect(tiles("[[mirror-photo-0]]\n  [[mirror-photo-1]]\t\n[[mirror-photo-2]]") == [0, 1, 2])
+        #expect(tiles("[[mirror-photo-0]]\n \n[[mirror-photo-1]]").isEmpty, "a blank line still breaks it")
+        #expect(tiles("[[mirror-photo-0]] x\n[[mirror-photo-1]]").isEmpty)
+    }
+
     @Test func linesFormMatchTheEditorRule() {
         let lines = ["Dinner", "P", "P", "P", "text", "P"]
         let result = PhotoRuns.tileLines(count: lines.count, photoLine: { lines[$0] == "P" }, isLandscape: { $0 == 1 })

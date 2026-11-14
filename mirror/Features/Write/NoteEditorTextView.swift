@@ -611,17 +611,20 @@ struct NoteEditorTextView: UIViewRepresentable {
         /// draws it as one square tile (owner, 2026-11-13).
         private func photoSizeMenu(atCharacter charIndex: Int, in textView: UITextView) -> UIMenu? {
             guard let attributed = textView.attributedText, charIndex < attributed.length,
-                  attributed.attribute(.attachment, at: charIndex, effectiveRange: nil) is PhotoAttachment else { return nil }
+                  let attachment = attributed.attribute(.attachment, at: charIndex, effectiveRange: nil) as? PhotoAttachment else { return nil }
             let inRow = photoHasPhotoNeighbour(atCharacter: charIndex, in: attributed.string as NSString)
-            // "full" on a photo that's no longer in a row is just full width; "thumbnail" in a row is
-            // its place in the row.
+            // The tick is what the photo looks like now, never what the stored value would mean in
+            // a row it may not be drawn in (owner, 14 Pro: Thumbnail ticked on a full-width photo).
             let raw = attributed.attribute(Self.photoSizeAttribute, at: charIndex, effectiveRange: nil) as? String
-            let stored = inRow ? (raw == PhotoSizes.thumbnail ? nil : raw) : (raw == "full" ? nil : raw)
-            let options: [(stored: String?, title: String)] = [(inRow ? nil : PhotoSizes.thumbnail, String(localized: "Thumbnail")),
-                                                                ("small", String(localized: "Small")), ("medium", String(localized: "Medium")),
-                                                                (inRow ? "full" : nil, String(localized: "Full Width"))]
+            let shown: String? = attachment.isTile ? PhotoSizes.thumbnail : (raw == "small" || raw == "medium" ? raw : nil)
+            // Thumbnail always stores "thumbnail" (alone: a square tile; in a row: its place there).
+            // Full Width stores "full" next to other photos, which takes it out of their row.
+            let options: [(stored: String?, shown: String?, title: String)] = [
+                (PhotoSizes.thumbnail, PhotoSizes.thumbnail, String(localized: "Thumbnail")),
+                ("small", "small", String(localized: "Small")), ("medium", "medium", String(localized: "Medium")),
+                (inRow ? "full" : nil, nil, String(localized: "Full Width"))]
             let actions = options.map { option in
-                UIAction(title: option.title, state: option.stored == stored ? .on : .off) { [weak self, weak textView] _ in
+                UIAction(title: option.title, state: option.shown == shown ? .on : .off) { [weak self, weak textView] _ in
                     guard let self, let textView else { return }
                     self.setPhotoSize(stored: option.stored, atCharacter: charIndex, in: textView)
                 }
