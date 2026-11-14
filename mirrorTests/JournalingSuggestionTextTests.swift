@@ -200,6 +200,44 @@ struct JournalingSuggestionTextTests {
         #expect(onBlank.text == "First.\n\nWalk\n👟 8,430 steps\n\nSecond.")
     }
 
+    /// Pictures alone (paperclip, paste, drop) after a picture join its row, with no blank line, so
+    /// a photo added under a thumbnail is a tile beside it (owner, 2026-11-14).
+    @Test func picturesAloneJoinTheRowTheyFollow() throws {
+        let photo = SuggestionInsert()
+        let p0 = inlinePhotoToken(at: 0), p1 = inlinePhotoToken(at: 1), p2 = inlinePhotoToken(at: 2)
+        func insert(_ text: String, after: Int?, styles: NoteTextStyleDocument? = nil, inline: [InlineStyleRange] = []) -> (text: String, styles: NoteTextStyleDocument?, inline: [InlineStyleRange]) {
+            photo.inserted(into: text, afterParagraph: after, existingStyles: styles, existingInline: inline,
+                           tokens: [p2], mapLeads: false, entryFont: "system")
+        }
+        // Caret on the photo, on the empty line under it, on a line of spaces under it, or none.
+        #expect(insert("\(p0)\n", after: 1).text == "\(p0)\n\(p2)\n")
+        #expect(insert(p0, after: 0).text == "\(p0)\n\(p2)\n")
+        #expect(insert("\(p0)\n  ", after: 1).text == "\(p0)\n\(p2)\n  ")
+        #expect(insert(p0, after: nil).text == "\(p0)\n\(p2)\n")
+        // On a row: after its last photo. Words after keep one blank line before them.
+        #expect(insert("Day.\n\(p0)\n\(p1)\nAfter.", after: 1).text == "Day.\n\(p0)\n\(p1)\n\(p2)\n\nAfter.")
+        // Under words: a blank line first, as before.
+        #expect(insert("\(p0)\nWords.", after: 1).text == "\(p0)\nWords.\n\n\(p2)\n")
+        // Every placement is a tile in the joined row.
+        let joined = insert("\(p0)\n\(p1)\n", after: 2).text
+        let joinedTiles = PhotoPlacement.placements(text: joined, inlineStyleData: nil, hasPicture: { _ in true }, isLandscape: { _ in false })
+            .map(\.isTile)
+        #expect(joinedTiles == [true, true, true])
+        // Styles: one paragraph per line, and a thumbnail range on the first photo stays on it.
+        let styles = NoteTextStyleDocument(paragraphStyles: [.heading, .body, .body], indentLevels: nil, fontChoices: nil)
+        let thumb = InlineStyleRange(location: 6, length: 1, bold: false, italic: false, underline: false,
+                                     strikethrough: false, highlightIndex: nil, photoSize: PhotoSizes.thumbnail)
+        let r = insert("Title\n\(p0)\nAfter", after: 1, styles: styles, inline: [thumb])
+        #expect(r.text == "Title\n\(p0)\n\(p2)\n\nAfter")
+        #expect(r.styles?.paragraphStyles == [.heading, .body, .body, .body, .body])
+        let data = try JSONEncoder().encode(InlineStyleDocument(ranges: r.inline))
+        #expect(PhotoSizes.storedSizes(text: r.text, inlineStyleData: data) == [0: PhotoSizes.thumbnail])
+        // A suggestion's block keeps its blank line after a picture.
+        let walk = SuggestionInsert(title: "Walk", lines: ["👟 8,430 steps"])
+        #expect(walk.inserted(into: p0, afterParagraph: 0, existingStyles: nil, existingInline: [], tokens: [p2],
+                              mapLeads: false, entryFont: "system").text == "\(p0)\n\nWalk\n👟 8,430 steps\n\(p2)\n")
+    }
+
     @Test func appendingToABlankEntryIsTheSuggestionAlone() {
         let insert = SuggestionInsert(title: "Evening run", lines: ["👟 8,430 steps"])
         let r = insert.appended(to: "\n", existingStyles: nil, existingInline: [], tokens: [], mapLeads: false, entryFont: "system")

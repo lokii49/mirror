@@ -16,7 +16,13 @@ extension WriteView {
                     }.value
                     let index = photoDataArray.count
                     photoDataArray.append(preparedData)
+                    #if os(iOS)
+                    // Where the caret is, as paste, drop and Suggestions do; under a photo it joins
+                    // that row (owner, 2026-11-14). Mac keeps its photos at the end of the text.
+                    setSuggestionText(SuggestionInsert(), tokens: [inlinePhotoToken(at: index)])
+                    #else
                     viewModel.text = textWithInlinePhotoToken(viewModel.text, at: index)
+                    #endif
                     isAttachingPhoto = false
                 } catch {
                     isAttachingPhoto = false

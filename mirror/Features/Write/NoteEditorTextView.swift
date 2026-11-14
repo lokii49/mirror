@@ -605,57 +605,46 @@ struct NoteEditorTextView: UIViewRepresentable {
             return nil
         }
 
-        /// Thumbnail / Small / Medium / Full Width for any photo on its own line. Next to other photos
-        /// (a row of thumbnails) Thumbnail is its place in the row and choosing a size takes it out
-        /// of the row (owner, 14 Pro: the menu had no sizes on stacked photos); alone, Thumbnail
-        /// draws it as one square tile (owner, 2026-11-13).
+        /// Thumbnail / Small / Medium / Full Width (Thumbnail only on a photo's own line). The tick
+        /// is what is drawn and each item stores what `PhotoPlacement` says, the one rule the
+        /// editor's drawing, the reader and the Mac picker share (owner, 2026-11-14).
         private func photoSizeMenu(atCharacter charIndex: Int, in textView: UITextView) -> UIMenu? {
             guard let attributed = textView.attributedText, charIndex < attributed.length,
-                  let attachment = attributed.attribute(.attachment, at: charIndex, effectiveRange: nil) as? PhotoAttachment else { return nil }
-            let inRow = photoHasPhotoNeighbour(atCharacter: charIndex, in: attributed.string as NSString)
-            // The tick is what the photo looks like now, never what the stored value would mean in
-            // a row it may not be drawn in (owner, 14 Pro: Thumbnail ticked on a full-width photo).
-            let raw = attributed.attribute(Self.photoSizeAttribute, at: charIndex, effectiveRange: nil) as? String
-            let shown: String? = attachment.isTile ? PhotoSizes.thumbnail : (raw == "small" || raw == "medium" ? raw : nil)
-            // Thumbnail stores nothing where no size already draws a tile (a row photo that isn't a
-            // leading landscape picture): an unneeded range would make the entry read-only on Mac
-            // 1.1.8. Elsewhere (alone, or a row's map) it stores "thumbnail". Full Width stores
-            // "full" next to other photos, which takes it out of their row.
-            let thumbnailStored = inRow && !photoLeadsRowAsMap(atCharacter: charIndex, in: attributed.string as NSString) ? nil : PhotoSizes.thumbnail
-            let options: [(stored: String?, shown: String?, title: String)] = [
-                (thumbnailStored, PhotoSizes.thumbnail, String(localized: "Thumbnail")),
-                ("small", "small", String(localized: "Small")), ("medium", "medium", String(localized: "Medium")),
-                (inRow ? "full" : nil, nil, String(localized: "Full Width"))]
-            let actions = options.map { option in
-                UIAction(title: option.title, state: option.shown == shown ? .on : .off) { [weak self, weak textView] _ in
+                  let attachment = attributed.attribute(.attachment, at: charIndex, effectiveRange: nil) as? PhotoAttachment,
+                  let placement = photoPlacement(atCharacter: charIndex, in: attributed) else { return nil }
+            #if DEBUG
+            if attachment.isTile != placement.isTile {
+                debugPrint("[PhotoSize] drawn tile \(attachment.isTile) but the rule says \(placement.isTile)")
+            }
+            #endif
+            let titles: [PhotoSizeOption: String] = [
+                .thumbnail: String(localized: "Thumbnail"), .small: String(localized: "Small"),
+                .medium: String(localized: "Medium"), .full: String(localized: "Full Width")]
+            let actions = placement.options.map { option in
+                UIAction(title: titles[option] ?? "", state: option == placement.tick ? .on : .off) { [weak self, weak textView] _ in
                     guard let self, let textView else { return }
-                    self.setPhotoSize(stored: option.stored, atCharacter: charIndex, in: textView)
+                    self.setPhotoSize(stored: placement.storedValue(for: option), atCharacter: charIndex, in: textView)
                 }
             }
             return UIMenu(title: String(localized: "Photo Size"), image: UIImage(systemName: "arrow.up.left.and.arrow.down.right"), children: actions)
         }
 
-        /// A landscape picture first in a run of photo lines: no size draws it full width (a map).
-        private func photoLeadsRowAsMap(atCharacter charIndex: Int, in text: NSString) -> Bool {
-            let paragraph = text.paragraphRange(for: NSRange(location: charIndex, length: 0))
-            if paragraph.location > 0 {
-                let above = text.paragraphRange(for: NSRange(location: paragraph.location - 1, length: 0))
-                if text.substring(with: above).trimmingCharacters(in: .whitespacesAndNewlines) == "\u{FFFC}" { return false }
-            }
-            guard let textView, let index = photoIndex(forAttachmentAt: charIndex, in: textView),
-                  index < parent.photoDataArray.count else { return false }
-            return PhotoRuns.isLandscape(parent.photoDataArray[index])
+        /// Each photo token's placement in `text` (text order), from the entry's sizes and pictures.
+        private func photoPlacements(in text: String) -> [PhotoPlacement] {
+            let photos = parent.photoDataArray
+            return PhotoPlacement.placements(text: text, inlineStyleData: parent.inlineStyleData,
+                                             hasPicture: { $0 < photos.count },
+                                             isLandscape: { $0 < photos.count && PhotoRuns.isLandscape(photos[$0]) })
         }
 
-        /// Whether the line above or below this photo's line is also just a photo.
-        private func photoHasPhotoNeighbour(atCharacter charIndex: Int, in text: NSString) -> Bool {
-            let paragraph = text.paragraphRange(for: NSRange(location: charIndex, length: 0))
-            func isPhotoLine(_ range: NSRange) -> Bool {
-                text.substring(with: range).trimmingCharacters(in: .whitespacesAndNewlines) == "\u{FFFC}"
-            }
-            if paragraph.location > 0, isPhotoLine(text.paragraphRange(for: NSRange(location: paragraph.location - 1, length: 0))) { return true }
-            if NSMaxRange(paragraph) < text.length, isPhotoLine(text.paragraphRange(for: NSRange(location: NSMaxRange(paragraph), length: 0))) { return true }
-            return false
+        /// The placement of the photo drawn at display offset `charIndex`: attachments are the
+        /// tokens in text order.
+        private func photoPlacement(atCharacter charIndex: Int, in attributed: NSAttributedString) -> PhotoPlacement? {
+            let ns = attributed.string as NSString
+            var order = 0
+            for i in 0..<charIndex where ns.character(at: i) == 0xFFFC { order += 1 }
+            let placements = photoPlacements(in: parent.text)
+            return placements.indices.contains(order) ? placements[order] : nil
         }
 
         private func setPhotoSize(stored: String?, atCharacter charIndex: Int, in textView: UITextView) {
@@ -778,18 +767,42 @@ struct NoteEditorTextView: UIViewRepresentable {
                 // Draw the markers for the pasted lines, keeping the caret at the same place in
                 // the text (each new marker shifts display offsets after it).
                 pastedIntoList = nil
-                let logicalCaret = displayToLogical(display: textView.selectedRange.location,
-                                                    map: buildLogicalOffsetMap(from: textView.attributedText ?? NSAttributedString()))
-                invalidateRenderedCache()
-                applyStyledText(to: textView, preservingSelection: false)
-                let map = buildLogicalOffsetMap(from: textView.attributedText ?? NSAttributedString())
-                isApplyingStyledText = true
-                textView.selectedRange = bounded(NSRange(location: logicalToDisplay(logical: logicalCaret, map: map), length: 0), in: textView.text)
-                isApplyingStyledText = false
-                updateTypingAttributes(for: textView)
+                redrawKeepingCaret(in: textView)
+            } else if photoTilesAreStale(in: textView) {
+                // Typing made or broke a row of photos (Return or words between two tiles,
+                // Backspace joining two photo lines): draw them as the rule now says.
+                redrawKeepingCaret(in: textView)
             }
             committedSnapshot = currentSnapshot(of: textView)
             scrollCaretToVisible(in: textView)
+        }
+
+        /// Renders the text again from the model, the caret staying at the same place in the text.
+        private func redrawKeepingCaret(in textView: UITextView) {
+            let logicalCaret = displayToLogical(display: textView.selectedRange.location,
+                                                map: buildLogicalOffsetMap(from: textView.attributedText ?? NSAttributedString()))
+            invalidateRenderedCache()
+            applyStyledText(to: textView, preservingSelection: false)
+            let map = buildLogicalOffsetMap(from: textView.attributedText ?? NSAttributedString())
+            isApplyingStyledText = true
+            textView.selectedRange = bounded(NSRange(location: logicalToDisplay(logical: logicalCaret, map: map), length: 0), in: textView.text)
+            isApplyingStyledText = false
+            updateTypingAttributes(for: textView)
+        }
+
+        /// Whether a drawn photo's tile state differs from what `PhotoPlacement` says for the
+        /// text as it is now. Only entries with photos pay for the check; never mid-composition.
+        private func photoTilesAreStale(in textView: UITextView) -> Bool {
+            guard !parent.photoDataArray.isEmpty, textView.markedTextRange == nil,
+                  let attributed = textView.attributedText, attributed.length > 0 else { return false }
+            // nil for an attachment that isn't a drawn photo (an unreadable one's placeholder).
+            var drawn: [Bool?] = []
+            attributed.enumerateAttribute(.attachment, in: NSRange(location: 0, length: attributed.length)) { value, _, _ in
+                if let attachment = value as? NSTextAttachment { drawn.append((attachment as? PhotoAttachment)?.isTile) }
+            }
+            let placements = photoPlacements(in: parent.text)
+            guard drawn.count == placements.count else { return false }
+            return zip(drawn, placements).contains { tile, placement in tile.map { $0 != placement.isTile } ?? false }
         }
 
         /// The text view doesn't scroll (WriteView's ScrollView owns scrolling), so
@@ -888,6 +901,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                     return true
                 }
             }
+            if !isSplittingPhotoLine, keepsPhotoOnItsLine(textView, range: range, replacement: replacement) { return false }
             let allowed = handleChange(textView, range: range, replacement: replacement)
             if allowed {
                 // UIKit applies it; textViewDidChange records the result.
@@ -905,6 +919,62 @@ struct NoteEditorTextView: UIViewRepresentable {
                 commitUndoPoint(in: textView)
             }
             return allowed
+        }
+
+        /// While `keepsPhotoOnItsLine` makes its own edits.
+        private var isSplittingPhotoLine = false
+
+        /// A photo keeps a line of its own (one token per line: 3.1.7's reader and the Mac codec
+        /// read photo lines alone, and a Thumbnail sharing its line with words is drawn full
+        /// width; 2026-11-14). Words typed right after a photo go on a new line under it, words
+        /// typed right before one on a new line above it. Backspace that would pull words onto a
+        /// photo's line (or the photo onto the words' line) moves the caret across the line break
+        /// instead; another Backspace then removes the photo, as before. Not for input methods
+        /// that compose (Japanese, Chinese, Korean): re-inserting their first keystroke would
+        /// commit it unfinished. Returns true when it handled the change.
+        private func keepsPhotoOnItsLine(_ textView: UITextView, range: NSRange, replacement: String) -> Bool {
+            let ns = (textView.text ?? "") as NSString
+            let length = ns.length
+            func isPhotoAloneOnLine(_ char: Int) -> Bool {
+                guard char >= 0, char < length, ns.character(at: char) == 0xFFFC else { return false }
+                return (char == 0 || ns.character(at: char - 1) == 10) && (char + 1 == length || ns.character(at: char + 1) == 10)
+            }
+            if replacement.isEmpty {
+                // Backspace over the line break between a photo's line and a line of words.
+                guard range.length == 1, range.location < length, ns.character(at: range.location) == 10 else { return false }
+                let before = range.location - 1, after = range.location + 1
+                let wordsAfter = after < length && ns.character(at: after) != 10
+                let wordsBefore = before >= 0 && ns.character(at: before) != 10
+                if isPhotoAloneOnLine(before), wordsAfter, !isPhotoAloneOnLine(after) {
+                    textView.selectedRange = NSRange(location: range.location, length: 0)
+                    return true
+                }
+                if isPhotoAloneOnLine(after), wordsBefore, !isPhotoAloneOnLine(before) {
+                    textView.selectedRange = NSRange(location: range.location, length: 0)
+                    return true
+                }
+                return false
+            }
+            guard range.length == 0, replacement != "\n" else { return false }
+            if let language = textView.textInputMode?.primaryLanguage,
+               ["ja", "zh", "ko", "yue"].contains(where: { language.hasPrefix($0) }) { return false }
+            let location = range.location
+            let afterPhoto = isPhotoAloneOnLine(location - 1) && !replacement.hasPrefix("\n")
+            let beforePhoto = isPhotoAloneOnLine(location) && !replacement.hasSuffix("\n")
+            guard afterPhoto || beforePhoto else { return false }
+            isSplittingPhotoLine = true
+            defer { isSplittingPhotoLine = false }
+            textView.selectedRange = NSRange(location: location, length: 0)
+            if afterPhoto {
+                textView.insertText("\n")
+                textView.insertText(replacement)
+            } else {
+                textView.insertText(replacement)
+                let caret = textView.selectedRange
+                textView.insertText("\n")
+                textView.selectedRange = caret
+            }
+            return true
         }
 
         private func handleChange(_ textView: UITextView, range: NSRange, replacement: String) -> Bool {
@@ -1225,7 +1295,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         /// touch, so text selection and the checklist drag start as fast as before.
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
             guard gestureRecognizer === photoDragRecognizer, let textView = gestureRecognizer.view as? UITextView else { return true }
-            return photoParagraph(at: touch.location(in: textView), in: textView) != nil
+            return photoCharacter(at: touch.location(in: textView), in: textView) != nil
         }
 
         /// The text view's own holds (selection, its menus) wait for the photo hold to fail, so a
@@ -1239,7 +1309,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             guard let textView = gestureRecognizer.view as? UITextView else { return true }
             let point = gestureRecognizer.location(in: textView)
             if gestureRecognizer is UISwipeGestureRecognizer { return listParagraph(at: point, in: textView) != nil }
-            if gestureRecognizer === photoDragRecognizer { return photoParagraph(at: point, in: textView) != nil }
+            if gestureRecognizer === photoDragRecognizer { return photoCharacter(at: point, in: textView) != nil }
             if gestureRecognizer is UILongPressGestureRecognizer { return checklistMarkerParagraph(at: point, in: textView) != nil }
             return true
         }
@@ -1328,7 +1398,15 @@ struct NoteEditorTextView: UIViewRepresentable {
             let point = gesture.location(in: textView)
             switch gesture.state {
             case .began:
-                guard let paragraph = photoParagraph(at: point, in: textView) else { return }
+                guard let paragraph = photoParagraph(at: point, in: textView) else {
+                    // A photo sharing its line with words: its menu (Photo Size, Copy, Save), and
+                    // it never lifts. It opened the full-screen viewer instead (2026-11-14).
+                    if let char = photoCharacter(at: point, in: textView) {
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        presentPhotoMenu(forCharacter: char, at: point)
+                    }
+                    return
+                }
                 let char = attachmentCharacterIndex(at: point, in: textView) ?? paragraph.location
                 photoHold = (point, paragraph, char)
                 photoHoldMoved = false
@@ -1378,12 +1456,18 @@ struct NoteEditorTextView: UIViewRepresentable {
             return rect.offsetBy(dx: textView.textContainerInset.left, dy: textView.textContainerInset.top)
         }
 
-        /// The paragraph of the photo under `point`, when the photo is alone on its line.
-        func photoParagraph(at point: CGPoint, in textView: UITextView) -> NSRange? {
-            // On the picture itself: the nearest character can be a photo while the finger is in
-            // the blank space beside a thumbnail or a Small photo.
+        /// The photo character under `point`, when the finger is on the picture itself: the nearest
+        /// character can be a photo while the finger is in the blank space beside a thumbnail or a
+        /// Small photo.
+        func photoCharacter(at point: CGPoint, in textView: UITextView) -> Int? {
             guard let char = attachmentCharacterIndex(at: point, in: textView),
                   let rect = attachmentRect(atCharacter: char, in: textView), rect.insetBy(dx: -4, dy: -4).contains(point) else { return nil }
+            return char
+        }
+
+        /// The paragraph of the photo under `point`, when the photo is alone on its line.
+        func photoParagraph(at point: CGPoint, in textView: UITextView) -> NSRange? {
+            guard let char = photoCharacter(at: point, in: textView) else { return nil }
             let text = (textView.text ?? "") as NSString
             let paragraph = text.paragraphRange(for: NSRange(location: char, length: 0))
             guard text.substring(with: paragraph).trimmingCharacters(in: .whitespacesAndNewlines) == "\u{FFFC}" else { return nil }
@@ -2314,20 +2398,10 @@ struct NoteEditorTextView: UIViewRepresentable {
             // first picture (a map) stays full width, every other picture in the run is a square
             // tile. A photo on its own is drawn as before. Display only: the stored text keeps one
             // token per line, which every older version reads.
-            // Rows are found over every photo line; a photo given a size of its own then leaves its
-            // row and is drawn alone at that size, while its neighbours stay thumbnails.
-            // A photo set to Thumbnail on its own is one square tile too.
-            let sized = PhotoSizes.sizedPhotos(text: parent.text, inlineStyleData: parent.inlineStyleData)
-            let thumbnails = PhotoSizes.thumbnailPhotos(text: parent.text, inlineStyleData: parent.inlineStyleData)
-            let tiles = PhotoRuns.tileMatches(allMatches.map(\.range), in: nsRaw) { range in
-                guard let index = inlinePhotoIndex(from: nsRaw.substring(with: range)),
-                      index < parent.photoDataArray.count else { return false }
-                return PhotoRuns.isLandscape(parent.photoDataArray[index])
-            }.filter { i in inlinePhotoIndex(from: nsRaw.substring(with: allMatches[i].range)).map { !sized.contains($0) } ?? true }
-                .union(allMatches.indices.filter { i in
-                    PhotoRuns.aloneOnLine(allMatches[i].range, in: nsRaw)
-                        && (inlinePhotoIndex(from: nsRaw.substring(with: allMatches[i].range)).map { thumbnails.contains($0) } ?? false)
-                })
+            // Which are tiles is `PhotoPlacement`'s one rule, shared with the menu, the reader and
+            // the Mac picker. Its placements are in text order, as `allMatches` is.
+            let placements = photoPlacements(in: rawText)
+            let tiles = Set(placements.count == allMatches.count ? placements.indices.filter { placements[$0].isTile } : [])
 
             for (matchIndex, match) in allMatches.enumerated() {
                 let textRange = NSRange(location: lastEnd, length: match.range.location - lastEnd)
@@ -4709,7 +4783,12 @@ extension NoteEditorTextView.Coordinator: UITextDragDelegate, UITextDropDelegate
 nonisolated func textWithInlinePhotoToken(_ text: String, at index: Int) -> String {
     let token = inlinePhotoToken(at: index)
     guard !text.contains(token) else { return text }
-    let trimmed = trimmingTrailingNewlines(text)
+    // Trailing lines of only spaces go too, like blank ones (owner, 14 Pro 2026-11-13): one left
+    // between a photo and the new one kept them out of one row, so a photo added under a
+    // thumbnail came in full width.
+    var lines = trimmingTrailingNewlines(text).components(separatedBy: "\n")
+    while let last = lines.last, last.trimmingCharacters(in: .whitespaces).isEmpty { lines.removeLast() }
+    let trimmed = lines.joined(separator: "\n")
     return trimmed.isEmpty ? token : "\(trimmed)\n\(token)\n"
 }
 

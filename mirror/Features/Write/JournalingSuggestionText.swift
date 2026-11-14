@@ -124,6 +124,10 @@ struct SuggestionInsert: Equatable {
         // The cursor on a blank line between paragraphs: go in after the paragraph above it, so
         // the block gets one blank line before it, not two.
         while at > 0, lines[at].trimmingCharacters(in: .whitespaces).isEmpty { at -= 1 }
+        // Pictures alone (paperclip, paste, drop) after a picture join its row: no blank line
+        // between, so they're drawn as one row of tiles (owner, 2026-11-14: a photo added under a
+        // thumbnail came in full width). A suggestion's block keeps its blank line.
+        let joinsRow = !tokens.isEmpty && text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && isPhotoLine(lines[at])
         let before = Array(lines[0...at])
         let after = at + 1 < lines.count ? Array(lines[(at + 1)...]) : []
         let gapAfter = !after.isEmpty && after.first?.trimmingCharacters(in: .whitespaces).isEmpty == false
@@ -132,11 +136,11 @@ struct SuggestionInsert: Equatable {
 
         // prefix (through the paragraph before) + inserted + suffix (the rest).
         let prefix = before.joined(separator: "\n") + "\n"
-        let inserted = "\n" + blockLines.map { $0 + "\n" }.joined() + (gapAfter ? "\n" : "")
+        let inserted = (joinsRow ? "" : "\n") + blockLines.map { $0 + "\n" }.joined() + (gapAfter ? "\n" : "")
         let suffix = after.joined(separator: "\n") + trailingNewlines
         let combined = prefix + inserted + suffix
 
-        // Paragraph styles, spliced: [before][blank][block…][blank?][after].
+        // Paragraph styles, spliced: [before][blank, unless it joins a row][block…][blank?][after].
         var styles: NoteTextStyleDocument?
         if leadsWithTitle || existingStyles != nil {
             // Mid-entry, the entry's trailing blank paragraphs stay after the rest of it.
@@ -148,9 +152,9 @@ struct SuggestionInsert: Equatable {
             let oldFonts = padded(existingStyles?.fontChoices, entryFont)
             let oldIndents: [Int]? = existingStyles?.indentLevels.map { padded($0, 0) }
             let keep = at + 1
-            let newCount = 1 + blockLines.count + (gapAfter ? 1 : 0)
+            let newCount = (joinsRow ? 0 : 1) + blockLines.count + (gapAfter ? 1 : 0)
             var newStyles = Array(repeating: NoteParagraphTextStyle.body, count: newCount)
-            if leadsWithTitle, !blockLines.isEmpty { newStyles[1] = .heading }
+            if leadsWithTitle, !blockLines.isEmpty, !joinsRow { newStyles[1] = .heading }
             // The text ends with a line break: one more (empty) paragraph after the block when it's last.
             let tail = after.isEmpty ? 1 : 0
             let paragraph = Array(oldStyles.prefix(keep)) + newStyles + Array(oldStyles.dropFirst(keep)) + Array(repeating: .body, count: tail)
@@ -180,7 +184,7 @@ struct SuggestionInsert: Equatable {
             tail.length = r.location + r.length - insertAt
             return [head, tail]
         }
-        let blockStart = insertAt + 1
+        let blockStart = insertAt + (joinsRow ? 0 : 1)
         let added = linkRanges(in: block, mapLeads: mapLeads).map { range -> InlineStyleRange in
             var r = range; r.location += blockStart; return r
         }

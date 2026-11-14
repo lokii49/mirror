@@ -24,8 +24,8 @@ nonisolated enum PhotoSize: String, CaseIterable, Sendable {
     }
 
     /// The stored value: nil for full width, so an entry without sizes stores nothing new. A photo
-    /// in a row of thumbnails chosen to be full width stores "full" (`PhotoSizes.setting(stored:)`),
-    /// which takes it out of the row.
+    /// in a row of thumbnails chosen to be full width stores "full" (`PhotoPlacement`), which takes
+    /// it out of the row.
     var storedValue: String? { self == .full ? nil : rawValue }
 
     init(stored: String?) {
@@ -64,25 +64,6 @@ nonisolated enum PhotoSizes {
             if let stored = ranges.last(where: { $0.photoSize != nil && $0.location == offset })?.photoSize { result[photoIndex] = stored }
         }
         return result
-    }
-
-    /// Photos with a size of their own, "full" included, by photo index. They're drawn on their
-    /// own, not as thumbnails in a row (`PhotoRuns`). A thumbnail isn't one: it stays in its row.
-    static func sizedPhotos(text: String, inlineStyleData: Data?) -> Set<Int> {
-        Set(storedSizes(text: text, inlineStyleData: inlineStyleData).filter { $0.value != thumbnail }.keys)
-    }
-
-    /// Photos drawn as a square thumbnail even on their own, by photo index.
-    static func thumbnailPhotos(text: String, inlineStyleData: Data?) -> Set<Int> {
-        Set(storedSizes(text: text, inlineStyleData: inlineStyleData).filter { $0.value == thumbnail }.keys)
-    }
-
-    /// The stored size of one photo ("small", "medium", "full"), or nil when it has none.
-    static func storedSize(ofPhoto photoIndex: Int, text: String, inlineStyleData: Data?) -> String? {
-        guard let offset = inlineOffsets(in: text).first(where: { $0.photoIndex == photoIndex })?.offset,
-              let data = inlineStyleData,
-              let ranges = try? JSONDecoder().decode(InlineStyleDocument.self, from: data).ranges else { return nil }
-        return ranges.last(where: { $0.photoSize != nil && $0.location == offset })?.photoSize
     }
 
     /// The size of each photo that isn't full width, by photo index.
@@ -167,5 +148,136 @@ nonisolated enum PhotoSizes {
         ranges.sort { $0.location < $1.location }
         guard !ranges.isEmpty else { return nil }
         return try? JSONEncoder().encode(InlineStyleDocument(ranges: ranges))
+    }
+}
+
+/// How one photo is drawn: a square tile, or on its own at a share of the line.
+nonisolated enum PhotoDrawn: Equatable, Sendable {
+    case tile
+    case width(PhotoSize)
+}
+
+/// The Photo Size menu's choices, in menu order (iPhone, iPad and Mac).
+nonisolated enum PhotoSizeOption: String, CaseIterable, Sendable {
+    case thumbnail, small, medium, full
+}
+
+/// The one photo-size rule (3.1.9, owner 2026-11-14: "photo resizing is still an issue"). The
+/// editor's drawing, the iPhone menu, the reader and the Mac picker all read it, so what a photo
+/// looks like, which menu item is ticked and what each item stores can't disagree.
+///
+/// - A *photo line* is a line (split on "\n") that is one photo token with its picture, spaces
+///   aside. 2+ photo lines in a row make a *run*; a blank line, a line of spaces or words end it.
+/// - In a run, no size draws a square tile, except a landscape first photo (a map), drawn full
+///   width. A size of its own ("small", "medium", "full") draws the photo alone at that width,
+///   out of the run; its neighbours stay tiles. Runs are found before sizes are applied.
+/// - "thumbnail" draws a tile on any photo line, a run of one included. A photo sharing its line
+///   with words can't be a tile: it's drawn full width and its menu has no Thumbnail.
+/// - The tick is what is drawn. Each choice stores nothing when no size already draws it that
+///   way: an unneeded range makes Mac 1.1.8 open the entry read-only.
+nonisolated struct PhotoPlacement: Equatable, Sendable {
+    var photoIndex: Int
+    /// The stored value on the photo's inline character, or nil.
+    var stored: String?
+    /// The token is the only thing on its line (spaces aside) and has its picture.
+    var photoLine: Bool
+    /// In a run of 2+ photo lines (photos with a size of their own count).
+    var inRun: Bool
+    /// First photo of its run and landscape.
+    var leadsAsMap: Bool
+
+    /// What a stored value draws in this place.
+    func drawn(for stored: String?) -> PhotoDrawn {
+        switch stored {
+        case nil: inRun && !leadsAsMap ? .tile : .width(.full)
+        case PhotoSizes.thumbnail?: photoLine ? .tile : .width(.full)
+        case let value?: .width(PhotoSize(stored: value))
+        }
+    }
+
+    var drawn: PhotoDrawn { drawn(for: stored) }
+
+    var isTile: Bool { drawn == .tile }
+
+    /// The menu item that matches what is drawn.
+    var tick: PhotoSizeOption {
+        switch drawn {
+        case .tile: .thumbnail
+        case .width(.small): .small
+        case .width(.medium): .medium
+        case .width(.full): .full
+        }
+    }
+
+    /// The menu's choices here: Thumbnail only on a photo line.
+    var options: [PhotoSizeOption] { photoLine ? PhotoSizeOption.allCases : [.small, .medium, .full] }
+
+    /// What choosing `option` stores: nil when no size already draws it that way.
+    func storedValue(for option: PhotoSizeOption) -> String? {
+        let none = drawn(for: nil)
+        switch option {
+        case .thumbnail: return none == .tile ? nil : PhotoSizes.thumbnail
+        case .small: return PhotoSize.small.rawValue
+        case .medium: return PhotoSize.medium.rawValue
+        case .full: return none == .width(.full) ? nil : PhotoSize.full.rawValue
+        }
+    }
+
+    /// Every photo token in `text`, in text order. `hasPicture(i)`: photo i's data exists;
+    /// `isLandscape(i)`: photo i is wider than tall (`PhotoRuns.isLandscape`).
+    static func placements(text: String, inlineStyleData: Data?,
+                           hasPicture: (Int) -> Bool, isLandscape: (Int) -> Bool) -> [PhotoPlacement] {
+        let ns = text as NSString
+        let tokens = allPhotoTokens(in: text)
+            .map { (range: NSRange($0.range, in: text), index: $0.index) }
+            .sorted { $0.range.location < $1.range.location }
+        guard !tokens.isEmpty else { return [] }
+        let ranges = (inlineStyleData.flatMap { try? JSONDecoder().decode(InlineStyleDocument.self, from: $0) }?.ranges ?? [])
+            .filter { $0.photoSize != nil }
+
+        // Line number of each token, and whether it's a photo line.
+        var lineOf: [Int] = []
+        var photoLine: [Bool] = []
+        var line = 0
+        var scanned = 0
+        var inlineShift = 0
+        var stored: [String?] = []
+        for token in tokens {
+            for i in scanned..<token.range.location where ns.character(at: i) == 10 { line += 1 }
+            scanned = token.range.location
+            lineOf.append(line)
+            var start = token.range.location
+            while start > 0, isSpace(ns.character(at: start - 1)) { start -= 1 }
+            var end = NSMaxRange(token.range)
+            while end < ns.length, isSpace(ns.character(at: end)) { end += 1 }
+            let alone = (start == 0 || ns.character(at: start - 1) == 10) && (end == ns.length || ns.character(at: end) == 10)
+            photoLine.append(alone && hasPicture(token.index))
+            // A size belongs to the photo its range starts on (`PhotoSizes.storedSizes`).
+            let offset = token.range.location - inlineShift
+            stored.append(ranges.last(where: { $0.location == offset })?.photoSize)
+            inlineShift += token.range.length - 1
+        }
+
+        var result: [PhotoPlacement] = []
+        for k in tokens.indices {
+            // Neighbouring photo lines: the previous / next token on the line just above / below.
+            let above = k > 0 && photoLine[k - 1] && lineOf[k - 1] == lineOf[k] - 1
+            let below = k + 1 < tokens.count && photoLine[k + 1] && lineOf[k + 1] == lineOf[k] + 1
+            let inRun = photoLine[k] && (above || below)
+            result.append(PhotoPlacement(photoIndex: tokens[k].index, stored: stored[k], photoLine: photoLine[k], inRun: inRun,
+                                         leadsAsMap: inRun && !above && isLandscape(tokens[k].index)))
+        }
+        return result
+    }
+
+    /// By photo index (the first token when one appears twice), for the reader and the Mac.
+    static func byPhoto(_ placements: [PhotoPlacement]) -> [Int: PhotoPlacement] {
+        var result: [Int: PhotoPlacement] = [:]
+        for placement in placements where result[placement.photoIndex] == nil { result[placement.photoIndex] = placement }
+        return result
+    }
+
+    private static func isSpace(_ c: unichar) -> Bool {
+        Unicode.Scalar(c).map { CharacterSet.whitespaces.contains($0) } ?? false
     }
 }

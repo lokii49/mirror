@@ -6,11 +6,11 @@ import Testing
 /// The stored text keeps one token per line; this is display only.
 @Suite("Photo runs")
 struct PhotoRunsTests {
+    /// Token positions (text order) drawn as tiles, by the shared rule (`PhotoPlacement`).
     private func tiles(_ text: String, landscape: Set<Int> = []) -> Set<Int> {
-        let ns = text as NSString
-        let ranges = allPhotoTokens(in: text).map { NSRange($0.range, in: text) }.sorted { $0.location < $1.location }
-        let byLocation = Dictionary(uniqueKeysWithValues: ranges.enumerated().map { ($1.location, $0) })
-        return PhotoRuns.tileMatches(ranges, in: ns) { landscape.contains(byLocation[$0.location]!) }
+        let placements = PhotoPlacement.placements(text: text, inlineStyleData: nil, hasPicture: { _ in true },
+                                                   isLandscape: { landscape.contains($0) })
+        return Set(placements.indices.filter { placements[$0].isTile })
     }
 
     @Test func aMapLeadsAndTheRestAreTiles() {
@@ -38,12 +38,6 @@ struct PhotoRunsTests {
         #expect(tiles("[[mirror-photo-0]]\n  [[mirror-photo-1]]\t\n[[mirror-photo-2]]") == [0, 1, 2])
         #expect(tiles("[[mirror-photo-0]]\n \n[[mirror-photo-1]]").isEmpty, "a blank line still breaks it")
         #expect(tiles("[[mirror-photo-0]] x\n[[mirror-photo-1]]").isEmpty)
-    }
-
-    @Test func linesFormMatchTheEditorRule() {
-        let lines = ["Dinner", "P", "P", "P", "text", "P"]
-        let result = PhotoRuns.tileLines(count: lines.count, photoLine: { lines[$0] == "P" }, isLandscape: { $0 == 1 })
-        #expect(result == [2, 3])
     }
 }
 

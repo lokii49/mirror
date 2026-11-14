@@ -19,8 +19,7 @@ struct PhotoSizeTests {
     @Test func aLonePhotoSetToThumbnailIsATileNotASizedPhoto() {
         let text = "Market\n[[mirror-photo-0]]\nBread\n[[mirror-photo-1]]"
         let data = PhotoSizes.setting(stored: PhotoSizes.thumbnail, atInlineOffset: 7, in: nil)
-        #expect(PhotoSizes.thumbnailPhotos(text: text, inlineStyleData: data) == [0])
-        #expect(PhotoSizes.sizedPhotos(text: text, inlineStyleData: data).isEmpty)   // it stays in a row
+        #expect(PhotoSizes.storedSizes(text: text, inlineStyleData: data) == [0: PhotoSizes.thumbnail])
         #expect(PhotoSizes.sizes(text: text, inlineStyleData: data).isEmpty)          // no width share
         #expect(PhotoSize(stored: PhotoSizes.thumbnail) == .full)                      // older readers: full width
         #expect(PhotoSizes.setting(stored: nil, atInlineOffset: 7, in: data) == nil)
@@ -132,12 +131,12 @@ struct PhotoSizeTests {
         let text = "Trip\n[[mirror-photo-0]]\n[[mirror-photo-1]]\n[[mirror-photo-2]]"
         let offsets = PhotoSizes.inlineOffsets(in: text).map(\.offset)
         var data = PhotoSizes.setting(stored: "full", atInlineOffset: offsets[1], in: nil)
-        #expect(PhotoSizes.sizedPhotos(text: text, inlineStyleData: data) == [1])
+        #expect(PhotoSizes.storedSizes(text: text, inlineStyleData: data) == [1: "full"])
         #expect(PhotoSizes.sizes(text: text, inlineStyleData: data).isEmpty, "full is not a smaller size")
         data = PhotoSizes.setting(stored: "small", atInlineOffset: offsets[2], in: data)
-        #expect(PhotoSizes.sizedPhotos(text: text, inlineStyleData: data) == [1, 2])
+        #expect(PhotoSizes.storedSizes(text: text, inlineStyleData: data) == [1: "full", 2: "small"])
         data = PhotoSizes.setting(stored: nil, atInlineOffset: offsets[1], in: data)
-        #expect(PhotoSizes.sizedPhotos(text: text, inlineStyleData: data) == [2])
+        #expect(PhotoSizes.storedSizes(text: text, inlineStyleData: data) == [2: "small"])
     }
 
     @Test func aSpreadSizeRangeOnlySizesItsOwnPhoto() throws {
@@ -146,7 +145,8 @@ struct PhotoSizeTests {
         let spread = InlineStyleRange(location: 0, length: 5, bold: false, italic: false, underline: false,
                                       strikethrough: false, highlightIndex: nil, photoSize: "full")
         let data = try JSONEncoder().encode(InlineStyleDocument(ranges: [spread]))
-        #expect(PhotoSizes.sizedPhotos(text: text, inlineStyleData: data) == [0])
-        #expect(PhotoSizes.storedSize(ofPhoto: 2, text: text, inlineStyleData: data) == nil)
+        #expect(PhotoSizes.storedSizes(text: text, inlineStyleData: data) == [0: "full"])
+        #expect(PhotoPlacement.placements(text: text, inlineStyleData: data, hasPicture: { _ in true }, isLandscape: { _ in false })
+            .map(\.drawn) == [.width(.full), .tile, .tile])
     }
 }

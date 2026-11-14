@@ -342,16 +342,17 @@ extension WriteView {
 
     /// Thumbnails of the attached photos and the drop zone, under the chips.
     var macPhotosRow: some View {
-        ScrollView(.horizontal) {
+        let photos = photoDataArray
+        let placements = PhotoPlacement.byPhoto(PhotoPlacement.placements(
+            text: viewModel.text, inlineStyleData: inlineStyleData, hasPicture: { $0 < photos.count },
+            isLandscape: { $0 < photos.count && PhotoRuns.isLandscape(photos[$0]) }))
+        return ScrollView(.horizontal) {
             HStack(spacing: 12) {
                 ForEach(photoDataArray.indices, id: \.self) { index in
                     MacPhotoTile(
                         data: photoDataArray[index],
-                        storedSize: PhotoSizes.storedSize(ofPhoto: index, text: viewModel.text, inlineStyleData: inlineStyleData),
-                        // Two or more photos at the end are a row of thumbnails in the reader.
-                        inRow: photoDataArray.count > 1,
-                        // The reader draws a landscape first photo of the row full width (a map).
-                        leadsRow: index == 0 && photoDataArray.count > 1 && PhotoRuns.isLandscape(photoDataArray[index]),
+                        // How the reader draws it and what each size stores (`PhotoPlacement`).
+                        placement: placements[index],
                         onOpen: { fullscreenPhotoIndex = index },
                         onRemove: { macRemovePhoto(at: index) },
                         onSize: { macSetPhotoSize(stored: $0, at: index) }
@@ -498,10 +499,8 @@ struct MacEditorColumn: ViewModifier {
 /// hover button.
 struct MacPhotoTile: View {
     let data: Data
-    /// The photo's stored size ("small", "medium", "full") or nil (thumbnail in a row; full alone).
-    var storedSize: String? = nil
-    var inRow = false
-    var leadsRow = false
+    /// How the reader draws this photo and what each size stores; nil when its token is missing.
+    var placement: PhotoPlacement? = nil
     let onOpen: () -> Void
     let onRemove: () -> Void
     var onSize: (String?) -> Void = { _ in }
@@ -538,26 +537,22 @@ struct MacPhotoTile: View {
         }
         .onHover { hovering = $0 }
         .contextMenu {
-            // "full" on a lone photo is just full width (it was stored while the photo was in a row);
-            // "thumbnail" in a row is its place in the row.
-            // The tick is what the reader draws: in a row no size is a thumbnail, except a landscape
-            // first photo (full width); "thumbnail" is one anywhere. Thumbnail stores nothing where no
-            // size already draws one (an unneeded range makes Mac 1.1.8 read the entry only).
-            let rowTile = inRow && !leadsRow
-            Picker("Photo Size", selection: Binding(get: {
-                storedSize == PhotoSizes.thumbnail ? PhotoSizes.thumbnail
-                    : storedSize == "full" ? (inRow ? "full" : nil)
-                    : storedSize ?? (rowTile ? PhotoSizes.thumbnail : nil)
-            }, set: { value in onSize(value == PhotoSizes.thumbnail && rowTile ? nil : value) })) {
-                // In a row, Full Width is stored; alone, no size is full width (same rule as the
-                // iPhone editor).
-                Text("Thumbnail").tag(String?.some(PhotoSizes.thumbnail))
-                Text("Small").tag(String?.some("small"))
-                Text("Medium").tag(String?.some("medium"))
-                Text("Full Width").tag(inRow ? String?.some("full") : String?.none)
+            // The tick is what the reader draws; each choice stores what `PhotoPlacement` says (the
+            // one rule the iPhone editor, its menu and the reader share).
+            if let placement {
+                Picker("Photo Size", selection: Binding(get: { placement.tick }, set: { onSize(placement.storedValue(for: $0)) })) {
+                    ForEach(placement.options, id: \.self) { option in
+                        switch option {
+                        case .thumbnail: Text("Thumbnail").tag(option)
+                        case .small: Text("Small").tag(option)
+                        case .medium: Text("Medium").tag(option)
+                        case .full: Text("Full Width").tag(option)
+                        }
+                    }
+                }
+                .pickerStyle(.inline)
+                Divider()
             }
-            .pickerStyle(.inline)
-            Divider()
             Button("Remove photo", role: .destructive, action: onRemove)
         }
         .task(id: data.count) { image = Self.thumbnail(from: data) }

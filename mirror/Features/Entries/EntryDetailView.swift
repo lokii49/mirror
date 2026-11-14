@@ -1130,22 +1130,23 @@ private struct InlineEntryContent: View {
         return index
     }
 
+    /// Each photo's placement by photo index (`PhotoPlacement`).
+    private var photoPlacements: [Int: PhotoPlacement] {
+        let photos = photoDataArray
+        return PhotoPlacement.byPhoto(PhotoPlacement.placements(text: text, inlineStyleData: inlineStyleData,
+                                                                hasPicture: { $0 < photos.count },
+                                                                isLandscape: { $0 < photos.count && PhotoRuns.isLandscape(photos[$0]) }))
+    }
+
     /// The reader's blocks: each line, except that tiled photo lines (`PhotoRuns`) gather into one
     /// grid of square tiles. Same rule as the editor; the stored text keeps one token per line.
     private enum Block { case line(Int), tiles([Int]) }
 
     private var blocks: [Block] {
         let lines = displayLines
-        // Rows are found over every photo line; a photo with a size of its own then leaves its row
-        // and is drawn alone, while its neighbours stay thumbnails.
-        // A photo set to Thumbnail on its own is a row of one.
-        let sized = PhotoSizes.sizedPhotos(text: text, inlineStyleData: inlineStyleData)
-        let thumbnails = PhotoSizes.thumbnailPhotos(text: text, inlineStyleData: inlineStyleData)
-        let tiles = PhotoRuns.tileLines(count: lines.count, photoLine: { photoIndex(ofLine: lines[$0]) != nil }) { line in
-            guard let photo = photoIndex(ofLine: lines[line]) else { return false }
-            return PhotoRuns.isLandscape(photoDataArray[photo])
-        }.filter { line in photoIndex(ofLine: lines[line]).map { !sized.contains($0) } ?? true }
-            .union(lines.indices.filter { line in photoIndex(ofLine: lines[line]).map { thumbnails.contains($0) } ?? false })
+        // Which lines are tiles is `PhotoPlacement`'s one rule, shared with the editor and the Mac.
+        let placements = photoPlacements
+        let tiles = Set(lines.indices.filter { line in photoIndex(ofLine: lines[line]).flatMap { placements[$0] }?.isTile ?? false })
         var result: [Block] = []
         for index in lines.indices {
             if tiles.contains(index) {
@@ -1212,7 +1213,7 @@ private struct InlineEntryContent: View {
                         }
                         .padding(.vertical, 4)
                         // Small / Medium (3.1.9): that share of the reading column, from the left.
-                        .modifier(PhotoSizeFrame(size: PhotoSizes.sizes(text: text, inlineStyleData: inlineStyleData)[photoIndex] ?? .full))
+                        .modifier(PhotoSizeFrame(size: photoPlacements[photoIndex].flatMap { if case .width(let size) = $0.drawn { size } else { nil } } ?? .full))
                     if let link = photoLink(atLine: index) {
                         Link(destination: link) { picture }
                     } else {
