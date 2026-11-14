@@ -122,20 +122,50 @@ struct PhotoLineTypingTests {
         #expect(s2.text == "\(p0)\nx\n\(p1)")
     }
 
-    /// Return then words between two tiles: the row splits and both are drawn full width.
-    @Test func typingBetweenTwoTilesRedrawsThem() {
-        let (coordinator, textView, store) = harness("\(p0)\n\(p1)", photos: 2)
-        func tiles() -> [Bool] {
-            var result: [Bool] = []
-            textView.attributedText.enumerateAttribute(.attachment, in: NSRange(location: 0, length: textView.attributedText.length)) { value, _, _ in
-                if let photo = value as? PhotoAttachment { result.append(photo.isTile) }
-            }
-            return result
+    private func tiles(_ textView: UITextView) -> [Bool] {
+        var result: [Bool] = []
+        textView.attributedText.enumerateAttribute(.attachment, in: NSRange(location: 0, length: textView.attributedText.length)) { value, _, _ in
+            if let photo = value as? PhotoAttachment { result.append(photo.isTile) }
         }
-        #expect(tiles() == [true, true])
+        return result
+    }
+
+    /// Return then words between two tiles: the row splits, and both photos keep their look
+    /// (they store "thumbnail" now that no row makes them tiles).
+    @Test func typingBetweenTwoTilesKeepsThemTiles() {
+        let (coordinator, textView, store) = harness("\(p0)\n\(p1)", photos: 2)
+        #expect(tiles(textView) == [true, true])
         type("\n", at: 1, in: textView, coordinator)
         type("w", at: 2, in: textView, coordinator)
         #expect(store.text == "\(p0)\nw\n\(p1)")
-        #expect(tiles() == [false, false])
+        #expect(tiles(textView) == [true, true])
+        #expect(PhotoSizes.storedSizes(text: store.text, inlineStyleData: store.inline) == [0: PhotoSizes.thumbnail, 1: PhotoSizes.thumbnail])
+    }
+
+    /// Owner, 14 Pro 2026-11-14: a row of thumbnails, a photo added, Backspace until a photo is
+    /// deleted: the photo left alone went back to full width.
+    @Test func deletingAPhotoLeavesItsNeighbourAThumbnail() {
+        let p2 = inlinePhotoToken(at: 2)
+        let (coordinator, textView, store) = harness("\(p0)\n\(p1)\n\(p2)\n", photos: 3)
+        #expect(tiles(textView) == [true, true, true])
+        let end = (textView.text as NSString).length
+        backspace(at: end, in: textView, coordinator)          // the empty last line
+        backspace(at: end - 1, in: textView, coordinator)      // photo 2
+        #expect(store.photos.count == 2)
+        #expect(tiles(textView) == [true, true])
+        #expect(store.inline == nil, "still a row: nothing stored")
+        backspace(at: (textView.text as NSString).length, in: textView, coordinator)   // photo 1
+        #expect(store.photos.count == 1)
+        #expect(tiles(textView) == [true], "the photo left keeps its look")
+        #expect(PhotoSizes.storedSizes(text: store.text, inlineStyleData: store.inline) == [0: PhotoSizes.thumbnail])
+    }
+
+    /// A photo shown full width (a lone photo, a row's map) stays full width when its neighbour goes.
+    @Test func deletingANeighbourOfAFullWidthPhotoStoresNothing() {
+        let (coordinator, textView, store) = harness("\(p0)\n\nWords\n\(p1)", photos: 2)
+        #expect(tiles(textView) == [false, false])
+        backspace(at: (textView.text as NSString).length, in: textView, coordinator)
+        #expect(store.photos.count == 1)
+        #expect(store.inline == nil)
     }
 }

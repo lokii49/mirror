@@ -270,6 +270,25 @@ nonisolated struct PhotoPlacement: Equatable, Sendable {
         return result
     }
 
+    /// After an edit (a neighbour deleted, a line break between two photos): a photo that was
+    /// drawn as a tile and would now be drawn full width with no size of its own keeps being a
+    /// tile, by storing "thumbnail" on it. A photo keeps its look until its size is changed
+    /// (owner, 14 Pro 2026-11-14: "the photo is resized to original size" after Backspace).
+    /// `wasTile[k]`: the k-th photo in text order after the edit was a tile before it (nil when
+    /// unknown). Returns the inline document, unchanged when nothing needs keeping.
+    static func keepingTiles(wasTile: [Bool?], text: String, inlineStyleData: Data?,
+                             hasPicture: (Int) -> Bool, isLandscape: (Int) -> Bool) -> Data? {
+        let placements = placements(text: text, inlineStyleData: inlineStyleData, hasPicture: hasPicture, isLandscape: isLandscape)
+        let offsets = PhotoSizes.inlineOffsets(in: text)
+        guard placements.count == wasTile.count, offsets.count == placements.count else { return inlineStyleData }
+        var data = inlineStyleData
+        for (k, placement) in placements.enumerated()
+        where wasTile[k] == true && !placement.isTile && placement.stored == nil && placement.photoLine {
+            data = PhotoSizes.setting(stored: PhotoSizes.thumbnail, atInlineOffset: offsets[k].offset, in: data)
+        }
+        return data
+    }
+
     /// By photo index (the first token when one appears twice), for the reader and the Mac.
     static func byPhoto(_ placements: [PhotoPlacement]) -> [Int: PhotoPlacement] {
         var result: [Int: PhotoPlacement] = [:]

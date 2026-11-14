@@ -770,7 +770,12 @@ struct NoteEditorTextView: UIViewRepresentable {
                 redrawKeepingCaret(in: textView)
             } else if photoTilesAreStale(in: textView) {
                 // Typing made or broke a row of photos (Return or words between two tiles,
-                // Backspace joining two photo lines): draw them as the rule now says.
+                // Backspace joining two photo lines): a tile that would now be drawn full width
+                // keeps being a tile; then draw them as the rule says.
+                let photos = parent.photoDataArray
+                parent.inlineStyleData = PhotoPlacement.keepingTiles(
+                    wasTile: drawnPhotoTiles(in: textView), text: parent.text, inlineStyleData: parent.inlineStyleData,
+                    hasPicture: { $0 < photos.count }, isLandscape: { $0 < photos.count && PhotoRuns.isLandscape(photos[$0]) })
                 redrawKeepingCaret(in: textView)
             }
             committedSnapshot = currentSnapshot(of: textView)
@@ -790,16 +795,23 @@ struct NoteEditorTextView: UIViewRepresentable {
             updateTypingAttributes(for: textView)
         }
 
+        /// Each attachment in text order: whether it's drawn as a tile, nil when it isn't a drawn
+        /// photo (an unreadable one's placeholder).
+        private func drawnPhotoTiles(in textView: UITextView) -> [Bool?] {
+            guard let attributed = textView.attributedText, attributed.length > 0 else { return [] }
+            var drawn: [Bool?] = []
+            attributed.enumerateAttribute(.attachment, in: NSRange(location: 0, length: attributed.length)) { value, _, _ in
+                if let attachment = value as? NSTextAttachment { drawn.append((attachment as? PhotoAttachment)?.isTile) }
+            }
+            return drawn
+        }
+
         /// Whether a drawn photo's tile state differs from what `PhotoPlacement` says for the
         /// text as it is now. Only entries with photos pay for the check; never mid-composition.
         private func photoTilesAreStale(in textView: UITextView) -> Bool {
             guard !parent.photoDataArray.isEmpty, textView.markedTextRange == nil,
                   let attributed = textView.attributedText, attributed.length > 0 else { return false }
-            // nil for an attachment that isn't a drawn photo (an unreadable one's placeholder).
-            var drawn: [Bool?] = []
-            attributed.enumerateAttribute(.attachment, in: NSRange(location: 0, length: attributed.length)) { value, _, _ in
-                if let attachment = value as? NSTextAttachment { drawn.append((attachment as? PhotoAttachment)?.isTile) }
-            }
+            let drawn = drawnPhotoTiles(in: textView)
             let placements = photoPlacements(in: parent.text)
             guard drawn.count == placements.count else { return false }
             return zip(drawn, placements).contains { tile, placement in tile.map { $0 != placement.isTile } ?? false }
@@ -2669,14 +2681,20 @@ struct NoteEditorTextView: UIViewRepresentable {
             // Inline ranges count the photo as its one attachment character, so make the same
             // removal there (renumbering a token changes nothing in those coordinates); otherwise
             // formatting below the photo shifts by one or two characters.
+            var inline = parent.inlineStyleData
             if tokenRange.location != NSNotFound, let attributed = textView.attributedText {
                 let map = buildLogicalOffsetMap(from: attributed)
                 var location = displayToLogical(display: displayCharIndex, map: map)
                 var length = 1
                 if removedBreakBefore { location -= 1; length += 1 } else if removedBreakAfter { length += 1 }
-                parent.inlineStyleData = NoteEditorCodec.adjustInlineStyles(parent.inlineStyleData,
-                                                                            replacing: NSRange(location: max(0, location), length: length), withLength: 0)
+                inline = NoteEditorCodec.adjustInlineStyles(inline, replacing: NSRange(location: max(0, location), length: length), withLength: 0)
             }
+            // The photos left keep their look: a tile whose row just lost this photo stays a tile.
+            var wasTile = drawnPhotoTiles(in: textView)
+            if wasTile.indices.contains(attachCount) { wasTile.remove(at: attachCount) }
+            parent.inlineStyleData = PhotoPlacement.keepingTiles(
+                wasTile: wasTile, text: updatedText as String, inlineStyleData: inline,
+                hasPicture: { $0 < photos.count }, isLandscape: { $0 < photos.count && PhotoRuns.isLandscape(photos[$0]) })
             parent.photoDataArray = photos
             parent.text = updatedText as String
             applyStyledText(to: textView, preservingSelection: false)

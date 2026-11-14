@@ -402,11 +402,22 @@ extension WriteView {
     func macRemovePhoto(at index: Int) {
         guard photoDataArray.indices.contains(index) else { return }
         let oldText = viewModel.text
+        let oldPhotos = photoDataArray
+        // How the reader drew each photo before (text order is photo order here: trailing tokens).
+        var wasTile: [Bool?] = PhotoPlacement.placements(
+            text: oldText, inlineStyleData: inlineStyleData, hasPicture: { $0 < oldPhotos.count },
+            isLandscape: { $0 < oldPhotos.count && PhotoRuns.isLandscape(oldPhotos[$0]) }).map(\.isTile)
         let body = NoteEditorCodec.splitTrailingPhotoTokens(viewModel.text).body
         photoDataArray.remove(at: index)
         viewModel.text = NoteEditorCodec.appendingPhotoTokens(to: body, count: photoDataArray.count)
-        // The other photos keep their sizes (and links).
-        inlineStyleData = PhotoSizes.removingPhoto(at: index, oldText: oldText, newText: viewModel.text, in: inlineStyleData)
+        // The other photos keep their sizes (and links), and a tile whose row just lost this
+        // photo stays a tile (`PhotoPlacement.keepingTiles`).
+        let photos = photoDataArray
+        if wasTile.indices.contains(index) { wasTile.remove(at: index) }
+        inlineStyleData = PhotoPlacement.keepingTiles(
+            wasTile: wasTile, text: viewModel.text,
+            inlineStyleData: PhotoSizes.removingPhoto(at: index, oldText: oldText, newText: viewModel.text, in: inlineStyleData),
+            hasPicture: { $0 < photos.count }, isLandscape: { $0 < photos.count && PhotoRuns.isLandscape(photos[$0]) })
         if entry == nil { saveDraftToStorage() }
     }
 

@@ -194,6 +194,29 @@ struct PhotoPlacementTests {
         #expect(left.tick == .full)
     }
 
+    @Test func keepingTilesStoresThumbnailOnlyWhereALookWouldChange() {
+        let yes: (Int) -> Bool = { _ in true }, no: (Int) -> Bool = { _ in false }
+        // Row of two minus one: the one left was a tile, would be full width → "thumbnail".
+        #expect(PhotoSizes.storedSizes(text: p(0), inlineStyleData:
+            PhotoPlacement.keepingTiles(wasTile: [true], text: p(0), inlineStyleData: nil, hasPicture: yes, isLandscape: no))
+            == [0: PhotoSizes.thumbnail])
+        // Still a row: nothing stored.
+        #expect(PhotoPlacement.keepingTiles(wasTile: [true, true], text: "\(p(0))\n\(p(1))", inlineStyleData: nil,
+                                            hasPicture: yes, isLandscape: no) == nil)
+        // Was full width (a map, a lone photo): nothing stored.
+        #expect(PhotoPlacement.keepingTiles(wasTile: [false], text: p(0), inlineStyleData: nil, hasPicture: yes, isLandscape: no) == nil)
+        // A size of its own stays as it is.
+        let small = sizes(p(0), [0: "small"])
+        #expect(PhotoPlacement.keepingTiles(wasTile: [true], text: p(0), inlineStyleData: small, hasPicture: yes, isLandscape: yes) == small)
+        // A tile that becomes a row's leading map (landscape first) keeps being a tile.
+        let row = "\(p(0))\n\(p(1))"
+        #expect(PhotoSizes.storedSizes(text: row, inlineStyleData:
+            PhotoPlacement.keepingTiles(wasTile: [true, true], text: row, inlineStyleData: nil, hasPicture: yes, isLandscape: { $0 == 0 }))
+            == [0: PhotoSizes.thumbnail])
+        // Counts that don't match (unknown edit): unchanged.
+        #expect(PhotoPlacement.keepingTiles(wasTile: [true], text: row, inlineStyleData: nil, hasPicture: yes, isLandscape: no) == nil)
+    }
+
     @Test func aDuplicateTokenUsesTheFirst() {
         let placements = place("\(p(0))\nwords\n\(p(0))\n\(p(1))")
         #expect(placements.map(\.drawn) == [.width(.full), .tile, .tile])
