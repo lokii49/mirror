@@ -913,6 +913,13 @@ struct NoteEditorTextView: UIViewRepresentable {
                     return true
                 }
             }
+            if replacement.contains("\u{FFFC}") {
+                // Text copied with a photo in it pastes the photo's placeholder character with no
+                // photo behind it; every such character must be a photo here, so it's dropped.
+                // (A photo is copied from its own menu and pasted as a picture.)
+                applyAsKeyboardEdit(range, replacement.replacingOccurrences(of: "\u{FFFC}", with: ""), in: textView)
+                return false
+            }
             if !isSplittingPhotoLine, keepsPhotoOnItsLine(textView, range: range, replacement: replacement) { return false }
             let allowed = handleChange(textView, range: range, replacement: replacement)
             if allowed {
@@ -947,70 +954,120 @@ struct NoteEditorTextView: UIViewRepresentable {
         private func keepsPhotoOnItsLine(_ textView: UITextView, range: NSRange, replacement: String) -> Bool {
             let ns = (textView.text ?? "") as NSString
             let length = ns.length
-            func isPhotoAloneOnLine(_ char: Int) -> Bool {
-                guard char >= 0, char < length, ns.character(at: char) == 0xFFFC else { return false }
-                return (char == 0 || ns.character(at: char - 1) == 10) && (char + 1 == length || ns.character(at: char + 1) == 10)
+            guard NSMaxRange(range) <= length, !replacement.contains("\u{FFFC}") else { return false }
+            // A selection with a photo in it is `handleChange`'s (the photo is removed first).
+            let removed = ns.substring(with: range)
+            guard !removed.contains("\u{FFFC}") else { return false }
+            // Composing keyboards build the word in place; splitting the line would end it.
+            if range.length == 0, let language = textView.textInputMode?.primaryLanguage,
+               ["ja", "zh", "ko", "yue"].contains(where: { language.hasPrefix($0) }) { return false }
+            // The lines the edit touches, list markers left out (a photo's line may carry a
+            // list style): `head` before the edit on its first line, `tail` after it on its last.
+            // A photo line is one photo, spaces aside.
+            guard let attributed = textView.attributedText, attributed.length == length else { return false }
+            func contentStart(ofLineAt location: Int) -> Int {
+                let line = ns.lineRange(for: NSRange(location: location, length: 0))
+                return line.location + displayedMarkerLength(of: line, in: attributed)
             }
-            if range.length > 0, NSMaxRange(range) <= length {
-                // An edit across a line break (Backspace, a selection deleted, cut or pasted over)
-                // that would put a photo on one line with words or another photo: keep a line
-                // break on the photo's side. Backspace over the break itself moves the caret.
-                let removed = ns.substring(with: range)
-                guard removed.contains("\n"), !removed.contains("\u{FFFC}"), !replacement.contains("\u{FFFC}") else { return false }
-                let lineStart = ns.lineRange(for: NSRange(location: range.location, length: 0)).location
-                let head = ns.substring(with: NSRange(location: lineStart, length: range.location - lineStart))
-                var tailEnd = NSMaxRange(range)
-                while tailEnd < length, ns.character(at: tailEnd) != 10 { tailEnd += 1 }
-                let tail = ns.substring(with: NSRange(location: NSMaxRange(range), length: tailEnd - NSMaxRange(range)))
-                func sharesPhotoLine(_ text: String) -> Bool {
-                    text.components(separatedBy: "\n").contains { line in
-                        let photos = line.filter { $0 == "\u{FFFC}" }.count
-                        return photos > 1 || (photos == 1 && !line.filter { $0 != "\u{FFFC}" }.trimmingCharacters(in: .whitespaces).isEmpty)
-                    }
+            func text(_ from: Int, _ to: Int) -> String { to > from ? ns.substring(with: NSRange(location: from, length: to - from)) : "" }
+            let end = NSMaxRange(range)
+            let firstStart = contentStart(ofLineAt: range.location), lastStart = contentStart(ofLineAt: end)
+            var tailEnd = end
+            while tailEnd < length, ns.character(at: tailEnd) != 10 { tailEnd += 1 }
+            // An edit that starts inside a marker, or joins a line onto a marker, leaves the
+            // marker's characters behind as text: count them.
+            let firstLineStart = ns.lineRange(for: NSRange(location: range.location, length: 0)).location
+            let head = range.location >= firstStart ? text(firstStart, range.location) : text(firstLineStart, range.location)
+            let tail = end < lastStart && removed.contains("\n") ? text(end, tailEnd) : text(max(end, lastStart), tailEnd)
+            func sharesPhotoLine(_ text: String) -> Bool {
+                text.components(separatedBy: "\n").contains { line in
+                    let photos = line.filter { $0 == "\u{FFFC}" }.count
+                    return photos > 1 || (photos == 1 && !line.filter { $0 != "\u{FFFC}" }.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
-                guard sharesPhotoLine(head + replacement + tail), !sharesPhotoLine(head), !sharesPhotoLine(tail) else { return false }
-                let tailFirst = tail.contains("\u{FFFC}") && !head.contains("\u{FFFC}")
-                let candidates = tailFirst
-                    ? [(replacement + "\n", true), ("\n" + replacement, false), ("\n" + replacement + "\n", true)]
-                    : [("\n" + replacement, false), (replacement + "\n", true), ("\n" + replacement + "\n", true)]
-                guard let (safe, caretBeforeBreak) = candidates.first(where: { !sharesPhotoLine(head + $0.0 + tail) }) else { return false }
-                if safe == removed {
-                    textView.selectedRange = NSRange(location: range.location, length: 0)
-                    return true
-                }
-                isSplittingPhotoLine = true
-                defer { isSplittingPhotoLine = false }
-                textView.selectedRange = range
-                textView.insertText(safe)
-                if caretBeforeBreak {
-                    textView.selectedRange = NSRange(location: max(0, textView.selectedRange.location - 1), length: 0)
-                }
+            }
+            // Only an edit that would newly put a photo on a line with words or another photo
+            // (typing beside it, Backspace over the break, a selection deleted, cut or pasted
+            // over): keep a line break on the photo's side. A line that already shares is left be.
+            // (Before the edit, markers are markers: content only.)
+            let contentHead = text(firstStart, range.location), contentTail = text(max(end, lastStart), tailEnd)
+            let sharedBefore: Bool
+            if let firstBreak = removed.firstIndex(of: "\n") {
+                let lastLineOfRemoved = text(min(end, lastStart), end)
+                sharedBefore = sharesPhotoLine(contentHead + removed[..<firstBreak]) || sharesPhotoLine(lastLineOfRemoved + contentTail)
+            } else {
+                sharedBefore = sharesPhotoLine(contentHead + text(max(range.location, firstStart), end) + contentTail)
+            }
+            guard sharesPhotoLine(head + replacement + tail), !sharedBefore else { return false }
+            let tailFirst = tail.contains("\u{FFFC}") && !head.contains("\u{FFFC}")
+            let candidates = tailFirst
+                ? [(replacement + "\n", true), ("\n" + replacement, false), ("\n" + replacement + "\n", true)]
+                : [("\n" + replacement, false), (replacement + "\n", true), ("\n" + replacement + "\n", true)]
+            // With a break kept before the last line, that line's marker stays a marker.
+            func stillShares(_ candidate: String) -> Bool {
+                candidate.hasSuffix("\n")
+                    ? sharesPhotoLine(head + candidate.dropLast()) || sharesPhotoLine(contentTail)
+                    : sharesPhotoLine(head + candidate + tail)
+            }
+            guard let (safe, caretBeforeBreak) = candidates.first(where: { !stillShares($0.0) }) else { return false }
+            if safe == removed {
+                // Backspace over the break itself: the caret moves up instead.
+                textView.selectedRange = NSRange(location: range.location, length: 0)
                 return true
             }
-            if replacement.isEmpty { return false }
-            guard range.length == 0, replacement != "\n" else { return false }
-            if let language = textView.textInputMode?.primaryLanguage,
-               ["ja", "zh", "ko", "yue"].contains(where: { language.hasPrefix($0) }) { return false }
-            let location = range.location
-            let afterPhoto = isPhotoAloneOnLine(location - 1) && !replacement.hasPrefix("\n")
-            let beforePhoto = isPhotoAloneOnLine(location) && !replacement.hasSuffix("\n")
-            guard afterPhoto || beforePhoto else { return false }
+            if removed.contains("\n") {
+                // A selection across line breaks: keep one of its own breaks (the one next to
+                // the photo) and edit around it the ordinary way, each piece through this
+                // delegate. A break typed in over a list marker would be read as marker.
+                let removedNS = removed as NSString
+                let kept = range.location + (tailFirst ? removedNS.range(of: "\n", options: .backwards).location : removedNS.range(of: "\n").location)
+                applyAsKeyboardEdit(NSRange(location: kept + 1, length: NSMaxRange(range) - kept - 1), "", in: textView)
+                applyAsKeyboardEdit(NSRange(location: range.location, length: kept - range.location), "", in: textView)
+                let caret = min(tailFirst ? range.location : range.location + 1, (textView.text as NSString).length)
+                textView.selectedRange = NSRange(location: caret, length: 0)
+                if !replacement.isEmpty { applyAsKeyboardEdit(NSRange(location: caret, length: 0), replacement, in: textView) }
+                return true
+            }
             isSplittingPhotoLine = true
             defer { isSplittingPhotoLine = false }
-            textView.selectedRange = NSRange(location: location, length: 0)
-            // One insert (one undo step, one redraw): the line break goes in with the words, so
-            // the photo is never seen sharing its line, even for a moment.
-            if afterPhoto {
-                textView.insertText("\n" + replacement)
-            } else {
-                textView.insertText(replacement + "\n")
-                textView.selectedRange = NSRange(location: location + (replacement as NSString).length, length: 0)
+            // One insert (one undo step, one redraw): the break goes in with the words, so the
+            // photo is never seen sharing its line, even for a moment.
+            // Its own undo step (an insert made in code would otherwise join the typing before it).
+            groupTypedChange(range: range, replacement: safe)
+            changeWasGrouped = true
+            textView.selectedRange = range
+            textView.insertText(safe)
+            if caretBeforeBreak {
+                textView.selectedRange = NSRange(location: max(0, textView.selectedRange.location - 1), length: 0)
             }
             return true
         }
 
+        /// An edit made in code, given every rule a keyboard edit gets: inserts made in code
+        /// don't come back through `shouldChangeTextIn`, so it is asked here.
+        private func applyAsKeyboardEdit(_ range: NSRange, _ replacement: String, in textView: UITextView) {
+            guard range.length > 0 || !replacement.isEmpty, range.location >= 0,
+                  NSMaxRange(range) <= (textView.text as NSString).length else { return }
+            textView.selectedRange = range
+            if self.textView(textView, shouldChangeTextIn: range, replacementText: replacement) {
+                if replacement.isEmpty { textView.deleteBackward() } else { textView.insertText(replacement) }
+            }
+        }
+
         private func handleChange(_ textView: UITextView, range: NSRange, replacement: String) -> Bool {
             let rendered = textView.attributedText?.string ?? textView.text ?? ""
+            let renderedNS = rendered as NSString
+            let photosInRange = range.length > 0 && !parent.photoDataArray.isEmpty
+                ? (range.location..<min(NSMaxRange(range), renderedNS.length)).filter { renderedNS.character(at: $0) == 0xFFFC } : []
+            if !photosInRange.isEmpty, !(replacement.isEmpty && range.length == 1) {
+                // A selection with photos in it, deleted, cut, typed over or pasted over: each
+                // photo goes, its picture too (typed over, UIKit would drop the attachment and
+                // leave the picture stored with no token), then the rest of the selection is
+                // edited the ordinary way, so a photo next to it still keeps its own line.
+                for index in photosInRange.reversed() { removeInlinePhoto(at: index, from: textView, keepingLineBreak: true) }
+                let rest = NSRange(location: range.location, length: range.length - photosInRange.count)
+                applyAsKeyboardEdit(rest, replacement, in: textView)
+                return false
+            }
             if replacement.isEmpty, deletesInlinePhoto(in: rendered, range: range) {
                 // Find which attachment char is being deleted: in a selection, the first photo in
                 // it (not the selection's first character, which may be a word before it).
@@ -2660,7 +2717,9 @@ struct NoteEditorTextView: UIViewRepresentable {
             return attachRanges.contains { range.location == $0.location || range.location == NSMaxRange($0) }
         }
 
-        private func removeInlinePhoto(at displayCharIndex: Int, from textView: UITextView) {
+        /// `keepingLineBreak`: only the token goes, its line stays (empty), so the display loses
+        /// exactly the one attachment character.
+        private func removeInlinePhoto(at displayCharIndex: Int, from textView: UITextView, keepingLineBreak: Bool = false) {
             // Determine which photo token this corresponds to
             let displayed = textView.text ?? ""
             var attachCount = 0
@@ -2688,7 +2747,9 @@ struct NoteEditorTextView: UIViewRepresentable {
             if tokenRange.location != NSNotFound {
                 let tokenEnd = NSMaxRange(tokenRange)
                 var removal = tokenRange
-                if tokenRange.location > 0, updatedText.character(at: tokenRange.location - 1) == 10 {
+                if keepingLineBreak {
+                    // Nothing but the token.
+                } else if tokenRange.location > 0, updatedText.character(at: tokenRange.location - 1) == 10 {
                     removal = NSRange(location: tokenRange.location - 1, length: tokenRange.length + 1)
                     removedBreakBefore = true
                 } else if tokenEnd < updatedText.length, updatedText.character(at: tokenEnd) == 10 {
@@ -2696,6 +2757,16 @@ struct NoteEditorTextView: UIViewRepresentable {
                     removedBreakAfter = true
                 }
                 updatedText = updatedText.replacingCharacters(in: removal, with: "") as NSString
+            }
+            // The photo's line is gone: its paragraph style goes with it, so every line under it
+            // keeps its own (a checklist under a deleted photo used to take the photo's style).
+            if removedBreakBefore || removedBreakAfter,
+               let data = textStyleData, var document = try? JSONDecoder().decode(NoteTextStyleDocument.self, from: data) {
+                let line = (parent.text as NSString).substring(to: tokenRange.location).components(separatedBy: "\n").count - 1
+                if document.paragraphStyles.indices.contains(line) { document.paragraphStyles.remove(at: line) }
+                if var indents = document.indentLevels, indents.indices.contains(line) { indents.remove(at: line); document.indentLevels = indents }
+                if var fonts = document.fontChoices, fonts.indices.contains(line) { fonts.remove(at: line); document.fontChoices = fonts }
+                textStyleData = try? JSONEncoder().encode(document)
             }
             // Renumber subsequent tokens (indices shift down by 1)
             // A token past the end (a photo that failed to decode or save) has nothing after it to renumber.

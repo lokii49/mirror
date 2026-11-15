@@ -264,8 +264,8 @@ struct PhotoLineTypingTests {
         let (coordinator, textView, store) = harness("\(p0)\n\(p1)\nab", photos: 2)
         replace(NSRange(location: 2, length: 4), with: "", in: textView, coordinator)   // P1 \n a b
         #expect(!store.text.contains("\(p0)\(p1)"))
-        #expect(onePhotoPerLine(store.text), "each photo on a line of its own: \(store.text.debugDescription)")
-        #expect(store.text.contains("ab"), "the words outside the photo are kept or the whole selection goes")
+        #expect(store.text == "\(p0)\n", "the whole selection goes, photo and words")
+        #expect(store.photos.count == 1)
     }
 
     private func onePhotoPerLine(_ text: String) -> Bool {
@@ -285,8 +285,8 @@ struct PhotoLineTypingTests {
         #expect(PhotoSizes.storedSizes(text: store.text, inlineStyleData: store.inline) == [0: PhotoSizes.thumbnail, 1: PhotoSizes.thumbnail])
     }
 
-    /// A selection from words over the photo under them: the photo goes and the words' bold
-    /// stays where it was (the removal is made at the photo, not at the selection's start).
+    /// A selection from words over the photo under them: all of it goes, and the bold on the
+    /// words left stays where it was.
     @Test func selectionDeleteFromWordsOverAPhotoKeepsTheWordsFormatting() throws {
         let bold = InlineStyleRange(location: 0, length: 2, bold: true, italic: false, underline: false,
                                     strikethrough: false, highlightIndex: nil, photoSize: nil)
@@ -296,6 +296,7 @@ struct PhotoLineTypingTests {
         #expect(store.photos.isEmpty)
         #expect(!store.text.contains("mirror-photo"))
         let ranges = store.inline.flatMap { try? JSONDecoder().decode(InlineStyleDocument.self, from: $0) }?.ranges ?? []
-        #expect(ranges.contains { $0.bold && $0.location == 0 && $0.length == 2 }, "bold still on \"ab\": \(ranges)")
+        #expect(store.text == "a")
+        #expect(ranges.contains { $0.bold && $0.location == 0 && $0.length == 1 }, "bold still on \"a\": \(ranges)")
     }
 }
