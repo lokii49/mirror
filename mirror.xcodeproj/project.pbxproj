@@ -780,7 +780,7 @@
 				CODE_SIGN_ENTITLEMENTS = mirror/mirror.entitlements;
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Mac/mirror-macOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 51;
+				CURRENT_PROJECT_VERSION = 52;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 7NP4QNTWNQ;
 				"ENABLE_APP_SANDBOX[sdk=macosx*]" = YES;
@@ -813,8 +813,8 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 3.1.8;
-				"MARKETING_VERSION[sdk=macosx*]" = 1.1.8;
+				MARKETING_VERSION = 3.1.9;
+				"MARKETING_VERSION[sdk=macosx*]" = 1.1.9;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lokesh.mirror;
 				"PRODUCT_MODULE_NAME[sdk=macosx*]" = mirror;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -842,7 +842,7 @@
 				CODE_SIGN_ENTITLEMENTS = mirror/mirror.entitlements;
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Mac/mirror-macOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 51;
+				CURRENT_PROJECT_VERSION = 52;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 7NP4QNTWNQ;
 				"ENABLE_APP_SANDBOX[sdk=macosx*]" = YES;
@@ -875,8 +875,8 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 3.1.8;
-				"MARKETING_VERSION[sdk=macosx*]" = 1.1.8;
+				MARKETING_VERSION = 3.1.9;
+				"MARKETING_VERSION[sdk=macosx*]" = 1.1.9;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lokesh.mirror;
 				"PRODUCT_MODULE_NAME[sdk=macosx*]" = mirror;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -990,7 +990,7 @@
 				CODE_SIGN_ENTITLEMENTS = MirrorWidgetExtensionExtension.entitlements;
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Mac/mirror-widget-macOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 51;
+				CURRENT_PROJECT_VERSION = 52;
 				DEVELOPMENT_TEAM = 7NP4QNTWNQ;
 				"ENABLE_APP_SANDBOX[sdk=macosx*]" = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1009,8 +1009,8 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 3.1.8;
-				"MARKETING_VERSION[sdk=macosx*]" = 1.1.8;
+				MARKETING_VERSION = 3.1.9;
+				"MARKETING_VERSION[sdk=macosx*]" = 1.1.9;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lokesh.mirror.MirrorWidgetExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -1033,7 +1033,7 @@
 				CODE_SIGN_ENTITLEMENTS = MirrorWidgetExtensionExtension.entitlements;
 				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Mac/mirror-widget-macOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 51;
+				CURRENT_PROJECT_VERSION = 52;
 				DEVELOPMENT_TEAM = 7NP4QNTWNQ;
 				"ENABLE_APP_SANDBOX[sdk=macosx*]" = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1052,8 +1052,8 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 3.1.8;
-				"MARKETING_VERSION[sdk=macosx*]" = 1.1.8;
+				MARKETING_VERSION = 3.1.9;
+				"MARKETING_VERSION[sdk=macosx*]" = 1.1.9;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lokesh.mirror.MirrorWidgetExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -1075,7 +1075,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 51;
+				CURRENT_PROJECT_VERSION = 52;
 				DEVELOPMENT_TEAM = 7NP4QNTWNQ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1088,7 +1088,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 3.1.8;
+				MARKETING_VERSION = 3.1.9;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lokesh.mirror.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -1109,7 +1109,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 51;
+				CURRENT_PROJECT_VERSION = 52;
 				DEVELOPMENT_TEAM = 7NP4QNTWNQ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1122,7 +1122,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 3.1.8;
+				MARKETING_VERSION = 3.1.9;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lokesh.mirror.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -1141,7 +1141,7 @@
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_ENTITLEMENTS = MirrorNotificationContentExtension/MirrorNotificationContentExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 51;
+				CURRENT_PROJECT_VERSION = 52;
 				DEVELOPMENT_TEAM = 7NP4QNTWNQ;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MirrorNotificationContentExtension/Info.plist;
@@ -1152,7 +1152,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 3.1.8;
+				MARKETING_VERSION = 3.1.9;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lokesh.mirror.NotificationContentExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -1168,7 +1168,7 @@
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_ENTITLEMENTS = MirrorNotificationContentExtension/MirrorNotificationContentExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 51;
+				CURRENT_PROJECT_VERSION = 52;
 				DEVELOPMENT_TEAM = 7NP4QNTWNQ;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MirrorNotificationContentExtension/Info.plist;
@@ -1179,7 +1179,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 3.1.8;
+				MARKETING_VERSION = 3.1.9;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lokesh.mirror.NotificationContentExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
