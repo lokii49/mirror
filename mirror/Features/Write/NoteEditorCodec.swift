@@ -33,6 +33,11 @@ enum NoteEditorCodec {
     /// recomputes fonts from the paragraph style cannot lose them.
     static let boldKey = NSAttributedString.Key("mirror.inlineBold")
     static let italicKey = NSAttributedString.Key("mirror.inlineItalic")
+    /// A photo inside the text (Mac 1.1.9): its one U+FFFC character carries the photo's number
+    /// (the N of its `[[mirror-photo-N]]` token, which is not its place in text order) and its
+    /// stored size, so both survive editing around it.
+    static let photoNumberKey = NSAttributedString.Key("mirror.photoNumber")
+    static let photoSizeKey = NSAttributedString.Key("mirror.photoSize")
 
     // MARK: - Paragraph model
 
@@ -98,13 +103,15 @@ enum NoteEditorCodec {
     /// "a\n" has two paragraphs and the stored style at index 1 belongs to the empty last one.
     static func render(text: String, textStyleData: Data?, inlineStyleData: Data?, entryFont: WritingFontChoice) -> Rendered {
         let paragraphs = storedParagraphs(from: textStyleData, entryFont: entryFont)
-        let attributed = NSMutableAttributedString(string: text)
-        let nsText = text as NSString
+        // Each photo token becomes its one character, as inline ranges count it (`editorDisplay`).
+        let display = editorDisplay(text)
+        let attributed = NSMutableAttributedString(string: display.string)
+        let nsText = display.string as NSString
         var location = 0
         var index = 0
         var trailing = ParagraphModel()
 
-        for line in text.components(separatedBy: "\n") {
+        for line in display.string.components(separatedBy: "\n") {
             let lineLength = (line as NSString).length
             let isLast = location + lineLength >= nsText.length
             let model = paragraphs.indices.contains(index) ? paragraphs[index] : ParagraphModel()
@@ -117,8 +124,58 @@ enum NoteEditorCodec {
             index += 1
         }
 
+        if !display.numbers.isEmpty {
+            var k = 0
+            for i in 0..<nsText.length where nsText.character(at: i) == 0xFFFC && k < display.numbers.count {
+                attributed.addAttribute(photoNumberKey, value: display.numbers[k], range: NSRange(location: i, length: 1))
+                k += 1
+            }
+        }
         applyInlineStyles(from: inlineStyleData, to: attributed)
         return Rendered(attributed: attributed, trailing: trailing)
+    }
+
+    // MARK: - Photos inside the text (Mac 1.1.9)
+
+    /// `text` with each `[[mirror-photo-N]]` token replaced by one U+FFFC (where inline ranges
+    /// count a photo as one character), and each token's N in text order.
+    static func editorDisplay(_ text: String) -> (string: String, numbers: [Int]) {
+        let tokens = allPhotoTokens(in: text).sorted { $0.range.lowerBound < $1.range.lowerBound }
+        guard !tokens.isEmpty else { return (text, []) }
+        var out = ""
+        var cursor = text.startIndex
+        var numbers: [Int] = []
+        for token in tokens {
+            out += text[cursor..<token.range.lowerBound]
+            out += "\u{FFFC}"
+            numbers.append(token.index)
+            cursor = token.range.upperBound
+        }
+        out += text[cursor...]
+        return (out, numbers)
+    }
+
+    /// The stored text of an editor's attributed text: each photo character back to its own
+    /// token (by the number it carries, never its place). A U+FFFC with no number is dropped.
+    static func textFromEditor(_ attributed: NSAttributedString) -> String {
+        let ns = attributed.string as NSString
+        guard ns.range(of: "\u{FFFC}").location != NSNotFound else { return attributed.string }
+        var out = ""
+        var last = 0
+        for i in 0..<ns.length where ns.character(at: i) == 0xFFFC {
+            out += ns.substring(with: NSRange(location: last, length: i - last))
+            if let number = attributed.attribute(photoNumberKey, at: i, effectiveRange: nil) as? Int {
+                out += inlinePhotoToken(at: number)
+            }
+            last = i + 1
+        }
+        out += ns.substring(from: last)
+        return out
+    }
+
+    /// The length of `text` in inline-range coordinates (a photo is one character).
+    static func displayLength(_ text: String) -> Int {
+        (editorDisplay(text).string as NSString).length
     }
 
     /// Inline ranges are logical coordinates and so are ours: no mapping, just clamping.
@@ -137,6 +194,7 @@ enum NoteEditorCodec {
             if let idx = range.highlightIndex { attributed.addAttribute(highlightIndexKey, value: idx, range: nsRange) }
             if let idx = range.textColorIndex { attributed.addAttribute(textColorIndexKey, value: idx, range: nsRange) }
             if let url = validatedLinkURL(from: range.linkURL) { attributed.addAttribute(.link, value: url, range: nsRange) }
+            if let size = range.photoSize { attributed.addAttribute(photoSizeKey, value: size, range: nsRange) }
         }
     }
 
@@ -239,8 +297,10 @@ enum NoteEditorCodec {
             let highlight = attrs[highlightIndexKey] as? Int
             let textColor = attrs[textColorIndexKey] as? Int
             let link = (attrs[.link] as? URL)?.absoluteString
+            let photoSize = attrs[photoSizeKey] as? String
 
-            guard bold || italic || underline || strikethrough || highlight != nil || link != nil || textColor != nil else { return }
+            guard bold || italic || underline || strikethrough || highlight != nil || link != nil || textColor != nil
+                    || photoSize != nil else { return }
             ranges.append(InlineStyleRange(
                 location: range.location,
                 length: range.length,
@@ -250,7 +310,8 @@ enum NoteEditorCodec {
                 strikethrough: strikethrough,
                 highlightIndex: highlight,
                 linkURL: link,
-                textColorIndex: textColor
+                textColorIndex: textColor,
+                photoSize: photoSize
             ))
         }
 
@@ -510,6 +571,37 @@ enum NoteEditorCodec {
         }
         // No photo tokens: the text is untouched (its trailing newlines are content).
         return count == 0 ? (text, 0) : (rest, count)
+    }
+
+    /// The numbers of the photo tokens at the end of `text`, in text order (`splitTrailingPhotoTokens`).
+    /// They are not 0…n-1 once a photo sits between lines or the iPhone reordered a row.
+    static func trailingPhotoNumbers(_ text: String) -> [Int] {
+        let (body, count) = splitTrailingPhotoTokens(text)
+        guard count > 0 else { return [] }
+        let tail = String(text.dropFirst(body.count))
+        return allPhotoTokens(in: tail).sorted { $0.range.lowerBound < $1.range.lowerBound }.map(\.index)
+    }
+
+    /// `body` with the trailing photo tokens of `text` put back after it, numbers kept. What the
+    /// Mac editor writes when its text changes (it edits the body only).
+    static func replacingBody(of text: String, with body: String) -> String {
+        appendingPhotoTokens(to: body, numbers: trailingPhotoNumbers(text))
+    }
+
+    /// `body` with one token line per number, in order.
+    static func appendingPhotoTokens(to body: String, numbers: [Int]) -> String {
+        var text = body
+        for (k, number) in numbers.enumerated() {
+            let token = inlinePhotoToken(at: number)
+            if text.isEmpty {
+                text = token
+            } else {
+                var trimmed = text
+                if k > 0 { while trimmed.hasSuffix("\n") { trimmed.removeLast() } }
+                text = trimmed + "\n" + token + "\n"
+            }
+        }
+        return text
     }
 
     /// The inverse of `splitTrailingPhotoTokens`: the body with one token line per photo.
