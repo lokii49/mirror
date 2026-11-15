@@ -51,7 +51,9 @@ struct NoteEditorTextView: UIViewRepresentable {
         layoutManager.setAccentColor(UIColor(MirrorTheme.primary), traits: .current)
         storage.addLayoutManager(layoutManager)
         storage.delegate = layoutManager.markerSpacing
-        let container = NSTextContainer(size: CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
+        layoutManager.delegate = layoutManager.photoRows
+        // Never limited in height, though the editor doesn't scroll (`PhotoRowTextContainer`).
+        let container = PhotoRowTextContainer(size: CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
         container.widthTracksTextView = true
         layoutManager.addTextContainer(container)
         let textView = MirrorEditorTextView(frame: .zero, textContainer: container)
@@ -1514,6 +1516,9 @@ struct NoteEditorTextView: UIViewRepresentable {
             /// A photo lifts only its picture (a Small photo or a thumbnail doesn't fill the row):
             /// where it was drawn, in text view coordinates. Nil for a checklist row.
             var picture: CGRect?
+            /// A thumbnail moves sideways too (tiles sit three to a line): the finger's distance
+            /// from the picture's middle. Nil: the snapshot only moves up and down.
+            var grabOffsetX: CGFloat?
         }
         private var checklistDrag: ChecklistDrag?
 
@@ -1662,9 +1667,10 @@ struct NoteEditorTextView: UIViewRepresentable {
             lm.hiddenCharacterRanges = [frames[row].chars]
             lm.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: textView.textStorage.length))
             UIView.animate(withDuration: 0.15) { snapshot.transform = CGAffineTransform(scaleX: 1.02, y: 1.02) }
+            let isCell = Self.isTileCell(frames[row].rect, in: textView)
             checklistDrag = ChecklistDrag(row: row, target: row, block: lower..<upper, frames: frames, snapshot: snapshot,
                                           grabOffset: point.y - frames[row].rect.midY, indicator: indicator, slotByFinger: wholeEntry,
-                                          picture: picture)
+                                          picture: picture, grabOffsetX: isCell ? point.x - lifted.midX : nil)
             startDragAutoScroll(in: textView)
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         }
@@ -1677,25 +1683,66 @@ struct NoteEditorTextView: UIViewRepresentable {
             let centerY = min(max(point.y - drag.grabOffset, top), bottom)
             // A lifted picture keeps its place within its row.
             drag.snapshot.center.y = centerY + (drag.picture.map { $0.midY - drag.frames[drag.row].rect.midY } ?? 0)
+            if let grabX = drag.grabOffsetX, let textView {
+                drag.snapshot.center.x = min(max(point.x - grabX, 0), textView.bounds.width)
+            }
             // The other rows of the list, in order: the drop goes before the first whose middle
-            // is below the dragged row's middle.
+            // is below the dragged row's middle. Beside the finger, tiles in a row of thumbnails
+            // count by their middles left to right (text order is left to right there).
             let others = drag.block.filter { $0 != drag.row }
             let probe = drag.slotByFinger ? point.y : centerY
-            let before = others.filter { drag.frames[$0].rect.midY < probe }.count
+            let editor = textView
+            let isBefore = { (rect: CGRect) -> Bool in
+                if drag.slotByFinger, let editor, Self.isTileCell(rect, in: editor), rect.minY <= probe, probe < rect.maxY {
+                    return rect.midX < point.x
+                }
+                return rect.midY < probe
+            }
+            let before = others.filter { isBefore(drag.frames[$0].rect) }.count
             let target = drag.block.lowerBound + before
             if target != drag.target {
                 drag.target = target
                 UISelectionFeedbackGenerator().selectionChanged()
             }
-            // The line shows where it will land (nothing when it would stay put).
+            // The line shows where it will land (nothing when it would stay put): across the page
+            // between lines, or upright between two thumbnails in a row.
             if target == drag.row {
                 drag.indicator.isHidden = true
+            } else if let textView, let (x, cell) = tileSlot(before: before, in: others, frames: drag.frames, probe: probe, textView: textView) {
+                drag.indicator.frame = CGRect(x: x - 1, y: cell.minY, width: 2, height: cell.height)
+                drag.indicator.isHidden = false
             } else {
                 let y = before < others.count ? drag.frames[others[before]].rect.minY : drag.frames[others[before - 1]].rect.maxY
-                drag.indicator.frame.origin.y = y - 1
+                let inset = textView?.textContainerInset ?? .zero
+                let width = (textView?.bounds.width ?? drag.indicator.frame.width) - inset.left - inset.right
+                drag.indicator.frame = CGRect(x: inset.left, y: y - 1, width: width, height: 2)
                 drag.indicator.isHidden = false
             }
             checklistDrag = drag
+        }
+
+        /// A row's rect that is a thumbnail drawn beside others (`PhotoRowLayout`), not a whole line.
+        static func isTileCell(_ rect: CGRect, in textView: UITextView) -> Bool {
+            rect.width < textView.bounds.width - 0.5
+        }
+
+        /// Where a drop between thumbnails lands, when the finger is on a row of them: the x of the
+        /// upright line and the cell it stands beside. Nil: the drop is between lines.
+        private func tileSlot(before: Int, in others: [Int], frames: [(chars: NSRange, rect: CGRect)],
+                              probe: CGFloat, textView: UITextView) -> (CGFloat, CGRect)? {
+            let inBand = { (rect: CGRect) in Self.isTileCell(rect, in: textView) && rect.minY <= probe && probe < rect.maxY }
+            if before < others.count, inBand(frames[others[before]].rect) {
+                let next = frames[others[before]].rect
+                return (next.minX - PhotoRowLayout.gap / 2, next)
+            }
+            if before > 0, inBand(frames[others[before - 1]].rect) {
+                let previous = frames[others[before - 1]]
+                let photoChar = ((textView.text ?? "") as NSString).range(of: "\u{FFFC}", range: previous.chars).location
+                let picture = photoChar == NSNotFound ? nil : attachmentRect(atCharacter: photoChar, in: textView)
+                let right = picture?.maxX ?? (previous.rect.maxX - PhotoRowLayout.gap)
+                return (right + PhotoRowLayout.gap / 2, previous.rect)
+            }
+            return nil
         }
 
         private func endRowDrag(commit: Bool, in textView: UITextView, layout lm: ChecklistLayoutManager) {
@@ -3425,6 +3472,13 @@ struct NoteEditorTextView: UIViewRepresentable {
         private func applyAttributedText(_ attr: NSAttributedString, to textView: UITextView) {
             let um = textView.undoManager
             um?.disableUndoRegistration()
+            // Tiles side by side (`PhotoRowLayout`) need the earlier tile laid out first: with
+            // UIKit's lazy layout, setting the text again left a later tile at a stale place
+            // (14 Pro, 2026-11-15). Text-only entries keep the lazy layout.
+            let contiguous = PhotoRowLayout.hasTiles(in: attr)
+            if textView.layoutManager.allowsNonContiguousLayout == contiguous {
+                textView.layoutManager.allowsNonContiguousLayout = !contiguous
+            }
             textView.attributedText = attr
             // UIKit may internally re-enable undo registration when attributedText is set;
             // only balance if still disabled to avoid the NSInternalInconsistencyException crash.
@@ -4056,18 +4110,24 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         /// Each paragraph's character range (without its line break) and its rect in text view
-        /// coordinates, full width.
+        /// coordinates, full width; a thumbnail drawn beside others (`PhotoRowLayout`) keeps its
+        /// own cell.
         func rowFrames(in textView: UITextView) -> [(chars: NSRange, rect: CGRect)] {
             let text = (textView.text ?? "") as NSString
             let lm = textView.layoutManager
             let inset = textView.textContainerInset
+            let lineWidth = textView.textContainer.size.width
             var out: [(NSRange, CGRect)] = []
             text.enumerateSubstrings(in: NSRange(location: 0, length: text.length), options: [.byParagraphs, .substringNotRequired]) { _, range, enclosing, _ in
                 let glyphs = lm.glyphRange(forCharacterRange: NSRange(location: enclosing.location, length: max(1, range.length)), actualCharacterRange: nil)
                 guard glyphs.length > 0 else { out.append((range, .zero)); return }
                 var rect = lm.lineFragmentRect(forGlyphAt: glyphs.location, effectiveRange: nil)
                 rect = rect.union(lm.lineFragmentRect(forGlyphAt: NSMaxRange(glyphs) - 1, effectiveRange: nil))
-                out.append((range, CGRect(x: 0, y: rect.minY + inset.top, width: textView.bounds.width, height: rect.height)))
+                if rect.minX > 0.5 || (lineWidth > 0 && rect.width < lineWidth - 0.5) {
+                    out.append((range, CGRect(x: rect.minX + inset.left, y: rect.minY + inset.top, width: rect.width, height: rect.height)))
+                } else {
+                    out.append((range, CGRect(x: 0, y: rect.minY + inset.top, width: textView.bounds.width, height: rect.height)))
+                }
             }
             return out
         }
@@ -4165,7 +4225,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 hidden.append(after[newIndex].chars)
                 view.frame = before[row.source].rect
                 textView.addSubview(view)
-                moves.append((view, CGRect(origin: CGPoint(x: 0, y: after[newIndex].rect.minY), size: before[row.source].rect.size)))
+                moves.append((view, CGRect(origin: CGPoint(x: after[newIndex].rect.minX, y: after[newIndex].rect.minY), size: before[row.source].rect.size)))
             }
             lm.hiddenCharacterRanges = hidden
             lm.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: textView.textStorage.length))
@@ -5018,6 +5078,8 @@ final class ChecklistLayoutManager: NSLayoutManager {
     /// Where a checklist item's text starts, from the paragraph's leading edge.
     static let textIndent: CGFloat = 36
     let markerSpacing = ChecklistMarkerSpacing()
+    /// Thumbnail tiles side by side (`PhotoRowLayout`); the layout manager's delegate is weak.
+    let photoRows = PhotoRowLayout()
 
     private static let unchecked = NoteParagraphTextStyle.checklistUnchecked.rawValue
     private static let checked = NoteParagraphTextStyle.checklistChecked.rawValue
