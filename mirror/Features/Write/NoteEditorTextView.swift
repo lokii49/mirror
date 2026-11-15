@@ -36,16 +36,24 @@ struct NoteEditorTextView: UIViewRepresentable {
     var onPhotoTapped: ((Int) -> Void)?
     /// The hint on an empty editor; Write's "What's on your mind?" when nil (Scratch has its own).
     var placeholder: String? = nil
+    /// Pictures dropped or pasted into the editor (3.1.9): their data and the paragraph they go
+    /// after (nil: the caret's). Write inserts them the way it inserts any photo. Without it the
+    /// editor takes text only, as before.
+    var onDropPhotos: (([Data], Int?) -> Void)? = nil
+    /// A selection copied or cut with its photos (`PhotoFragment`), pasted: the caret's paragraph.
+    var onPasteFragment: ((PhotoFragment, Int?) -> Void)? = nil
 
     func makeUIView(context: Context) -> UITextView {
         // An explicit TextKit 1 stack: the editor reads `layoutManager` throughout, and the
         // checklist circles are drawn by ChecklistLayoutManager.
         let storage = NSTextStorage()
         let layoutManager = ChecklistLayoutManager()
-        layoutManager.setAccentColor(UIColor(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary), traits: .current)
+        layoutManager.setAccentColor(UIColor(MirrorTheme.primary), traits: .current)
         storage.addLayoutManager(layoutManager)
         storage.delegate = layoutManager.markerSpacing
-        let container = NSTextContainer(size: CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
+        layoutManager.delegate = layoutManager.photoRows
+        // Never limited in height, though the editor doesn't scroll (`PhotoRowTextContainer`).
+        let container = PhotoRowTextContainer(size: CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
         container.widthTracksTextView = true
         layoutManager.addTextContainer(container)
         let textView = MirrorEditorTextView(frame: .zero, textContainer: container)
@@ -59,6 +67,34 @@ struct NoteEditorTextView: UIViewRepresentable {
         textView.editorUndo = context.coordinator.editorUndoManager
         context.coordinator.editorUndoManager.textView = textView
         textView.delegate = context.coordinator
+        // Drag and drop (3.1.9): a photo dragged inside the editor moves its line (UIKit's own move
+        // would hand each picture the next one's data: attachments become tokens in text order);
+        // pictures dropped or pasted in go through Write's photo path, never as raw attachments.
+        textView.pasteDelegate = context.coordinator
+        textView.textDragDelegate = context.coordinator
+        textView.textDropDelegate = context.coordinator
+        if onDropPhotos != nil {
+            textView.pasteConfiguration = UIPasteConfiguration(acceptableTypeIdentifiers: [
+                UTType.text.identifier, UTType.url.identifier, UTType.image.identifier
+            ])
+            textView.acceptsPastedImages = true
+        }
+        if onPasteFragment != nil {
+            // Copy and Cut of a selection with photos carry the photos; Paste puts them back.
+            let coordinator = context.coordinator
+            textView.photoFragment = { [weak coordinator, weak textView] range in
+                guard let coordinator, let textView else { return nil }
+                return coordinator.photoFragment(in: range, of: textView)
+            }
+            textView.cutRange = { [weak coordinator, weak textView] range in
+                guard let coordinator, let textView else { return }
+                coordinator.applyAsKeyboardEdit(range, "", in: textView)
+            }
+            textView.pasteFragment = { [weak coordinator, weak textView] fragment in
+                guard let coordinator, let textView else { return }
+                coordinator.pasteFragment(fragment, in: textView)
+            }
+        }
         // Writing Tools in its panel, plain-text results, photos and list markers left alone
         // (WritingToolsGuard).
         if #available(iOS 18.0, *) {
@@ -106,6 +142,19 @@ struct NoteEditorTextView: UIViewRepresentable {
         swipeLeft.direction = .left
         let drag = UILongPressGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleChecklistDrag(_:)))
         drag.minimumPressDuration = 0.3
+        // A photo on its own line moves the same way (3.1.9): hold it a moment, then move. Holding
+        // still lets the photo's menu open as before.
+        if onDropPhotos != nil {
+            let photoDrag = UILongPressGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePhotoDrag(_:)))
+            // Long enough that touching a photo and then scrolling scrolls (at 0.2 s a short rest
+            // before a scroll moved the photo instead; simulator XCUITest, 2026-11-13).
+            photoDrag.minimumPressDuration = 0.45
+            photoDrag.delegate = context.coordinator
+            textView.addGestureRecognizer(photoDrag)
+            // Letting go of a held photo isn't a tap (it opened the full-screen viewer under the menu).
+            tapGesture.require(toFail: photoDrag)
+            context.coordinator.photoDragRecognizer = photoDrag
+        }
         for recognizer in [swipeRight, swipeLeft, drag] as [UIGestureRecognizer] {
             recognizer.delegate = context.coordinator
             textView.addGestureRecognizer(recognizer)
@@ -116,7 +165,11 @@ struct NoteEditorTextView: UIViewRepresentable {
             return coordinator.checklistMarkerParagraph(at: point, in: textView) != nil
         }
 
-        textView.addInteraction(UIContextMenuInteraction(delegate: context.coordinator))
+        // The photo menu (Copy, Save to Photos, Share, Photo Size), opened by the editor when a held
+        // photo is let go without moving (`handlePhotoDrag`).
+        let photoMenu = UIEditMenuInteraction(delegate: context.coordinator)
+        textView.addInteraction(photoMenu)
+        context.coordinator.photoMenuInteraction = photoMenu
 
         return textView
     }
@@ -125,7 +178,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         if let layoutManager = textView.layoutManager as? ChecklistLayoutManager {
             // The asset colour by name: `Color.accentColor` turned into a UIColor here, outside a
             // view's environment, resolved to system blue (blue ticks, 2026-11-07).
-            let accent = UIColor(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
+            let accent = UIColor(MirrorTheme.primary)
             if layoutManager.setAccentColor(accent, traits: textView.traitCollection) {
                 textView.setNeedsDisplay()
                 layoutManager.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: textView.textStorage.length))
@@ -227,7 +280,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         Coordinator(parent: self)
     }
 
-    final class Coordinator: NSObject, UITextViewDelegate, UIGestureRecognizerDelegate, UIContextMenuInteractionDelegate {
+    final class Coordinator: NSObject, UITextViewDelegate, UIGestureRecognizerDelegate, UIEditMenuInteractionDelegate {
         /// The last non-empty selection, kept until the text changes: "Link to an Entry…" applies
         /// the link after the alert and a picker sheet, and the text view may have dropped its
         /// selection by then (it isn't first responder while the sheet is up).
@@ -260,6 +313,8 @@ struct NoteEditorTextView: UIViewRepresentable {
         private static let highlightIndexAttribute = NSAttributedString.Key("mirror.highlightIndex")
         private static let textColorIndexAttribute = NSAttributedString.Key("mirror.textColorIndex")
         private static let indentLevelAttribute = NSAttributedString.Key("mirror.indentLevel")
+        /// `PhotoSize.rawValue` on a photo's attachment character (Small / Medium; none = Full).
+        static let photoSizeAttribute = NSAttributedString.Key("mirror.photoSize")
         private static let fontChoiceAttribute = NSAttributedString.Key("mirror.fontChoice")
         private var isApplyingStyledText = false
         private var lastRenderedText: String?
@@ -354,7 +409,9 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             // Photo attachment tap
             let char = nsText.character(at: charIndex)
-            if char == 0xFFFC {
+            // On the picture itself: the nearest character is the photo even in the blank space
+            // beside a thumbnail or a Small photo, where a tap should place the caret.
+            if char == 0xFFFC, attachmentRect(atCharacter: charIndex, in: textView).map({ $0.insetBy(dx: -4, dy: -4).contains(location) }) ?? true {
                 // Find which photo token this corresponds to
                 let displayed = textView.attributedText?.string ?? ""
                 let photoTokens = allPhotoTokens(in: parent.text)
@@ -486,29 +543,192 @@ struct NoteEditorTextView: UIViewRepresentable {
             commitUndoPoint(in: textView)
         }
 
-        // MARK: - Photo context menu (UIContextMenuInteractionDelegate)
+        // MARK: - Photo menu (UIEditMenuInteraction)
 
-        func contextMenuInteraction(_ interaction: UIContextMenuInteraction, configurationForMenuAtLocation location: CGPoint) -> UIContextMenuConfiguration? {
-            guard let textView = interaction.view as? UITextView,
-                  let photoIndex = photoAttachmentIndex(at: location, in: textView),
-                  isPhotoReadable(photoIndex) else { return nil }
+        weak var photoMenuInteraction: UIEditMenuInteraction?
+        /// The photo character the menu being presented is for.
+        private var photoMenuCharacter: Int?
+
+        /// Opens the photo menu over the photo at `charIndex` (a hold let go without moving).
+        func presentPhotoMenu(forCharacter charIndex: Int, at point: CGPoint) {
+            photoMenuCharacter = charIndex
+            photoMenuInteraction?.presentEditMenu(with: UIEditMenuConfiguration(identifier: nil, sourcePoint: point))
+        }
+
+        func editMenuInteraction(_ interaction: UIEditMenuInteraction, menuFor configuration: UIEditMenuConfiguration,
+                                 suggestedActions: [UIMenuElement]) -> UIMenu? {
+            guard let textView = interaction.view as? UITextView, let char = photoMenuCharacter else { return nil }
+            return photoMenu(atCharacter: char, sourcePoint: configuration.sourcePoint, in: textView)
+        }
+
+        func editMenuInteraction(_ interaction: UIEditMenuInteraction, willDismissMenuFor configuration: UIEditMenuConfiguration,
+                                 animator: any UIEditMenuInteractionAnimating) {
+            photoMenuCharacter = nil
+        }
+
+        /// Copy, Save to Photos, Share, Open Link (a linked photo) and Photo Size.
+        private func photoMenu(atCharacter charIndex: Int, sourcePoint: CGPoint, in textView: UITextView) -> UIMenu? {
+            guard let photoIndex = photoIndex(forAttachmentAt: charIndex, in: textView), isPhotoReadable(photoIndex) else { return nil }
             let data = parent.photoDataArray[photoIndex]
-            return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { _ in
-                let copy = UIAction(title: String(localized: "Copy"), image: UIImage(systemName: "doc.on.doc")) { _ in
-                    if let image = UIImage(data: data) { UIPasteboard.general.image = image }
-                }
-                let save = UIAction(title: String(localized: "Save to Photos"), image: UIImage(systemName: "square.and.arrow.down")) { _ in
-                    guard let image = UIImage(data: data) else { return }
-                    PHPhotoLibrary.shared().performChanges({
-                        PHAssetChangeRequest.creationRequestForAsset(from: image)
-                    }, completionHandler: nil)
-                }
-                let share = UIAction(title: String(localized: "Share"), image: UIImage(systemName: "square.and.arrow.up")) { [weak textView] _ in
-                    guard let image = UIImage(data: data) else { return }
-                    presentShareSheet(items: [image], from: textView, rect: CGRect(origin: location, size: CGSize(width: 1, height: 1)))
-                }
-                return UIMenu(title: "", children: [copy, save, share])
+            let copy = UIAction(title: String(localized: "Copy"), image: UIImage(systemName: "doc.on.doc")) { _ in
+                if let image = UIImage(data: data) { UIPasteboard.general.image = image }
             }
+            let save = UIAction(title: String(localized: "Save to Photos"), image: UIImage(systemName: "square.and.arrow.down")) { _ in
+                guard let image = UIImage(data: data) else { return }
+                PHPhotoLibrary.shared().performChanges({
+                    PHAssetChangeRequest.creationRequestForAsset(from: image)
+                }, completionHandler: nil)
+            }
+            let share = UIAction(title: String(localized: "Share"), image: UIImage(systemName: "square.and.arrow.up")) { [weak textView] _ in
+                guard let image = UIImage(data: data) else { return }
+                presentShareSheet(items: [image], from: textView, rect: CGRect(origin: sourcePoint, size: CGSize(width: 1, height: 1)))
+            }
+            var children: [UIMenuElement] = [copy, save, share]
+            if let attributed = textView.attributedText, charIndex < attributed.length,
+               let url = (attributed.attribute(.link, at: charIndex, effectiveRange: nil) as? URL)
+                ?? (attributed.attribute(.link, at: charIndex, effectiveRange: nil) as? String).flatMap(URL.init(string:)),
+               ["http", "https"].contains(url.scheme?.lowercased() ?? "") {
+                children.insert(UIAction(title: String(localized: "Open Link"), image: UIImage(systemName: "safari")) { _ in
+                    UIApplication.shared.open(url)
+                }, at: 0)
+            }
+            // Photo Size first: the menu is one bar, and later items sit behind its chevron.
+            if let sizeMenu = photoSizeMenu(atCharacter: charIndex, in: textView) { children.insert(sizeMenu, at: 0) }
+            return UIMenu(title: "", children: children)
+        }
+
+        /// The selection as lines of words and photos, for the clipboard; nil when it has no photo
+        /// (the system's own Copy handles plain selections). List markers are left out.
+        func photoFragment(in range: NSRange, of textView: UITextView) -> PhotoFragment? {
+            guard range.length > 0, let attributed = textView.attributedText else { return nil }
+            let ns = attributed.string as NSString
+            let end = NSMaxRange(range)
+            guard end <= ns.length, ns.substring(with: range).contains("\u{FFFC}") else { return nil }
+            let sizes = PhotoSizes.storedSizes(text: parent.text, inlineStyleData: parent.inlineStyleData)
+            var lines: [PhotoFragment.Line] = []
+            var lineStart = ns.lineRange(for: NSRange(location: range.location, length: 0)).location
+            while lineStart < end {
+                let line = ns.lineRange(for: NSRange(location: lineStart, length: 0))
+                var contentEnd = NSMaxRange(line)
+                if contentEnd > line.location, ns.character(at: contentEnd - 1) == 10 { contentEnd -= 1 }
+                let from = max(line.location + displayedMarkerLength(of: line, in: attributed), range.location)
+                let to = max(from, min(contentEnd, end))
+                if let photoAt = (from..<to).first(where: { ns.character(at: $0) == 0xFFFC }) {
+                    // An unreadable photo's placeholder has no picture to carry.
+                    if let index = photoIndex(forAttachmentAt: photoAt, in: textView), isPhotoReadable(index) {
+                        let link = attributed.attribute(.link, at: photoAt, effectiveRange: nil)
+                        lines.append(PhotoFragment.Line(
+                            photo: parent.photoDataArray[index], size: sizes[index],
+                            link: (link as? URL)?.absoluteString ?? link as? String,
+                            wasTile: (attributed.attribute(.attachment, at: photoAt, effectiveRange: nil) as? PhotoAttachment)?.isTile ?? false))
+                    }
+                } else {
+                    lines.append(PhotoFragment.Line(text: ns.substring(with: NSRange(location: from, length: to - from))))
+                }
+                guard line.length > 0 else { break }
+                lineStart = NSMaxRange(line)
+            }
+            return lines.contains { $0.photo != nil } ? PhotoFragment(lines: lines) : nil
+        }
+
+        /// Paste of a `PhotoFragment`: a selection gives way first (photos in it included), then
+        /// the lines go in under the caret's paragraph, through Write (one change to the entry).
+        func pasteFragment(_ fragment: PhotoFragment, in textView: UITextView) {
+            if textView.selectedRange.length > 0 { applyAsKeyboardEdit(textView.selectedRange, "", in: textView) }
+            let ns = (textView.text ?? "") as NSString
+            let paragraph = paragraphIndex(atDisplayOffset: min(textView.selectedRange.location, ns.length), in: ns)
+            parent.onPasteFragment?(fragment, paragraph)
+        }
+
+        /// The photo index of the attachment at display offset `charIndex` (attachments map to
+        /// tokens in text order, as `logicalText` does).
+        func photoIndex(forAttachmentAt charIndex: Int, in textView: UITextView) -> Int? {
+            let displayed = (textView.attributedText?.string ?? "") as NSString
+            guard charIndex < displayed.length, displayed.character(at: charIndex) == 0xFFFC else { return nil }
+            var ordinal = 0
+            for i in 0..<charIndex where displayed.character(at: i) == 0xFFFC { ordinal += 1 }
+            let tokens = allPhotoTokens(in: parent.text).sorted {
+                parent.text.distance(from: parent.text.startIndex, to: $0.range.lowerBound) <
+                parent.text.distance(from: parent.text.startIndex, to: $1.range.lowerBound)
+            }
+            guard ordinal < tokens.count, tokens[ordinal].index < parent.photoDataArray.count else { return nil }
+            return tokens[ordinal].index
+        }
+
+        /// UIKit's own menus never open on a photo (plain or linked): a held photo lifts, and the
+        /// editor opens its photo menu when it's let go without moving (14 Pro: UIKit's menus
+        /// took the press some of the time, and lifted the whole editor).
+        func textView(_ textView: UITextView, menuConfigurationFor textItem: UITextItem, defaultMenu: UIMenu) -> UITextItem.MenuConfiguration? {
+            let range = textItem.range
+            let nsText = (textView.text ?? "") as NSString
+            guard range.length > 0, NSMaxRange(range) <= nsText.length,
+                  (range.location..<NSMaxRange(range)).contains(where: { nsText.character(at: $0) == 0xFFFC }) else {
+                return UITextItem.MenuConfiguration(menu: defaultMenu)
+            }
+            return nil
+        }
+
+        /// Thumbnail / Small / Medium / Full Width (Thumbnail only on a photo's own line). The tick
+        /// is what is drawn and each item stores what `PhotoPlacement` says, the one rule the
+        /// editor's drawing, the reader and the Mac picker share (owner, 2026-11-14).
+        private func photoSizeMenu(atCharacter charIndex: Int, in textView: UITextView) -> UIMenu? {
+            guard let attributed = textView.attributedText, charIndex < attributed.length,
+                  let attachment = attributed.attribute(.attachment, at: charIndex, effectiveRange: nil) as? PhotoAttachment,
+                  let placement = photoPlacement(atCharacter: charIndex, in: attributed) else { return nil }
+            #if DEBUG
+            if attachment.isTile != placement.isTile {
+                debugPrint("[PhotoSize] drawn tile \(attachment.isTile) but the rule says \(placement.isTile)")
+            }
+            #endif
+            let titles: [PhotoSizeOption: String] = [
+                .thumbnail: String(localized: "Thumbnail"), .small: String(localized: "Small"),
+                .medium: String(localized: "Medium"), .full: String(localized: "Full Width")]
+            let actions = placement.options.map { option in
+                UIAction(title: titles[option] ?? "", state: option == placement.tick ? .on : .off) { [weak self, weak textView] _ in
+                    guard let self, let textView else { return }
+                    self.setPhotoSize(stored: placement.storedValue(for: option), atCharacter: charIndex, in: textView)
+                }
+            }
+            return UIMenu(title: String(localized: "Photo Size"), image: UIImage(systemName: "arrow.up.left.and.arrow.down.right"), children: actions)
+        }
+
+        /// Each photo token's placement in `text` (text order), from the entry's sizes and pictures.
+        private func photoPlacements(in text: String) -> [PhotoPlacement] {
+            let photos = parent.photoDataArray
+            return PhotoPlacement.placements(text: text, inlineStyleData: parent.inlineStyleData,
+                                             hasPicture: { $0 < photos.count },
+                                             isLandscape: { $0 < photos.count && PhotoRuns.isLandscape(photos[$0]) })
+        }
+
+        /// The placement of the photo drawn at display offset `charIndex`: attachments are the
+        /// tokens in text order.
+        private func photoPlacement(atCharacter charIndex: Int, in attributed: NSAttributedString) -> PhotoPlacement? {
+            let ns = attributed.string as NSString
+            var order = 0
+            for i in 0..<charIndex where ns.character(at: i) == 0xFFFC { order += 1 }
+            let placements = photoPlacements(in: parent.text)
+            return placements.indices.contains(order) ? placements[order] : nil
+        }
+
+        private func setPhotoSize(stored: String?, atCharacter charIndex: Int, in textView: UITextView) {
+            guard let attributed = textView.attributedText else { return }
+            let offset = displayToLogical(display: charIndex, map: buildLogicalOffsetMap(from: attributed))
+            parent.inlineStyleData = PhotoSizes.setting(stored: stored, atInlineOffset: offset, in: parent.inlineStyleData)
+            invalidateRenderedCache()
+            applyStyledText(to: textView, preservingSelection: true)
+            syncRenderedCache(from: textView)
+            commitUndoPoint(in: textView)
+        }
+
+        /// The attachment character under `location`, if there is one.
+        private func attachmentCharacterIndex(at location: CGPoint, in textView: UITextView) -> Int? {
+            let origin = textView.textContainerInset
+            let adjusted = CGPoint(x: location.x - origin.left, y: location.y - origin.top)
+            let charIndex = textView.layoutManager.characterIndex(for: adjusted, in: textView.textContainer,
+                                                                  fractionOfDistanceBetweenInsertionPoints: nil)
+            let nsText = (textView.text ?? "") as NSString
+            guard charIndex < nsText.length, nsText.character(at: charIndex) == 0xFFFC else { return nil }
+            return charIndex
         }
 
         private func photoAttachmentIndex(at location: CGPoint, in textView: UITextView) -> Int? {
@@ -610,18 +830,54 @@ struct NoteEditorTextView: UIViewRepresentable {
                 // Draw the markers for the pasted lines, keeping the caret at the same place in
                 // the text (each new marker shifts display offsets after it).
                 pastedIntoList = nil
-                let logicalCaret = displayToLogical(display: textView.selectedRange.location,
-                                                    map: buildLogicalOffsetMap(from: textView.attributedText ?? NSAttributedString()))
-                invalidateRenderedCache()
-                applyStyledText(to: textView, preservingSelection: false)
-                let map = buildLogicalOffsetMap(from: textView.attributedText ?? NSAttributedString())
-                isApplyingStyledText = true
-                textView.selectedRange = bounded(NSRange(location: logicalToDisplay(logical: logicalCaret, map: map), length: 0), in: textView.text)
-                isApplyingStyledText = false
-                updateTypingAttributes(for: textView)
+                redrawKeepingCaret(in: textView)
+            } else if photoTilesAreStale(in: textView) {
+                // Typing made or broke a row of photos (Return or words between two tiles,
+                // Backspace joining two photo lines): a tile that would now be drawn full width
+                // keeps being a tile; then draw them as the rule says.
+                let photos = parent.photoDataArray
+                parent.inlineStyleData = PhotoPlacement.keepingTiles(
+                    wasTile: drawnPhotoTiles(in: textView), text: parent.text, inlineStyleData: parent.inlineStyleData,
+                    hasPicture: { $0 < photos.count }, isLandscape: { $0 < photos.count && PhotoRuns.isLandscape(photos[$0]) })
+                redrawKeepingCaret(in: textView)
             }
             committedSnapshot = currentSnapshot(of: textView)
             scrollCaretToVisible(in: textView)
+        }
+
+        /// Renders the text again from the model, the caret staying at the same place in the text.
+        private func redrawKeepingCaret(in textView: UITextView) {
+            let logicalCaret = displayToLogical(display: textView.selectedRange.location,
+                                                map: buildLogicalOffsetMap(from: textView.attributedText ?? NSAttributedString()))
+            invalidateRenderedCache()
+            applyStyledText(to: textView, preservingSelection: false)
+            let map = buildLogicalOffsetMap(from: textView.attributedText ?? NSAttributedString())
+            isApplyingStyledText = true
+            textView.selectedRange = bounded(NSRange(location: logicalToDisplay(logical: logicalCaret, map: map), length: 0), in: textView.text)
+            isApplyingStyledText = false
+            updateTypingAttributes(for: textView)
+        }
+
+        /// Each attachment in text order: whether it's drawn as a tile, nil when it isn't a drawn
+        /// photo (an unreadable one's placeholder).
+        private func drawnPhotoTiles(in textView: UITextView) -> [Bool?] {
+            guard let attributed = textView.attributedText, attributed.length > 0 else { return [] }
+            var drawn: [Bool?] = []
+            attributed.enumerateAttribute(.attachment, in: NSRange(location: 0, length: attributed.length)) { value, _, _ in
+                if let attachment = value as? NSTextAttachment { drawn.append((attachment as? PhotoAttachment)?.isTile) }
+            }
+            return drawn
+        }
+
+        /// Whether a drawn photo's tile state differs from what `PhotoPlacement` says for the
+        /// text as it is now. Only entries with photos pay for the check; never mid-composition.
+        private func photoTilesAreStale(in textView: UITextView) -> Bool {
+            guard !parent.photoDataArray.isEmpty, textView.markedTextRange == nil,
+                  let attributed = textView.attributedText, attributed.length > 0 else { return false }
+            let drawn = drawnPhotoTiles(in: textView)
+            let placements = photoPlacements(in: parent.text)
+            guard drawn.count == placements.count else { return false }
+            return zip(drawn, placements).contains { tile, placement in tile.map { $0 != placement.isTile } ?? false }
         }
 
         /// The text view doesn't scroll (WriteView's ScrollView owns scrolling), so
@@ -720,6 +976,17 @@ struct NoteEditorTextView: UIViewRepresentable {
                     return true
                 }
             }
+            if replacement.contains("\u{FFFC}") {
+                // Text copied with a photo in it pastes the photo's placeholder character with no
+                // photo behind it; every such character must be a photo here, so it's dropped.
+                // (Copied in this editor, a selection's photos travel as a `PhotoFragment`.)
+                applyAsKeyboardEdit(range, replacement.replacingOccurrences(of: "\u{FFFC}", with: ""), in: textView)
+                return false
+            }
+            if !isSplittingPhotoLine, keepsPhotoOnItsLine(textView, range: range, replacement: replacement) {
+                keyboardContextChanged(textView)
+                return false
+            }
             let allowed = handleChange(textView, range: range, replacement: replacement)
             if allowed {
                 // UIKit applies it; textViewDidChange records the result.
@@ -739,11 +1006,156 @@ struct NoteEditorTextView: UIViewRepresentable {
             return allowed
         }
 
+        /// While `keepsPhotoOnItsLine` makes its own edits.
+        private var isSplittingPhotoLine = false
+
+        /// A photo keeps a line of its own (one token per line: 3.1.7's reader and the Mac codec
+        /// read photo lines alone, and a Thumbnail sharing its line with words is drawn full
+        /// width; 2026-11-14). Words typed right after a photo go on a new line under it, words
+        /// typed right before one on a new line above it. Backspace that would pull words onto a
+        /// photo's line (or the photo onto the words' line) moves the caret across the line break
+        /// instead; another Backspace then removes the photo, as before. Not for input methods
+        /// that compose (Japanese, Chinese, Korean): re-inserting their first keystroke would
+        /// commit it unfinished. Returns true when it handled the change.
+        private func keepsPhotoOnItsLine(_ textView: UITextView, range: NSRange, replacement: String) -> Bool {
+            let ns = (textView.text ?? "") as NSString
+            let length = ns.length
+            guard NSMaxRange(range) <= length, !replacement.contains("\u{FFFC}") else { return false }
+            // A selection with a photo in it is `handleChange`'s (the photo is removed first).
+            let removed = ns.substring(with: range)
+            guard !removed.contains("\u{FFFC}") else { return false }
+            // Composing keyboards build the word in place; splitting the line would end it.
+            if range.length == 0, let language = textView.textInputMode?.primaryLanguage,
+               ["ja", "zh", "ko", "yue"].contains(where: { language.hasPrefix($0) }) { return false }
+            // The lines the edit touches, list markers left out (a photo's line may carry a
+            // list style): `head` before the edit on its first line, `tail` after it on its last.
+            // A photo line is one photo, spaces aside.
+            guard let attributed = textView.attributedText, attributed.length == length else { return false }
+            func contentStart(ofLineAt location: Int) -> Int {
+                let line = ns.lineRange(for: NSRange(location: location, length: 0))
+                return line.location + displayedMarkerLength(of: line, in: attributed)
+            }
+            func text(_ from: Int, _ to: Int) -> String { to > from ? ns.substring(with: NSRange(location: from, length: to - from)) : "" }
+            let end = NSMaxRange(range)
+            let firstStart = contentStart(ofLineAt: range.location), lastStart = contentStart(ofLineAt: end)
+            var tailEnd = end
+            while tailEnd < length, ns.character(at: tailEnd) != 10 { tailEnd += 1 }
+            // An edit that starts inside a marker, or joins a line onto a marker, leaves the
+            // marker's characters behind as text: count them.
+            let firstLineStart = ns.lineRange(for: NSRange(location: range.location, length: 0)).location
+            let head = range.location >= firstStart ? text(firstStart, range.location) : text(firstLineStart, range.location)
+            let tail = end < lastStart && removed.contains("\n") ? text(end, tailEnd) : text(max(end, lastStart), tailEnd)
+            func sharesPhotoLine(_ text: String) -> Bool {
+                text.components(separatedBy: "\n").contains { line in
+                    let photos = line.filter { $0 == "\u{FFFC}" }.count
+                    return photos > 1 || (photos == 1 && !line.filter { $0 != "\u{FFFC}" }.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+            // Only an edit that would newly put a photo on a line with words or another photo
+            // (typing beside it, Backspace over the break, a selection deleted, cut or pasted
+            // over): keep a line break on the photo's side. A line that already shares is left be.
+            // (Before the edit, markers are markers: content only.)
+            let contentHead = text(firstStart, range.location), contentTail = text(max(end, lastStart), tailEnd)
+            let sharedBefore: Bool
+            if let firstBreak = removed.firstIndex(of: "\n") {
+                let lastLineOfRemoved = text(min(end, lastStart), end)
+                sharedBefore = sharesPhotoLine(contentHead + removed[..<firstBreak]) || sharesPhotoLine(lastLineOfRemoved + contentTail)
+            } else {
+                sharedBefore = sharesPhotoLine(contentHead + text(max(range.location, firstStart), end) + contentTail)
+            }
+            guard sharesPhotoLine(head + replacement + tail), !sharedBefore else { return false }
+            let tailFirst = tail.contains("\u{FFFC}") && !head.contains("\u{FFFC}")
+            let candidates = tailFirst
+                ? [(replacement + "\n", true), ("\n" + replacement, false), ("\n" + replacement + "\n", true)]
+                : [("\n" + replacement, false), (replacement + "\n", true), ("\n" + replacement + "\n", true)]
+            // With a break kept before the last line, that line's marker stays a marker.
+            func stillShares(_ candidate: String) -> Bool {
+                candidate.hasSuffix("\n")
+                    ? sharesPhotoLine(head + candidate.dropLast()) || sharesPhotoLine(contentTail)
+                    : sharesPhotoLine(head + candidate + tail)
+            }
+            guard let (safe, caretBeforeBreak) = candidates.first(where: { !stillShares($0.0) }) else { return false }
+            if safe == removed {
+                // Backspace over the break itself: the caret moves up instead.
+                textView.selectedRange = NSRange(location: range.location, length: 0)
+                return true
+            }
+            if removed.contains("\n") {
+                // A selection across line breaks: keep one of its own breaks (the one next to
+                // the photo) and edit around it the ordinary way, each piece through this
+                // delegate. A break typed in over a list marker would be read as marker.
+                let removedNS = removed as NSString
+                let kept = range.location + (tailFirst ? removedNS.range(of: "\n", options: .backwards).location : removedNS.range(of: "\n").location)
+                applyAsKeyboardEdit(NSRange(location: kept + 1, length: NSMaxRange(range) - kept - 1), "", in: textView)
+                applyAsKeyboardEdit(NSRange(location: range.location, length: kept - range.location), "", in: textView)
+                let caret = min(tailFirst ? range.location : range.location + 1, (textView.text as NSString).length)
+                textView.selectedRange = NSRange(location: caret, length: 0)
+                if !replacement.isEmpty { applyAsKeyboardEdit(NSRange(location: caret, length: 0), replacement, in: textView) }
+                return true
+            }
+            isSplittingPhotoLine = true
+            defer { isSplittingPhotoLine = false }
+            // One insert (one undo step, one redraw): the break goes in with the words, so the
+            // photo is never seen sharing its line, even for a moment.
+            // Its own undo step (an insert made in code would otherwise join the typing before it).
+            groupTypedChange(range: range, replacement: safe)
+            changeWasGrouped = true
+            textView.selectedRange = range
+            textView.insertText(safe)
+            if caretBeforeBreak {
+                textView.selectedRange = NSRange(location: max(0, textView.selectedRange.location - 1), length: 0)
+            }
+            return true
+        }
+
+        /// Tells the keyboard the text and caret changed under it. The photo-line rule turns a
+        /// keystroke into an edit made in code (a line break added, the caret moved across one),
+        /// which the keyboard isn't told about: it kept its own idea of the word being typed, and
+        /// autocorrect then rebuilt the word from that ("hello" typed after a photo became
+        /// "hhello", 14 Pro 2026-11-15). Run after the keyboard's own keystroke returns.
+        func keyboardContextChanged(_ textView: UITextView) {
+            DispatchQueue.main.async { [weak textView] in
+                guard let textView, textView.markedTextRange == nil else { return }
+                textView.inputDelegate?.selectionWillChange(textView)
+                textView.inputDelegate?.selectionDidChange(textView)
+                textView.inputDelegate?.textWillChange(textView)
+                textView.inputDelegate?.textDidChange(textView)
+            }
+        }
+
+        /// An edit made in code, given every rule a keyboard edit gets: inserts made in code
+        /// don't come back through `shouldChangeTextIn`, so it is asked here.
+        func applyAsKeyboardEdit(_ range: NSRange, _ replacement: String, in textView: UITextView) {
+            guard range.length > 0 || !replacement.isEmpty, range.location >= 0,
+                  NSMaxRange(range) <= (textView.text as NSString).length else { return }
+            textView.selectedRange = range
+            if self.textView(textView, shouldChangeTextIn: range, replacementText: replacement) {
+                if replacement.isEmpty { textView.deleteBackward() } else { textView.insertText(replacement) }
+            }
+        }
+
         private func handleChange(_ textView: UITextView, range: NSRange, replacement: String) -> Bool {
             let rendered = textView.attributedText?.string ?? textView.text ?? ""
+            let renderedNS = rendered as NSString
+            let photosInRange = range.length > 0 && !parent.photoDataArray.isEmpty
+                ? (range.location..<min(NSMaxRange(range), renderedNS.length)).filter { renderedNS.character(at: $0) == 0xFFFC } : []
+            if !photosInRange.isEmpty, !(replacement.isEmpty && range.length == 1) {
+                // A selection with photos in it, deleted, cut, typed over or pasted over: each
+                // photo goes, its picture too (typed over, UIKit would drop the attachment and
+                // leave the picture stored with no token), then the rest of the selection is
+                // edited the ordinary way, so a photo next to it still keeps its own line.
+                for index in photosInRange.reversed() { removeInlinePhoto(at: index, from: textView, keepingLineBreak: true) }
+                let rest = NSRange(location: range.location, length: range.length - photosInRange.count)
+                applyAsKeyboardEdit(rest, replacement, in: textView)
+                return false
+            }
             if replacement.isEmpty, deletesInlinePhoto(in: rendered, range: range) {
-                // Find which attachment char is being deleted
-                let deleteTarget = range.length > 0 ? range.location : range.location - 1
+                // Find which attachment char is being deleted: in a selection, the first photo in
+                // it (not the selection's first character, which may be a word before it).
+                let firstPhotoInRange = (range.location..<NSMaxRange(range)).first {
+                    $0 < (rendered as NSString).length && (rendered as NSString).character(at: $0) == 0xFFFC
+                }
+                let deleteTarget = range.length > 0 ? (firstPhotoInRange ?? range.location) : range.location - 1
                 if deleteTarget >= 0 {
                     removeInlinePhoto(at: deleteTarget, from: textView)
                 }
@@ -1050,13 +1462,28 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
             // A drag owns the touch; the others share it as before.
-            !(gestureRecognizer is UILongPressGestureRecognizer && gestureRecognizer.view is MirrorEditorTextView)
+            return !(gestureRecognizer is UILongPressGestureRecognizer && gestureRecognizer.view is MirrorEditorTextView)
+        }
+
+        /// The photo hold only takes touches that start on a picture: elsewhere it never joins the
+        /// touch, so text selection and the checklist drag start as fast as before.
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+            guard gestureRecognizer === photoDragRecognizer, let textView = gestureRecognizer.view as? UITextView else { return true }
+            return photoCharacter(at: touch.location(in: textView), in: textView) != nil
+        }
+
+        /// The text view's own holds (selection, its menus) wait for the photo hold to fail, so a
+        /// held photo is the editor's alone.
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            gestureRecognizer === photoDragRecognizer && otherGestureRecognizer.view === gestureRecognizer.view
+                && otherGestureRecognizer is UILongPressGestureRecognizer
         }
 
         func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
             guard let textView = gestureRecognizer.view as? UITextView else { return true }
             let point = gestureRecognizer.location(in: textView)
             if gestureRecognizer is UISwipeGestureRecognizer { return listParagraph(at: point, in: textView) != nil }
+            if gestureRecognizer === photoDragRecognizer { return photoCharacter(at: point, in: textView) != nil }
             if gestureRecognizer is UILongPressGestureRecognizer { return checklistMarkerParagraph(at: point, in: textView) != nil }
             return true
         }
@@ -1102,6 +1529,14 @@ struct NoteEditorTextView: UIViewRepresentable {
             var snapshot: UIView
             var grabOffset: CGFloat
             var indicator: UIView
+            /// A photo's slot follows the finger: it's tall, so its middle lags far behind it.
+            var slotByFinger = false
+            /// A photo lifts only its picture (a Small photo or a thumbnail doesn't fill the row):
+            /// where it was drawn, in text view coordinates. Nil for a checklist row.
+            var picture: CGRect?
+            /// A thumbnail moves sideways too (tiles sit three to a line): the finger's distance
+            /// from the picture's middle. Nil: the snapshot only moves up and down.
+            var grabOffsetX: CGFloat?
         }
         private var checklistDrag: ChecklistDrag?
 
@@ -1112,81 +1547,292 @@ struct NoteEditorTextView: UIViewRepresentable {
             switch gesture.state {
             case .began:
                 guard let para = checklistMarkerParagraph(at: point, in: textView) else { return }
-                let frames = rowFrames(in: textView)
-                guard let row = frames.firstIndex(where: { $0.chars.location == para.location }), frames[row].rect.height > 0,
-                      let snapshot = textView.resizableSnapshotView(from: frames[row].rect, afterScreenUpdates: false, withCapInsets: .zero) else { return }
-                let attributed = textView.attributedText ?? NSAttributedString()
-                let isItem = { (i: Int) -> Bool in
-                    let style = self.textStyle(at: frames[i].chars.location, in: attributed)
-                    return style == .checklistUnchecked || style == .checklistChecked
-                }
-                var lower = row, upper = row + 1
-                while lower > 0 && isItem(lower - 1) { lower -= 1 }
-                while upper < frames.count && isItem(upper) { upper += 1 }
-                snapshot.frame = frames[row].rect
-                snapshot.layer.shadowColor = UIColor.black.cgColor
-                snapshot.layer.shadowOpacity = 0.18
-                snapshot.layer.shadowRadius = 10
-                snapshot.layer.shadowOffset = CGSize(width: 0, height: 4)
-                textView.addSubview(snapshot)
-                let indicator = UIView(frame: CGRect(x: textView.textContainerInset.left, y: 0, width: textView.bounds.width - textView.textContainerInset.left - textView.textContainerInset.right, height: 2))
-                indicator.backgroundColor = lm.accentColor
-                indicator.layer.cornerRadius = 1
-                indicator.isHidden = true
-                textView.addSubview(indicator)
-                lm.hiddenCharacterRanges = [frames[row].chars]
-                lm.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: textView.textStorage.length))
-                UIView.animate(withDuration: 0.15) { snapshot.transform = CGAffineTransform(scaleX: 1.02, y: 1.02) }
-                checklistDrag = ChecklistDrag(row: row, target: row, block: lower..<upper, frames: frames, snapshot: snapshot,
-                                              grabOffset: point.y - frames[row].rect.midY, indicator: indicator)
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                dragWindowPoint = gesture.location(in: nil)
+                beginRowDrag(paragraph: para, wholeEntry: false, at: point, in: textView, layout: lm)
             case .changed:
-                guard var drag = checklistDrag else { return }
-                let top = drag.frames[drag.block.lowerBound].rect.midY
-                let bottom = drag.frames[drag.block.upperBound - 1].rect.midY
-                let centerY = min(max(point.y - drag.grabOffset, top), bottom)
-                drag.snapshot.center.y = centerY
-                // The other rows of the list, in order: the drop goes before the first whose middle
-                // is below the dragged row's middle.
-                let others = drag.block.filter { $0 != drag.row }
-                let before = others.filter { drag.frames[$0].rect.midY < centerY }.count
-                let target = drag.block.lowerBound + before
-                if target != drag.target {
-                    drag.target = target
-                    UISelectionFeedbackGenerator().selectionChanged()
-                }
-                // The line shows where it will land (nothing when it would stay put).
-                if target == drag.row {
-                    drag.indicator.isHidden = true
-                } else {
-                    let y = before < others.count ? drag.frames[others[before]].rect.minY : drag.frames[others[before - 1]].rect.maxY
-                    drag.indicator.frame.origin.y = y - 1
-                    drag.indicator.isHidden = false
-                }
-                checklistDrag = drag
+                dragWindowPoint = gesture.location(in: nil)
+                updateRowDrag(at: point)
             case .ended:
-                guard let drag = checklistDrag else { return }
-                checklistDrag = nil
-                drag.indicator.removeFromSuperview()
-                guard drag.target != drag.row, var rows = editorRows(in: textView) else { return settleDrag(drag, to: drag.frames[drag.row].rect, in: textView) }
-                let moved = rows.remove(at: drag.row)
-                rows.insert(moved, at: drag.target)
-                commitRowOrder(rows, caret: textView.selectedRange.location, in: textView, slide: false)
-                commitUndoPoint(in: textView)
-                let after = rowFrames(in: textView)
-                guard drag.target < after.count else { return settleDrag(drag, to: drag.frames[drag.row].rect, in: textView) }
-                lm.hiddenCharacterRanges = [after[drag.target].chars]
-                lm.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: textView.textStorage.length))
-                settleDrag(drag, to: after[drag.target].rect, in: textView)
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                endRowDrag(commit: true, in: textView, layout: lm)
             case .cancelled, .failed:
-                guard let drag = checklistDrag else { return }
-                checklistDrag = nil
-                drag.indicator.removeFromSuperview()
-                settleDrag(drag, to: drag.frames[drag.row].rect, in: textView)
+                endRowDrag(commit: false, in: textView, layout: lm)
             default:
                 break
             }
+        }
+
+        /// Where a photo hold started and its photo's character; the photo lifts once the finger moves.
+        private var photoHold: (point: CGPoint, paragraph: NSRange, char: Int)?
+        private var photoHoldMoved = false
+        weak var photoDragRecognizer: UILongPressGestureRecognizer?
+
+        /// Touch and hold a photo on its own line: the photo menu opens (with a tap of haptics),
+        /// nothing lifts (owner, 2026-11-13: a hold means the menu). Slide while still holding and the
+        /// menu closes and the picture lifts and moves anywhere in the entry, like a checklist item
+        /// within its list (styles, links and sizes go with it). A shorter touch scrolls or taps.
+        @objc func handlePhotoDrag(_ gesture: UILongPressGestureRecognizer) {
+            guard let textView = gesture.view as? UITextView, let lm = textView.layoutManager as? ChecklistLayoutManager else { return }
+            let point = gesture.location(in: textView)
+            switch gesture.state {
+            case .began:
+                guard let paragraph = photoParagraph(at: point, in: textView) else {
+                    // A photo sharing its line with words: its menu (Photo Size, Copy, Save), and
+                    // it never lifts. It opened the full-screen viewer instead (2026-11-14).
+                    if let char = photoCharacter(at: point, in: textView) {
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        presentPhotoMenu(forCharacter: char, at: point)
+                    }
+                    return
+                }
+                let char = attachmentCharacterIndex(at: point, in: textView) ?? paragraph.location
+                photoHold = (point, paragraph, char)
+                photoHoldMoved = false
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                presentPhotoMenu(forCharacter: char, at: point)
+            case .changed:
+                guard let hold = photoHold else { return }
+                dragWindowPoint = gesture.location(in: nil)
+                if !photoHoldMoved, hypot(point.x - hold.point.x, point.y - hold.point.y) > 10 {
+                    photoHoldMoved = true
+                    // Never the menu and a lifted photo on screen together.
+                    photoMenuInteraction?.dismissMenu()
+                    beginRowDrag(paragraph: hold.paragraph, wholeEntry: true, at: hold.point,
+                                 picture: attachmentRect(atCharacter: hold.char, in: textView), in: textView, layout: lm)
+                }
+                if photoHoldMoved { updateRowDrag(at: point) }
+            case .ended:
+                let moved = photoHoldMoved
+                photoHold = nil
+                photoHoldMoved = false
+                // Not moved: the menu that opened when the hold took stays up.
+                if moved { endRowDrag(commit: true, in: textView, layout: lm) }
+            case .cancelled, .failed:
+                photoHold = nil
+                photoHoldMoved = false
+                endRowDrag(commit: false, in: textView, layout: lm)
+            default:
+                break
+            }
+        }
+
+        /// The drawn rect of the attachment at display offset `char`, in text view coordinates: it
+        /// sits on the baseline, shifted by its bounds' origin (the glyph's box also holds the line
+        /// and paragraph spacing).
+        func attachmentRect(atCharacter char: Int, in textView: UITextView) -> CGRect? {
+            let ns = (textView.text ?? "") as NSString
+            guard char < ns.length, ns.character(at: char) == 0xFFFC,
+                  let attachment = textView.attributedText?.attribute(.attachment, at: char, effectiveRange: nil) as? NSTextAttachment,
+                  attachment.bounds.width > 0 else { return nil }
+            let lm = textView.layoutManager
+            let glyphs = lm.glyphRange(forCharacterRange: NSRange(location: char, length: 1), actualCharacterRange: nil)
+            guard glyphs.length > 0 else { return nil }
+            let line = lm.lineFragmentRect(forGlyphAt: glyphs.location, effectiveRange: nil)
+            let origin = lm.location(forGlyphAt: glyphs.location)
+            let rect = CGRect(x: line.minX + origin.x, y: line.minY + origin.y - attachment.bounds.maxY,
+                              width: attachment.bounds.width, height: attachment.bounds.height)
+            return rect.offsetBy(dx: textView.textContainerInset.left, dy: textView.textContainerInset.top)
+        }
+
+        /// The photo character under `point`, when the finger is on the picture itself: the nearest
+        /// character can be a photo while the finger is in the blank space beside a thumbnail or a
+        /// Small photo.
+        func photoCharacter(at point: CGPoint, in textView: UITextView) -> Int? {
+            guard let char = attachmentCharacterIndex(at: point, in: textView),
+                  let rect = attachmentRect(atCharacter: char, in: textView), rect.insetBy(dx: -4, dy: -4).contains(point) else { return nil }
+            return char
+        }
+
+        /// The paragraph of the photo under `point`, when the photo is alone on its line.
+        func photoParagraph(at point: CGPoint, in textView: UITextView) -> NSRange? {
+            guard let char = photoCharacter(at: point, in: textView) else { return nil }
+            let text = (textView.text ?? "") as NSString
+            let paragraph = text.paragraphRange(for: NSRange(location: char, length: 0))
+            guard text.substring(with: paragraph).trimmingCharacters(in: .whitespacesAndNewlines) == "\u{FFFC}" else { return nil }
+            return paragraph
+        }
+
+        /// Lifts the row of `paragraph`: within its checklist, or anywhere in the entry for a photo.
+        private func beginRowDrag(paragraph para: NSRange, wholeEntry: Bool, at point: CGPoint, picture: CGRect? = nil,
+                                  in textView: UITextView, layout lm: ChecklistLayoutManager) {
+            let frames = rowFrames(in: textView)
+            guard let row = frames.firstIndex(where: { $0.chars.location == para.location }), frames[row].rect.height > 0 else { return }
+            let lifted = picture ?? frames[row].rect
+            guard let snapshot = textView.resizableSnapshotView(from: lifted, afterScreenUpdates: false, withCapInsets: .zero) else { return }
+            let attributed = textView.attributedText ?? NSAttributedString()
+            let isItem = { (i: Int) -> Bool in
+                let style = self.textStyle(at: frames[i].chars.location, in: attributed)
+                return style == .checklistUnchecked || style == .checklistChecked
+            }
+            var lower = row, upper = row + 1
+            if wholeEntry {
+                lower = 0
+                upper = frames.count
+            } else {
+                while lower > 0 && isItem(lower - 1) { lower -= 1 }
+                while upper < frames.count && isItem(upper) { upper += 1 }
+            }
+            snapshot.frame = lifted
+            snapshot.layer.shadowColor = UIColor.black.cgColor
+            snapshot.layer.shadowOpacity = 0.18
+            snapshot.layer.shadowRadius = 10
+            snapshot.layer.shadowOffset = CGSize(width: 0, height: 4)
+            textView.addSubview(snapshot)
+            let indicator = UIView(frame: CGRect(x: textView.textContainerInset.left, y: 0, width: textView.bounds.width - textView.textContainerInset.left - textView.textContainerInset.right, height: 2))
+            indicator.backgroundColor = lm.accentColor
+            indicator.layer.cornerRadius = 1
+            indicator.isHidden = true
+            textView.addSubview(indicator)
+            lm.hiddenCharacterRanges = [frames[row].chars]
+            lm.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: textView.textStorage.length))
+            UIView.animate(withDuration: 0.15) { snapshot.transform = CGAffineTransform(scaleX: 1.02, y: 1.02) }
+            let isCell = Self.isTileCell(frames[row].rect, in: textView)
+            checklistDrag = ChecklistDrag(row: row, target: row, block: lower..<upper, frames: frames, snapshot: snapshot,
+                                          grabOffset: point.y - frames[row].rect.midY, indicator: indicator, slotByFinger: wholeEntry,
+                                          picture: picture, grabOffsetX: isCell ? point.x - lifted.midX : nil)
+            startDragAutoScroll(in: textView)
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        }
+
+        private func updateRowDrag(at point: CGPoint) {
+            guard var drag = checklistDrag else { return }
+            // A little past the first and last rows' middles, so a row can land first or last.
+            let top = drag.frames[drag.block.lowerBound].rect.midY - 1
+            let bottom = drag.frames[drag.block.upperBound - 1].rect.midY + 1
+            let centerY = min(max(point.y - drag.grabOffset, top), bottom)
+            // A lifted picture keeps its place within its row.
+            drag.snapshot.center.y = centerY + (drag.picture.map { $0.midY - drag.frames[drag.row].rect.midY } ?? 0)
+            if let grabX = drag.grabOffsetX, let textView {
+                drag.snapshot.center.x = min(max(point.x - grabX, 0), textView.bounds.width)
+            }
+            // The other rows of the list, in order: the drop goes before the first whose middle
+            // is below the dragged row's middle. Beside the finger, tiles in a row of thumbnails
+            // count by their middles left to right (text order is left to right there).
+            let others = drag.block.filter { $0 != drag.row }
+            let probe = drag.slotByFinger ? point.y : centerY
+            let editor = textView
+            let isBefore = { (rect: CGRect) -> Bool in
+                if drag.slotByFinger, let editor, Self.isTileCell(rect, in: editor), rect.minY <= probe, probe < rect.maxY {
+                    return rect.midX < point.x
+                }
+                return rect.midY < probe
+            }
+            let before = others.filter { isBefore(drag.frames[$0].rect) }.count
+            let target = drag.block.lowerBound + before
+            if target != drag.target {
+                drag.target = target
+                UISelectionFeedbackGenerator().selectionChanged()
+            }
+            // The line shows where it will land (nothing when it would stay put): across the page
+            // between lines, or upright between two thumbnails in a row.
+            if target == drag.row {
+                drag.indicator.isHidden = true
+            } else if let textView, let (x, cell) = tileSlot(before: before, in: others, frames: drag.frames, probe: probe, textView: textView) {
+                drag.indicator.frame = CGRect(x: x - 1, y: cell.minY, width: 2, height: cell.height)
+                drag.indicator.isHidden = false
+            } else {
+                let y = before < others.count ? drag.frames[others[before]].rect.minY : drag.frames[others[before - 1]].rect.maxY
+                let inset = textView?.textContainerInset ?? .zero
+                let width = (textView?.bounds.width ?? drag.indicator.frame.width) - inset.left - inset.right
+                drag.indicator.frame = CGRect(x: inset.left, y: y - 1, width: width, height: 2)
+                drag.indicator.isHidden = false
+            }
+            checklistDrag = drag
+        }
+
+        /// A row's rect that is a thumbnail drawn beside others (`PhotoRowLayout`), not a whole line.
+        static func isTileCell(_ rect: CGRect, in textView: UITextView) -> Bool {
+            rect.width < textView.bounds.width - 0.5
+        }
+
+        /// Where a drop between thumbnails lands, when the finger is on a row of them: the x of the
+        /// upright line and the cell it stands beside. Nil: the drop is between lines.
+        private func tileSlot(before: Int, in others: [Int], frames: [(chars: NSRange, rect: CGRect)],
+                              probe: CGFloat, textView: UITextView) -> (CGFloat, CGRect)? {
+            let inBand = { (rect: CGRect) in Self.isTileCell(rect, in: textView) && rect.minY <= probe && probe < rect.maxY }
+            if before < others.count, inBand(frames[others[before]].rect) {
+                let next = frames[others[before]].rect
+                return (next.minX - PhotoRowLayout.gap / 2, next)
+            }
+            if before > 0, inBand(frames[others[before - 1]].rect) {
+                let previous = frames[others[before - 1]]
+                let photoChar = ((textView.text ?? "") as NSString).range(of: "\u{FFFC}", range: previous.chars).location
+                let picture = photoChar == NSNotFound ? nil : attachmentRect(atCharacter: photoChar, in: textView)
+                let right = picture?.maxX ?? (previous.rect.maxX - PhotoRowLayout.gap)
+                return (right + PhotoRowLayout.gap / 2, previous.rect)
+            }
+            return nil
+        }
+
+        private func endRowDrag(commit: Bool, in textView: UITextView, layout lm: ChecklistLayoutManager) {
+            stopDragAutoScroll()
+            guard let drag = checklistDrag else { return }
+            checklistDrag = nil
+            drag.indicator.removeFromSuperview()
+            let home = drag.picture ?? drag.frames[drag.row].rect
+            guard commit, drag.target != drag.row, var rows = editorRows(in: textView) else { return settleDrag(drag, to: home, in: textView) }
+            let moved = rows.remove(at: drag.row)
+            rows.insert(moved, at: drag.target)
+            commitRowOrder(rows, caret: textView.selectedRange.location, in: textView, slide: false)
+            commitUndoPoint(in: textView)
+            let after = rowFrames(in: textView)
+            guard drag.target < after.count else { return settleDrag(drag, to: home, in: textView) }
+            lm.hiddenCharacterRanges = [after[drag.target].chars]
+            lm.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: textView.textStorage.length))
+            // A picture settles where it's drawn now (its row's photo character).
+            var landing = after[drag.target].rect
+            if drag.picture != nil {
+                let chars = after[drag.target].chars
+                let photoChar = ((textView.text ?? "") as NSString).range(of: "\u{FFFC}", range: chars).location
+                if photoChar != NSNotFound, let rect = attachmentRect(atCharacter: photoChar, in: textView) { landing = rect }
+            }
+            settleDrag(drag, to: landing, in: textView)
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+
+        // MARK: Auto-scroll while dragging a row
+
+        /// The finger in window coordinates, and the page that scrolls while a row is held near
+        /// its top or bottom edge (Write's scroll view; the keyboard and the bar over it count as
+        /// the edge, through the scroll view's insets). Without it a row could only move within
+        /// what was on screen, which with the keyboard up is a line or two.
+        private var dragWindowPoint: CGPoint?
+        private weak var dragScrollView: UIScrollView?
+        private var dragScrollLink: CADisplayLink?
+
+        private func startDragAutoScroll(in textView: UITextView) {
+            var view = textView.superview
+            while let current = view, !(current is UIScrollView) { view = current.superview }
+            dragScrollView = view as? UIScrollView
+            guard dragScrollView != nil, dragScrollLink == nil else { return }
+            let link = CADisplayLink(target: self, selector: #selector(dragAutoScrollTick(_:)))
+            link.add(to: .main, forMode: .common)
+            dragScrollLink = link
+        }
+
+        private func stopDragAutoScroll() {
+            dragScrollLink?.invalidate()
+            dragScrollLink = nil
+            dragWindowPoint = nil
+        }
+
+        @objc private func dragAutoScrollTick(_ link: CADisplayLink) {
+            guard checklistDrag != nil, let scrollView = dragScrollView, let textView, let windowPoint = dragWindowPoint else { return }
+            let finger = scrollView.convert(windowPoint, from: nil).y - scrollView.contentOffset.y
+            let insets = scrollView.adjustedContentInset
+            let visibleTop = insets.top
+            let visibleBottom = scrollView.bounds.height - insets.bottom
+            let zone: CGFloat = 64
+            var step: CGFloat = 0
+            if finger < visibleTop + zone { step = -min(zone, visibleTop + zone - finger) / 4 }
+            if finger > visibleBottom - zone { step = min(zone, finger - (visibleBottom - zone)) / 4 }
+            guard step != 0 else { return }
+            let minY = -insets.top
+            let maxY = max(minY, scrollView.contentSize.height - scrollView.bounds.height + insets.bottom)
+            let next = min(max(scrollView.contentOffset.y + step, minY), maxY)
+            guard next != scrollView.contentOffset.y else { return }
+            scrollView.contentOffset.y = next
+            // The page moved under a still finger: the row follows it in the text's coordinates.
+            updateRowDrag(at: textView.convert(windowPoint, from: nil))
         }
 
         private func settleDrag(_ drag: ChecklistDrag, to frame: CGRect, in textView: UITextView) {
@@ -1971,11 +2617,10 @@ struct NoteEditorTextView: UIViewRepresentable {
             // first picture (a map) stays full width, every other picture in the run is a square
             // tile. A photo on its own is drawn as before. Display only: the stored text keeps one
             // token per line, which every older version reads.
-            let tiles = PhotoRuns.tileMatches(allMatches.map(\.range), in: nsRaw) { range in
-                guard let index = inlinePhotoIndex(from: nsRaw.substring(with: range)),
-                      index < parent.photoDataArray.count else { return false }
-                return PhotoRuns.isLandscape(parent.photoDataArray[index])
-            }
+            // Which are tiles is `PhotoPlacement`'s one rule, shared with the menu, the reader and
+            // the Mac picker. Its placements are in text order, as `allMatches` is.
+            let placements = photoPlacements(in: rawText)
+            let tiles = Set(placements.count == allMatches.count ? placements.indices.filter { placements[$0].isTile } : [])
 
             for (matchIndex, match) in allMatches.enumerated() {
                 let textRange = NSRange(location: lastEnd, length: match.range.location - lastEnd)
@@ -2121,6 +2766,12 @@ struct NoteEditorTextView: UIViewRepresentable {
         /// when drawn: ~31 ms per re-render with three 12 MP photos on an iPhone 14 Pro.
         private var photoCache = PhotoAttachmentCache()
 
+        /// Paste: where the pictures go (display offset of the caret), and the pictures while they load.
+        var pendingDropTarget: Int?
+        var droppedPhotos: [Data] = []
+        var droppedPhotoLoads = 0
+        var lastDroppedPhotos: (photos: [Data], at: Date)?
+
         /// Drawn for a token whose photo is missing or won't decode. It must be a real attachment
         /// character: `logicalText` turns each one back into its token, and photo lookups count
         /// them. Rendering nothing (as this used to) dropped the token on the next keystroke and
@@ -2151,9 +2802,11 @@ struct NoteEditorTextView: UIViewRepresentable {
                 return unreadablePhotoAttachmentString()
             }
 
-            let attachment = NSTextAttachment()
+            let attachment = PhotoAttachment()
             attachment.image = photo.image
             attachment.bounds = CGRect(origin: CGPoint(x: 0, y: -4), size: photo.displaySize)
+            attachment.fullBounds = attachment.bounds
+            attachment.isTile = tile
 
             let result = NSMutableAttributedString(attachment: attachment)
             // Font/color matter here even though nothing visible renders them on the
@@ -2190,7 +2843,9 @@ struct NoteEditorTextView: UIViewRepresentable {
             return attachRanges.contains { range.location == $0.location || range.location == NSMaxRange($0) }
         }
 
-        private func removeInlinePhoto(at displayCharIndex: Int, from textView: UITextView) {
+        /// `keepingLineBreak`: only the token goes, its line stays (empty), so the display loses
+        /// exactly the one attachment character.
+        private func removeInlinePhoto(at displayCharIndex: Int, from textView: UITextView, keepingLineBreak: Bool = false) {
             // Determine which photo token this corresponds to
             let displayed = textView.text ?? ""
             var attachCount = 0
@@ -2205,7 +2860,6 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
             guard attachCount < photoTokensSorted.count else { return }
             let token = photoTokensSorted[attachCount]
-            let tokenStr = inlinePhotoToken(at: token.index)
 
             // Remove from photoDataArray
             var photos = parent.photoDataArray
@@ -2214,11 +2868,14 @@ struct NoteEditorTextView: UIViewRepresentable {
             var updatedText = parent.text as NSString
             var removedBreakBefore = false
             var removedBreakAfter = false
-            let tokenRange = updatedText.range(of: tokenStr)
+            // This token's own place (a token written twice would match its first copy by text).
+            let tokenRange = NSRange(token.range, in: parent.text)
             if tokenRange.location != NSNotFound {
                 let tokenEnd = NSMaxRange(tokenRange)
                 var removal = tokenRange
-                if tokenRange.location > 0, updatedText.character(at: tokenRange.location - 1) == 10 {
+                if keepingLineBreak {
+                    // Nothing but the token.
+                } else if tokenRange.location > 0, updatedText.character(at: tokenRange.location - 1) == 10 {
                     removal = NSRange(location: tokenRange.location - 1, length: tokenRange.length + 1)
                     removedBreakBefore = true
                 } else if tokenEnd < updatedText.length, updatedText.character(at: tokenEnd) == 10 {
@@ -2226,6 +2883,16 @@ struct NoteEditorTextView: UIViewRepresentable {
                     removedBreakAfter = true
                 }
                 updatedText = updatedText.replacingCharacters(in: removal, with: "") as NSString
+            }
+            // The photo's line is gone: its paragraph style goes with it, so every line under it
+            // keeps its own (a checklist under a deleted photo used to take the photo's style).
+            if removedBreakBefore || removedBreakAfter,
+               let data = textStyleData, var document = try? JSONDecoder().decode(NoteTextStyleDocument.self, from: data) {
+                let line = (parent.text as NSString).substring(to: tokenRange.location).components(separatedBy: "\n").count - 1
+                if document.paragraphStyles.indices.contains(line) { document.paragraphStyles.remove(at: line) }
+                if var indents = document.indentLevels, indents.indices.contains(line) { indents.remove(at: line); document.indentLevels = indents }
+                if var fonts = document.fontChoices, fonts.indices.contains(line) { fonts.remove(at: line); document.fontChoices = fonts }
+                textStyleData = try? JSONEncoder().encode(document)
             }
             // Renumber subsequent tokens (indices shift down by 1)
             // A token past the end (a photo that failed to decode or save) has nothing after it to renumber.
@@ -2235,14 +2902,20 @@ struct NoteEditorTextView: UIViewRepresentable {
             // Inline ranges count the photo as its one attachment character, so make the same
             // removal there (renumbering a token changes nothing in those coordinates); otherwise
             // formatting below the photo shifts by one or two characters.
+            var inline = parent.inlineStyleData
             if tokenRange.location != NSNotFound, let attributed = textView.attributedText {
                 let map = buildLogicalOffsetMap(from: attributed)
                 var location = displayToLogical(display: displayCharIndex, map: map)
                 var length = 1
                 if removedBreakBefore { location -= 1; length += 1 } else if removedBreakAfter { length += 1 }
-                parent.inlineStyleData = NoteEditorCodec.adjustInlineStyles(parent.inlineStyleData,
-                                                                            replacing: NSRange(location: max(0, location), length: length), withLength: 0)
+                inline = NoteEditorCodec.adjustInlineStyles(inline, replacing: NSRange(location: max(0, location), length: length), withLength: 0)
             }
+            // The photos left keep their look: a tile whose row just lost this photo stays a tile.
+            var wasTile = drawnPhotoTiles(in: textView)
+            if wasTile.indices.contains(attachCount) { wasTile.remove(at: attachCount) }
+            parent.inlineStyleData = PhotoPlacement.keepingTiles(
+                wasTile: wasTile, text: updatedText as String, inlineStyleData: inline,
+                hasPicture: { $0 < photos.count }, isLandscape: { $0 < photos.count && PhotoRuns.isLandscape(photos[$0]) })
             parent.photoDataArray = photos
             parent.text = updatedText as String
             applyStyledText(to: textView, preservingSelection: false)
@@ -2276,6 +2949,9 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         private func updateTypingAttributes(for textView: UITextView) {
             guard textView.markedTextRange == nil else { return }
+            // A photo's size belongs to that photo: text typed after it (Return included) never
+            // carries it, or a size range would grow over later photos.
+            defer { textView.typingAttributes.removeValue(forKey: Self.photoSizeAttribute) }
             // A checklist marker's spacer is kerned (ChecklistMarkerSpacing); typed text must not be.
             if textView.typingAttributes[.kern] != nil { textView.typingAttributes.removeValue(forKey: .kern) }
             let nsText = (textView.text ?? "") as NSString
@@ -2814,6 +3490,13 @@ struct NoteEditorTextView: UIViewRepresentable {
         private func applyAttributedText(_ attr: NSAttributedString, to textView: UITextView) {
             let um = textView.undoManager
             um?.disableUndoRegistration()
+            // Tiles side by side (`PhotoRowLayout`) need the earlier tile laid out first: with
+            // UIKit's lazy layout, setting the text again left a later tile at a stale place
+            // (14 Pro, 2026-11-15). Text-only entries keep the lazy layout.
+            let contiguous = PhotoRowLayout.hasTiles(in: attr)
+            if textView.layoutManager.allowsNonContiguousLayout == contiguous {
+                textView.layoutManager.allowsNonContiguousLayout = !contiguous
+            }
             textView.attributedText = attr
             // UIKit may internally re-enable undo registration when attributedText is set;
             // only balance if still disabled to avoid the NSInternalInconsistencyException crash.
@@ -3001,7 +3684,12 @@ struct NoteEditorTextView: UIViewRepresentable {
             updatePlaceholder(in: textView)
             refreshActiveParagraphStyle(in: textView)
             refreshActiveInlineStyles(in: textView)
-            committedSnapshot = currentSnapshot(of: textView)
+            // What was restored, not read back through the bindings: a value just written to
+            // SwiftUI state can still read as the old one here, and the next update then took the
+            // restored document for an outside change and cleared Redo (2026-11-14).
+            committedSnapshot = EditorSnapshot(text: snapshot.text, textStyleData: snapshot.textStyleData,
+                                               inlineStyleData: snapshot.inlineStyleData, photos: snapshot.photos,
+                                               selection: textView.selectedRange)
             publishUndoState()
         }
 
@@ -3176,7 +3864,7 @@ struct NoteEditorTextView: UIViewRepresentable {
         /// outright (like `applyHighlight` does for `.backgroundColor`) would
         /// leave the run with no explicit color at all, falling back to
         /// whatever `textView.textColor`/UIKit default applies — wrong, and
-        /// potentially invisible in Sentinel/dark mode. Must restore the
+        /// potentially invisible in dark mode. Must restore the
         /// style's own base color, not just delete the key.
         private func baseForegroundColor(for style: NoteParagraphTextStyle) -> UIColor {
             switch style {
@@ -3440,18 +4128,24 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         /// Each paragraph's character range (without its line break) and its rect in text view
-        /// coordinates, full width.
+        /// coordinates, full width; a thumbnail drawn beside others (`PhotoRowLayout`) keeps its
+        /// own cell.
         func rowFrames(in textView: UITextView) -> [(chars: NSRange, rect: CGRect)] {
             let text = (textView.text ?? "") as NSString
             let lm = textView.layoutManager
             let inset = textView.textContainerInset
+            let lineWidth = textView.textContainer.size.width
             var out: [(NSRange, CGRect)] = []
             text.enumerateSubstrings(in: NSRange(location: 0, length: text.length), options: [.byParagraphs, .substringNotRequired]) { _, range, enclosing, _ in
                 let glyphs = lm.glyphRange(forCharacterRange: NSRange(location: enclosing.location, length: max(1, range.length)), actualCharacterRange: nil)
                 guard glyphs.length > 0 else { out.append((range, .zero)); return }
                 var rect = lm.lineFragmentRect(forGlyphAt: glyphs.location, effectiveRange: nil)
                 rect = rect.union(lm.lineFragmentRect(forGlyphAt: NSMaxRange(glyphs) - 1, effectiveRange: nil))
-                out.append((range, CGRect(x: 0, y: rect.minY + inset.top, width: textView.bounds.width, height: rect.height)))
+                if rect.minX > 0.5 || (lineWidth > 0 && rect.width < lineWidth - 0.5) {
+                    out.append((range, CGRect(x: rect.minX + inset.left, y: rect.minY + inset.top, width: rect.width, height: rect.height)))
+                } else {
+                    out.append((range, CGRect(x: 0, y: rect.minY + inset.top, width: textView.bounds.width, height: rect.height)))
+                }
             }
             return out
         }
@@ -3488,8 +4182,25 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             // Inline ranges move with their rows (they used to be dropped, wiping every bold,
             // link and highlight in the entry).
+            // How each photo was drawn, by its number (a move changes text order, not numbers).
+            let photos = parent.photoDataArray
+            var wasTileByPhoto: [Int: Bool] = [:]
+            if !photos.isEmpty {
+                let drawn = drawnPhotoTiles(in: textView)
+                for (k, placement) in photoPlacements(in: parent.text).enumerated() where k < drawn.count {
+                    if let tile = drawn[k] { wasTileByPhoto[placement.photoIndex] = tile }
+                }
+            }
             parent.inlineStyleData = remappedInlineStyles(rowOrder: rows.map { $0.source }, rowCount: rows.count, displayed: attributed)
             parent.text = rows.map { $0.text }.joined(separator: "\n")
+            if !wasTileByPhoto.isEmpty {
+                // A thumbnail moved out of its row stays a thumbnail, as after Backspace or Remove
+                // (owner, 2026-11-15: "Stay a thumbnail").
+                parent.inlineStyleData = PhotoPlacement.keepingTiles(
+                    wasTile: photoPlacements(in: parent.text).map { wasTileByPhoto[$0.photoIndex] },
+                    text: parent.text, inlineStyleData: parent.inlineStyleData,
+                    hasPicture: { $0 < photos.count }, isLandscape: { $0 < photos.count && PhotoRuns.isLandscape(photos[$0]) })
+            }
             let styles = rows.map { $0.style }
             let levels = rows.map { $0.level }
             let fontChoices = rows.map { $0.fontChoice }
@@ -3549,7 +4260,7 @@ struct NoteEditorTextView: UIViewRepresentable {
                 hidden.append(after[newIndex].chars)
                 view.frame = before[row.source].rect
                 textView.addSubview(view)
-                moves.append((view, CGRect(origin: CGPoint(x: 0, y: after[newIndex].rect.minY), size: before[row.source].rect.size)))
+                moves.append((view, CGRect(origin: CGPoint(x: after[newIndex].rect.minX, y: after[newIndex].rect.minY), size: before[row.source].rect.size)))
             }
             lm.hiddenCharacterRanges = hidden
             lm.invalidateDisplay(forCharacterRange: NSRange(location: 0, length: textView.textStorage.length))
@@ -3759,6 +4470,22 @@ struct NoteEditorTextView: UIViewRepresentable {
                 let highlightIndex = attrs[Self.highlightIndexAttribute] as? Int
                 let textColorIndex = attrs[Self.textColorIndexAttribute] as? Int
                 let linkURL = (attrs[.link] as? URL)?.absoluteString
+                // A size only ever applies to a photo's own character: if it spread to text (typed
+                // after a sized photo by an earlier build), it's dropped from the text here and
+                // kept on each photo in the run as a range of its own.
+                var photoSize = attrs[Self.photoSizeAttribute] as? String
+                if let size = photoSize {
+                    let ns = attributed.string as NSString
+                    let isOnlyAPhoto = range.length == 1 && ns.character(at: range.location) == 0xFFFC
+                    if !isOnlyAPhoto {
+                        photoSize = nil
+                        for i in range.location..<NSMaxRange(range) where ns.character(at: i) == 0xFFFC {
+                            let start = displayToLogical(display: i, map: logicalOffsets)
+                            ranges.append(InlineStyleRange(location: start, length: 1, bold: false, italic: false, underline: false,
+                                                           strikethrough: false, highlightIndex: nil, photoSize: size))
+                        }
+                    }
+                }
 
                 // Only store non-default inline attrs (skip title/heading/subheading bold — those are
                 // paragraph-level; the subheading font is semibold, which reads as bold)
@@ -3766,7 +4493,8 @@ struct NoteEditorTextView: UIViewRepresentable {
                 let isParaBold = (style == .heading || style == .title || style == .subheading)
                 let effectiveBold = bold && !isParaBold
 
-                guard effectiveBold || italic || underline || strikethrough || highlightIndex != nil || linkURL != nil || textColorIndex != nil else { return }
+                guard effectiveBold || italic || underline || strikethrough || highlightIndex != nil || linkURL != nil
+                    || textColorIndex != nil || photoSize != nil else { return }
 
                 let logicalStart = displayToLogical(display: range.location, map: logicalOffsets)
                 let logicalEnd = displayToLogical(display: NSMaxRange(range), map: logicalOffsets)
@@ -3782,7 +4510,8 @@ struct NoteEditorTextView: UIViewRepresentable {
                     strikethrough: strikethrough,
                     highlightIndex: highlightIndex,
                     linkURL: linkURL,
-                    textColorIndex: textColorIndex
+                    textColorIndex: textColorIndex,
+                    photoSize: photoSize
                 ))
             }
 
@@ -3793,6 +4522,11 @@ struct NoteEditorTextView: UIViewRepresentable {
         }
 
         func applyInlineStyles(to attributed: NSMutableAttributedString, from data: Data?) {
+            // Photos back to full width first: a size that was removed must not linger on an
+            // attachment reused from the rendered cache.
+            attributed.enumerateAttribute(.attachment, in: NSRange(location: 0, length: attributed.length)) { value, _, _ in
+                if let attachment = value as? PhotoAttachment, attachment.fullBounds.width > 0 { attachment.bounds = attachment.fullBounds }
+            }
             guard let data,
                   let doc = try? JSONDecoder().decode(InlineStyleDocument.self, from: data),
                   !doc.ranges.isEmpty else { return }
@@ -3844,6 +4578,32 @@ struct NoteEditorTextView: UIViewRepresentable {
                 if let url = validatedLinkURL(from: styleRange.linkURL) {
                     attributed.addAttribute(.link, value: url, range: displayRange)
                 }
+                if let stored = styleRange.photoSize {
+                    // "full" too: it's what keeps a photo out of a row of thumbnails, and it must
+                    // survive the next read of the ranges back from the text.
+                    // Only the photo the range starts on (`PhotoSizes`): a range that spread over
+                    // typed text or later photos (an earlier build) must not size them too.
+                    let ns = attributed.string as NSString
+                    let photo = NSRange(location: displayRange.location, length: 1)
+                    if ns.character(at: photo.location) == 0xFFFC {
+                        attributed.addAttribute(Self.photoSizeAttribute, value: stored, range: photo)
+                        if PhotoSize(stored: stored) != .full {
+                            resizePhotoAttachments(in: photo, of: attributed, to: PhotoSize(stored: stored))
+                        }
+                    }
+                }
+            }
+        }
+
+        /// A photo drawn at Small or Medium: its attachment shrinks to that share of the line,
+        /// keeping its aspect. Tiles keep their size (a row of tiles is already small).
+        private func resizePhotoAttachments(in range: NSRange, of attributed: NSAttributedString, to size: PhotoSize) {
+            attributed.enumerateAttribute(.attachment, in: range) { value, _, _ in
+                // Always from the full bounds: an attachment can be drawn again from a cache.
+                guard let attachment = value as? PhotoAttachment, !attachment.isTile, attachment.fullBounds.width > 0 else { return }
+                let full = attachment.fullBounds
+                let width = floor(full.width * size.widthFraction)
+                attachment.bounds = CGRect(x: full.minX, y: full.minY, width: width, height: floor(full.height * width / full.width))
             }
         }
 
@@ -3927,7 +4687,8 @@ struct NoteEditorTextView: UIViewRepresentable {
                     && range.strikethrough == last.strikethrough
                     && range.highlightIndex == last.highlightIndex
                     && range.linkURL == last.linkURL
-                    && range.textColorIndex == last.textColorIndex {
+                    && range.textColorIndex == last.textColorIndex
+                    && range.photoSize == last.photoSize {
                     result[result.count - 1] = InlineStyleRange(
                         location: last.location,
                         length: max(lastEnd, range.location + range.length) - last.location,
@@ -3935,7 +4696,8 @@ struct NoteEditorTextView: UIViewRepresentable {
                         underline: last.underline, strikethrough: last.strikethrough,
                         highlightIndex: last.highlightIndex,
                         linkURL: last.linkURL,
-                        textColorIndex: last.textColorIndex
+                        textColorIndex: last.textColorIndex,
+                        photoSize: last.photoSize
                     )
                 } else {
                     result.append(range)
@@ -4171,10 +4933,136 @@ nonisolated func preparedInlinePhotoData(fromFileAt url: URL) throws -> Data {
     return prepared
 }
 
+#if os(iOS)
+// MARK: - Drag and drop (3.1.9)
+
+extension NoteEditorTextView.Coordinator: UITextDragDelegate, UITextDropDelegate, UITextPasteDelegate {
+    /// Text drags as before. A photo drags as the picture (an image for other apps) carrying its
+    /// row; a selection that mixes photos with text can't be dragged, since UIKit's move would
+    /// give the pictures each other's data.
+    func textDraggableView(_ textDraggableView: UIView & UITextDraggable, itemsForDrag dragRequest: UITextDragRequest) -> [UIDragItem] {
+        guard let textView = textDraggableView as? UITextView else { return dragRequest.suggestedItems }
+        let start = textView.offset(from: textView.beginningOfDocument, to: dragRequest.dragRange.start)
+        let end = textView.offset(from: textView.beginningOfDocument, to: dragRequest.dragRange.end)
+        let ns = (textView.text ?? "") as NSString
+        guard start >= 0, end <= ns.length, start < end else { return dragRequest.suggestedItems }
+        // Text drags as before. Nothing with a photo in it: UIKit's move would hand each picture
+        // the next one's data (attachments become tokens in text order). Photos move with the
+        // editor's own hold-and-drag (`handlePhotoDrag`).
+        return (start..<end).contains { ns.character(at: $0) == 0xFFFC } ? [] : dragRequest.suggestedItems
+    }
+
+    func textDroppableView(_ textDroppableView: UIView & UITextDroppable, proposalForDrop drop: UITextDropRequest) -> UITextDropProposal {
+        let session = drop.dropSession
+        let hasPictures = session.hasItemsConforming(toTypeIdentifiers: [UTType.image.identifier])
+        guard hasPictures else { return drop.suggestedProposal }
+        // A picture dragged from inside the app (a photo lifted from its menu preview): never
+        // inserted, since UITextView would insert the attachment itself and it would come back as
+        // a duplicate (14 Pro, 2026-11-13).
+        guard session.localDragSession == nil, parent.onDropPhotos != nil else { return UITextDropProposal(operation: .cancel) }
+        // Pictures from another app: the editor inserts them itself in willPerformDrop.
+        let proposal = UITextDropProposal(operation: .copy)
+        proposal.dropPerformer = .delegate
+        return proposal
+    }
+
+    func textDroppableView(_ textDroppableView: UIView & UITextDroppable, willPerformDrop drop: UITextDropRequest) {
+        guard let textView = textDroppableView as? UITextView, parent.onDropPhotos != nil else { return }
+        let session = drop.dropSession
+        guard session.localDragSession == nil else { return }
+        let providers = session.items.map(\.itemProvider).filter { $0.hasItemConformingToTypeIdentifier(UTType.image.identifier) }
+        guard !providers.isEmpty else { return }
+        let offset = textView.offset(from: textView.beginningOfDocument, to: drop.dropPosition)
+        let paragraph = paragraphIndex(atDisplayOffset: offset, in: (textView.text ?? "") as NSString)
+        var loaded = [Data?](repeating: nil, count: providers.count)
+        let group = DispatchGroup()
+        for (index, provider) in providers.enumerated() {
+            group.enter()
+            provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
+                DispatchQueue.main.async { loaded[index] = data; group.leave() }
+            }
+        }
+        group.notify(queue: .main) { [weak self] in
+            let photos = loaded.compactMap { $0 }
+            guard let self, !photos.isEmpty else { return }
+            self.parent.onDropPhotos?(photos, paragraph)
+        }
+    }
+
+    func textPasteConfigurationSupporting(_ textPasteConfigurationSupporting: UITextPasteConfigurationSupporting, transform item: UITextPasteItem) {
+        let provider = item.itemProvider
+        guard parent.onDropPhotos != nil, provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) else {
+            item.setDefaultResult()
+            return
+        }
+        // Text that carries pictures (a selection copied from an entry, a web page): the words go in
+        // as plain text. Its pictures would arrive as bare attachments, which the editor reads
+        // back as the next photos' tokens; pictures alone come through the photo path below.
+        if provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier)
+            || provider.hasItemConformingToTypeIdentifier(UTType.rtf.identifier)
+            || provider.hasItemConformingToTypeIdentifier(UTType.flatRTFD.identifier) {
+            _ = provider.loadObject(ofClass: NSString.self) { string, _ in
+                let text = (string as? String)?.replacingOccurrences(of: "\u{FFFC}", with: "") ?? ""
+                DispatchQueue.main.async { item.setResult(string: text) }
+            }
+            return
+        }
+        item.setNoResult()
+        // Where they go: the caret (a paste; drops from other apps are performed in willPerformDrop).
+        let target: Int? = textView.map { $0.selectedRange.location }
+        pendingDropTarget = target
+        droppedPhotoLoads += 1
+        provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { [weak self] data, _ in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if let data { self.droppedPhotos.append(data) }
+                self.droppedPhotoLoads -= 1
+                guard self.droppedPhotoLoads == 0 else { return }
+                // Every picture of the drop has arrived: one insert, in the order they came. UIKit
+                // can hand the same pasted picture over twice (seen with Cmd-V on iOS 27): the same
+                // bytes go in once, and a repeat within a second of the last insert is dropped.
+                var photos: [Data] = []
+                for data in self.droppedPhotos where !photos.contains(data) { photos.append(data) }
+                self.droppedPhotos = []
+                let now = Date()
+                if let last = self.lastDroppedPhotos, now.timeIntervalSince(last.at) < 1, last.photos == photos { return }
+                self.lastDroppedPhotos = (photos, now)
+                guard !photos.isEmpty, let textView = self.textView else { return }
+                let ns = (textView.text ?? "") as NSString
+                let paragraph = self.pendingDropTarget.map { self.paragraphIndex(atDisplayOffset: $0, in: ns) }
+                self.parent.onDropPhotos?(photos, paragraph)
+            }
+        }
+    }
+
+    /// Index of the paragraph holding display offset `offset` (the last one past the end).
+    func paragraphIndex(atDisplayOffset offset: Int, in text: NSString) -> Int {
+        var index = 0
+        var location = 0
+        while location < text.length {
+            let paragraph = text.paragraphRange(for: NSRange(location: location, length: 0))
+            if offset < NSMaxRange(paragraph) { return index }
+            if NSMaxRange(paragraph) == text.length {
+                // Offset at the very end: on the last paragraph, or on the empty one after a final break.
+                return text.hasSuffix("\n") && offset >= text.length ? index + 1 : index
+            }
+            location = NSMaxRange(paragraph)
+            index += 1
+        }
+        return index
+    }
+}
+#endif
+
 nonisolated func textWithInlinePhotoToken(_ text: String, at index: Int) -> String {
     let token = inlinePhotoToken(at: index)
     guard !text.contains(token) else { return text }
-    let trimmed = trimmingTrailingNewlines(text)
+    // Trailing lines of only spaces go too, like blank ones (owner, 14 Pro 2026-11-13): one left
+    // between a photo and the new one kept them out of one row, so a photo added under a
+    // thumbnail came in full width.
+    var lines = trimmingTrailingNewlines(text).components(separatedBy: "\n")
+    while let last = lines.last, last.trimmingCharacters(in: .whitespaces).isEmpty { lines.removeLast() }
+    let trimmed = lines.joined(separator: "\n")
     return trimmed.isEmpty ? token : "\(trimmed)\n\(token)\n"
 }
 
@@ -4187,7 +5075,7 @@ nonisolated func trimmingTrailingNewlines(_ text: String) -> String {
     return trimmed
 }
 
-private nonisolated func isRenderableImageData(_ data: Data) -> Bool {
+nonisolated func isRenderableImageData(_ data: Data) -> Bool {
     guard let source = CGImageSourceCreateWithData(data as CFData, [
         kCGImageSourceShouldCache: false
     ] as CFDictionary) else {
@@ -4225,6 +5113,8 @@ final class ChecklistLayoutManager: NSLayoutManager {
     /// Where a checklist item's text starts, from the paragraph's leading edge.
     static let textIndent: CGFloat = 36
     let markerSpacing = ChecklistMarkerSpacing()
+    /// Thumbnail tiles side by side (`PhotoRowLayout`); the layout manager's delegate is weak.
+    let photoRows = PhotoRowLayout()
 
     private static let unchecked = NoteParagraphTextStyle.checklistUnchecked.rawValue
     private static let checked = NoteParagraphTextStyle.checklistChecked.rawValue
@@ -4395,7 +5285,62 @@ final class ChecklistMarkerSpacing: NSObject, NSTextStorageDelegate {
     }
 }
 
+/// A photo in the editor: remembers its full-width bounds so a Small or Medium size is always
+/// worked out from them (`resizePhotoAttachments`), and whether it is drawn as a tile.
+final class PhotoAttachment: NSTextAttachment {
+    var fullBounds: CGRect = .zero
+    var isTile = false
+}
+
 final class MirrorEditorTextView: UITextView {
+    /// Write's editor takes pictures from Paste (3.1.9; they go through Write's photo path via the
+    /// paste delegate). UITextView offers Paste only for text, so it's offered here for images.
+    var acceptsPastedImages = false
+
+    /// Set by the editor: the selection as a `PhotoFragment` when it has photos in it; deleting a
+    /// range the keyboard's way; pasting a fragment.
+    var photoFragment: ((NSRange) -> PhotoFragment?)?
+    var cutRange: ((NSRange) -> Void)?
+    var pasteFragment: ((PhotoFragment) -> Void)?
+
+    override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+        if action == #selector(paste(_:)), acceptsPastedImages, UIPasteboard.general.hasImages { return true }
+        if action == #selector(paste(_:)), pasteFragment != nil,
+           UIPasteboard.general.contains(pasteboardTypes: [PhotoFragment.pasteboardType]) { return true }
+        return super.canPerformAction(action, withSender: sender)
+    }
+
+    /// A selection with photos: the clipboard gets its lines and pictures for this editor, and
+    /// the words as plain text for everything else. Returns false for a plain selection.
+    private func copyFragment() -> Bool {
+        guard let fragment = photoFragment?(selectedRange), let data = fragment.encoded() else { return false }
+        UIPasteboard.general.items = [[UTType.utf8PlainText.identifier: fragment.plainText, PhotoFragment.pasteboardType: data]]
+        return true
+    }
+
+    override func copy(_ sender: Any?) {
+        if !copyFragment() { super.copy(sender) }
+    }
+
+    override func cut(_ sender: Any?) {
+        guard copyFragment(), let cutRange else { super.cut(sender); return }
+        cutRange(selectedRange)
+    }
+
+    override func paste(_ sender: Any?) {
+        let pasteboard = UIPasteboard.general
+        if let pasteFragment, let data = pasteboard.data(forPasteboardType: PhotoFragment.pasteboardType),
+           let fragment = PhotoFragment.decoded(data) {
+            pasteFragment(fragment)
+            return
+        }
+        if acceptsPastedImages, pasteboard.hasImages, !pasteboard.hasStrings {
+            paste(itemProviders: pasteboard.itemProviders)
+            return
+        }
+        super.paste(sender)
+    }
+
     weak var editorUndo: UndoManager?
     /// The editor's own list gestures (circle tap, swipe to indent, drag to reorder).
     var checklistGestureRecognizers: [UIGestureRecognizer] = []

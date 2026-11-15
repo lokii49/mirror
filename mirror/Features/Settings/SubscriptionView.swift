@@ -3,24 +3,12 @@ import RevenueCat
 import StoreKit
 
 // futureSurface has a distinct two-shadow signature from themedCard's .surface
-// base (inkSurface), so swapping to themedCard would shift Classic's look.
-// This keeps futureSurface verbatim for Classic and only adds the Sentinel
-// branch, mirroring ThemedCardModifier's sentinel rendering exactly.
+// base (inkSurface), so swapping to themedCard would shift the look.
 private struct SubscriptionCardModifier: ViewModifier {
-    @Environment(\.appDisplayMode) private var displayMode
     let cornerRadius: CGFloat
 
     func body(content: Content) -> some View {
-        if displayMode == .sentinel {
-            content
-                .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(MirrorTheme.ember.opacity(0.24), lineWidth: 1)
-                }
-        } else {
-            content.futureSurface(cornerRadius: cornerRadius)
-        }
+        content.futureSurface(cornerRadius: cornerRadius)
     }
 }
 
@@ -32,7 +20,6 @@ private extension View {
 
 struct SubscriptionView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.appDisplayMode) private var displayMode
     @State private var subscriptionService = SubscriptionService.shared
     @State private var isLoading = false
     @State private var showPaywall = false
@@ -61,7 +48,7 @@ struct SubscriptionView: View {
             } else {
                 NavigationStack {
                     ScrollView { statusSections }
-                    .navigationTitle(displayMode == .sentinel ? "Clearance" : "Subscription")
+                    .navigationTitle("Subscription")
                     .navigationBarTitleDisplayMode(.inline)
                     .background(MirrorTheme.bgBase)
                     .toolbar {
@@ -80,7 +67,6 @@ struct SubscriptionView: View {
         }
         .sheet(isPresented: $showPaywall) {
             PaywallView(initialTier: subscriptionService.tier == .core ? .deep : .core)
-                .environment(\.appDisplayMode, displayMode)
         }
         .modifier(RedeemCodeSheet(isPresented: $showRedeemCode))
     }
@@ -91,21 +77,9 @@ struct SubscriptionView: View {
                 .scaledFont(28, weight: .semibold)
                 .foregroundStyle(subscriptionService.isDeep ? MirrorTheme.violet : subscriptionService.isSubscribed ? Color.accentColor : .secondary)
             VStack(alignment: .leading, spacing: 4) {
-                Group {
-                    if displayMode == .sentinel {
-                        Text(tierName).scaledFont(16, weight: .bold, design: .monospaced).textCase(.uppercase)
-                    } else {
-                        Text(tierName).scaledFont(17, weight: .semibold)
-                    }
-                }
-                Group {
-                    if displayMode == .sentinel {
-                        Text(tierDescription).scaledFont(11, weight: .medium, design: .monospaced)
-                    } else {
-                        Text(tierDescription).scaledFont(14)
-                    }
-                }
-                .foregroundStyle(.secondary)
+                Text(tierName).scaledFont(17, weight: .semibold)
+                Text(tierDescription).scaledFont(14)
+                    .foregroundStyle(.secondary)
             }
             Spacer()
         }
@@ -134,14 +108,8 @@ struct SubscriptionView: View {
 
     private var upgradeSection: some View {
         VStack(spacing: 16) {
-            Group {
-                if displayMode == .sentinel {
-                    Text("SELECT CLEARANCE LEVEL").scaledFont(18, weight: .bold, design: .monospaced).tracking(0.5)
-                } else {
-                    Text("Upgrade your plan").scaledFont(20, weight: .bold, design: .rounded)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            Text("Upgrade your plan").scaledFont(20, weight: .bold, design: .rounded)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             // Core card
             tierUpgradeCard(
@@ -177,11 +145,7 @@ struct SubscriptionView: View {
                     isLoading = false
                 }
             } label: {
-                if displayMode == .sentinel {
-                    Text("RESTORE PURCHASES").scaledFont(12, weight: .medium, design: .monospaced)
-                } else {
-                    Text("Restore Purchases").scaledFont(14, weight: .medium)
-                }
+                Text("Restore Purchases").scaledFont(14, weight: .medium)
             }
             .foregroundStyle(.secondary)
             .padding(.top, 4)
@@ -216,19 +180,13 @@ struct SubscriptionView: View {
                         .scaledFont(16, weight: .semibold)
                         .foregroundStyle(iconColor)
                 }
-                Group {
-                    if displayMode == .sentinel {
-                        Text(title).textCase(.uppercase).scaledFont(15, weight: .bold, design: .monospaced)
-                    } else {
-                        (Text("MirrorNotes ") + Text(title)).font(.system(size: 16, weight: .bold))
-                    }
-                }
+                (Text("MirrorNotes ") + Text(title)).font(.system(size: 16, weight: .bold))
             }
 
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(Array(bullets.enumerated()), id: \.offset) { _, bullet in
                     Label(bullet, systemImage: "checkmark")
-                        .scaledFont(displayMode == .sentinel ? 12 : 13, weight: displayMode == .sentinel ? .medium : .regular, design: displayMode == .sentinel ? .monospaced : .default)
+                        .scaledFont(13, weight: .regular, design: .default)
                         .foregroundStyle(.secondary)
                         .labelStyle(.titleAndIcon)
                 }
@@ -238,14 +196,14 @@ struct SubscriptionView: View {
                 // As on the paywall: a failed load offers a retry instead of spinning forever.
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Couldn't load plans. Check your connection.")
-                        .scaledFont(displayMode == .sentinel ? 12 : 13, weight: .medium, design: displayMode == .sentinel ? .monospaced : .default)
+                        .scaledFont(13, weight: .medium, design: .default)
                         .foregroundStyle(.secondary)
                     Button {
                         Task { await subscriptionService.loadProducts() }
                     } label: {
                         Text("Try Again")
-                            .scaledFont(displayMode == .sentinel ? 13 : 14, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
-                            .textCase(displayMode == .sentinel ? .uppercase : nil)
+                            .scaledFont(14, weight: .semibold, design: .default)
+                            .textCase(nil)
                             .foregroundStyle(iconColor)
                     }
                     .buttonStyle(.plain)
@@ -253,14 +211,8 @@ struct SubscriptionView: View {
             } else if packages.isEmpty {
                 HStack(spacing: 8) {
                     ProgressView().scaleEffect(0.8)
-                    Group {
-                        if displayMode == .sentinel {
-                            Text("LOADING…").scaledFont(12, weight: .medium, design: .monospaced)
-                        } else {
-                            Text("Loading…").scaledFont(13)
-                        }
-                    }
-                    .foregroundStyle(.secondary)
+                    Text("Loading…").scaledFont(13)
+                        .foregroundStyle(.secondary)
                 }
             } else {
                 VStack(spacing: 8) {
@@ -274,36 +226,24 @@ struct SubscriptionView: View {
                         } label: {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Group {
-                                        if displayMode == .sentinel {
-                                            Text(packageLabel(package)).scaledFont(14, weight: .semibold, design: .monospaced).textCase(.uppercase)
-                                        } else {
-                                            Text(packageLabel(package)).scaledFont(15, weight: .semibold)
-                                        }
-                                    }
+                                    Text(packageLabel(package)).scaledFont(15, weight: .semibold)
                                     if let subtitle = packageSubtitle(package, in: packages) {
-                                        Group {
-                                            if displayMode == .sentinel {
-                                                Text(subtitle).scaledFont(10.5, weight: .medium, design: .monospaced)
-                                            } else {
-                                                Text(subtitle).scaledFont(12)
-                                            }
-                                        }
-                                        .foregroundStyle(.secondary)
+                                        Text(subtitle).scaledFont(12)
+                                            .foregroundStyle(.secondary)
                                     }
                                 }
                                 Spacer()
                                 Text(package.storeProduct.localizedPriceString)
-                                    .scaledFont(15, weight: .bold, design: displayMode == .sentinel ? .monospaced : .default)
+                                    .scaledFont(15, weight: .bold, design: .default)
                             }
                             .padding(14)
                             .background(
                                 iconColor.opacity(0.06),
-                                in: RoundedRectangle(cornerRadius: displayMode == .sentinel ? 8 : 14, style: .continuous)
+                                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
                             )
                             .overlay {
-                                RoundedRectangle(cornerRadius: displayMode == .sentinel ? 8 : 14, style: .continuous)
-                                    .stroke(iconColor.opacity(displayMode == .sentinel ? 0.30 : 0.15), lineWidth: 1)
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .stroke(iconColor.opacity(0.15), lineWidth: 1)
                             }
                         }
                         .buttonStyle(.plain)
@@ -358,26 +298,14 @@ struct SubscriptionView: View {
                 } label: {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            Group {
-                                if displayMode == .sentinel {
-                                    Text("UPGRADE TO DEEP").scaledFont(14, weight: .semibold, design: .monospaced)
-                                } else {
-                                    Text("Upgrade to Deep").scaledFont(16, weight: .semibold)
-                                }
-                            }
-                            Group {
-                                if displayMode == .sentinel {
-                                    Text("UNLIMITED ASK, MONTHLY DEBRIEF, VITALS").scaledFont(10.5, weight: .medium, design: .monospaced)
-                                } else {
-                                    Text("Unlimited Ask, monthly report, mood timeline").scaledFont(13)
-                                }
-                            }
-                            .foregroundStyle(.secondary)
+                            Text("Upgrade to Deep").scaledFont(16, weight: .semibold)
+                            Text("Unlimited Ask, monthly report, mood timeline").scaledFont(13)
+                                .foregroundStyle(.secondary)
                         }
                         Spacer()
                         Image(systemName: "flame.fill")
                             .scaledFont(15)
-                            .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violetLight)
+                            .foregroundStyle(MirrorTheme.violetLight)
                     }
                     .padding(16)
                     .subscriptionCard(cornerRadius: 16)
@@ -391,13 +319,7 @@ struct SubscriptionView: View {
                 }
             } label: {
                 HStack {
-                    Group {
-                        if displayMode == .sentinel {
-                            Text("MANAGE SUBSCRIPTION").scaledFont(14, weight: .medium, design: .monospaced)
-                        } else {
-                            Text("Manage Subscription").scaledFont(16, weight: .medium)
-                        }
-                    }
+                    Text("Manage Subscription").scaledFont(16, weight: .medium)
                     Spacer()
                     Image(systemName: "arrow.up.right")
                         .scaledFont(14)
@@ -426,11 +348,7 @@ struct SubscriptionView: View {
     private var redeemCodeButton: some View {
         if RedeemCodeSheet.isAvailable {
             Button { showRedeemCode = true } label: {
-                if displayMode == .sentinel {
-                    Text("REDEEM CODE").scaledFont(12, weight: .medium, design: .monospaced)
-                } else {
-                    Text("Redeem Code").scaledFont(14, weight: .medium)
-                }
+                Text("Redeem Code").scaledFont(14, weight: .medium)
             }
             .foregroundStyle(.secondary)
         }

@@ -2,7 +2,7 @@
 import SwiftUI
 import SwiftData
 
-/// "Developer" in Classic, "Diagnostics" in Sentinel — debug-only tools,
+/// "Developer" — debug-only tools,
 /// never shown in release builds.
 struct DiagnosticsSettingsView: View {
     @Query(sort: \Entry.createdAt, order: .reverse) private var entries: [Entry]
@@ -10,7 +10,6 @@ struct DiagnosticsSettingsView: View {
     @Query private var collections: [JournalCollection]
     @Query private var savedViews: [SavedEntryView]
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.appDisplayMode) private var displayMode
     @State private var encryptionReport: String?
     @State private var groundingAuditReport: String?
 
@@ -174,7 +173,7 @@ struct DiagnosticsSettingsView: View {
             .padding(.bottom, 24)
         }
         .background(MirrorTheme.bgBase)
-        .settingsNavigationTitle(displayMode == .sentinel ? "Diagnostics" : "Developer")
+        .settingsNavigationTitle("Developer")
         .navigationBarTitleDisplayMode(.large)
     }
 }

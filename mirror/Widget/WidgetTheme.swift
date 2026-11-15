@@ -3,7 +3,7 @@ import SwiftUI
 // Shared by every widget in this folder. The widget extension is a separate
 // target with no access to the app's `MirrorTheme`, so before this file each
 // widget hand-copied the same handful of `Color(red:…)` literals and the same
-// `widgetIsSentinel()` / `widget.tier` reads. Those are consolidated here.
+// `widget.tier` reads. Those are consolidated here.
 //
 // The values are the DARK variant of the matching `MirrorTheme` tokens, frozen
 // as hex integers — widgets render dark chrome regardless of system appearance,
@@ -59,8 +59,7 @@ enum WidgetTheme {
 }
 
 // App-group access shared across widgets. Kept as free functions with the exact
-// bodies the widgets used before, so this is a move, not a rewrite — callers
-// still evaluate them at struct-init time (`private let sentinel = …`).
+// bodies the widgets used before, so this is a move, not a rewrite.
 enum WidgetShared {
     static let appGroupID = "group.com.lokesh.mirror"
 

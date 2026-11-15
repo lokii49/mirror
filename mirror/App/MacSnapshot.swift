@@ -954,13 +954,25 @@ enum MacEditorSelfTest {
         var flags = InlineStyleSet()
         var command: NoteTextCommand?
         var revision = 0
+        /// Set to bind the editor the way Write does on Mac: the whole stored text here, the
+        /// editor seeing its body (`NoteEditorCodec.editorBody`).
+        var full: String?
+        var lastSet: (text: String, body: String)?
+        var photoCount = 0
         init(text: String, style: Data? = nil, inline: Data? = nil) { self.text = text; self.style = style; self.inline = inline }
     }
 
     @MainActor
     private static func makeEditor(_ box: Box) -> (MirrorNSTextView, NoteEditorTextView.Coordinator) {
         let view = NoteEditorTextView(
-            text: Binding(get: { box.text }, set: { box.text = $0 }),
+            text: Binding(
+                get: { box.full.map { NoteEditorCodec.editorBody(of: $0, lastSet: box.lastSet) } ?? box.text },
+                set: { body in
+                    guard let full = box.full else { box.text = body; return }
+                    let text = NoteEditorCodec.text(settingEditorBody: body, in: full, photoCount: box.photoCount)
+                    box.lastSet = (text, body)
+                    box.full = text
+                }),
             textStyleData: Binding(get: { box.style }, set: { box.style = $0 }),
             inlineStyleData: Binding(get: { box.inline }, set: { box.inline = $0 }),
             photoDataArray: .constant([]),
@@ -1330,6 +1342,62 @@ enum MacEditorSelfTest {
             tv.paste(nil)
             check("paste inserts text", box.text == "rich", box.text)
             check("paste adds no inline styles", box.inline == nil, "\(ranges(box.inline))")
+        }
+
+        // 9. Photos between lines (Mac 1.1.9, owner option A): each is one character carrying
+        // its number; words go around it, never on its line; it can't be deleted in the text.
+        do {
+            let text = "Lake\n[[mirror-photo-1]]\nSoup\n[[mirror-photo-0]]"
+            var sized = InlineStyleRange(location: 5, length: 1, bold: false, italic: false, underline: false, strikethrough: false, highlightIndex: nil)
+            sized.photoSize = "small"
+            let bold = InlineStyleRange(location: 7, length: 4, bold: true, italic: false, underline: false, strikethrough: false, highlightIndex: nil)
+            let box = Box(text: text, inline: try? JSONEncoder().encode(InlineStyleDocument(ranges: [sized, bold])))
+            let (tv, _) = makeEditor(box)
+            check("photos: one character each", tv.string == "Lake\n\u{FFFC}\nSoup\n\u{FFFC}", tv.string.debugDescription)
+            check("photos: drawn as tiles", tv.textStorage?.attribute(.attachment, at: 5, effectiveRange: nil) is NSTextAttachment)
+            tv.setSelectedRange(NSRange(location: 6, length: 0))
+            tv.insertText("h", replacementRange: tv.selectedRange())
+            check("photos: typing after one goes on a new line", box.text == "Lake\n[[mirror-photo-1]]\nh\nSoup\n[[mirror-photo-0]]", box.text.debugDescription)
+            check("photos: size and bold keep their places", ranges(box.inline) == [sized, InlineStyleRange(location: 9, length: 4, bold: true, italic: false, underline: false, strikethrough: false, highlightIndex: nil)], "\(ranges(box.inline))")
+            tv.undoManager?.undo()
+            check("photos: undo takes it back", box.text == text, box.text.debugDescription)
+            tv.setSelectedRange(NSRange(location: 5, length: 0))
+            tv.insertText("x", replacementRange: tv.selectedRange())
+            check("photos: typing before one goes on a new line above", box.text == "Lake\nx\n[[mirror-photo-1]]\nSoup\n[[mirror-photo-0]]", box.text.debugDescription)
+            tv.undoManager?.undo()
+            // Backspace at the start of "Soup" would join it to the photo's line: the caret moves.
+            tv.setSelectedRange(NSRange(location: 7, length: 0))
+            tv.deleteBackward(nil)
+            check("photos: backspace into a photo's line moves the caret", box.text == text && tv.selectedRange().location == 6, "\(box.text.debugDescription) caret \(tv.selectedRange())")
+            // The photo itself can't be deleted or typed over.
+            tv.setSelectedRange(NSRange(location: 6, length: 0))
+            tv.deleteBackward(nil)
+            tv.setSelectedRange(NSRange(location: 2, length: 6))
+            tv.insertText("z", replacementRange: tv.selectedRange())
+            check("photos: a photo isn't deleted in the text", box.text == text, box.text.debugDescription)
+            // Text typed after a photo carries none of its attributes.
+            tv.setSelectedRange(NSRange(location: 13, length: 0))
+            tv.insertText("q", replacementRange: tv.selectedRange())
+            let typed = tv.textStorage.map { $0.attributes(at: 14, effectiveRange: nil) } ?? [:]
+            check("photos: typed text carries no photo attributes", typed[.attachment] == nil && typed[NoteEditorCodec.photoNumberKey] == nil && typed[NoteEditorCodec.photoSizeKey] == nil, "\(typed.keys)")
+            check("photos: numbers kept on save", box.text == "Lake\n[[mirror-photo-1]]\nSoup\n[[mirror-photo-0]]\nq", box.text.debugDescription)
+        }
+
+        // 9b. Bound as Write binds it (body of the stored text): emptying the line under a photo
+        // between lines must not turn it into a trailing photo under the editor's feet.
+        do {
+            let box = Box(text: "")
+            box.full = "words\n[[mirror-photo-0]]\nmore"
+            box.photoCount = 1
+            let (tv, c) = makeEditor(box)
+            func update() { if c.needsReload(tv) { c.load(into: tv) } }   // what updateNSView does
+            check("bound: photo between lines shown", tv.string == "words\n\u{FFFC}\nmore", tv.string.debugDescription)
+            tv.setSelectedRange(NSRange(location: (tv.string as NSString).length, length: 0))
+            for _ in 0..<4 { tv.deleteBackward(nil); update() }
+            check("bound: the photo stays in the text after its line below is emptied", tv.string == "words\n\u{FFFC}\n", tv.string.debugDescription)
+            tv.insertText("new", replacementRange: tv.selectedRange()); update()
+            check("bound: typing goes under the photo", box.full == "words\n[[mirror-photo-0]]\nnew", (box.full ?? "nil").debugDescription)
+            check("bound: no second token", allPhotoTokens(in: box.full ?? "").count == 1, (box.full ?? "nil").debugDescription)
         }
 
         return out

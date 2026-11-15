@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// Exposes the user's chosen display mode (Classic / Sentinel) down the view
+/// Exposes the user's display mode down the view
 /// tree. Root-level so any screen can branch without re-querying UserProfile.
 private struct DisplayModeKey: EnvironmentKey {
     static let defaultValue: DisplayMode = .classic
@@ -60,6 +60,8 @@ struct ContentView: View {
     @State private var showMoodCheckIn = false
     @State private var moodCheckInPresenter = MoodCheckInPresenter.shared
     @State private var scratchNotePresenter = ScratchNotePresenter.shared
+    /// The Scratch Note sheet slot shows the Still Open page instead (the widget's list link).
+    @State private var scratchSheetShowsStillOpen = false
     @State private var showScratchNote = false
     @State private var appLock = AppLock.shared
     @State private var deepLinkEntryID: UUID? = nil
@@ -91,15 +93,8 @@ struct ContentView: View {
     @AppStorage("moodCheckInMinute") private var moodCheckInMinute: Int = 0
     @AppStorage("moodCheckInShownDay") private var moodCheckInShownDay: String = ""
 
-    /// Sentinel is a HUD — it reads as "futuristic" only against a dark
-    /// canvas, the same way a cockpit display or mission-control screen
-    /// always renders dark regardless of the room's lighting. Forces dark
-    /// whenever Sentinel is active; onChange(of: displayMode) below keeps
-    /// the stored Appearance setting itself in sync so Settings never
-    /// shows "System" while the app is actually pinned dark.
     private func applyColorScheme(_ mode: String) {
         #if os(macOS)
-        // Sentinel is not offered on Mac yet, so only the stored Appearance choice applies.
         switch mode {
         case "light": NSApp.appearance = NSAppearance(named: .aqua)
         case "dark":  NSApp.appearance = NSAppearance(named: .darkAqua)
@@ -107,14 +102,10 @@ struct ContentView: View {
         }
         #else
         let style: UIUserInterfaceStyle
-        if displayMode == .sentinel {
-            style = .dark
-        } else {
-            switch mode {
-            case "light": style = .light
-            case "dark":  style = .dark
-            default:      style = .unspecified
-            }
+        switch mode {
+        case "light": style = .light
+        case "dark":  style = .dark
+        default:      style = .unspecified
         }
         for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) {
             scene.windows.forEach { $0.overrideUserInterfaceStyle = style }
@@ -221,7 +212,7 @@ struct ContentView: View {
     /// fails and can leave a flag stuck). It isn't marked seen, so it shows on a later launch.
     private var canPresentWhatsNew: Bool {
         !showPaywall && !showWhatsNew && !showRatePrompt && !showMoodCheckIn && !showScratchNote
-            && !scratchNotePresenter.pending && !moodCheckInPresenter.pending
+            && !scratchNotePresenter.pending && !scratchNotePresenter.stillOpenPending && !moodCheckInPresenter.pending
             && !moodCheckInPresenter.blockedByOtherSheet
     }
 
@@ -238,7 +229,7 @@ struct ContentView: View {
     /// The quick note into Scratch (Control Center button, Entries menu, Mac File menu), once the
     /// screen is free of other modals. Until then `pending` waits, like the mood check-in.
     private var canPresentScratchNote: Bool {
-        scratchNotePresenter.pending
+        (scratchNotePresenter.pending || scratchNotePresenter.stillOpenPending)
             && !showPaywall && !showWhatsNew && !showRatePrompt && !showMoodCheckIn && !showScratchNote
             && !moodCheckInPresenter.blockedByOtherSheet
             && onboardingComplete
@@ -246,7 +237,6 @@ struct ContentView: View {
 
     private var displayMode: DisplayMode {
         #if os(macOS)
-        // Sentinel is not on Mac yet (default theme first), even if the profile synced it from iPhone.
         return .classic
         #else
         return UserProfile.canonical(in: profiles)?.displayMode ?? .classic
@@ -352,14 +342,8 @@ struct ContentView: View {
             syncWidgetDisplayMode()
         }
         .onChange(of: appearanceMode) { _, new in applyColorScheme(new) }
-        .onChange(of: displayMode) { _, newMode in
-            if newMode == .sentinel {
-                if appearanceMode == "system" || appearanceMode == "light" {
-                    appearanceMode = "dark"
-                }
-            } else {
-                appearanceMode = "system"
-            }
+        .onChange(of: displayMode) { _, _ in
+            appearanceMode = "system"
             applyColorScheme(appearanceMode)
             syncWidgetDisplayMode()
         }
@@ -392,13 +376,24 @@ struct ContentView: View {
                 .environment(\.appDisplayMode, displayMode)
         }
         .sheet(isPresented: $showScratchNote) {
-            ScratchNoteSheet()
-                .environment(\.appDisplayMode, displayMode)
+            if scratchSheetShowsStillOpen {
+                LibrarySheet(page: .stillOpen)
+                    .environment(\.appDisplayMode, displayMode)
+                    // Tapping an item's words: close this sheet and open its entry in Entries.
+                    .onReceive(NotificationCenter.default.publisher(for: .mirrorOpenEntryFromLibrary)) { note in
+                        showScratchNote = false
+                        if let id = note.object as? UUID { openEntryFromStillOpen(id) }
+                    }
+            } else {
+                ScratchNoteSheet()
+                    .environment(\.appDisplayMode, displayMode)
+            }
         }
         .onChange(of: canPresentScratchNote, initial: true) { _, canPresent in
             // Re-read `pending`: with two Mac windows open, the first one to see it takes it.
-            guard canPresent, scratchNotePresenter.pending else { return }
-            scratchNotePresenter.pending = false
+            guard canPresent, scratchNotePresenter.pending || scratchNotePresenter.stillOpenPending else { return }
+            scratchSheetShowsStillOpen = !scratchNotePresenter.pending
+            if scratchNotePresenter.pending { scratchNotePresenter.pending = false } else { scratchNotePresenter.stillOpenPending = false }
             showScratchNote = true
         }
         .sheet(isPresented: $showMoodCheckIn) {
@@ -543,8 +538,14 @@ struct ContentView: View {
                 // The Log Mood control; presents once the screen is free (canPresentMoodCheckIn).
                 moodCheckInPresenter.pending = true
             case "scratch-note":
-                // The Scratch Note control; presents once the screen is free (canPresentScratchNote).
+                // The Scratch Note control and the Still Open widget's buttons (`?start=`); presents
+                // once the screen is free (canPresentScratchNote).
+                scratchNotePresenter.start = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                    .queryItems?.first(where: { $0.name == "start" })?.value.flatMap(ScratchNoteStart.init(rawValue:))
                 scratchNotePresenter.pending = true
+            case "still-open":
+                // The Still Open widget; in the Scratch Note's sheet slot, so it waits the same way.
+                scratchNotePresenter.stillOpenPending = true
             case "insights", "nudge":
                 selectedTab = 2
                 selectedSidebarItem = .insights
@@ -561,6 +562,21 @@ struct ContentView: View {
                 break
             }
         }
+    }
+
+    /// An item's words tapped on the Still Open page opened from the widget: the entry, in Entries.
+    private func openEntryFromStillOpen(_ id: UUID) {
+        #if os(macOS)
+        NotificationCenter.default.post(name: .mirrorMacOpenEntry, object: nil, userInfo: ["id": id])
+        #else
+        // After the sheet has gone, or the push is dropped under it.
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(450))
+            deepLinkEntryID = id
+            selectedTab = 0
+            selectedSidebarItem = .entries
+        }
+        #endif
     }
 
     // MARK: - One TabView for every size class (iOS 18+)
@@ -580,7 +596,6 @@ struct ContentView: View {
     /// No size-class branch may wrap a tab's content, or that rebuild comes back.
     @available(iOS 18.0, *)
     private var adaptiveTabLayout: some View {
-        let sentinel = displayMode == .sentinel
         let selection = Binding<AppSidebarItem>(
             get: { selectedSidebarItem ?? .write },
             set: {
@@ -589,17 +604,17 @@ struct ContentView: View {
             }
         )
         return TabView(selection: selection) {
-            Tab(sentinel ? "Log" : "Entries", systemImage: sentinel ? "viewfinder" : "book.closed", value: AppSidebarItem.entries) {
+            Tab("Entries", systemImage: "book.closed", value: AppSidebarItem.entries) {
                 // List and reader side by side where there's room; compact keeps the pushed reader.
                 EntriesSplitView(navResetID: entriesNavResetID, scrollToTopID: entriesScrollToTopID, deepLinkEntryID: $deepLinkEntryID)
             }
-            Tab(sentinel ? "Transmission" : "Write", systemImage: sentinel ? "antenna.radiowaves.left.and.right" : "square.and.pencil", value: AppSidebarItem.write) {
+            Tab("Write", systemImage: "square.and.pencil", value: AppSidebarItem.write) {
                 WriteTabView(onSave: {
                     selectedSidebarItem = .entries
                     entriesNavResetID = UUID()
                 })
             }
-            Tab(sentinel ? "Briefing" : "Insights", systemImage: sentinel ? "target" : "sparkles", value: AppSidebarItem.insights) {
+            Tab("Insights", systemImage: "sparkles", value: AppSidebarItem.insights) {
                 InsightView(viewModel: insightViewModel)
             }
             // No Settings tab (owner, 2026-10-16; it was one where there's room since
@@ -611,7 +626,7 @@ struct ContentView: View {
         .tabViewStyle(.sidebarAdaptable)
         .toolbarBackground(MirrorTheme.inkMid, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
-        .tint(sentinel ? MirrorTheme.ember : MirrorTheme.primary)
+        .tint(MirrorTheme.primary)
     }
     #endif
 
@@ -627,25 +642,25 @@ struct ContentView: View {
         )
         return TabView(selection: selection) {
             EntriesTabView(navResetID: entriesNavResetID, scrollToTopID: entriesScrollToTopID, deepLinkEntryID: $deepLinkEntryID)
-                .tabItem { Label(displayMode == .sentinel ? "Log" : "Entries", systemImage: displayMode == .sentinel ? "viewfinder" : "book.closed") }
+                .tabItem { Label("Entries", systemImage: "book.closed") }
                 .tag(0)
 
             WriteTabView(onSave: {
                 selectedTab = 0
                 entriesNavResetID = UUID()
             })
-            .tabItem { Label(displayMode == .sentinel ? "Transmission" : "Write", systemImage: displayMode == .sentinel ? "antenna.radiowaves.left.and.right" : "square.and.pencil") }
+            .tabItem { Label("Write", systemImage: "square.and.pencil") }
             .tag(1)
 
             InsightView(viewModel: insightViewModel)
-                .tabItem { Label(displayMode == .sentinel ? "Briefing" : "Insights", systemImage: displayMode == .sentinel ? "target" : "sparkles") }
+                .tabItem { Label("Insights", systemImage: "sparkles") }
                 .tag(2)
         }
         #if os(iOS)
         .toolbarBackground(MirrorTheme.inkMid, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
         #endif
-        .tint(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
+        .tint(MirrorTheme.primary)
     }
 
     // MARK: - Mac layout (sidebar + detail, list and reader side by side for Entries)

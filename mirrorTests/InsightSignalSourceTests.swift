@@ -41,9 +41,9 @@ struct InsightSignalSourceTests {
             insight: insight(.dailyNudge, #"You wrote, "Finished the jigsaw puzzle with Leo after dinner and framed the corner piece." That sounds like a good day."#, .gemma),
             entries: nudgeEntries, engineLabel: "GEMMA"
         )
-        #expect(value("READ CLOSELY", in: r)?.hasPrefix("2 entries") == true)
-        #expect(value("CONTEXT", in: r) == "none sent")
-        #expect(value("MOOD READ", in: r) == "\(MirrorTheme.localizedMoodName(for: "Content").uppercased()), \(MirrorTheme.localizedMoodName(for: "Hopeful").uppercased())")
+        #expect(value("Read closely", in: r)?.hasPrefix("2 entries") == true)
+        #expect(value("Context", in: r) == "none sent")
+        #expect(value("Mood read", in: r) == "\(MirrorTheme.localizedMoodName(for: "Content")), \(MirrorTheme.localizedMoodName(for: "Hopeful"))")
         #expect(r.reading.count == 2)
         #expect(r.note != nil)
     }
@@ -75,8 +75,8 @@ struct InsightSignalSourceTests {
             insight: insight(.dailyNudge, "The evening at the flat sounds like it gave you room to breathe.", .foundationModels),
             entries: nudgeEntries, engineLabel: "FM"
         )
-        #expect(value("READ CLOSELY", in: r)?.hasPrefix("3 entries") == true)
-        #expect(value("CONTEXT", in: r) == "5 earlier entries summarized · 4 quoted")
+        #expect(value("Read closely", in: r)?.hasPrefix("3 entries") == true)
+        #expect(value("Context", in: r) == "5 earlier entries summarized · 4 quoted")
         #expect(r.reading.count == 3)
     }
 
@@ -89,14 +89,14 @@ struct InsightSignalSourceTests {
             insight: insight(.weeklyDigest, #"THIS WEEK'S THEME: A heavy week. YOUR ENERGY: x WHAT'S BUILDING: You wrote, "Long day at work, the release slipped again and I stayed late." WATCH OUT FOR: x"#, .gemma),
             entries: entries, engineLabel: "GEMMA"
         )
-        #expect(value("EARLIER", in: grounded) == "none sent")
+        #expect(value("Earlier", in: grounded) == "none sent")
         #expect(grounded.note != nil)
 
         let freeProse = InsightSignalSource.resolve(
             insight: insight(.weeklyDigest, "THIS WEEK'S THEME: The release kept slipping.", .foundationModels),
             entries: entries, engineLabel: "FM"
         )
-        #expect(value("EARLIER", in: freeProse) == "1 entry carried in")
+        #expect(value("Earlier", in: freeProse) == "1 entry carried in")
     }
 
     @Test func groundedGemmaMonthly_saysNothingEarlierWasSent() {
@@ -108,7 +108,7 @@ struct InsightSignalSourceTests {
             insight: insight(.monthlyReport, #"THE IMAGE: x WHAT YOU'RE BECOMING: You wrote, "Signed the lease for the new flat today, finally." x"#, .gemma),
             entries: entries, engineLabel: "GEMMA"
         )
-        #expect(value("EARLIER", in: r) == "none sent")
+        #expect(value("Earlier", in: r) == "none sent")
         #expect(r.note?.contains("word for word") == true)
     }
 }

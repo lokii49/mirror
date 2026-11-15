@@ -5,10 +5,6 @@ import SwiftUI
 private let wBgTop      = WidgetTheme.bgTop
 private let wBgBottom   = WidgetTheme.bgBottom
 private let wViLight    = WidgetTheme.violetLight
-private let wEmber      = WidgetTheme.ember
-private let wSentinelBg = WidgetTheme.sentinelBg
-
-private func widgetIsSentinel() -> Bool { WidgetShared.isSentinel() }
 
 // MARK: - Timeline
 
@@ -56,11 +52,10 @@ struct DigestWidgetProvider: TimelineProvider {
 private struct DigestUnlockedView: View {
     let entry: DigestWidgetEntry
     @Environment(\.widgetFamily) private var family
-    private let sentinel = widgetIsSentinel()
 
     private var isLarge: Bool { family == .systemLarge }
     private var quoteSize: CGFloat { isLarge ? 168 : 96 }
-    private var bodySize: CGFloat { isLarge ? 17 : (sentinel ? 12 : 13) }
+    private var bodySize: CGFloat { isLarge ? 17 : 13 }
     private var bodyLineLimit: Int { isLarge ? 14 : 6 }
     private var padding: CGFloat { isLarge ? 22 : 14 }
 
@@ -68,12 +63,10 @@ private struct DigestUnlockedView: View {
         ZStack(alignment: .topLeading) {
             // Classic: the same oversized serif quote mark NudgeSmallView uses,
             // so the two insight widgets read as one family.
-            if !sentinel {
-                Text("\u{201C}")
-                    .font(.system(size: quoteSize, weight: .black, design: .serif))
-                    .foregroundStyle(wViLight.opacity(0.15))
-                    .offset(x: isLarge ? -8 : -6, y: isLarge ? -28 : -18)
-            }
+            Text("\u{201C}")
+                .font(.system(size: quoteSize, weight: .black, design: .serif))
+                .foregroundStyle(wViLight.opacity(0.15))
+                .offset(x: isLarge ? -8 : -6, y: isLarge ? -28 : -18)
 
             VStack(alignment: .leading, spacing: 0) {
                 Spacer(minLength: 0)
@@ -81,7 +74,7 @@ private struct DigestUnlockedView: View {
                 if let text = entry.themeText, entry.isCurrentWeek || entry.isPreviousWeek || !WidgetShared.isSubscribed() {
                     if !entry.isCurrentWeek && !entry.isPreviousWeek {
                         Text("Earlier")
-                            .font(.system(size: isLarge ? 11 : 9, weight: .semibold, design: sentinel ? .monospaced : .default))
+                            .font(.system(size: isLarge ? 11 : 9, weight: .semibold, design: .default))
                             .textCase(.uppercase)
                             .tracking(1.2)
                             .foregroundStyle(.white.opacity(0.45))
@@ -89,53 +82,41 @@ private struct DigestUnlockedView: View {
                     }
                     if entry.isPreviousWeek {
                         Text("Last week")
-                            .font(.system(size: isLarge ? 11 : 9, weight: .semibold, design: sentinel ? .monospaced : .default))
+                            .font(.system(size: isLarge ? 11 : 9, weight: .semibold, design: .default))
                             .textCase(.uppercase)
                             .tracking(1.2)
                             .foregroundStyle(.white.opacity(0.45))
                             .padding(.bottom, isLarge ? 6 : 4)
                     }
                     Text(text)
-                        .font(sentinel ? .system(size: bodySize, weight: .medium, design: .monospaced) : .system(size: bodySize, weight: .regular, design: .serif))
+                        .font(.system(size: bodySize, weight: .regular, design: .serif))
                         .foregroundStyle(.white)
                         .lineLimit(bodyLineLimit)
                         .lineSpacing(isLarge ? 5 : 3)
                         .fixedSize(horizontal: false, vertical: false)
                 } else {
-                    Text(sentinel ? "DIGEST COMPILING…" : "This week's digest\narrives Sunday…")
-                        .font(sentinel ? .system(size: bodySize, weight: .medium, design: .monospaced) : .system(size: bodySize, weight: .regular, design: .serif))
+                    Text("This week's digest\narrives Sunday…")
+                        .font(.system(size: bodySize, weight: .regular, design: .serif))
                         .foregroundStyle(.white.opacity(0.50))
-                        .italic(!sentinel)
+                        .italic()
                 }
 
                 Spacer(minLength: isLarge ? 16 : 10)
 
                 HStack(spacing: 4) {
-                    Image(systemName: sentinel ? "square.stack.3d.up" : "calendar")
+                    Image(systemName: "calendar")
                         .font(.system(size: isLarge ? 10 : 8, weight: .semibold))
-                    Text(sentinel ? "WEEKLY BRIEFING" : "WEEKLY DIGEST")
-                        .font(.system(size: isLarge ? 10 : 8, weight: .bold, design: sentinel ? .monospaced : .default))
+                    Text("WEEKLY DIGEST")
+                        .font(.system(size: isLarge ? 10 : 8, weight: .bold, design: .default))
                         .tracking(1.8)
                 }
-                .foregroundStyle(sentinel ? wEmber.opacity(0.75) : wViLight.opacity(0.60))
+                .foregroundStyle(wViLight.opacity(0.60))
 
-                // Sentinel: ember hairline under the label, matching the mode's
-                // "transmission divider" motif elsewhere in the widget set.
-                if sentinel {
-                    Rectangle()
-                        .fill(wEmber.opacity(0.35))
-                        .frame(height: 1)
-                        .padding(.top, 5)
-                }
             }
             .padding(padding)
         }
         .containerBackground(for: .widget) {
-            if sentinel {
-                wSentinelBg
-            } else {
-                LinearGradient(colors: [wBgTop, wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
-            }
+            LinearGradient(colors: [wBgTop, wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
         }
         .widgetURL(URL(string: "mirror://insights"))
     }
@@ -144,27 +125,21 @@ private struct DigestUnlockedView: View {
 // MARK: - Locked
 
 private struct DigestLockedView: View {
-    private let sentinel = widgetIsSentinel()
-
     var body: some View {
         VStack(spacing: 10) {
-            Image(systemName: sentinel ? "square.stack.3d.up" : "calendar")
+            Image(systemName: "calendar")
                 .font(.system(size: 24, weight: .semibold))
-                .foregroundStyle(sentinel ? wEmber.opacity(0.8) : .white.opacity(0.7))
-            Text(sentinel ? "WEEKLY BRIEFING" : "Weekly Digest")
-                .font(sentinel ? .system(size: 12, weight: .bold, design: .monospaced) : .system(size: 13, weight: .bold))
+                .foregroundStyle(.white.opacity(0.7))
+            Text("Weekly Digest")
+                .font(.system(size: 13, weight: .bold))
                 .foregroundStyle(.white)
-            WidgetShared.lockedTierLabel(sentinel: sentinel)
-                .font(sentinel ? .system(size: 10, weight: .medium, design: .monospaced) : .system(size: 11))
+            WidgetShared.lockedTierLabel(sentinel: false)
+                .font(.system(size: 11))
                 .foregroundStyle(.white.opacity(0.55))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .containerBackground(for: .widget) {
-            if sentinel {
-                wSentinelBg
-            } else {
-                LinearGradient(colors: [wBgTop.opacity(0.8), wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
-            }
+            LinearGradient(colors: [wBgTop.opacity(0.8), wBgBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
         }
         .widgetURL(URL(string: "mirror://upgrade"))
     }
@@ -208,48 +183,34 @@ struct MirrorWeeklyDigestWidget: Widget {
 // (an in-app gallery screen can't — the modifier is inert there). Not
 // CLI-scriptable; verify these in Xcode's canvas.
 //
-// `widgetIsSentinel()` / `WidgetShared.tier()` read the app group, which a
-// preview process has no data in, so each preview seeds the two keys it needs.
+// `WidgetShared.tier()` reads the app group, which a
+// preview process has no data in, so each preview seeds the keys it needs.
 // This only touches the dev machine's container.
 
-private func seedWidgetPreview(sentinel: Bool, tier: String) {
+private func seedWidgetPreview(tier: String) {
     let d = UserDefaults(suiteName: WidgetShared.appGroupID)
-    d?.set(sentinel ? "sentinel" : "classic", forKey: "widget.displayMode")
+    d?.set("classic", forKey: "widget.displayMode")
     d?.set(tier, forKey: "widget.tier")
 }
 
 #Preview("Classic", as: .systemSmall) {
-    seedWidgetPreview(sentinel: false, tier: "core")
+    seedWidgetPreview(tier: "core")
     return MirrorWeeklyDigestWidget()
 } timeline: {
     DigestWidgetEntry(date: .now, themeText: "A week of holding steady while the ground kept shifting under you.", isCurrentWeek: true)
     DigestWidgetEntry(date: .now, themeText: nil, isCurrentWeek: false)
-}
-
-#Preview("Sentinel", as: .systemSmall) {
-    seedWidgetPreview(sentinel: true, tier: "core")
-    return MirrorWeeklyDigestWidget()
-} timeline: {
-    DigestWidgetEntry(date: .now, themeText: "Recovery and pressure kept trading places all week.", isCurrentWeek: true)
 }
 
 #Preview("Classic Large", as: .systemLarge) {
-    seedWidgetPreview(sentinel: false, tier: "core")
+    seedWidgetPreview(tier: "core")
     return MirrorWeeklyDigestWidget()
 } timeline: {
     DigestWidgetEntry(date: .now, themeText: "A week of holding steady while the ground kept shifting under you.", isCurrentWeek: true)
     DigestWidgetEntry(date: .now, themeText: nil, isCurrentWeek: false)
 }
 
-#Preview("Sentinel Large", as: .systemLarge) {
-    seedWidgetPreview(sentinel: true, tier: "core")
-    return MirrorWeeklyDigestWidget()
-} timeline: {
-    DigestWidgetEntry(date: .now, themeText: "Recovery and pressure kept trading places all week.", isCurrentWeek: true)
-}
-
 #Preview("Locked", as: .systemSmall) {
-    seedWidgetPreview(sentinel: false, tier: "free")
+    seedWidgetPreview(tier: "free")
     return MirrorWeeklyDigestWidget()
 } timeline: {
     DigestWidgetEntry(date: .now, themeText: nil, isCurrentWeek: false)

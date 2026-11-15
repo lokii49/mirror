@@ -8,7 +8,6 @@ enum WhatsNewMode {
 struct WhatsNewSheet: View {
     let mode: WhatsNewMode
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.appDisplayMode) private var displayMode
     @State private var service = FeatureCardService.shared
     @State private var selectedTier: CardTier? = nil
     /// What's New's cards, captured once: the sheet marks What's New seen on appear, which changes
@@ -68,7 +67,7 @@ struct WhatsNewSheet: View {
                 .padding(.bottom, 40)
             }
             .background(MirrorTheme.bgBase)
-            .navigationTitle(mode == .whatsNew ? Text(verbatim: "") : Text(displayMode == .sentinel ? "Changelog" : "Feature Guide"))
+            .navigationTitle(mode == .whatsNew ? Text(verbatim: "") : Text("Feature Guide"))
             .navigationBarTitleDisplayMode(mode == .whatsNew ? .inline : .large)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -88,20 +87,12 @@ struct WhatsNewSheet: View {
     // MARK: - What's New hero card
 
     private var whatsNewHero: some View {
-        let corner: CGFloat = displayMode == .sentinel ? 14 : 28
+        let corner: CGFloat = 28
         return ZStack(alignment: .bottomLeading) {
             RoundedRectangle(cornerRadius: corner, style: .continuous)
                 .fill(
-                    displayMode == .sentinel
-                        ? LinearGradient(colors: [MirrorTheme.ember, .orange.opacity(0.85)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                        : LinearGradient(colors: [MirrorTheme.hex(0x6E2A55, 0x6E2A55), MirrorTheme.buttonFill, MirrorTheme.hex(0x9A4478, 0x9A4478)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    LinearGradient(colors: [MirrorTheme.hex(0x6E2A55, 0x6E2A55), MirrorTheme.buttonFill, MirrorTheme.hex(0x9A4478, 0x9A4478)], startPoint: .topLeading, endPoint: .bottomTrailing)
                 )
-                .overlay {
-                    if displayMode == .sentinel {
-                        RoundedRectangle(cornerRadius: corner, style: .continuous)
-                            .stroke(Color.black.opacity(0.2), lineWidth: 1)
-                    }
-                }
 
             Circle()
                 .fill(Color.white.opacity(0.06))
@@ -125,46 +116,30 @@ struct WhatsNewSheet: View {
 
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 10) {
-                        Group {
-                            if displayMode == .sentinel {
-                                // One line, shrunk to fit: translations like ÄNDERUNGSPROTOKOLL are a single
-                                // word wider than the hero beside the version badge and broke mid-word.
-                                Text("CHANGELOG").scaledFont(26, weight: .bold, design: .monospaced).tracking(0.5)
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.5)
-                            } else {
-                                Text("What's New").scaledFont(30, weight: .bold, design: .rounded)
-                            }
-                        }
-                        .foregroundStyle(.white)
+                        Text("What's New").scaledFont(30, weight: .bold, design: .rounded)
+                            .foregroundStyle(.white)
 
                         if let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
                             Text("v\(v)")
-                                .scaledFont(12, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
+                                .scaledFont(12, weight: .semibold, design: .default)
                                 .foregroundStyle(.white.opacity(0.9))
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 5)
                                 .background(
                                     Color.white.opacity(0.18),
-                                    in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 5, style: .continuous)) : AnyShape(Capsule())
+                                    in: Capsule()
                                 )
                         }
                     }
-                    Group {
-                        if displayMode == .sentinel {
-                            Text("LATEST SIGNAL UPDATES.").scaledFont(12, weight: .medium, design: .monospaced)
-                        } else {
-                            Text("The latest additions to MirrorNotes.").scaledFont(14, weight: .medium)
-                        }
-                    }
-                    .foregroundStyle(.white.opacity(0.75))
+                    Text("The latest additions to MirrorNotes.").scaledFont(14, weight: .medium)
+                        .foregroundStyle(.white.opacity(0.75))
                 }
             }
             .padding(24)
         }
         .frame(maxWidth: .infinity)
         .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
-        .shadow(color: (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary).opacity(0.3), radius: 28, x: 0, y: 12)
+        .shadow(color: MirrorTheme.primary.opacity(0.3), radius: 28, x: 0, y: 12)
     }
 
     // MARK: - Tier filter chips (allFeatures mode)
@@ -172,11 +147,11 @@ struct WhatsNewSheet: View {
     private var tierFilter: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                FilterChip(label: "All", icon: "square.grid.2x2", color: MirrorTheme.primary, isSelected: selectedTier == nil, displayMode: displayMode) {
+                FilterChip(label: "All", icon: "square.grid.2x2", color: MirrorTheme.primary, isSelected: selectedTier == nil) {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) { selectedTier = nil }
                 }
                 ForEach(CardTier.allCases, id: \.self) { tier in
-                    FilterChip(label: tier.label, icon: tier.sectionIcon, color: tier.color, isSelected: selectedTier == tier, displayMode: displayMode) {
+                    FilterChip(label: tier.label, icon: tier.sectionIcon, color: tier.color, isSelected: selectedTier == tier) {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
                             selectedTier = selectedTier == tier ? nil : tier
                         }
@@ -227,39 +202,21 @@ struct WhatsNewSheet: View {
                             .scaledFont(12, weight: .semibold)
                             .foregroundStyle(tier.color)
                     }
-                    Group {
-                        if displayMode == .sentinel {
-                            Text(tier.label).scaledFont(12, weight: .semibold, design: .monospaced).textCase(.uppercase)
-                        } else {
-                            Text(tier.label).scaledFont(13, weight: .semibold)
-                        }
-                    }
-                    .foregroundStyle(tier.color)
+                    Text(tier.label).scaledFont(13, weight: .semibold)
+                        .foregroundStyle(tier.color)
                     Spacer()
                     if let price = tier.pricingLabel() {
-                        Group {
-                            if displayMode == .sentinel {
-                                Text(price).scaledFont(11, weight: .semibold, design: .monospaced)
-                            } else {
-                                Text(price).scaledFont(12, weight: .semibold)
-                            }
-                        }
-                        .foregroundStyle(tier.color)
+                        Text(price).scaledFont(12, weight: .semibold)
+                            .foregroundStyle(tier.color)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
                         .background(
                             tier.color.opacity(0.10),
-                            in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
+                            in: Capsule()
                         )
                     } else {
-                        Group {
-                            if displayMode == .sentinel {
-                                Text("ALWAYS FREE").scaledFont(10, weight: .medium, design: .monospaced)
-                            } else {
-                                Text("Always free").scaledFont(11, weight: .medium)
-                            }
-                        }
-                        .foregroundStyle(.secondary)
+                        Text("Always free").scaledFont(11, weight: .medium)
+                            .foregroundStyle(.secondary)
                     }
                 }
 
@@ -280,7 +237,6 @@ private struct FilterChip: View {
     let icon: String
     let color: Color
     let isSelected: Bool
-    let displayMode: DisplayMode
     let action: () -> Void
 
     var body: some View {
@@ -288,23 +244,17 @@ private struct FilterChip: View {
             HStack(spacing: 5) {
                 Image(systemName: icon)
                     .scaledFont(11, weight: .semibold)
-                Group {
-                    if displayMode == .sentinel {
-                        Text(label).font(MirrorTheme.mono(12, weight: isSelected ? .semibold : .medium)).textCase(.uppercase)
-                    } else {
-                        Text(label).font(.system(size: 13, weight: isSelected ? .semibold : .medium))
-                    }
-                }
+                Text(label).font(.system(size: 13, weight: isSelected ? .semibold : .medium))
             }
             .foregroundStyle(isSelected ? color : .secondary)
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .background(
                 isSelected ? color.opacity(0.12) : Color.secondary.opacity(0.07),
-                in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 6, style: .continuous)) : AnyShape(Capsule())
+                in: Capsule()
             )
             .overlay(
-                (displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 6, style: .continuous)) : AnyShape(Capsule()))
+                Capsule()
                     .stroke(isSelected ? color.opacity(0.3) : Color.clear, lineWidth: 1)
             )
         }
@@ -316,7 +266,6 @@ private struct FilterChip: View {
 struct FeatureCardRow: View {
     let card: FeatureCard
     let showTierBadge: Bool
-    @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
@@ -335,28 +284,16 @@ struct FeatureCardRow: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 7) {
-                    Group {
-                        if displayMode == .sentinel {
-                            Text(card.title).scaledFont(14, weight: .semibold, design: .monospaced)
-                        } else {
-                            Text(card.title).scaledFont(15, weight: .semibold)
-                        }
-                    }
-                    .foregroundStyle(.primary)
+                    Text(card.title).scaledFont(15, weight: .semibold)
+                        .foregroundStyle(.primary)
                     if showTierBadge && card.tier != .free {
-                        Group {
-                            if displayMode == .sentinel {
-                                Text(card.tier.label).scaledFont(9, weight: .bold, design: .monospaced)
-                            } else {
-                                Text(card.tier.label).scaledFont(10, weight: .bold)
-                            }
-                        }
-                        .foregroundStyle(card.tier.color)
+                        Text(card.tier.label).scaledFont(10, weight: .bold)
+                            .foregroundStyle(card.tier.color)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
                         .background(
                             card.tier.color.opacity(0.12),
-                            in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
+                            in: Capsule()
                         )
                     }
                 }
@@ -369,17 +306,15 @@ struct FeatureCardRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: displayMode == .sentinel ? 10 : 20, style: .continuous))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: displayMode == .sentinel ? 10 : 20, style: .continuous)
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .stroke(
-                    displayMode == .sentinel
-                        ? AnyShapeStyle(MirrorTheme.ember.opacity(0.22))
-                        : AnyShapeStyle(LinearGradient(
-                            colors: [Color(white: 1, opacity: 0.22), Color(white: 0, opacity: 0.06)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )),
+                    LinearGradient(
+                        colors: [Color(white: 1, opacity: 0.22), Color(white: 0, opacity: 0.06)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
                     lineWidth: 1
                 )
         }
@@ -390,7 +325,7 @@ struct FeatureCardRow: View {
                 .padding(.vertical, 12)
                 .padding(.leading, 0)
         }
-        .clipShape(RoundedRectangle(cornerRadius: displayMode == .sentinel ? 10 : 20, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
 

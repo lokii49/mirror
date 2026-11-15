@@ -3,7 +3,6 @@ import SwiftUI
 /// Edits a value copy: Cancel never changes the archive's active criteria.
 struct EntryFiltersView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.appDisplayMode) private var displayMode
     @State var criteria: EntryFilterCriteria
     let moods: [String]
     let tags: [String]
@@ -99,7 +98,7 @@ struct EntryFiltersView: View {
                         .accessibilityIdentifier("filter.apply")
                 }
             }
-            .tint(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet)
+            .tint(MirrorTheme.violet)
         }
         #if os(macOS)
         .frame(minWidth: 440, idealWidth: 480, minHeight: 520, idealHeight: 660)

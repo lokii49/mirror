@@ -1,23 +1,20 @@
 import SwiftUI
 
-/// Shared chrome for every settings screen (root Config + the four pushed
-/// sub-screens). Each reads displayMode itself so every screen that uses
-/// them gets Sentinel theming automatically, with no per-row edits needed
-/// when a new settings screen is added later.
+/// Shared chrome for every settings screen (root Settings + the four pushed
+/// sub-screens).
 
 struct SettingsGroup<Content: View>: View {
     let title: LocalizedStringKey
     @ViewBuilder var content: Content
-    @Environment(\.appDisplayMode) private var displayMode
     @Environment(\.settingsEmbedded) private var embedded
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
-                .scaledFont(displayMode == .sentinel ? 11 : embedded ? 11 : 12, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
+                .scaledFont(embedded ? 11 : 12, weight: .semibold, design: .default)
                 .foregroundStyle(MirrorTheme.textTertiary)
                 .textCase(.uppercase)
-                .tracking(displayMode == .sentinel ? 0.6 : 1.0)
+                .tracking(1.0)
                 .padding(.bottom, embedded ? 10 : 14)
             VStack(spacing: 0) { content }
         }
@@ -30,25 +27,18 @@ struct SettingsRowLabel: View {
     let title: LocalizedStringKey
     let systemImage: String
     let iconColor: Color
-    @Environment(\.appDisplayMode) private var displayMode
     @Environment(\.settingsEmbedded) private var embedded
 
     var body: some View {
         HStack(spacing: 12) {
             ZStack {
-                RoundedRectangle(cornerRadius: displayMode == .sentinel ? 6 : 8, style: .continuous)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(iconColor.opacity(0.12))
                     .frame(width: embedded ? 26 : 32, height: embedded ? 26 : 32)
                 Image(systemName: systemImage)
                     .scaledFont(embedded ? 12 : 14, weight: .medium)
                     .foregroundStyle(iconColor)
                     .accessibilityHidden(true)
-            }
-            .overlay {
-                if displayMode == .sentinel {
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .stroke(iconColor.opacity(0.3), lineWidth: 1)
-                }
             }
             Text(title)
                 .scaledFont(embedded ? 13 : 15)
@@ -60,16 +50,14 @@ struct SettingsRowLabel: View {
     }
 }
 
-/// Short trailing "value" text (time, day name, version, language) — mono
-/// in Sentinel since these are data readouts, not prose. Use for simple
-/// Text values only; Menu-based pickers keep their own label styling.
+/// Short trailing "value" text (time, day name, version, language). Use for
+/// simple Text values only; Menu-based pickers keep their own label styling.
 struct SettingsValueText: View {
     let text: String
-    @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
         Text(text)
-            .scaledFont(displayMode == .sentinel ? 12.5 : 13, weight: displayMode == .sentinel ? .semibold : .regular, design: displayMode == .sentinel ? .monospaced : .default)
+            .scaledFont(13, weight: .regular, design: .default)
             .foregroundStyle(MirrorTheme.textSecondary)
     }
 }
@@ -88,45 +76,36 @@ struct SettingsDivider: View {
     }
 }
 
-/// Locked-tier badge ("Core" / "Deep") shown on gated rows — rectangular
-/// mono in Sentinel, matching the lock chips used elsewhere in the app.
+/// Locked-tier badge ("Core" / "Deep") shown on gated rows.
 struct SettingsTierBadge: View {
     let tier: LocalizedStringKey
-    @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
         Label(tier, systemImage: "lock.fill")
-            .scaledFont(displayMode == .sentinel ? 10.5 : 12, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
-            .textCase(displayMode == .sentinel ? .uppercase : nil)
-            .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
+            .scaledFont(12, weight: .semibold, design: .default)
+            .textCase(nil)
+            .foregroundStyle(MirrorTheme.primary)
             .padding(.horizontal, 9)
             .padding(.vertical, 4)
             .background(
-                (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary).opacity(0.12),
-                in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
+                MirrorTheme.primary.opacity(0.12),
+                in: Capsule()
             )
-            .overlay {
-                if displayMode == .sentinel {
-                    RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(MirrorTheme.ember.opacity(0.3), lineWidth: 1)
-                }
-            }
     }
 }
 
-/// Rectangular nav-link row for the root Config screen's category list
-/// (Protocol / Archive / Manual / Diagnostics). Classic keeps the plain
-/// settingsRowLabel + chevron look via its own call site.
+/// Nav-link row for the root Settings screen's category list
+/// (Journal / Your Data / About / Developer).
 struct SettingsCategoryRow: View {
     let title: LocalizedStringKey
     let subtitle: LocalizedStringKey
     let systemImage: String
     let iconColor: Color
-    @Environment(\.appDisplayMode) private var displayMode
 
     var body: some View {
         HStack(spacing: 14) {
             ZStack {
-                RoundedRectangle(cornerRadius: displayMode == .sentinel ? 8 : 12, style: .continuous)
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(iconColor.opacity(0.14))
                     .frame(width: 40, height: 40)
                 Image(systemName: systemImage)
@@ -135,8 +114,8 @@ struct SettingsCategoryRow: View {
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .scaledFont(displayMode == .sentinel ? 14 : 15, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
-                    .kerning(displayMode == .sentinel ? 0.3 : 0)
+                    .scaledFont(15, weight: .semibold, design: .default)
+                    .kerning(0)
                     .foregroundStyle(MirrorTheme.textPrimary)
                 Text(subtitle)
                     .scaledFont(12.5)

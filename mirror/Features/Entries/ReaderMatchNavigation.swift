@@ -92,15 +92,14 @@ nonisolated enum ReaderMatches {
 struct ReaderMatchBar: View {
     let matches: [ReaderMatches.Location]
     @Binding var index: Int
-    @Environment(\.appDisplayMode) private var displayMode
 
-    private var accent: Color { displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet }
+    private var accent: Color { MirrorTheme.violet }
 
     var body: some View {
         HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Match \(index + 1) of \(matches.count)")
-                    .scaledFont(displayMode == .sentinel ? 12 : 13, weight: .semibold, design: displayMode == .sentinel ? .monospaced : .default)
+                    .scaledFont(13, weight: .semibold, design: .default)
                     .monospacedDigit()
                 if case .voiceNote(let note) = matches[index].place {
                     Text("In voice note \(note + 1)")
@@ -129,10 +128,10 @@ struct ReaderMatchBar: View {
         .foregroundStyle(accent)
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: displayMode == .sentinel ? 6 : 14, style: .continuous))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: displayMode == .sentinel ? 6 : 14, style: .continuous)
-                .stroke(displayMode == .sentinel ? MirrorTheme.inkBorder : Color.primary.opacity(0.06), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 8)

@@ -79,7 +79,6 @@ private struct LibraryRowText: View {
 /// in its entry (tap again to untick); tap the words to open the entry.
 struct StillOpenView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.appDisplayMode) private var displayMode
     @State private var groups: [OpenChecklistItems.Group] = []
     @State private var loaded = false
     /// Ticked on this page, so a mistaken tick can be undone before the page closes.
@@ -107,6 +106,8 @@ struct StillOpenView: View {
         .navigationTitle("Still Open")
         .task {
             guard !loaded else { return }
+            // Ticks made on the widget that the app-active pass hasn't applied yet.
+            StillOpenWidgetSync.applyPendingTicks(context: modelContext)
             groups = OpenChecklistItems.groups(in: modelContext)
             loaded = true
         }
@@ -134,7 +135,7 @@ struct StillOpenView: View {
             } label: {
                 Image(systemName: isTicked ? "checkmark.circle.fill" : "circle")
                     .scaledFont(20)
-                    .foregroundStyle(isTicked ? AnyShapeStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet) : AnyShapeStyle(.secondary))
+                    .foregroundStyle(isTicked ? AnyShapeStyle(MirrorTheme.violet) : AnyShapeStyle(.secondary))
                     .frame(minWidth: 32, minHeight: 32)
                     .contentShape(Rectangle())
             }

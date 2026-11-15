@@ -26,18 +26,16 @@ enum ICloudStatus {
     }
 }
 
-/// Root Settings screen ("Config" in Sentinel) — profile, stats, the
-/// Appearance/Display-mode switch (kept inline since it's the one control
+/// Root Settings screen — profile, stats, the
+/// Appearance switch (kept inline since it's the one control
 /// worth surfacing immediately), and a short list of category rows pushing
 /// to ProtocolSettingsView / ArchiveSettingsView / ManualSettingsView /
 /// DiagnosticsSettingsView. Previously this screen held every individual
-/// row (~25 of them) inline — moved out once that made it unmanageable
-/// and hard to give Sentinel screens of their own.
+/// row (~25 of them) inline — moved out once that made it unmanageable.
 struct SettingsView: View {
     @Query(sort: \Entry.createdAt, order: .reverse) var entries: [Entry]
     @Query var profiles: [UserProfile]
     @Environment(\.modelContext) var modelContext
-    @Environment(\.appDisplayMode) var displayMode
     @Environment(\.dismiss) var dismiss
 
     var displayModeBinding: Binding<DisplayMode> {
@@ -87,7 +85,7 @@ struct SettingsView: View {
                             ProtocolSettingsView()
                         } label: {
                             SettingsCategoryRow(
-                                title: displayMode == .sentinel ? "Protocol" : "Journal",
+                                title: "Journal",
                                 subtitle: "Nudges, digest, transcription",
                                 systemImage: "bell.and.waves.left.and.right.fill",
                                 iconColor: .orange
@@ -100,7 +98,7 @@ struct SettingsView: View {
                                 SmartSearchSettingsView()
                             } label: {
                                 SettingsCategoryRow(
-                                    title: displayMode == .sentinel ? "Search model" : "Smarter Ask search",
+                                    title: "Smarter Ask search",
                                     subtitle: "On-device search model for Ask",
                                     systemImage: "sparkle.magnifyingglass",
                                     iconColor: .purple
@@ -113,7 +111,7 @@ struct SettingsView: View {
                             ArchiveSettingsView()
                         } label: {
                             SettingsCategoryRow(
-                                title: displayMode == .sentinel ? "Archive" : "Your Data",
+                                title: "Your Data",
                                 subtitle: "Export, import, iCloud sync",
                                 systemImage: "archivebox.fill",
                                 iconColor: .blue
@@ -125,7 +123,7 @@ struct SettingsView: View {
                             ManualSettingsView()
                         } label: {
                             SettingsCategoryRow(
-                                title: displayMode == .sentinel ? "Manual" : "About",
+                                title: "About",
                                 subtitle: "How it works, privacy, feedback",
                                 systemImage: "book.fill",
                                 iconColor: .green
@@ -138,7 +136,7 @@ struct SettingsView: View {
                             DiagnosticsSettingsView()
                         } label: {
                             SettingsCategoryRow(
-                                title: displayMode == .sentinel ? "Diagnostics" : "Developer",
+                                title: "Developer",
                                 subtitle: "Debug-only tools",
                                 systemImage: "wrench.and.screwdriver.fill",
                                 iconColor: .red
@@ -153,7 +151,7 @@ struct SettingsView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .background(MirrorTheme.bgBase)
-            .navigationTitle(displayMode == .sentinel ? "Config" : "Settings")
+            .navigationTitle("Settings")
             .toolbar {
                 // A way out besides swiping down.
                 ToolbarItem(placement: .topBarTrailing) {

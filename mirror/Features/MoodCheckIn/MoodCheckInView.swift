@@ -32,7 +32,6 @@ final class MoodCheckInPresenter {
 /// harmless.
 struct MoodCheckInView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.appDisplayMode) private var displayMode
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -68,8 +67,6 @@ struct MoodCheckInView: View {
         withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.32, dampingFraction: 0.85)) { logged = mood }
     }
 
-    private var isSentinel: Bool { displayMode == .sentinel }
-
     var body: some View {
         VStack(spacing: 0) {
             if let logged {
@@ -94,10 +91,10 @@ struct MoodCheckInView: View {
     private var picker: some View {
         VStack(spacing: 20) {
             VStack(spacing: 6) {
-                Text(isSentinel ? "◆ MOOD CHECK-IN" : "How are you feeling right now?")
-                    .scaledFont(isSentinel ? 15 : 21, weight: .bold, design: isSentinel ? .monospaced : .rounded)
-                    .kerning(isSentinel ? 0.4 : 0)
-                    .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.textPrimary)
+                Text("How are you feeling right now?")
+                    .scaledFont(21, weight: .bold, design: .rounded)
+                    .kerning(0)
+                    .foregroundStyle(MirrorTheme.textPrimary)
                     .multilineTextAlignment(.center)
                 Text("Pick one, then confirm below.")
                     .scaledFont(13, weight: .medium)
@@ -124,7 +121,7 @@ struct MoodCheckInView: View {
                         .background(
                             selected == nil
                                 ? AnyShapeStyle(MirrorTheme.inkBorder)
-                                : (isSentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(MirrorTheme.accentGradient)),
+                                : AnyShapeStyle(MirrorTheme.accentGradient),
                             in: RoundedRectangle(cornerRadius: 14, style: .continuous)
                         )
                 }
@@ -190,7 +187,7 @@ struct MoodCheckInView: View {
     private func moodLabel(_ mood: String, isSelected: Bool, color: Color, onColor: Color) -> some View {
         Text(MirrorTheme.localizedMoodName(for: mood))
             .font(.system(size: 13.5, weight: isSelected ? .semibold : .medium))
-            .foregroundStyle(isSelected ? AnyShapeStyle(onColor) : (isSentinel ? AnyShapeStyle(color) : AnyShapeStyle(MirrorTheme.textPrimary)))
+            .foregroundStyle(isSelected ? AnyShapeStyle(onColor) : AnyShapeStyle(MirrorTheme.textPrimary))
             .lineLimit(1)
             .minimumScaleFactor(0.75)
     }
@@ -206,14 +203,14 @@ struct MoodCheckInView: View {
                         .scaledFont(30, weight: .bold)
                         .foregroundStyle(MirrorTheme.moodColor(for: mood))
                 }
-            Text(isSentinel ? "LOGGED — \(MirrorTheme.localizedMoodName(for: mood).uppercased())" : "\(MirrorTheme.localizedMoodName(for: mood)), logged.")
-                .scaledFont(isSentinel ? 14 : 18, weight: isSentinel ? .bold : .semibold, design: isSentinel ? .monospaced : .rounded)
+            Text("\(MirrorTheme.localizedMoodName(for: mood)), logged.")
+                .scaledFont(18, weight: .semibold, design: .rounded)
                 .foregroundStyle(MirrorTheme.textPrimary)
             Text("Added to your mood timeline.")
                 .scaledFont(13, weight: .medium)
                 .foregroundStyle(.secondary)
             if offersHealth {
-                HealthCheckInTip(mood: mood, isSentinel: isSentinel)
+                HealthCheckInTip(mood: mood)
                     .padding(.horizontal, 20)
             }
             Spacer()
@@ -223,7 +220,7 @@ struct MoodCheckInView: View {
                 .padding(.horizontal, 40)
                 .padding(.vertical, 13)
                 .background(
-                    isSentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(MirrorTheme.accentGradient),
+                    MirrorTheme.accentGradient,
                     in: Capsule()
                 )
                 .padding(.bottom, 24)
@@ -244,7 +241,6 @@ struct MoodCheckInView: View {
 /// logged too. Marked shown the first time it appears, so it never comes back.
 private struct HealthCheckInTip: View {
     let mood: String
-    let isSentinel: Bool
     static let shownKey = "mirror.health.checkInTipShown"
     @AppStorage(HealthCheckInTip.shownKey) private var shown = false
     @State private var result: LocalizedStringKey?
@@ -273,14 +269,14 @@ private struct HealthCheckInTip: View {
                 HStack(spacing: 10) {
                     Button("Not now") { result = "You can turn it on later in Settings › Journal." }
                         .buttonStyle(.bordered)
-                        .tint(isSentinel ? MirrorTheme.ember : MirrorTheme.violet)
+                        .tint(MirrorTheme.violet)
                     Button {
                         turnOn()
                     } label: {
                         if asking { ProgressView() } else { Text("Turn On") }
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(isSentinel ? MirrorTheme.ember : MirrorTheme.buttonFill)
+                    .tint(MirrorTheme.buttonFill)
                     .disabled(asking)
                 }
                 .scaledFont(14, weight: .semibold)

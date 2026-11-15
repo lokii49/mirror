@@ -81,6 +81,8 @@ struct FeatureCard: Identifiable {
     var showInFeatureGuide: Bool = true
     /// iPhone/iPad only (the Mac has its own version of the feature, or none).
     var iOSOnly: Bool = false
+    /// Mac only (a change that happened on the Mac alone).
+    var macOnly: Bool = false
     /// What this device needs for the card's promise to hold.
     var requirement: DeviceFeature? = nil
     /// Shown instead of `body` where `requirement` isn't met; nil hides the card there.
@@ -641,6 +643,50 @@ enum FeatureCardRegistry {
             iOSOnly: true,
             requirement: .appleHealth
         ),
+        // 3.1.9 / Mac 1.1.9 (owner, 2026-11-15: all four, no video).
+        .init(
+            id: "still-open-widget-319",
+            title: "Still Open on your Home Screen",
+            body: "Add the Still Open widget: the checklist items you haven't ticked, ready to tick from your Home Screen. Its buttons start a checklist, a numbered list or a reminder on every plan.",
+            symbolName: "checklist.checked",
+            accentColor: .green,
+            tier: .core,
+            sinceVersion: "3.1.9",
+            showInFeatureGuide: false,
+            iOSOnly: true
+        ),
+        .init(
+            id: "photo-sizes-319",
+            title: "Photo sizes",
+            body: "Choose Thumbnail, Small, Medium or Full Width for each photo from its menu. Thumbnails sit side by side, three to a row.",
+            symbolName: "photo.on.rectangle.angled",
+            accentColor: .blue,
+            tier: .free,
+            sinceVersion: "3.1.9",
+            showInFeatureGuide: false
+        ),
+        .init(
+            id: "move-photos-319",
+            title: "Move and copy photos",
+            body: "Hold a photo and slide it to move it, between thumbnails too. The paperclip adds photos where your cursor is, and photos come along when you copy text and paste it in MirrorNotes.",
+            symbolName: "hand.draw",
+            accentColor: .orange,
+            tier: .free,
+            sinceVersion: "3.1.9",
+            showInFeatureGuide: false,
+            iOSOnly: true
+        ),
+        .init(
+            id: "mac-photo-entries-319",
+            title: "Edit entries with photos",
+            body: "Entries with photos can now be edited on the Mac, photos between lines included: they stay in place while you edit the words around them.",
+            symbolName: "photo.badge.checkmark",
+            accentColor: .purple,
+            tier: .free,
+            sinceVersion: "3.1.9",
+            showInFeatureGuide: false,
+            macOnly: true
+        ),
     ]
 
     /// 15 November 2026, the paid-plans cutover, in the reader's own date format.
@@ -672,6 +718,7 @@ final class FeatureCardService {
         "1.1.4": "3.1.4",
         "1.1.6": "3.1.6",
         "1.1.8": "3.1.8",
+        "1.1.9": "3.1.9",
     ]
 
     /// The cards a Mac version shows: those of the newest iOS release whose Mac version is newer
@@ -723,9 +770,9 @@ final class FeatureCardService {
         }
         // Fallback: if already seen this version, still show current version's cards
         guard let newest = newSinceUpgrade.compactMap({ AppVersion($0.sinceVersion) }).max() else {
-            return FeatureCardRegistry.all.filter { $0.sinceVersion == current }
+            return FeatureCardRegistry.all.filter { $0.sinceVersion == current && !$0.macOnly }
         }
-        return newSinceUpgrade.filter { AppVersion($0.sinceVersion) == newest }
+        return newSinceUpgrade.filter { AppVersion($0.sinceVersion) == newest && !$0.macOnly }
     }
 
     var shouldShowWhatsNew: Bool {

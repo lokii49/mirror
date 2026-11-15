@@ -23,25 +23,11 @@ extension WriteView {
                 showDatePicker = true
             } label: {
                 // The date as the page's title (option A, owner 2026-11-06).
-                WriteDateTitle(date: noteDate, isSentinel: displayMode == .sentinel)
+                WriteDateTitle(date: noteDate, isSentinel: false)
                     .contentShape(Rectangle())
             }
             .accessibilityHint("Changes the entry's date and time")
             .buttonStyle(.plain)
-
-
-            if displayMode == .sentinel {
-                HStack(spacing: 5) {
-                    Circle()
-                        .fill(MirrorTheme.ember)
-                        .frame(width: 6, height: 6)
-                        .opacity(recPulse ? 1 : 0.35)
-                    Text("REC")
-                        .scaledFont(9.5, weight: .bold, design: .monospaced)
-                        .foregroundStyle(MirrorTheme.ember)
-                        .kerning(0.5)
-                }
-            }
         } trailing: {
             moodMenu
         }
@@ -63,49 +49,28 @@ extension WriteView {
         HStack(spacing: 8) {
             if viewModel.wordCount > 0 {
                 let goalMet = viewModel.wordCount >= dailyWordGoal
-                if displayMode == .sentinel {
-                    HStack(spacing: 3) {
-                        Text("\(viewModel.wordCount)w")
-                            .scaledFont(12, weight: .medium, design: .monospaced)
-                            .foregroundStyle(goalMet ? Color.green : Color(.tertiaryLabel))
-                        if goalMet {
-                            Image(systemName: "checkmark")
-                                .scaledFont(9, weight: .bold)
-                                .foregroundStyle(.green)
-                                .glyphPopIn()
-                        } else if viewModel.wordCount >= 50 {
-                            Text("/ \(dailyWordGoal)w")
-                                .scaledFont(12, design: .monospaced)
-                                .foregroundStyle(.quaternary)
-                        }
+                // Classic reads in the system face like the rest of the header: "30 words",
+                // with a small ring toward the daily goal once it's in sight.
+                HStack(spacing: 5) {
+                    if goalMet {
+                        // Pops in the moment the goal is reached.
+                        Image(systemName: "checkmark.circle.fill")
+                            .scaledFont(11, weight: .semibold)
+                            .foregroundStyle(MirrorTheme.green)
+                            .glyphPopIn()
+                    } else if viewModel.wordCount >= 50 {
+                        WordGoalRing(progress: Double(viewModel.wordCount) / Double(max(dailyWordGoal, 1)))
                     }
-                    .lineLimit(1)
-                    .animation(.easeOut(duration: 0.25), value: goalMet)
-                    .transition(.opacity)
-                } else {
-                    // Classic reads in the system face like the rest of the header: "30 words",
-                    // with a small ring toward the daily goal once it's in sight.
-                    HStack(spacing: 5) {
-                        if goalMet {
-                            // Pops in the moment the goal is reached.
-                            Image(systemName: "checkmark.circle.fill")
-                                .scaledFont(11, weight: .semibold)
-                                .foregroundStyle(MirrorTheme.green)
-                                .glyphPopIn()
-                        } else if viewModel.wordCount >= 50 {
-                            WordGoalRing(progress: Double(viewModel.wordCount) / Double(max(dailyWordGoal, 1)))
-                        }
-                        Text(viewModel.wordCount == 1 ? "1 word" : "\(viewModel.wordCount) words")
-                            .font(.system(size: 12, weight: .medium).monospacedDigit())
-                            .foregroundStyle(goalMet ? AnyShapeStyle(MirrorTheme.green) : AnyShapeStyle(.tertiary))
-                            .contentTransition(.numericText())
-                    }
-                    .lineLimit(1)
-                    .animation(.easeOut(duration: 0.25), value: goalMet)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityValue(goalMet || viewModel.wordCount < 50 ? Text("") : Text("\(viewModel.wordCount) of \(dailyWordGoal)"))
-                    .transition(.opacity)
+                    Text(viewModel.wordCount == 1 ? "1 word" : "\(viewModel.wordCount) words")
+                        .font(.system(size: 12, weight: .medium).monospacedDigit())
+                        .foregroundStyle(goalMet ? AnyShapeStyle(MirrorTheme.green) : AnyShapeStyle(.tertiary))
+                        .contentTransition(.numericText())
                 }
+                .lineLimit(1)
+                .animation(.easeOut(duration: 0.25), value: goalMet)
+                .accessibilityElement(children: .combine)
+                .accessibilityValue(goalMet || viewModel.wordCount < 50 ? Text("") : Text("\(viewModel.wordCount) of \(dailyWordGoal)"))
+                .transition(.opacity)
             }
             DraftSaveStatusLabel(state: draftSaveState, retry: retryDraftSave, compact: true)
         }
@@ -114,165 +79,49 @@ extension WriteView {
 
     @ViewBuilder
     var moodMenu: some View {
-        if displayMode == .sentinel {
+        Menu {
             Button {
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                withAnimation(.easeOut(duration: 0.15)) { showSignalPanel.toggle() }
+                detectMoodWithMirror()
             } label: {
-                signalLabel
+                Label(isDetectingMood ? "Detecting..." : "Mirror suggests", systemImage: "sparkles")
+                if !canSuggestMood { Text("Core required") }
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Mood")
-            .accessibilityValue(viewModel.selectedMood.map { Text(MirrorTheme.localizedMoodName(for: $0)) } ?? Text("Not selected"))
-        } else {
-            Menu {
+            .disabled(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isDetectingMood || !canSuggestMood)
+
+            Divider()
+
+            ForEach(moodLabels, id: \.self) { mood in
                 Button {
-                    detectMoodWithMirror()
+                    viewModel.selectedMood = viewModel.selectedMood == mood ? nil : mood
                 } label: {
-                    Label(isDetectingMood ? "Detecting..." : "Mirror suggests", systemImage: "sparkles")
-                    if !canSuggestMood { Text("Core required") }
-                }
-                .disabled(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isDetectingMood || !canSuggestMood)
-
-                Divider()
-
-                ForEach(moodLabels, id: \.self) { mood in
-                    Button {
-                        viewModel.selectedMood = viewModel.selectedMood == mood ? nil : mood
-                    } label: {
-                        Label {
-                            Text(MirrorTheme.localizedMoodName(for: mood))
-                        } icon: {
-                            Image(uiImage: moodMenuDotImage(for: mood, isSelected: viewModel.selectedMood == mood))
-                                .renderingMode(.original)
-                        }
+                    Label {
+                        Text(MirrorTheme.localizedMoodName(for: mood))
+                    } icon: {
+                        Image(uiImage: moodMenuDotImage(for: mood, isSelected: viewModel.selectedMood == mood))
+                            .renderingMode(.original)
                     }
                 }
-
-                if viewModel.selectedMood != nil {
-                    Divider()
-                    Button("Clear Mood", role: .destructive) {
-                        viewModel.selectedMood = nil
-                    }
-                }
-            } label: {
-                signalLabel
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Mood")
-            .accessibilityValue(viewModel.selectedMood.map { Text(MirrorTheme.localizedMoodName(for: $0)) } ?? Text("Not selected"))
+
+            if viewModel.selectedMood != nil {
+                Divider()
+                Button("Clear Mood", role: .destructive) {
+                    viewModel.selectedMood = nil
+                }
+            }
+        } label: {
+            signalLabel
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Mood")
+        .accessibilityValue(viewModel.selectedMood.map { Text(MirrorTheme.localizedMoodName(for: $0)) } ?? Text("Not selected"))
     }
 
     /// Option A (owner 2026-11-06), in both themes (owner: same design in both modes): an empty
     /// mood is an invitation (dashed accent pill), a picked one shows its colour and name. Its
     /// own struct: the header sits at the Debug stack limit.
     var signalLabel: some View {
-        WriteMoodPill(mood: viewModel.selectedMood, isDetecting: isDetectingMood, isSentinel: displayMode == .sentinel)
-    }
-
-    /// Sentinel's replacement for the native Menu — SwiftUI's Menu can't be
-    /// recolored or re-fonted (it's OS chrome), so matching the HUD look
-    /// requires a custom dropdown instead. Same one-row-per-mood list as
-    /// Classic's Menu (icon + name, top-to-bottom, same order), just drawn
-    /// with mono/ember chrome instead of the grid layout this used to have.
-    /// Dismissed by WriteView's full-screen tap-catcher overlay, or by
-    /// picking an option here.
-    var signalPanel: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Button {
-                detectMoodWithMirror()
-                withAnimation(.easeOut(duration: 0.15)) { showSignalPanel = false }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "waveform")
-                        .scaledFont(12, weight: .semibold)
-                    Text(isDetectingMood ? "ANALYZING…" : "AUTO-DETECT")
-                        .scaledFont(11.5, weight: .bold, design: .monospaced)
-                        .kerning(0.4)
-                    Spacer(minLength: 0)
-                }
-                .foregroundStyle(MirrorTheme.ember)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 11)
-                // The whole row is the target: with .plain, only drawn pixels take taps, so the
-                // empty space after the label (and the padding) did nothing.
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .disabled(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isDetectingMood || !canSuggestMood)
-            .opacity(viewModel.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !canSuggestMood ? 0.4 : 1)
-
-            Rectangle().fill(MirrorTheme.inkBorder).frame(height: 1)
-
-            ScrollView {
-                VStack(spacing: 0) {
-                    ForEach(moodLabels, id: \.self) { mood in
-                        let isSelected = viewModel.selectedMood == mood
-                        Button {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            viewModel.selectedMood = isSelected ? nil : mood
-                            withAnimation(.easeOut(duration: 0.15)) { showSignalPanel = false }
-                        } label: {
-                            HStack(spacing: 10) {
-                                Circle()
-                                    .fill(MirrorTheme.moodColor(for: mood))
-                                    .frame(width: 8, height: 8)
-                                Text(MirrorTheme.localizedMoodName(for: mood).uppercased())
-                                    .font(MirrorTheme.mono(12, weight: isSelected ? .bold : .medium))
-                                    .kerning(0.3)
-                                    .lineLimit(1)
-                                Spacer(minLength: 0)
-                                if isSelected {
-                                    Image(systemName: "checkmark")
-                                        .scaledFont(11, weight: .bold)
-                                        .foregroundStyle(MirrorTheme.moodColor(for: mood))
-                                }
-                            }
-                            .foregroundStyle(isSelected ? MirrorTheme.textPrimary : MirrorTheme.textSecondary)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
-                            .background(isSelected ? MirrorTheme.moodColor(for: mood).opacity(0.10) : Color.clear)
-                            // Whole row: an unselected row's clear background takes no taps,
-                            // so only the dot and the name did (owner, 2026-11-07).
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-            .frame(maxHeight: 320)
-
-            if viewModel.selectedMood != nil {
-                Rectangle().fill(MirrorTheme.inkBorder).frame(height: 1)
-                Button {
-                    viewModel.selectedMood = nil
-                    withAnimation(.easeOut(duration: 0.15)) { showSignalPanel = false }
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "xmark")
-                            .scaledFont(11, weight: .semibold)
-                        Text("CLEAR SIGNAL")
-                            .scaledFont(11, weight: .semibold, design: .monospaced)
-                            .kerning(0.4)
-                        Spacer(minLength: 0)
-                    }
-                    .foregroundStyle(MirrorTheme.textSecondary)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 11)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .frame(width: 250)
-        .background(MirrorTheme.inkRaised, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(MirrorTheme.ember.opacity(0.3), lineWidth: 1)
-        }
-        .shadow(color: .black.opacity(0.4), radius: 20, x: 0, y: 8)
-        .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .topTrailing)))
+        WriteMoodPill(mood: viewModel.selectedMood, isDetecting: isDetectingMood)
     }
 
     var voiceButtonAccessibilityLabel: String {
@@ -292,7 +141,7 @@ extension WriteView {
             hasDraftContent: hasDraftContent,
             takesSavedDrafts: takesSavedDrafts,
             saveGlyphBounces: saveGlyphBounces,
-            isSentinel: displayMode == .sentinel,
+            isSentinel: false,
             delete: { startDeleteWithUndo() },
             save: { if entry != nil { saveAndDismiss() } else { saveDraft() } },
             saveToDrafts: { saveToDrafts() },
@@ -424,14 +273,14 @@ extension WriteView {
                         Rectangle()
                             .fill(MirrorTheme.inkBorder)
                         Rectangle()
-                            .fill(isComplete ? MirrorTheme.green : (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary))
+                            .fill(isComplete ? MirrorTheme.green : MirrorTheme.primary)
                             .frame(width: geo.size.width * progress)
                             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: progress)
                     }
                 }
                 .frame(height: 2)
             }
-            Divider().overlay(displayMode == .sentinel ? MirrorTheme.ember.opacity(0.3) : MirrorTheme.inkBorder)
+            Divider().overlay(MirrorTheme.inkBorder)
             HStack(spacing: 0) {
                 // Undo
                 Button {
@@ -505,18 +354,11 @@ extension WriteView {
 /// content card.
 struct FollowUpChip: View {
     let question: String
-    /// Which engine produced `question` — Gemma 3 1B or Apple Foundation Models. Surfaced only
-    /// in Sentinel mode as a small tag, matching `InsightSignalSource`'s existing X-ray
-    /// convention (engine attribution for persisted insights) rather than inventing a new
-    /// logging mechanism for an ephemeral, unpersisted feature. Closes the "no way to tell which
-    /// engine produced a bad follow-up" gap flagged in writing-roadmap.md without adding
-    /// persistence this feature was deliberately scoped to avoid.
+    /// Which engine produced `question` — Gemma 3 1B or Apple Foundation Models. Shown as a small
+    /// tag only with Settings › About › "Show how insights are made" on.
     var engine: LLMEngine? = nil
     let onUse: () -> Void
     let onDismiss: () -> Void
-
-    @Environment(\.appDisplayMode) private var displayMode
-    private var isSentinel: Bool { displayMode == .sentinel }
 
     @AppStorage(GenerationDetails.key) private var showGenerationDetails = false
     private var engineTag: String? {
@@ -532,7 +374,7 @@ struct FollowUpChip: View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "arrow.turn.down.right")
                 .scaledFont(12, weight: .semibold)
-                .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violet)
+                .foregroundStyle(MirrorTheme.violet)
                 .padding(.top, 2)
 
             VStack(alignment: .leading, spacing: 4) {
@@ -555,7 +397,7 @@ struct FollowUpChip: View {
                 Button(action: onUse) {
                     Image(systemName: "plus.circle.fill")
                         .scaledFont(20)
-                        .foregroundStyle(isSentinel ? MirrorTheme.ember : MirrorTheme.violet)
+                        .foregroundStyle(MirrorTheme.violet)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Add this question to your entry")
@@ -571,13 +413,10 @@ struct FollowUpChip: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .background(
-            isSentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(Color(.secondarySystemGroupedBackground)),
-            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-        )
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke((isSentinel ? MirrorTheme.ember : MirrorTheme.violet).opacity(isSentinel ? 0.3 : 0.2), lineWidth: 1)
+                .stroke(MirrorTheme.violet.opacity(0.2), lineWidth: 1)
         }
         .shadow(color: .black.opacity(0.08), radius: 10, x: 0, y: 3)
     }
@@ -603,15 +442,13 @@ struct WritingStarterChip: View {
     /// pictures and mood (`SuggestionInsert`).
     var onSuggestion: ((SuggestionInsert) -> Void)? = nil
 
-    @Environment(\.appDisplayMode) private var displayMode
     @State private var showTemplateManager = false
     /// Your templates, unsealed once and again when the manager closes (not on every render).
     @State private var customTemplates: [CustomTemplate] = []
     /// Between picking a suggestion and its lines and pictures landing (maps are drawn, pictures
     /// prepared: often a second or two), so the pick visibly does something.
     @State private var addingSuggestion = false
-    private var isSentinel: Bool { displayMode == .sentinel }
-    private var accent: Color { isSentinel ? MirrorTheme.ember : MirrorTheme.violet }
+    private var accent: Color { MirrorTheme.violet }
 
     @Environment(\.dynamicTypeSize) private var typeSize
     /// Today's prompt, then another on ↻ (option B, owner 2026-11-07).
@@ -719,7 +556,7 @@ struct WritingStarterChip: View {
             }
             if showsTalkItOut {
                 Button(action: onTalkItOut) {
-                    Label(isSentinel ? "TALK IT OUT" : "Talk it out", systemImage: "bubble.left.and.text.bubble.right")
+                    Label("Talk it out", systemImage: "bubble.left.and.text.bubble.right")
                 }
                 Divider()
             }
@@ -814,10 +651,9 @@ struct WriteHeaderRow<Leading: View, Trailing: View>: View {
 struct WriteMoodPill: View {
     let mood: String?
     let isDetecting: Bool
-    var isSentinel = false
 
     var body: some View {
-        let accent = isSentinel ? MirrorTheme.ember : MirrorTheme.violet
+        let accent = MirrorTheme.violet
         let tint = mood.map { MirrorTheme.moodColor(for: $0) } ?? accent
         HStack(spacing: 7) {
             if isDetecting {
@@ -828,20 +664,20 @@ struct WriteMoodPill: View {
                 Circle()
                     .fill(tint)
                     .frame(width: 10, height: 10)
-                Text(isSentinel ? MirrorTheme.localizedMoodName(for: mood).uppercased() : MirrorTheme.localizedMoodName(for: mood))
+                Text(MirrorTheme.localizedMoodName(for: mood))
                     .foregroundStyle(tint)
             } else {
-                Image(systemName: isSentinel ? "waveform" : "face.smiling")
-                    .scaledFont(isSentinel ? 13 : 16, weight: .medium)
+                Image(systemName: "face.smiling")
+                    .scaledFont(16, weight: .medium)
                     .foregroundStyle(accent)
             }
             if mood == nil {
-                Text(isSentinel ? "SIGNAL" : "Mood")
+                Text("Mood")
                     .foregroundStyle(accent)
             }
         }
-        .scaledFont(isSentinel ? 13.5 : 15, weight: .semibold, design: isSentinel ? .monospaced : .default)
-        .kerning(isSentinel ? 0.4 : 0)
+        .scaledFont(15, weight: .semibold, design: .default)
+        .kerning(0)
         .lineLimit(1)
         // Shrinks before it truncates: "Настроен…" at xxxLarge, "M…" at AX5 (2026-11-07 checks).
         .minimumScaleFactor(0.7)

@@ -1,6 +1,7 @@
 #if os(macOS)
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 // The Mac rich-text editor: an NSTextView whose text is the entry's logical text. Paragraph
 // styles, indents and per-paragraph fonts live in custom attributes (see NoteEditorCodec) and
@@ -8,8 +9,10 @@ import AppKit
 // the stored text and every stored offset are the same thing. iPhone and iPad read back exactly
 // what this editor saves because both go through the same two JSON documents.
 //
-// Deliberately not supported here yet (entries with these stay read-only on Mac, see
-// `NoteEditorCodec.canEditOnMac`): inline photos and the legacy "# " / "○ " prefix entries.
+// Photos at the end show as thumbnails under the editor; a photo between lines (Mac 1.1.9) is one
+// character drawn as a fixed tile, kept on a line of its own (`NoteEditorCodec.photoLineEdit`).
+// Not supported (read-only on Mac, see `NoteEditorCodec.canEditOnMac`): a photo sharing its line
+// with words or spaces, and the legacy "# " / "○ " prefix entries.
 // List behaviors (Return continues or exits a list), indent and the checklist bulk commands
 // are the next step.
 
@@ -277,6 +280,58 @@ final class MirrorNSTextView: NSTextView {
         if window != nil { onAttachToWindow?() }
     }
 
+    /// Pictures dropped on the text (3.1.9): handed to Write, which attaches them like a pasted
+    /// photo. Nil (Scratch Note, the reader's editor) keeps drops text-only.
+    var onDropImages: (([Data]) -> Void)? {
+        didSet {
+            var types: [NSPasteboard.PasteboardType] = [.string]
+            if onDropImages != nil { types += [.tiff, .png, .fileURL] }
+            registerForDraggedTypes(types)
+        }
+    }
+
+    private func droppedImages(from pasteboard: NSPasteboard) -> [Data] {
+        guard onDropImages != nil else { return [] }
+        if let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true,
+                                                                                 .urlReadingContentsConformToTypes: [UTType.image.identifier]]) as? [URL],
+           !urls.isEmpty {
+            return urls.compactMap { url in (try? Data(contentsOf: url)).flatMap { NSImage(data: $0) != nil ? $0 : nil } }
+        }
+        if let images = pasteboard.readObjects(forClasses: [NSImage.self]) as? [NSImage] {
+            return images.compactMap(\.tiffRepresentation)
+        }
+        return []
+    }
+
+    /// Image files (Finder), or image data (Photos, Safari). Finder and Safari also put a string
+    /// (a path, a URL) on the pasteboard, so the string doesn't decide; text dragged from a page
+    /// carries no image data.
+    private func hasDroppableImages(_ pasteboard: NSPasteboard) -> Bool {
+        guard onDropImages != nil else { return false }
+        if pasteboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true,
+                                                                        .urlReadingContentsConformToTypes: [UTType.image.identifier]]) {
+            return true
+        }
+        return pasteboard.availableType(from: [.tiff, .png, NSPasteboard.PasteboardType(UTType.jpeg.identifier),
+                                               NSPasteboard.PasteboardType(UTType.heic.identifier)]) != nil
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        hasDroppableImages(sender.draggingPasteboard) ? .copy : super.draggingEntered(sender)
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        hasDroppableImages(sender.draggingPasteboard) ? .copy : super.draggingUpdated(sender)
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        guard hasDroppableImages(sender.draggingPasteboard) else { return super.performDragOperation(sender) }
+        let images = droppedImages(from: sender.draggingPasteboard)
+        guard !images.isEmpty else { return false }
+        onDropImages?(images)
+        return true
+    }
+
     /// Anything pasted is plain text: rich pasteboard content would bring fonts, colors and
     /// attachments that bypass the model attributes and would never survive a save.
     override func paste(_ sender: Any?) {
@@ -381,6 +436,11 @@ struct NoteEditorTextView: NSViewRepresentable {
     var onPhotoTapped: ((Int) -> Void)?
     /// The hint on an empty editor; Write's "What's on your mind?" when nil (Scratch has its own).
     var placeholder: String? = nil
+    /// Pictures dropped on the text (3.1.9). On Mac they join the photos under the editor; the
+    /// paragraph is always nil.
+    var onDropPhotos: (([Data], Int?) -> Void)? = nil
+    /// iPhone and iPad only (`PhotoFragment`); here so Write's one call site serves both editors.
+    var onPasteFragment: ((PhotoFragment, Int?) -> Void)? = nil
     /// Not read: it makes SwiftUI call `updateNSView` when Text size changes in Settings.
     @AppStorage(MacPrefs.sizeKey) var textSizePreference: Double = MacPrefs.defaultSize
 
@@ -427,6 +487,9 @@ struct NoteEditorTextView: NSViewRepresentable {
         textView.allowsImageEditing = false
         textView.isGrammarCheckingEnabled = false
         textView.registerForDraggedTypes([.string])
+        if coordinator.parent.onDropPhotos != nil {
+            textView.onDropImages = { [weak coordinator] images in coordinator?.parent.onDropPhotos?(images, nil) }
+        }
         textView.linkTextAttributes = [.foregroundColor: NSColor.linkColor, .underlineStyle: NSUnderlineStyle.single.rawValue]
         textView.delegate = coordinator
         storage.delegate = coordinator
@@ -502,6 +565,16 @@ struct NoteEditorTextView: NSViewRepresentable {
         private var composedRange: NSRange?
         private var lastStyleData: Data?
         private var lastInlineData: Data?
+        /// The stored text this editor last showed or wrote. The view's own string differs from
+        /// it when photos sit between lines (each is one U+FFFC there, a token in the text).
+        private var lastText = ""
+        /// Set while the photo-line rule makes its own edit (`photoLineEdit`).
+        private var isRedirectingPhotoEdit = false
+        /// Photo tiles drawn in the text, by photo number, with the data size they were made from.
+        private var photoTiles: [Int: (bytes: Int, image: NSImage)] = [:]
+        /// The photo count the tiles were made for: Remove shifts numbers, so they're redrawn.
+        private var photoTilesCount = -1
+        static let photoTileSide: CGFloat = 120
         private var lastFontChoiceRaw = ""
         private var lastTextSize: CGFloat = 0
         private var trailing = NoteEditorCodec.ParagraphModel()
@@ -523,7 +596,7 @@ struct NoteEditorTextView: NSViewRepresentable {
         /// True when the bound values differ from what the view shows and from what this editor
         /// last wrote — an outside change (template, Talk it out, a newly opened entry).
         func needsReload(_ textView: NSTextView) -> Bool {
-            textView.string != parent.text
+            parent.text != lastText
                 || parent.textStyleData != lastStyleData
                 || parent.inlineStyleData != lastInlineData
                 || parent.fontChoiceRaw != lastFontChoiceRaw
@@ -543,6 +616,7 @@ struct NoteEditorTextView: NSViewRepresentable {
             )
             MacEditorStyle.restyle(rendered.attributed, in: NSRange(location: 0, length: rendered.attributed.length),
                                    entryFont: entryFont, displayMode: displayMode)
+            attachPhotoTiles(to: rendered.attributed)
             isApplying = true
             if undoable {
                 let whole = NSRange(location: 0, length: storage.length)
@@ -560,12 +634,122 @@ struct NoteEditorTextView: NSViewRepresentable {
             trailing = rendered.trailing
             layout?.trailingModel = rendered.trailing
             isApplying = false
+            lastText = parent.text
             lastStyleData = parent.textStyleData
             lastInlineData = parent.inlineStyleData
             lastFontChoiceRaw = parent.fontChoiceRaw
             lastTextSize = MacEditorStyle.bodySize
             refreshTypingAttributes(in: textView)
             textView.needsDisplay = true
+        }
+
+        // MARK: Photos between lines (Mac 1.1.9, owner option A)
+
+        /// Each photo character drawn as a fixed square tile of its picture. Size and Remove stay
+        /// in the photo strip under the editor; the tile only shows where the photo sits.
+        private func attachPhotoTiles(to attributed: NSMutableAttributedString) {
+            let ns = attributed.string as NSString
+            guard ns.range(of: "\u{FFFC}").location != NSNotFound else { return }
+            if photoTilesCount != parent.photoDataArray.count {
+                photoTiles = [:]
+                photoTilesCount = parent.photoDataArray.count
+            }
+            let side = Self.photoTileSide
+            for i in 0..<ns.length where ns.character(at: i) == 0xFFFC {
+                guard let number = attributed.attribute(NoteEditorCodec.photoNumberKey, at: i, effectiveRange: nil) as? Int else { continue }
+                let attachment = NSTextAttachment()
+                attachment.image = photoTile(number: number, side: side)
+                attachment.bounds = CGRect(x: 0, y: -4, width: side, height: side)
+                attributed.addAttribute(.attachment, value: attachment, range: NSRange(location: i, length: 1))
+            }
+        }
+
+        private func photoTile(number: Int, side: CGFloat) -> NSImage {
+            let photos = parent.photoDataArray
+            let data = photos.indices.contains(number) ? photos[number] : Data()
+            if let cached = photoTiles[number], cached.bytes == data.count { return cached.image }
+            let source = NSImage(data: data)
+            let tile = NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in
+                let path = NSBezierPath(roundedRect: rect, xRadius: 10, yRadius: 10)
+                path.addClip()
+                if let source, source.size.width > 0, source.size.height > 0 {
+                    // Square crop from the middle, as the iPhone's tiles.
+                    let scale = max(rect.width / source.size.width, rect.height / source.size.height)
+                    let drawn = NSSize(width: source.size.width * scale, height: source.size.height * scale)
+                    source.draw(in: NSRect(x: (rect.width - drawn.width) / 2, y: (rect.height - drawn.height) / 2,
+                                           width: drawn.width, height: drawn.height))
+                } else {
+                    NSColor.quaternaryLabelColor.setFill()
+                    rect.fill()
+                }
+                return true
+            }
+            photoTiles[number] = (data.count, tile)
+            return tile
+        }
+
+        /// Keeps each photo on a line of its own and in the text (`NoteEditorCodec.photoLineEdit`).
+        func textView(_ textView: NSTextView, shouldChangeTextIn range: NSRange, replacementString: String?) -> Bool {
+            guard !isApplying, !isRedirectingPhotoEdit, let replacement = replacementString,
+                  let storage = textView.textStorage, !textView.hasMarkedText() else { return true }
+            let display = storage.string
+            let hasPhotoCharacter = replacement.contains("\u{FFFC}")
+            guard hasPhotoCharacter || (display as NSString).range(of: "\u{FFFC}").location != NSNotFound else { return true }
+            // A pasted or dropped picture character has no photo behind it here: dropped.
+            let clean = replacement.replacingOccurrences(of: "\u{FFFC}", with: "")
+            // Composing keyboards (Japanese, Chinese, Korean) build the word in place; moving their
+            // first keystroke onto a new line would commit it unfinished. As on iPhone, they keep
+            // only the rule that a photo isn't deleted or typed over.
+            if Self.isComposingInputSource(textView) {
+                let removed = (display as NSString).substring(with: NSIntersectionRange(range, NSRange(location: 0, length: (display as NSString).length)))
+                if removed.contains("\u{FFFC}") { NSSound.beep(); return false }
+                return !hasPhotoCharacter
+            }
+            switch NoteEditorCodec.photoLineEdit(display: display, range: range, replacement: clean) {
+            case .asIs:
+                if !hasPhotoCharacter { return true }
+                applyPhotoLineEdit(clean, in: range, caret: range.location + (clean as NSString).length, textView: textView)
+                return false
+            case .replace(let fixed, let caret):
+                applyPhotoLineEdit(fixed, in: range, caret: caret, textView: textView)
+                return false
+            case .moveCaret(let location):
+                textView.setSelectedRange(NSRange(location: location, length: 0))
+                return false
+            case .refuse:
+                NSSound.beep()
+                return false
+            }
+        }
+
+        private func applyPhotoLineEdit(_ text: String, in range: NSRange, caret: Int, textView: NSTextView) {
+            guard let storage = textView.textStorage else { return }
+            isRedirectingPhotoEdit = true
+            defer { isRedirectingPhotoEdit = false }
+            if textView.shouldChangeText(in: range, replacementString: text) {
+                storage.replaceCharacters(in: range, with: NSAttributedString(string: text, attributes: Self.withoutPhotoAttributes(textView.typingAttributes)))
+                textView.didChangeText()
+            }
+            textView.setSelectedRange(NSRange(location: min(caret, storage.length), length: 0))
+        }
+
+        static func isComposingInputSource(_ textView: NSTextView) -> Bool {
+            guard let source = textView.inputContext?.selectedKeyboardInputSource else { return false }
+            return ["Kotoeri", "Japanese", "SCIM", "TCIM", "Korean", "Cantonese", "Zhuyin", "Pinyin", "Wubi"].contains { source.contains($0) }
+        }
+
+        static func withoutPhotoAttributes(_ attributes: [NSAttributedString.Key: Any]) -> [NSAttributedString.Key: Any] {
+            var clean = attributes
+            clean[.attachment] = nil
+            clean[NoteEditorCodec.photoNumberKey] = nil
+            clean[NoteEditorCodec.photoSizeKey] = nil
+            return clean
+        }
+
+        /// Text typed right after a photo never takes its number, size or picture.
+        func textView(_ textView: NSTextView, shouldChangeTypingAttributes oldTypingAttributes: [String: Any] = [:],
+                      toAttributes newTypingAttributes: [NSAttributedString.Key: Any] = [:]) -> [NSAttributedString.Key: Any] {
+            Self.withoutPhotoAttributes(newTypingAttributes)
         }
 
         // MARK: Keeping paragraphs consistent while editing
@@ -641,10 +825,17 @@ struct NoteEditorTextView: NSViewRepresentable {
 
         private func emit(storage: NSTextStorage, textView: NSTextView) {
             let style = NoteEditorCodec.extractTextStyleData(from: storage, trailing: trailing, entryFont: entryFont)
-            let inline = NoteEditorCodec.extractInlineStyleData(from: storage)
+            // The trailing photos' ranges (a size, a link) aren't in the editor's text: carry them
+            // past the edited body.
+            let photoRanges = NoteEditorCodec.trailingPhotoRanges(in: parent.inlineStyleData, bodyLength: NoteEditorCodec.displayLength(parent.text))
+            let inline = NoteEditorCodec.addingTrailingPhotoRanges(photoRanges, to: NoteEditorCodec.extractInlineStyleData(from: storage),
+                                                                   bodyLength: (textView.string as NSString).length)
+            // Photos between lines go back to their tokens, numbers kept.
+            let text = NoteEditorCodec.textFromEditor(storage)
             lastStyleData = style
             lastInlineData = inline
-            parent.text = textView.string
+            lastText = text
+            parent.text = text
             parent.textStyleData = style
             parent.inlineStyleData = inline
             publishActiveState(in: textView)
@@ -860,7 +1051,7 @@ struct NoteEditorTextView: NSViewRepresentable {
             var rows: [(String, NoteEditorCodec.ParagraphModel)] = []
             for (index, start) in starts.enumerated() {
                 let end = index + 1 < starts.count ? starts[index + 1] - 1 : text.length
-                let content = text.substring(with: NSRange(location: start, length: max(0, end - start)))
+                let content = NoteEditorCodec.textFromEditor(storage.attributedSubstring(from: NSRange(location: start, length: max(0, end - start))))
                 let model = start >= text.length ? trailing : NoteEditorCodec.paragraphModel(at: start, in: storage)
                 rows.append((content, model))
             }
@@ -871,9 +1062,12 @@ struct NoteEditorTextView: NSViewRepresentable {
         /// row `i`; inline ranges move with their rows, as on iOS.
         private func replaceDocument(with rows: [(text: String, model: NoteEditorCodec.ParagraphModel)], rowOrder: [Int], in textView: MirrorNSTextView) {
             guard !rows.isEmpty, let storage = textView.textStorage else { return }
-            parent.inlineStyleData = NoteEditorCodec.remapInlineStyles(
-                NoteEditorCodec.extractInlineStyleData(from: storage), in: storage.string, rowOrder: rowOrder)
-            parent.text = rows.map(\.text).joined(separator: "\n")
+            let photoRanges = NoteEditorCodec.trailingPhotoRanges(in: parent.inlineStyleData, bodyLength: (storage.string as NSString).length)
+            let newText = rows.map(\.text).joined(separator: "\n")
+            parent.inlineStyleData = NoteEditorCodec.addingTrailingPhotoRanges(photoRanges, to: NoteEditorCodec.remapInlineStyles(
+                NoteEditorCodec.extractInlineStyleData(from: storage), in: storage.string, rowOrder: rowOrder),
+                bodyLength: NoteEditorCodec.displayLength(newText))
+            parent.text = newText
             // The stored document lists the empty last paragraph only when it is a list item.
             var models = rows.map(\.model)
             if let tail = rows.last, tail.text.isEmpty, !NoteEditorCodec.isListStyle(tail.model.style) { models.removeLast() }

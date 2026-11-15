@@ -11,7 +11,6 @@ struct WriteDraftsMenu: View {
     /// Continue a draft in this editor (the editor's own draft goes to Drafts first).
     let resume: (UUID) -> Void
 
-    @Environment(\.appDisplayMode) private var displayMode
     @State private var drafts: [SavedDraftStore.Summary] = []
     @State private var showAll = false
 
@@ -65,7 +64,7 @@ struct WriteDraftsMenu: View {
                             .foregroundStyle(.white)
                             .padding(.horizontal, 4)
                             .frame(minWidth: 15, minHeight: 15)
-                            .background(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.buttonFill, in: Capsule())
+                            .background(MirrorTheme.buttonFill, in: Capsule())
                             .offset(x: 8, y: -6)
                     }
                 }

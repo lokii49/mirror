@@ -11,6 +11,15 @@ struct FeatureCardVersionTests {
         #expect(!ids.contains("format-panel-310"), "the Aa panel is iOS only")
     }
 
+    /// 3.1.9: the widget and moving photos on iPhone/iPad, the Mac photo editing on the Mac.
+    @Test func release319ShowsEachPlatformItsCards() {
+        #expect(FeatureCardService.iOSWhatsNewCards(lastSeen: "3.1.8", current: "3.1.9").map(\.id)
+                == ["still-open-widget-319", "photo-sizes-319", "move-photos-319"])
+        #expect(FeatureCardService.macWhatsNewCards(lastSeen: "1.1.8", current: "1.1.9").map(\.id)
+                == ["photo-sizes-319", "mac-photo-entries-319"])
+        #expect(FeatureCardService.macHasUnseenCards(lastSeen: "1.1.8", current: "1.1.9"))
+    }
+
     @Test func aMacVersionBeforeAnyMappingShowsNothing() {
         #expect(FeatureCardService.macWhatsNewCards(lastSeen: "1.0.1", current: "1.0.2").isEmpty)
         #expect(!FeatureCardService.macHasUnseenCards(lastSeen: "1.0.1", current: "1.0.2"))

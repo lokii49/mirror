@@ -11,6 +11,13 @@ enum OpenChecklistItems {
         let text: String
     }
 
+    /// Entries whose style document was read and had no unticked item, by a signature of the
+    /// sealed document. Kept by a caller that runs often (the Still Open widget's sync).
+    @MainActor
+    final class Memo {
+        var closed: [UUID: Int] = [:]
+    }
+
     struct Group: Identifiable {
         let entryID: UUID
         let createdAt: Date
@@ -37,17 +44,27 @@ enum OpenChecklistItems {
     /// Every entry with an open item, newest first. Only entries that carry a style document are
     /// decrypted, and their text only when that document has an unchecked line.
     @MainActor
-    static func groups(in context: ModelContext) -> [Group] {
+    static func groups(in context: ModelContext, memo: Memo? = nil) -> [Group] {
         var descriptor = FetchDescriptor<Entry>(predicate: #Predicate { $0.encryptedTextStyleData != nil },
                                                 sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
         descriptor.propertiesToFetch = [\.id, \.createdAt, \.encryptedTextStyleData]
         let candidates = (try? context.fetch(descriptor)) ?? []
         var result: [Group] = []
         for entry in candidates {
+            // Most entries have a style document and no checklist: with a memo, one whose sealed
+            // document hasn't changed since it was last read without an open item is skipped
+            // without decrypting (5,000 entries: ~300 ms per pass before, on the simulator).
+            let signature = entry.encryptedTextStyleData?.hashValue ?? 0
+            if let memo, memo.closed[entry.id] == signature { continue }
             let styleData = entry.textStyleData
             guard let styles = NoteEditorCodec.decodeTextStyleDocument(styleData)?.paragraphStyles,
-                  styles.contains(.checklistUnchecked),
-                  let text = entry.decryptedText else { continue }
+                  styles.contains(.checklistUnchecked) else {
+                // Only a document that opened counts as read (a locked key must be tried again).
+                if styleData != nil { memo?.closed[entry.id] = signature }
+                continue
+            }
+            memo?.closed[entry.id] = nil
+            guard let text = entry.decryptedText else { continue }
             let lines = uncheckedLines(text: text, textStyleData: styleData)
             if !lines.isEmpty { result.append(Group(entryID: entry.id, createdAt: entry.createdAt, lines: lines)) }
         }
@@ -59,20 +76,29 @@ enum OpenChecklistItems {
     @MainActor
     @discardableResult
     static func setChecked(_ checked: Bool, line: Line, entryID: UUID, in context: ModelContext) -> Bool {
+        setChecked(checked, index: line.index, entryID: entryID, in: context) { $0 == line.text }
+    }
+
+    /// The same, for a caller that knows the line only by a test on its shown words (the Still
+    /// Open widget's ticks carry a hash of them, `StillOpenWidgetData.lineHash`).
+    @MainActor
+    @discardableResult
+    static func setChecked(_ checked: Bool, index: Int, entryID: UUID, in context: ModelContext,
+                           matches: (String) -> Bool) -> Bool {
         var descriptor = FetchDescriptor<Entry>(predicate: #Predicate { $0.id == entryID })
         descriptor.fetchLimit = 1
         guard let entry = try? context.fetch(descriptor).first,
               let text = entry.decryptedText,
               let data = entry.textStyleData,
               var document = NoteEditorCodec.decodeTextStyleDocument(data),
-              document.paragraphStyles.indices.contains(line.index) else { return false }
-        let current = document.paragraphStyles[line.index]
+              document.paragraphStyles.indices.contains(index) else { return false }
+        let current = document.paragraphStyles[index]
         guard current == .checklistUnchecked || current == .checklistChecked else { return false }
         let paragraphs = text.components(separatedBy: "\n")
-        guard paragraphs.indices.contains(line.index),
-              paragraphs[line.index].replacingPhotoTokens()
-                .trimmingCharacters(in: .whitespacesAndNewlines) == line.text else { return false }
-        document.paragraphStyles[line.index] = checked ? .checklistChecked : .checklistUnchecked
+        guard paragraphs.indices.contains(index),
+              matches(paragraphs[index].replacingPhotoTokens()
+                .trimmingCharacters(in: .whitespacesAndNewlines)) else { return false }
+        document.paragraphStyles[index] = checked ? .checklistChecked : .checklistUnchecked
         guard let encoded = try? JSONEncoder().encode(document) else { return false }
         entry.textStyleData = encoded
         guard entry.textStyleData == encoded else { return false }   // key unavailable: nothing sealed

@@ -9,7 +9,7 @@ extension SettingsView {
         VStack(spacing: 0) {
             HStack(spacing: 16) {
                 avatarView
-                    .shadow(color: (displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary).opacity(0.25), radius: 10, x: 0, y: 4)
+                    .shadow(color: MirrorTheme.primary.opacity(0.25), radius: 10, x: 0, y: 4)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("MirrorNotes")
@@ -23,7 +23,7 @@ extension SettingsView {
 
                     if subscriptionService.isSubscribed {
                         let tierLabel: LocalizedStringKey = subscriptionService.isDeep ? "Deep" : "Core"
-                        let tierColor = displayMode == .sentinel ? MirrorTheme.ember : (subscriptionService.isDeep ? MirrorTheme.violet : MirrorTheme.primary)
+                        let tierColor = subscriptionService.isDeep ? MirrorTheme.violet : MirrorTheme.primary
                         planChip(tierLabel, systemImage: "checkmark.seal.fill", color: tierColor)
                     } else {
                         Text("Free plan")
@@ -64,7 +64,7 @@ extension SettingsView {
                 .padding(.bottom, 10)
 
                 Button { showSubscription = true } label: {
-                    let accent = displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary
+                    let accent = MirrorTheme.primary
                     HStack(spacing: 8) {
                         Image(systemName: "sparkles")
                             .scaledFont(13, weight: .semibold)
@@ -76,12 +76,12 @@ extension SettingsView {
                                 Text("MirrorNotes Core")
                             }
                         }
-                        .scaledFont(displayMode == .sentinel ? 13 : 14, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
-                        .textCase(displayMode == .sentinel ? .uppercase : nil)
+                        .scaledFont(14, weight: .semibold, design: .default)
+                        .textCase(nil)
                         Spacer(minLength: 4)
                         if let price = coreMonthlyPrice {
                             Text("\(price) / month")
-                                .scaledFont(displayMode == .sentinel ? 11.5 : 12, weight: displayMode == .sentinel ? .semibold : .medium, design: displayMode == .sentinel ? .monospaced : .default)
+                                .scaledFont(12, weight: .medium, design: .default)
                                 .opacity(0.65)
                         }
                         Image(systemName: "chevron.right")
@@ -92,11 +92,11 @@ extension SettingsView {
                     .padding(.vertical, 11)
                     .background(
                         accent.opacity(0.10),
-                        in: RoundedRectangle(cornerRadius: displayMode == .sentinel ? 6 : 12, style: .continuous)
+                        in: RoundedRectangle(cornerRadius: 12, style: .continuous)
                     )
                     .overlay(
-                        RoundedRectangle(cornerRadius: displayMode == .sentinel ? 6 : 12, style: .continuous)
-                            .stroke(accent.opacity(displayMode == .sentinel ? 0.35 : 0.18), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(accent.opacity(0.18), lineWidth: 1)
                     )
                 }
                 .buttonStyle(.plain)
@@ -127,7 +127,7 @@ extension SettingsView {
                 .padding(.top, 14)
                 .padding(.bottom, 4)
             Text(verbatim: subscriptionService.isAnonymousUser ? "RevenueCat ID (anonymous)" : "RevenueCat ID")
-                .scaledFont(displayMode == .sentinel ? 11 : 12, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
+                .scaledFont(12, weight: .semibold, design: .default)
                 .foregroundStyle(MirrorTheme.textSecondary)
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text(verbatim: appUserID)
@@ -141,7 +141,7 @@ extension SettingsView {
                 } label: {
                     Image(systemName: copiedRevenueCatID ? "checkmark" : "doc.on.doc")
                         .scaledFont(14, weight: .semibold)
-                        .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary)
+                        .foregroundStyle(MirrorTheme.primary)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Text("Copy"))
@@ -155,28 +155,22 @@ extension SettingsView {
     // the only identity this screen actually has, same mark the welcome
     // screen uses.
     var avatarView: some View {
-        let corner: CGFloat = displayMode == .sentinel ? 10 : 14
+        let corner: CGFloat = 14
         return Image("AppIconDisplay")
             .resizable()
             .frame(width: 52, height: 52)
             .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
-            .overlay {
-                if displayMode == .sentinel {
-                    RoundedRectangle(cornerRadius: corner, style: .continuous)
-                        .stroke(MirrorTheme.ember.opacity(0.35), lineWidth: 1)
-                }
-            }
     }
 
     // MARK: - Stats Grid
 
     var statsGrid: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(displayMode == .sentinel ? "Log stats" : "Your journal")
-                .scaledFont(displayMode == .sentinel ? 11 : 12, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
+            Text("Your journal")
+                .scaledFont(12, weight: .semibold, design: .default)
                 .foregroundStyle(MirrorTheme.textTertiary)
                 .textCase(.uppercase)
-                .tracking(displayMode == .sentinel ? 0.6 : 1.0)
+                .tracking(1.0)
                 .padding(.bottom, 14)
 
             LazyVGrid(
@@ -196,7 +190,7 @@ extension SettingsView {
     func statCard(value: String, label: LocalizedStringKey, icon: String, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             ZStack {
-                RoundedRectangle(cornerRadius: displayMode == .sentinel ? 6 : 10, style: .continuous)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(color.opacity(0.12))
                     .frame(width: 36, height: 36)
                 Image(systemName: icon)
@@ -204,14 +198,9 @@ extension SettingsView {
                     .foregroundStyle(color)
                     .accessibilityHidden(true)
             }
-            .overlay {
-                if displayMode == .sentinel {
-                    RoundedRectangle(cornerRadius: 6, style: .continuous).stroke(color.opacity(0.3), lineWidth: 1)
-                }
-            }
             VStack(alignment: .leading, spacing: 2) {
                 Text(value)
-                    .scaledFont(displayMode == .sentinel ? 19 : 20, weight: .bold, design: displayMode == .sentinel ? .monospaced : .rounded)
+                    .scaledFont(20, weight: .bold, design: .rounded)
                     .foregroundStyle(MirrorTheme.textPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
@@ -248,7 +237,7 @@ extension SettingsView {
                 }
             }
             .buttonStyle(.plain)
-            .sheet(isPresented: $showSubscription) { SubscriptionView().environment(\.appDisplayMode, displayMode) }
+            .sheet(isPresented: $showSubscription) { SubscriptionView() }
         }
     }
 
@@ -261,11 +250,11 @@ extension SettingsView {
         return Button {
             displayModeBinding.wrappedValue = mode
         } label: {
-            let cardCorner: CGFloat = displayMode == .sentinel ? 7 : 12
+            let cardCorner: CGFloat = 12
             HStack(spacing: 6) {
                 Text(title)
-                    .scaledFont(displayMode == .sentinel ? 12.5 : 13, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
-                    .textCase(displayMode == .sentinel ? .uppercase : nil)
+                    .scaledFont(13, weight: .semibold, design: .default)
+                    .textCase(nil)
                     .foregroundStyle(isSelected ? MirrorTheme.textPrimary : MirrorTheme.textSecondary)
                 Spacer(minLength: 0)
                 if isSelected {
@@ -309,11 +298,7 @@ extension SettingsView {
                     .contentShape(Rectangle())
                     .padding(.vertical, -4)
                 }
-                .disabled(displayMode == .sentinel)
-                .opacity(displayMode == .sentinel ? 0.4 : 1)
             }
-
-            // The Display mode picker (Classic / Sentinel) went with Sentinel in 3.1.8.
         }
     }
 
@@ -345,13 +330,11 @@ extension SettingsView {
         .background(MirrorTheme.primary.opacity(0.08), in: Capsule())
     }
 
-    /// Plan/tier chip on the profile card — rectangular mono in Sentinel,
-    /// matching SettingsTierBadge's shape swap, since it's the same kind
-    /// of status readout.
+    /// Plan/tier chip on the profile card.
     func planChip(_ label: LocalizedStringKey, systemImage: String, color: Color) -> some View {
         Label(label, systemImage: systemImage)
-            .scaledFont(displayMode == .sentinel ? 11 : 12, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
-            .textCase(displayMode == .sentinel ? .uppercase : nil)
+            .scaledFont(12, weight: .semibold, design: .default)
+            .textCase(nil)
             // Shrinks at large text sizes rather than breaking the word ("ACCES S").
             .lineLimit(1)
             .minimumScaleFactor(0.6)
@@ -360,13 +343,8 @@ extension SettingsView {
             .padding(.vertical, 4)
             .background(
                 color.opacity(0.12),
-                in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 4, style: .continuous)) : AnyShape(Capsule())
+                in: Capsule()
             )
-            .overlay {
-                if displayMode == .sentinel {
-                    RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(color.opacity(0.3), lineWidth: 1)
-                }
-            }
     }
 
     func computeLatestEntryText(from snapshot: [Entry]) -> String {

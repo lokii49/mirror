@@ -3,7 +3,7 @@ import SwiftData
 import CloudKit
 import UniformTypeIdentifiers
 
-/// "Your Data" in Classic, "Archive" in Sentinel — export, import, iCloud
+/// "Your Data" — export, import, iCloud
 /// status, and destructive delete. Split out of the old single-screen
 /// Settings so destructive actions aren't sitting one scroll away from
 /// everything else.
@@ -12,7 +12,6 @@ struct ArchiveSettingsView: View {
     @Query private var collections: [JournalCollection]
     @Query private var savedViews: [SavedEntryView]
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.appDisplayMode) private var displayMode
 
     @State private var iCloudStatus: ICloudStatus = .checking
     @State private var showDeleteConfirmation = false
@@ -140,7 +139,7 @@ struct ArchiveSettingsView: View {
                                 .fill(iCloudStatusColor)
                                 .frame(width: 7, height: 7)
                             Text(iCloudStatus.label)
-                                .scaledFont(displayMode == .sentinel ? 12.5 : 13, weight: displayMode == .sentinel ? .semibold : .regular, design: displayMode == .sentinel ? .monospaced : .default)
+                                .scaledFont(13, weight: .regular, design: .default)
                                 .foregroundStyle(MirrorTheme.textSecondary)
                         }
                     }
@@ -169,7 +168,7 @@ struct ArchiveSettingsView: View {
             .padding(.bottom, 24)
         }
         .background(MirrorTheme.bgBase)
-        .settingsNavigationTitle(displayMode == .sentinel ? "Archive" : "Your Data")
+        .settingsNavigationTitle("Your Data")
         .navigationBarTitleDisplayMode(.large)
         .fileImporter(
             isPresented: $showImportPicker,

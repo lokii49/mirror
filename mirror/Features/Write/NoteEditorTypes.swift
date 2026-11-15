@@ -110,7 +110,7 @@ struct InlineStyleSet: Equatable {
 nonisolated struct InlineStyleRange: Codable, Equatable, Sendable {
     /// UTF-16 offset in the text without list markers, where a photo counts as one character
     /// (its attachment, or a placeholder if it can't be decoded), not its `[[mirror-photo-N]]` token. Equal to `Entry.text` offsets only
-    /// up to the first photo (the Mac editor allows photos only at the end).
+    /// up to the first photo (`NoteEditorCodec.editorDisplay` maps between the two).
     var location: Int
     var length: Int
     var bold: Bool
@@ -124,6 +124,9 @@ nonisolated struct InlineStyleRange: Codable, Equatable, Sendable {
     /// Index into `TextColorPalette`. Optional with a decode default, same
     /// reasoning as `linkURL` — existing stored entries predate this field.
     var textColorIndex: Int? = nil
+    /// `PhotoSize.rawValue` on a photo's character (3.1.9): "small" or "medium"; nil is full
+    /// width. Optional with a decode default, like `linkURL`; older versions ignore it.
+    var photoSize: String? = nil
 }
 
 nonisolated struct InlineStyleDocument: Codable, Sendable {
@@ -248,10 +251,8 @@ nonisolated func validatedLinkURL(from urlString: String?) -> URL? {
     return url
 }
 
-/// Which photos in a text are drawn as square tiles: in a run of two or more lines that are each
-/// just a photo token, every photo except a landscape first one (a map leads at full width). A
-/// photo on its own line with no photo line beside it is never a tile. Shared by the editor and
-/// the reader so the two agree; the stored text is untouched.
+/// Photo rows: which photos are drawn as square tiles is `PhotoPlacement` (PhotoSize.swift), the
+/// one rule the editor, its menu, the reader and the Mac picker share.
 nonisolated enum PhotoRuns {
     /// Wider than tall, read from the image header (no decode); EXIF rotations count.
     static func isLandscape(_ data: Data) -> Bool {
@@ -262,46 +263,5 @@ nonisolated enum PhotoRuns {
               let height = properties[kCGImagePropertyPixelHeight] as? CGFloat else { return false }
         let rotated = (properties[kCGImagePropertyOrientation] as? UInt32 ?? 1) >= 5
         return rotated ? height > width : width > height
-    }
-
-    /// `ranges`: the token ranges in `text`, in order. Returns the indices into `ranges` drawn as tiles.
-    static func tileMatches(_ ranges: [NSRange], in text: NSString, isLandscape: (NSRange) -> Bool) -> Set<Int> {
-        func aloneOnLine(_ r: NSRange) -> Bool {
-            let end = NSMaxRange(r)
-            let startOK = r.location == 0 || text.character(at: r.location - 1) == 10
-            let endOK = end == text.length || text.character(at: end) == 10
-            return startOK && endOK
-        }
-        var result = Set<Int>()
-        var i = 0
-        while i < ranges.count {
-            guard aloneOnLine(ranges[i]) else { i += 1; continue }
-            var j = i
-            while j + 1 < ranges.count, aloneOnLine(ranges[j + 1]), ranges[j + 1].location == NSMaxRange(ranges[j]) + 1 { j += 1 }
-            if j > i {
-                let first = isLandscape(ranges[i]) ? i + 1 : i
-                for k in first...j { result.insert(k) }
-            }
-            i = j + 1
-        }
-        return result
-    }
-
-    /// The same rule over lines: which line indices are tiles. `photoLine(i)` is true when line i
-    /// is just a photo token whose picture exists; `isLandscape(i)` for such a line.
-    static func tileLines(count: Int, photoLine: (Int) -> Bool, isLandscape: (Int) -> Bool) -> Set<Int> {
-        var result = Set<Int>()
-        var i = 0
-        while i < count {
-            guard photoLine(i) else { i += 1; continue }
-            var j = i
-            while j + 1 < count, photoLine(j + 1) { j += 1 }
-            if j > i {
-                let first = isLandscape(i) ? i + 1 : i
-                for k in first...j { result.insert(k) }
-            }
-            i = j + 1
-        }
-        return result
     }
 }

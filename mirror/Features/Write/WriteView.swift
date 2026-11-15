@@ -49,8 +49,14 @@ struct WriteView: View {
     var editorTextBinding: Binding<String> {
         #if os(macOS)
         Binding(
-            get: { NoteEditorCodec.splitTrailingPhotoTokens(viewModel.text).body },
-            set: { viewModel.text = NoteEditorCodec.appendingPhotoTokens(to: $0, count: photoDataArray.count) }
+            get: { NoteEditorCodec.editorBody(of: viewModel.text, lastSet: macEditorBody.map { ($0.text, $0.body) }) },
+            set: { body in
+                // The photos at the end keep their numbers (they aren't 0…n-1 once a photo sits
+                // between lines or the iPhone reordered a row).
+                let text = NoteEditorCodec.text(settingEditorBody: body, in: viewModel.text, photoCount: photoDataArray.count)
+                macEditorBody = MacEditorBody(text: text, body: body)
+                viewModel.text = text
+            }
         )
         #else
         $viewModel.text
@@ -150,6 +156,10 @@ struct WriteView: View {
     @State var isAttachingPhoto = false
     @State var photoDataArray: [Data] = []
     @State var inlineStyleData: Data? = nil
+    #if os(macOS)
+    /// The body the Mac editor last set and the text it produced (`NoteEditorCodec.editorBody`).
+    @State var macEditorBody: MacEditorBody? = nil
+    #endif
     @State var activeInlineStyles = InlineStyleSet()
     @State var showFormattingPanel = false
     /// Long-press on the mic button (audit 2.3) — the app's own mic only
@@ -202,8 +212,6 @@ struct WriteView: View {
     @State var showMoodSuggestionFailed = false
     /// True while the selected mood came from "Mirror suggests" rather than a manual pick.
     @State var moodWasSuggested = false
-    @State var recPulse = false
-    @State var showSignalPanel = false
     @State var pendingTextCommand: NoteTextCommand?
     @State var textCommandRevision = 0
     @State var activeParagraphStyle: NoteParagraphTextStyle = .body
@@ -280,16 +288,11 @@ struct WriteView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            if displayMode == .sentinel {
-                MirrorTheme.inkBase.ignoresSafeArea()
-                SentinelGridBackground().ignoresSafeArea()
-            } else {
-                #if os(macOS)
-                MacTokens.windowBackground.ignoresSafeArea()
-                #else
-                MirrorTheme.inkMid.ignoresSafeArea()
-                #endif
-            }
+            #if os(macOS)
+            MacTokens.windowBackground.ignoresSafeArea()
+            #else
+            MirrorTheme.inkMid.ignoresSafeArea()
+            #endif
 
             // Date/word-count/mood and tags are a fixed header, not scroll content —
             // only the area between them and the keyboard (voice notes, starter chip,
@@ -397,7 +400,15 @@ struct WriteView: View {
                             panelState: panelState,
                             displayMode: displayMode,
                             panelAsPopover: usesPopoverPanel,
-                            onPhotoTapped: { idx in fullscreenPhotoIndex = idx }
+                            onPhotoTapped: { idx in fullscreenPhotoIndex = idx },
+                            onDropPhotos: { photos, paragraph in
+                                #if os(macOS)
+                                photos.forEach { macAttachPhoto(data: $0) }
+                                #else
+                                insertDroppedPhotos(photos, afterParagraph: paragraph)
+                                #endif
+                            },
+                            onPasteFragment: { fragment, paragraph in pastePhotoFragment(fragment, afterParagraph: paragraph) }
                         )
                         .padding(.horizontal, 20)
                         .padding(.top, 4)
@@ -551,31 +562,6 @@ struct WriteView: View {
             KeyboardDismissHint(isKeyboardVisible: isKeyboardVisible, isBlocked: keyboardHintBlocked)
             #endif
         }
-        .overlay {
-            if displayMode == .sentinel && !focusMode {
-                // Below the date title and the second row (option A's header is taller).
-                ViewfinderCorners(inset: 4, length: 18)
-                    .padding(.top, 104)
-                    .padding(.bottom, 96)
-                    .padding(.horizontal, 4)
-            }
-        }
-        .overlay {
-            if showSignalPanel {
-                Color.black.opacity(0.001)
-                    .ignoresSafeArea()
-                    .onTapGesture { withAnimation(.easeOut(duration: 0.15)) { showSignalPanel = false } }
-                    .accessibilityHidden(true)
-                    .overlay(alignment: .topTrailing) {
-                        signalPanel
-                            .padding(.top, 96)
-                            .padding(.trailing, 18)
-                            // VoiceOver: a modal panel with the two-finger scrub to close (A19).
-                            .accessibilityAddTraits(.isModal)
-                            .accessibilityAction(.escape) { withAnimation(.easeOut(duration: 0.15)) { showSignalPanel = false } }
-                    }
-            }
-        }
         .navigationBarBackButtonHidden(true)
         #if os(macOS)
         // Hidden title bar, but the Window menu shows the title.
@@ -700,7 +686,9 @@ struct WriteView: View {
                 // When a caller explicitly asks for specific starting text, that intent wins
                 // outright — the stale draft is left untouched in storage (not cleared, no data
                 // loss), just not loaded into this particular prefilled session.
-                if initialText.isEmpty {
+                // Not while a discard waits on Undo: storage still holds the discarded draft until
+                // the countdown ends, and coming back to Write brought it back.
+                if initialText.isEmpty, !pendingDelete {
                     resumePendingSavedDraft(flushingEditor: false)
                     restoreDraftFromStorage()
                     prefillCollectionFromEntries()
@@ -731,11 +719,6 @@ struct WriteView: View {
             if autoFocus || entry != nil {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                     editorFocused = true
-                }
-            }
-            if displayMode == .sentinel {
-                withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
-                    recPulse = true
                 }
             }
         }
@@ -774,7 +757,7 @@ struct WriteView: View {
                     },
                     onCancel: { showTalkItOut = false }
                 )
-                .navigationTitle(displayMode == .sentinel ? "COMMS" : "Talk it out")
+                .navigationTitle("Talk it out")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
@@ -800,7 +783,7 @@ struct WriteView: View {
                     ModelNotInstalledCard()
                         .padding(20)
                 }
-                .navigationTitle(displayMode == .sentinel ? "COMMS" : "Talk it out")
+                .navigationTitle("Talk it out")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {

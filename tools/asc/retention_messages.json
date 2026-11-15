@@ -1,0 +1,119 @@
+{
+  "_note": "Retention messages (App Store Connect, shown when a subscriber starts to cancel). Header <= 66 chars, body <= 144 chars (ASC API limits). No prices, discounts, offers or trial wording: App Review rejects them. Plan: .claude/3.1.9-retention-messages.md",
+  "messages": [
+    {
+      "referenceName": "Core - what you keep",
+      "subscriptions": [
+        "mirror_core_monthly",
+        "mirror_core_yearly"
+      ],
+      "localizations": {
+        "en-GB": [
+          "Your journal stays yours, whatever you choose",
+          "Without Core, you keep writing, search, iCloud backup and every reflection already made. New daily reflections, Ask and weekly digests stop."
+        ],
+        "en-US": [
+          "Your journal stays yours, whatever you choose",
+          "Without Core, you keep writing, search, iCloud backup and every reflection already made. New daily reflections, Ask and weekly digests stop."
+        ],
+        "de-DE": [
+          "Dein Tagebuch bleibt deins, egal wie du dich entscheidest",
+          "Ohne Core bleiben dir Schreiben, Suche, iCloud-Backup und alle bisherigen Reflexionen. Neue Reflexionen, Fragen und Wochenrückblicke entfallen."
+        ],
+        "es-ES": [
+          "Tu diario sigue siendo tuyo, decidas lo que decidas",
+          "Sin Core conservas la escritura, la búsqueda, la copia en iCloud y tus reflexiones. Se acaban las nuevas reflexiones, Preguntar y los resúmenes."
+        ],
+        "es-MX": [
+          "Tu diario sigue siendo tuyo, decidas lo que decidas",
+          "Sin Core conservas la escritura, la búsqueda, la copia en iCloud y tus reflexiones. Se acaban las nuevas reflexiones, Preguntar y los resúmenes."
+        ],
+        "fr-FR": [
+          "Votre journal reste à vous, quel que soit votre choix",
+          "Sans Core, vous gardez l’écriture, la recherche, la sauvegarde iCloud et vos réflexions. Plus de nouvelles réflexions, ni Demander, ni résumés."
+        ],
+        "it": [
+          "Il tuo diario resta tuo, qualunque cosa tu scelga",
+          "Senza Core conservi scrittura, ricerca, backup iCloud e ogni riflessione già creata. Si fermano le nuove riflessioni, Chiedi e i riepiloghi."
+        ],
+        "ja": [
+          "どれを選んでも、日記はずっとあなたのものです",
+          "Coreがなくても、書く・検索・iCloudバックアップ、これまでの振り返りはそのまま。新しい毎日の振り返り・質問・週間ダイジェストは止まります。"
+        ],
+        "ko": [
+          "어떤 선택을 하든 일기는 언제나 당신의 것입니다",
+          "Core가 없어도 쓰기, 검색, iCloud 백업, 이미 만들어진 회고는 그대로입니다. 새로운 일일 회고, 질문, 주간 요약은 중단됩니다."
+        ],
+        "pt-BR": [
+          "Seu diário continua seu, seja qual for sua escolha",
+          "Sem o Core, você mantém a escrita, a busca, o backup no iCloud e cada reflexão já feita. Param as novas reflexões, Perguntar e os resumos."
+        ],
+        "ru": [
+          "Ваш дневник остаётся вашим, что бы вы ни выбрали",
+          "Без Core вы можете писать, искать, хранить копию в iCloud, а созданные размышления остаются. Новые размышления, вопросы и сводки прекратятся."
+        ],
+        "zh-Hans": [
+          "无论你如何选择，日记始终属于你",
+          "没有 Core，你仍可写作、搜索、使用 iCloud 备份，已生成的回顾也都保留。新的每日回顾、提问和每周摘要将停止。"
+        ]
+      }
+    },
+    {
+      "referenceName": "Deep - what you keep",
+      "subscriptions": [
+        "mirror_deep_monthly",
+        "mirror_deep_yearly"
+      ],
+      "localizations": {
+        "en-GB": [
+          "Your journal stays yours, whatever you choose",
+          "Without Deep, you keep writing, search, iCloud backup and everything already made. New reflections, Ask, digests, reports and mood alerts stop."
+        ],
+        "en-US": [
+          "Your journal stays yours, whatever you choose",
+          "Without Deep, you keep writing, search, iCloud backup and everything already made. New reflections, Ask, digests, reports and mood alerts stop."
+        ],
+        "de-DE": [
+          "Dein Tagebuch bleibt deins, egal wie du dich entscheidest",
+          "Ohne Deep bleiben Schreiben, Suche, Backup und alles Erstellte. Neue Reflexionen, Fragen, Rückblicke, Berichte und Stimmungswarnungen enden."
+        ],
+        "es-ES": [
+          "Tu diario sigue siendo tuyo, decidas lo que decidas",
+          "Sin Deep conservas escritura, búsqueda, copia en iCloud y lo creado. Sin nuevas reflexiones, Preguntar, resúmenes, informes ni alertas de ánimo."
+        ],
+        "es-MX": [
+          "Tu diario sigue siendo tuyo, decidas lo que decidas",
+          "Sin Deep conservas escritura, búsqueda, copia en iCloud y lo creado. Sin nuevas reflexiones, Preguntar, resúmenes, informes ni alertas de ánimo."
+        ],
+        "fr-FR": [
+          "Votre journal reste à vous, quel que soit votre choix",
+          "Sans Deep, écriture, recherche, sauvegarde et contenus restent. Nouvelles réflexions, Demander, résumés, rapports et alertes d’humeur cessent."
+        ],
+        "it": [
+          "Il tuo diario resta tuo, qualunque cosa tu scelga",
+          "Senza Deep restano scrittura, ricerca, backup e quanto già creato. Si fermano nuove riflessioni, Chiedi, riepiloghi, report e avvisi sull’umore."
+        ],
+        "ja": [
+          "どれを選んでも、日記はずっとあなたのものです",
+          "Deepがなくても、書く・検索・iCloudバックアップ、これまで作られたものはそのまま。新しい振り返り・質問・ダイジェスト・レポート・ムードアラートは止まります。"
+        ],
+        "ko": [
+          "어떤 선택을 하든 일기는 언제나 당신의 것입니다",
+          "Deep이 없어도 쓰기, 검색, iCloud 백업, 이미 만들어진 내용은 그대로입니다. 새 회고, 질문, 요약, 리포트, 기분 알림은 멈춥니다."
+        ],
+        "pt-BR": [
+          "Seu diário continua seu, seja qual for sua escolha",
+          "Sem o Deep, você mantém escrita, busca, backup e tudo o que já criou. Param novas reflexões, Perguntar, resumos, relatórios e alertas de humor."
+        ],
+        "ru": [
+          "Ваш дневник остаётся вашим, что бы вы ни выбрали",
+          "Без Deep остаются записи, поиск, iCloud-копия и всё созданное. Новые размышления, вопросы, сводки, отчёты, оповещения о настроении прекратятся."
+        ],
+        "zh-Hans": [
+          "无论你如何选择，日记始终属于你",
+          "没有 Deep，你仍可写作、搜索、使用 iCloud 备份，已生成的内容也都保留。新的回顾、提问、摘要、报告和情绪提醒将停止。"
+        ]
+      }
+    }
+  ]
+}

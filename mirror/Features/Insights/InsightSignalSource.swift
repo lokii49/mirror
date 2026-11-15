@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 /// "How this was generated" — opened from `InsightSourceButton` on an insight
-/// card in Sentinel mode. Makes mirror's core promise inspectable: this text
+/// card (Settings › About › "Show how insights are made"). Makes mirror's core promise inspectable: this text
 /// came from a model on *this* device, from *these* entries, and nothing was
 /// sent anywhere.
 ///
@@ -37,7 +37,7 @@ struct InsightSourceSheet: View {
     }
 }
 
-/// The provenance HUD. Engine, what it read, mood, "never left this device",
+/// The provenance card. Engine, what it read, mood, "made on this device",
 /// and a link to the system prompt. The read/context rows are RECONSTRUCTED by
 /// re-running the matching generator's selection as of `insight.generatedAt`
 /// (approximate — entries added or deleted since shift it, but the shape is
@@ -68,10 +68,10 @@ struct InsightSignalSource: View {
 
     private func engineLabel() -> String {
         switch insight.generatedByEngine {
-        case "foundationModels": return String(localized: "APPLE FOUNDATION MODELS · ON-DEVICE")
-        case "gemma":            return String(localized: "GEMMA 3 1B · ON-DEVICE")
-        case "search":           return String(localized: "SEARCH · NO LANGUAGE MODEL")
-        default:                 return String(localized: "ON-DEVICE MODEL")
+        case "foundationModels": return String(localized: "Apple Foundation Models, on this device")
+        case "gemma":            return String(localized: "Gemma 3 1B, on this device")
+        case "search":           return String(localized: "Search, no language model")
+        default:                 return String(localized: "On-device model")
         }
     }
 
@@ -90,7 +90,7 @@ struct InsightSignalSource: View {
     private static func moods(_ list: [Entry]) -> String {
         var seen: [String] = []
         for m in list.compactMap(\.mood) where !seen.contains(m) { seen.append(m) }
-        return seen.isEmpty ? "—" : seen.prefix(4).map { MirrorTheme.localizedMoodName(for: $0).uppercased() }.joined(separator: ", ")
+        return seen.isEmpty ? "—" : seen.prefix(4).map { MirrorTheme.localizedMoodName(for: $0) }.joined(separator: ", ")
     }
 
     private static func snippet(for entry: Entry, _ bundle: Bundle) -> String {
@@ -135,8 +135,8 @@ struct InsightSignalSource: View {
         let noneSent = localized("none sent")
         func carriedIn(_ n: Int) -> String { n == 1 ? localized("1 entry carried in") : localized("\(n) entries carried in") }
         var rows: [(String, String)] = [
-            (localized("ENGINE"), engineLabel),
-            (localized("GENERATED"), Self.stampText(asOf)),
+            (localized("Engine"), engineLabel),
+            (localized("Generated"), Self.stampText(asOf)),
         ]
 
         switch insight.type {
@@ -144,26 +144,26 @@ struct InsightSignalSource: View {
             let wk = DateHelpers.digestWeekIdentifier(for: asOf)
             let thisWeek = Array(prior.lazy.filter { DateHelpers.digestWeekIdentifier(for: $0.createdAt) == wk }.filter(readable).prefix(12))
             let earlier = prior.lazy.filter { DateHelpers.digestWeekIdentifier(for: $0.createdAt) != wk }.filter(readable).prefix(14).count
-            rows.append((localized("THIS WEEK"), Self.span(thisWeek, bundle)))
+            rows.append((localized("This week"), Self.span(thisWeek, bundle)))
             if grammarPath {
-                rows.append((localized("EARLIER"), noneSent))
+                rows.append((localized("Earlier"), noneSent))
             } else if earlier > 0 {
-                rows.append((localized("EARLIER"), carriedIn(earlier)))
+                rows.append((localized("Earlier"), carriedIn(earlier)))
             }
-            rows.append((localized("MOOD READ"), Self.moods(thisWeek)))
+            rows.append((localized("Mood read"), Self.moods(thisWeek)))
             return Resolved(rows: rows, reading: Self.readingList(thisWeek, bundle), note: grammarPath ? quotedNote : nil)
 
         case .monthlyReport:
             let mo = DateHelpers.monthIdentifier(for: asOf)
             let monthE = prior.filter { DateHelpers.monthIdentifier(for: $0.createdAt) == mo }.filter(readable)
             let earlier = prior.lazy.filter { DateHelpers.monthIdentifier(for: $0.createdAt) != mo }.filter(readable).prefix(20).count
-            rows.append((localized("THIS MONTH"), Self.span(monthE, bundle)))
+            rows.append((localized("This month"), Self.span(monthE, bundle)))
             if grammarPath {
-                rows.append((localized("EARLIER"), noneSent))
+                rows.append((localized("Earlier"), noneSent))
             } else if earlier > 0 {
-                rows.append((localized("EARLIER"), carriedIn(earlier)))
+                rows.append((localized("Earlier"), carriedIn(earlier)))
             }
-            rows.append((localized("MOOD ARC"), Self.moods(monthE)))
+            rows.append((localized("Mood arc"), Self.moods(monthE)))
             return Resolved(rows: rows, reading: [], note: grammarPath ? quotedNote : localized("Read as monthly aggregates, not entry-by-entry."))
 
         case .askResponse:
@@ -171,10 +171,10 @@ struct InsightSignalSource: View {
             let pool = prior.filter(readable)   // Ask searches every readable entry, as ask() does
             let matched = SearchService.search(query: q, in: pool, limit: 10)
             let scanned = pool.filter { !Set(matched.map(\.id)).contains($0.id) }.prefix(8).count
-            if !q.isEmpty { rows.append((localized("QUESTION"), q)) }
-            rows.append((localized("MATCHED"), matched.isEmpty ? localized("no entries matched") : Self.entryCount(matched.count, bundle)))
-            if scanned > 0 { rows.append((localized("SCANNED"), scanned == 1 ? localized("1 more entry") : localized("\(scanned) more entries"))) }
-            rows.append((localized("MOOD READ"), Self.moods(matched)))
+            if !q.isEmpty { rows.append((localized("Question"), q)) }
+            rows.append((localized("Matched"), matched.isEmpty ? localized("no entries matched") : Self.entryCount(matched.count, bundle)))
+            if scanned > 0 { rows.append((localized("Scanned"), scanned == 1 ? localized("1 more entry") : localized("\(scanned) more entries"))) }
+            rows.append((localized("Mood read"), Self.moods(matched)))
             return Resolved(rows: rows, reading: Self.readingList(matched, bundle), note: nil)
 
         case .dailyNudge:
@@ -185,9 +185,9 @@ struct InsightSignalSource: View {
                 // groundedNudgePlan / localizedGroundedNudge: the newest entry and any others
                 // from the same day, nothing else.
                 let source = InsightService.groundedNudgeSourceEntries(recent)
-                rows.append((localized("READ CLOSELY"), Self.span(source, bundle)))
-                rows.append((localized("CONTEXT"), noneSent))
-                rows.append((localized("MOOD READ"), Self.moods(source)))
+                rows.append((localized("Read closely"), Self.span(source, bundle)))
+                rows.append((localized("Context"), noneSent))
+                rows.append((localized("Mood read"), Self.moods(source)))
                 // The linked instructions say "Do not give advice"; a closing tip is the app's.
                 // Outside English the whole line after the quote is the app's fixed text.
                 let endsWithFixedTip = InsightService.groundedNudgeTips.values.joined().contains { insight.content.hasSuffix($0) }
@@ -208,7 +208,7 @@ struct InsightSignalSource: View {
                 return Resolved(rows: rows, reading: Self.readingList(source, bundle), note: note)
             }
             let background = backgroundEntries.count
-            rows.append((localized("READ CLOSELY"), Self.span(recent, bundle)))
+            rows.append((localized("Read closely"), Self.span(recent, bundle)))
             if background > 0 {
                 // Honest about what actually reaches the model: `background` entries
                 // are never sent in full — only a handful of short excerpts plus
@@ -216,11 +216,11 @@ struct InsightSignalSource: View {
                 // "N earlier entries" read as "N entries fully read," which is what
                 // prompted the question this label now answers directly.
                 let quoted = min(background, InsightService.memoryBriefExcerptLimit)
-                rows.append((localized("CONTEXT"), background == 1
+                rows.append((localized("Context"), background == 1
                     ? localized("1 earlier entry summarized · \(quoted) quoted")
                     : localized("\(background) earlier entries summarized · \(quoted) quoted")))
             }
-            rows.append((localized("MOOD READ"), Self.moods(recent)))
+            rows.append((localized("Mood read"), Self.moods(recent)))
             // English Foundation Models reflections (2026-10-02): the model returns a quote and one or two
             // sentences; the app finds the quote in the entries and checks the sentences.
             let checkedByApp = InsightService.isGrammarGrounded(insight.content)
@@ -237,85 +237,103 @@ struct InsightSignalSource: View {
             .split(separator: "·").last.map { $0.trimmingCharacters(in: .whitespaces) }
             ?? String(localized: "system prompt")
 
-        // The sheet's title already names it ("How this was generated"), so the card starts with the facts.
-        return VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(Array(r.rows.enumerated()), id: \.offset) { _, item in
+        // Paper & Ink (3.1.9): what used to be Sentinel's all-caps HUD. The sheet's title already
+        // names it ("How this was generated"), so the card starts with the facts: each label
+        // over its value, so nothing is cut at large text sizes.
+        return VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(r.rows.enumerated()), id: \.offset) { index, item in
+                    if index > 0 { Rectangle().fill(MirrorTheme.inkBorder).frame(height: 1) }
                     row(item.label, item.value)
                 }
             }
+            .padding(.horizontal, 16)
+            .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: MirrorTheme.cornerCard, style: .continuous))
 
             if let note = r.note {
                 Text(note)
-                    .scaledFont(12.5)
-                    .foregroundStyle(MirrorTheme.textTertiary)
+                    .scaledFont(13)
+                    .foregroundStyle(MirrorTheme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 4)
             }
 
             if !r.reading.isEmpty {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("READING")
-                        .scaledFont(11, weight: .semibold).tracking(0.6)
-                        .foregroundStyle(MirrorTheme.textSecondary)
-                    ForEach(Array(r.reading.enumerated()), id: \.offset) { _, item in
-                        HStack(alignment: .firstTextBaseline, spacing: 10) {
-                            Text(item.day)
-                                .scaledFont(12, weight: .medium)
-                                .foregroundStyle(MirrorTheme.textTertiary)
-                                .frame(width: 44, alignment: .leading)
-                            Text(item.snippet)
-                                .scaledFont(13)
-                                .foregroundStyle(MirrorTheme.textPrimary)
-                                .lineLimit(2).truncationMode(.tail)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("What it read")
+                        .scaledFont(17, weight: .semibold, design: .serif)
+                        .foregroundStyle(MirrorTheme.textPrimary)
+                        .accessibilityAddTraits(.isHeader)
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(Array(r.reading.enumerated()), id: \.offset) { index, item in
+                            if index > 0 { Rectangle().fill(MirrorTheme.inkBorder).frame(height: 1) }
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.day)
+                                    .scaledFont(13)
+                                    .foregroundStyle(MirrorTheme.textSecondary)
+                                Text(item.snippet)
+                                    .readingFont(size: 16)
+                                    .foregroundStyle(MirrorTheme.textPrimary)
+                                    .lineLimit(3).truncationMode(.tail)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 10)
+                            .accessibilityElement(children: .combine)
                         }
                     }
+                    .padding(.horizontal, 16)
+                    .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: MirrorTheme.cornerCard, style: .continuous))
                 }
             }
 
-            Rectangle().fill(MirrorTheme.inkBorder).frame(height: 1)
-
             NavigationLink(value: insight.type) {
-                HStack(spacing: 6) {
-                    Image(systemName: "curlybraces").scaledFont(10, weight: .bold)
-                    Text("SYSTEM PROMPT · \(symbol)")
-                        .scaledFont(11, weight: .semibold).tracking(0.3)
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("System prompt")
+                            .scaledFont(16)
+                            .foregroundStyle(MirrorTheme.textPrimary)
+                        Text(symbol)
+                            .scaledFont(12, design: .monospaced)
+                            .foregroundStyle(MirrorTheme.textSecondary)
+                            .lineLimit(2)
+                    }
                     Spacer(minLength: 4)
-                    Image(systemName: "chevron.right").scaledFont(9, weight: .bold)
+                    Image(systemName: "chevron.right")
+                        .scaledFont(13, weight: .semibold)
+                        .foregroundStyle(MirrorTheme.textTertiary)
                 }
-                .foregroundStyle(MirrorTheme.violet)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: MirrorTheme.cornerCard, style: .continuous))
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
-            HStack(spacing: 6) {
-                Image(systemName: "lock.fill").scaledFont(10, weight: .bold)
-                Text("NO NETWORK · NEVER LEFT THIS DEVICE")
-                    .scaledFont(11, weight: .semibold).tracking(0.6)
+            Label {
+                Text("Made on this device. Nothing was sent anywhere.")
+            } icon: {
+                Image(systemName: "lock")
             }
+            .scaledFont(13)
             .foregroundStyle(MirrorTheme.textSecondary)
+            .padding(.horizontal, 4)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(18)
-        .background(MirrorTheme.inkMid,
-                    in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(MirrorTheme.inkBorder, lineWidth: 1)
-        }
     }
 
     private func row(_ label: String, _ value: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
+        VStack(alignment: .leading, spacing: 2) {
             Text(label)
-                .scaledFont(11, weight: .semibold).tracking(0.6)
+                .scaledFont(13)
                 .foregroundStyle(MirrorTheme.textSecondary)
-                .frame(width: 104, alignment: .leading)
             Text(value)
-                .scaledFont(13, weight: .medium)
+                .scaledFont(16)
                 .foregroundStyle(MirrorTheme.textPrimary)
-                .lineLimit(3).truncationMode(.tail)
                 .fixedSize(horizontal: false, vertical: true)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 10)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -331,8 +349,8 @@ struct SystemPromptDetail: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 Text(p.ref)
-                    .scaledFont(12, weight: .semibold, design: .monospaced)
-                    .foregroundStyle(MirrorTheme.violet)
+                    .scaledFont(12, design: .monospaced)
+                    .foregroundStyle(MirrorTheme.textSecondary)
                     .textSelection(.enabled)
                 Text("The exact instruction sent to the on-device model. It doesn't change per entry — the same text every time an insight of this kind is generated.")
                     .scaledFont(13)
@@ -342,13 +360,8 @@ struct SystemPromptDetail: View {
                     .foregroundStyle(MirrorTheme.textPrimary)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(14)
-                    .background(MirrorTheme.inkMid,
-                                in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(MirrorTheme.inkBorder, lineWidth: 1)
-                    }
+                    .padding(16)
+                    .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: MirrorTheme.cornerCard, style: .continuous))
             }
             .padding(20)
         }

@@ -5,7 +5,6 @@ import SwiftUI
 /// download (pause/resume) and Download / Remove. Per device (no CloudKit), like the decision in
 /// Ask's offer card.
 struct SmartSearchSettingsView: View {
-    @Environment(\.appDisplayMode) private var displayMode
     @State private var manager = ModelDownloadManager.searchModel
     /// Render harness only: shown instead of the manager's state.
     private var previewState: ModelDownloadState?
@@ -49,7 +48,7 @@ struct SmartSearchSettingsView: View {
                         } else {
                             HStack {
                                 Text("Status")
-                                    .scaledFont(displayMode == .sentinel ? 13 : 14, weight: displayMode == .sentinel ? .bold : .medium, design: displayMode == .sentinel ? .monospaced : .default)
+                                    .scaledFont(14, weight: .medium, design: .default)
                                     .foregroundStyle(MirrorTheme.textPrimary)
                                 Spacer()
                                 Text(statusText)
@@ -81,7 +80,7 @@ struct SmartSearchSettingsView: View {
             .padding(16)
         }
         .background(MirrorTheme.bgBase)
-        .settingsNavigationTitle(displayMode == .sentinel ? "Search model" : "Smarter Ask search")
+        .settingsNavigationTitle("Smarter Ask search")
     }
 
     private var statusText: LocalizedStringKey {
@@ -127,7 +126,6 @@ struct SmartSearchOfferCard: View {
     let onAnswer: (Bool) -> Void
     /// Called once the model is ready (after a short "Ready") or when the person hides the card.
     var onDone: () -> Void = {}
-    @Environment(\.appDisplayMode) private var displayMode
     @State private var accepted: Bool
     @State private var manager = ModelDownloadManager.searchModel
     /// Render harness only: shown instead of the manager's state.
@@ -154,13 +152,13 @@ struct SmartSearchOfferCard: View {
         SemanticSearchService.modelSizeText
     }
 
-    private var accent: Color { displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.primary }
+    private var accent: Color { MirrorTheme.primary }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
-                Text(displayMode == .sentinel ? "SMARTER SEARCH" : "Smarter search for Ask")
-                    .scaledFont(displayMode == .sentinel ? 12 : 14, weight: displayMode == .sentinel ? .bold : .semibold, design: displayMode == .sentinel ? .monospaced : .default)
+                Text("Smarter search for Ask")
+                    .scaledFont(14, weight: .semibold, design: .default)
                     .foregroundStyle(MirrorTheme.textPrimary)
                 Spacer(minLength: 0)
                 if accepted, !isInstalled {
@@ -184,7 +182,7 @@ struct SmartSearchOfferCard: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .themedCard(cornerRadius: displayMode == .sentinel ? 8 : 14)
+        .themedCard(cornerRadius: 14)
         .animation(.spring(response: 0.4, dampingFraction: 0.88), value: accepted)
         .animation(.spring(response: 0.4, dampingFraction: 0.88), value: ModelDownloadStage(state))
         .task(id: isInstalled) {

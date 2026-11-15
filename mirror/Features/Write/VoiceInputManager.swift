@@ -288,8 +288,7 @@ struct VoiceNoteAttachmentView: View {
     var onRetryTranscription: (() -> Void)? = nil
 
     @State private var player = VoiceNotePlayer()
-    @Environment(\.appDisplayMode) private var displayMode
-    private var accent: Color { displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor }
+    private var accent: Color { Color.accentColor }
     private var failureLine: String {
         let reason = transcriptionFailureMessage ?? String(localized: "Transcription failed.")
         return "\(reason) \(String(localized: "AI won't reflect on this note."))"
@@ -299,9 +298,9 @@ struct VoiceNoteAttachmentView: View {
         !highlightTerms.isEmpty && !ReaderMatches.ranges(of: highlightTerms, in: text).isEmpty
     }
 
-    /// Same marks as the entry text: ember in Sentinel, violet in Classic.
+    /// Same marks as the entry text: violet.
     private func markedTranscript(_ text: String) -> AttributedString {
-        let mark = displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet
+        let mark = MirrorTheme.violet
         return ReaderMatches.marked(text, terms: highlightTerms, mark: mark.opacity(isActiveMatch ? 0.45 : 0.18))
     }
 
@@ -312,15 +311,9 @@ struct VoiceNoteAttachmentView: View {
                     player.toggle(data: data)
                 } label: {
                     ZStack {
-                        if displayMode == .sentinel {
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(accent)
-                                .frame(width: 36, height: 36)
-                        } else {
-                            Circle()
-                                .fill(accent)
-                                .frame(width: 38, height: 38)
-                        }
+                        Circle()
+                            .fill(accent)
+                            .frame(width: 38, height: 38)
                         Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
                             .scaledFont(13, weight: .bold)
                             .foregroundStyle(.white)
@@ -339,25 +332,13 @@ struct VoiceNoteAttachmentView: View {
                             .foregroundStyle(.secondary)
                         if let languageName, !languageName.isEmpty {
                             Text("·").foregroundStyle(.quaternary)
-                            Group {
-                                if displayMode == .sentinel {
-                                    Text(languageName.uppercased()).scaledFont(10, weight: .medium, design: .monospaced)
-                                } else {
-                                    Text(languageName).scaledFont(11, weight: .medium)
-                                }
-                            }
-                            .foregroundStyle(.secondary)
+                            Text(languageName).scaledFont(11, weight: .medium)
+                                .foregroundStyle(.secondary)
                         }
                         if isTranscribing {
                             Text("·").foregroundStyle(.quaternary)
-                            Group {
-                                if displayMode == .sentinel {
-                                    Text("DECODING…").scaledFont(10, weight: .medium, design: .monospaced)
-                                } else {
-                                    Text("Transcribing...").scaledFont(11, weight: .medium)
-                                }
-                            }
-                            .foregroundStyle(.secondary)
+                            Text("Transcribing...").scaledFont(11, weight: .medium)
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -373,8 +354,8 @@ struct VoiceNoteAttachmentView: View {
                             .foregroundStyle(.secondary)
                             .frame(width: 24, height: 24)
                             .background(
-                                displayMode == .sentinel ? MirrorTheme.inkMid : Color(.tertiarySystemFill),
-                                in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 6, style: .continuous)) : AnyShape(Circle())
+                                Color(.tertiarySystemFill),
+                                in: AnyShape(Circle())
                             )
                     }
                     .buttonStyle(.plain)
@@ -398,23 +379,13 @@ struct VoiceNoteAttachmentView: View {
                     Image(systemName: "exclamationmark.triangle")
                         .scaledFont(12, weight: .medium)
                         .foregroundStyle(.orange)
-                    Group {
-                        if displayMode == .sentinel {
-                            Text(failureLine.uppercased()).scaledFont(10.5, weight: .medium, design: .monospaced)
-                        } else {
-                            Text(failureLine).scaledFont(12)
-                        }
-                    }
-                    .foregroundStyle(.secondary)
-                    .lineLimit(3)
+                    Text(failureLine).scaledFont(12)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(3)
                     Spacer()
                     if let onRetryTranscription {
                         Button(action: onRetryTranscription) {
-                            if displayMode == .sentinel {
-                                Text("RETRY").scaledFont(11, weight: .semibold, design: .monospaced)
-                            } else {
-                                Text("Retry").scaledFont(12, weight: .semibold)
-                            }
+                            Text("Retry").scaledFont(12, weight: .semibold)
                         }
                         .foregroundStyle(accent)
                     }
@@ -424,11 +395,11 @@ struct VoiceNoteAttachmentView: View {
             }
         }
         .background {
-            RoundedRectangle(cornerRadius: displayMode == .sentinel ? 8 : 16, style: .continuous)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(accent.opacity(0.06))
                 .overlay {
-                    RoundedRectangle(cornerRadius: displayMode == .sentinel ? 8 : 16, style: .continuous)
-                        .strokeBorder(accent.opacity(displayMode == .sentinel ? 0.30 : 0.15), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(accent.opacity(0.15), lineWidth: 1)
                 }
         }
         .onDisappear { player.stop() }
@@ -456,9 +427,8 @@ struct InlineRecordingRow: View {
     var onStop: () -> Void
     var onCancel: () -> Void
 
-    @Environment(\.appDisplayMode) private var displayMode
     private let waveHeights: [CGFloat] = [0.35, 0.7, 1.0, 0.55, 0.85, 0.45, 0.75, 0.6, 0.9, 0.4, 0.65, 0.8]
-    private var corner: CGFloat { displayMode == .sentinel ? 8 : 16 }
+    private var corner: CGFloat { 16 }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -468,7 +438,7 @@ struct InlineRecordingRow: View {
                     .foregroundStyle(.secondary)
                     .frame(width: 32, height: 32)
                     .background(
-                        displayMode == .sentinel ? MirrorTheme.inkMid : Color(.tertiarySystemFill),
+                        Color(.tertiarySystemFill),
                         in: Circle()
                     )
             }

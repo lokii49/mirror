@@ -111,7 +111,6 @@ struct OnboardingFlow: View {
     }()
     @State private var firstEntryText: String = ""
     @FocusState private var editorFocused: Bool
-    @State private var selectedDisplayMode: DisplayMode = .classic
     @State private var welcomeAppeared = false
     @State private var askingNotificationPermission = false
     /// The reminder step wrote `moodCheckInEnabled = false` for what looked like a new user.
@@ -119,7 +118,6 @@ struct OnboardingFlow: View {
     @State private var writeBreathe = false
     @Namespace private var reasonAccentNS
     @Namespace private var presetAccentNS
-    @Namespace private var modeAccentNS
 
     // Derive suggested preset from selected reason
     private var suggestedPreset: NudgePreset {
@@ -141,7 +139,6 @@ struct OnboardingFlow: View {
                     if step == 1 { reasonStep.transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading))) }
                     if step == 2 { timeStep.transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading))) }
                     if step == 3 { writeStep.transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading))) }
-                    if step == 4 { modeStep.transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading))) }
                 }
                 .animation(.spring(response: 0.45, dampingFraction: 0.85), value: step)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -160,15 +157,6 @@ struct OnboardingFlow: View {
             if let value = note.userInfo?["step"] as? Int { step = value }
         }
         #endif
-        .onAppear { preselectSyncedDisplayMode() }
-        .onChange(of: profiles.count) { preselectSyncedDisplayMode() }
-    }
-
-    /// A profile synced from the user's other device keeps its theme (owner, 2026-10-17): the mode
-    /// step shows it selected, and `completeOnboarding` never writes over it.
-    private func preselectSyncedDisplayMode() {
-        guard let synced = UserProfile.canonical(in: profiles) else { return }
-        selectedDisplayMode = synced.displayMode
     }
 
     // MARK: - Progress
@@ -178,11 +166,11 @@ struct OnboardingFlow: View {
     /// every choice row below. One shape, three jobs, so it reads as
     /// deliberate rather than decorative.
     private var threadDoneColor: Color {
-        isSentinelPreview ? MirrorTheme.ember.opacity(0.5) : MirrorTheme.violet
+        MirrorTheme.violet
     }
 
     private var threadActiveColor: Color {
-        isSentinelPreview ? MirrorTheme.ember : MirrorTheme.violetLight
+        MirrorTheme.violetLight
     }
 
     @ViewBuilder
@@ -231,10 +219,8 @@ struct OnboardingFlow: View {
             .frame(width: 22, height: 1)
     }
 
-    /// The flow ends before the "Choose your view" step on every platform: Sentinel was retired in
-    /// 3.1.8 (`UserProfile.displayMode` always reads `.classic`), so offering it would be a choice
-    /// that does nothing here and, stored on a new profile, would switch the person's 3.1.7 devices
-    /// to Sentinel. `modeStep` goes with the rest of Sentinel's dead code in 3.1.9.
+    /// No "Choose your view" step: Sentinel was retired in 3.1.8, and a Sentinel choice stored on a
+    /// new profile would switch the person's 3.1.7 devices to it.
     private var lastStep: Int { 3 }
 
     private var progressIndicator: some View {
@@ -247,7 +233,6 @@ struct OnboardingFlow: View {
             }
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: step)
-        .animation(.easeInOut(duration: 0.2), value: selectedDisplayMode)
     }
 
     // MARK: - Steps
@@ -518,160 +503,6 @@ struct OnboardingFlow: View {
         }
     }
 
-    private var modeStep: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 24) {
-                stepHeader("Choose your view", "Same journal, same on-device AI. Switch anytime in Settings.")
-
-                VStack(spacing: 12) {
-                    modeCard(
-                        mode: .classic,
-                        title: "Classic",
-                        subtitle: "Calm, card-based, quiet.",
-                        accent: MirrorTheme.violet
-                    )
-                    modeCard(
-                        mode: .sentinel,
-                        title: "Sentinel",
-                        subtitle: "HUD, mono readouts, rank + streaks.",
-                        accent: MirrorTheme.ember
-                    )
-                }
-
-                Spacer(minLength: 16)
-            }
-            .padding(.horizontal, 24)
-        }
-    }
-
-    private func modeCard(mode: DisplayMode, title: LocalizedStringKey, subtitle: LocalizedStringKey, accent: Color) -> some View {
-        let isSelected = selectedDisplayMode == mode
-        return Button {
-            withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.3, dampingFraction: 0.75)) {
-                selectedDisplayMode = mode
-            }
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text(title)
-                        .scaledFont(16, weight: .semibold)
-                        .foregroundStyle(MirrorTheme.textPrimary)
-                    Spacer()
-                    Circle()
-                        .fill(isSelected ? accent : .clear)
-                        .overlay {
-                            if !isSelected {
-                                Circle().stroke(MirrorTheme.inkBorder, lineWidth: 1.5)
-                            }
-                        }
-                        .frame(width: 7, height: 7)
-                        .transition(.scale.combined(with: .opacity))
-                }
-                Text(subtitle)
-                    .scaledFont(12.5)
-                    .foregroundStyle(MirrorTheme.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                modePreview(mode: mode, accent: accent)
-                    .padding(.top, 4)
-            }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-            .background(isSelected ? accent.opacity(0.08) : MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(isSelected ? accent.opacity(0.4) : MirrorTheme.inkBorder, lineWidth: 1)
-            }
-            .overlay(alignment: .leading) {
-                if isSelected {
-                    accentBar(color: accent, id: "modeAccent", in: modeAccentNS)
-                }
-            }
-        }
-        .buttonStyle(.plain)
-        .animation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.3, dampingFraction: 0.75), value: selectedDisplayMode)
-    }
-
-    /// The signature moment: a miniature render of each mode's real chrome —
-    /// not an adjective describing it — so tapping between cards shows the
-    /// whole app's skin swap rather than asking the user to imagine it.
-    @ViewBuilder
-    private func modePreview(mode: DisplayMode, accent: Color) -> some View {
-        let isSelected = selectedDisplayMode == mode
-        ZStack {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(MirrorTheme.inkBase)
-
-            if mode == .sentinel {
-                SentinelGridBackground(lineColor: accent)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            } else {
-                Circle()
-                    .fill(accent.opacity(0.18))
-                    .frame(width: 90, height: 90)
-                    .blur(radius: 30)
-                    .offset(x: 20, y: -30)
-            }
-
-            VStack(spacing: 10) {
-                // Sample chip — mirrors WriteView's real mood/signal control per mode.
-                Group {
-                    if mode == .sentinel {
-                        HStack(spacing: 5) {
-                            Image(systemName: "waveform")
-                                .scaledFont(9, weight: .semibold)
-                            Text("SIGNAL")
-                                .scaledFont(9.5, weight: .semibold, design: .monospaced)
-                                .kerning(0.3)
-                        }
-                        .foregroundStyle(accent)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 5)
-                        .background(accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(accent.opacity(0.35), lineWidth: 1))
-                    } else {
-                        HStack(spacing: 5) {
-                            Circle().fill(accent).frame(width: 6, height: 6)
-                            Text("Grateful")
-                                .scaledFont(11, weight: .semibold)
-                        }
-                        .foregroundStyle(accent)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(accent.opacity(0.12), in: Capsule())
-                    }
-                }
-
-                // Sample glyph — the two type voices, shown rather than named.
-                Text("Aa")
-                    .font(mode == .sentinel
-                          ? MirrorTheme.mono(26, weight: .bold)
-                          : .system(size: 26, weight: .regular, design: .serif).italic())
-                    .foregroundStyle(MirrorTheme.textPrimary.opacity(0.85))
-
-                // Sample journal line — ties the type swatch back to what it's for.
-                Text(mode == .sentinel ? "LOG_042 // ENTRY RECORDED" : "Today felt lighter.")
-                    .font(mode == .sentinel
-                          ? MirrorTheme.mono(9, weight: .medium)
-                          : .system(size: 12, weight: .regular, design: .serif).italic())
-                    .kerning(mode == .sentinel ? 0.3 : 0)
-                    .foregroundStyle(MirrorTheme.textTertiary)
-            }
-
-            if mode == .sentinel {
-                ViewfinderCorners(inset: 6, length: 10, color: accent.opacity(isSelected ? 0.7 : 0.35))
-                    .padding(8)
-            }
-        }
-        .frame(height: 150)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(MirrorTheme.inkBorder, lineWidth: 1)
-        }
-    }
-
     // MARK: - Choice Buttons
 
     private func reasonButton(_ reason: OnboardingReason) -> some View {
@@ -805,43 +636,28 @@ struct OnboardingFlow: View {
 
     // MARK: - CTA
 
-    // Steps 0-3 render before any mode choice exists (no back-nav, and
-    // UserProfile.displayMode defaults to .classic until completeOnboarding
-    // writes it) so they cannot preview Sentinel. Step 4's own CTA previews
-    // whichever card the user has tapped, since selectedDisplayMode is live.
-    private var isSentinelPreview: Bool { step == 4 && selectedDisplayMode == .sentinel }
-
     private var ctaButton: some View {
         Button {
             advanceStep()
         } label: {
             HStack {
                 Spacer()
-                Group {
-                    if isSentinelPreview {
-                        Text(step == 4 ? "INITIATE" : "CONTINUE")
-                            .scaledFont(15, weight: .bold, design: .monospaced)
-                    } else {
-                        Text(ctaTitle)
-                            .scaledFont(17, weight: .semibold)
-                    }
-                }
-                .foregroundStyle(.white)
+                Text(ctaTitle)
+                    .scaledFont(17, weight: .semibold)
+                    .foregroundStyle(.white)
                 Spacer()
             }
             .frame(height: 54)
             .background(
                 ctaEnabled
-                    ? (isSentinelPreview ? AnyShapeStyle(LinearGradient(colors: [MirrorTheme.ember, .orange], startPoint: .leading, endPoint: .trailing)) : AnyShapeStyle(MirrorTheme.accentGradient))
+                    ? AnyShapeStyle(MirrorTheme.accentGradient)
                     : AnyShapeStyle(Color.secondary.opacity(0.3)),
-                in: isSentinelPreview ? AnyShape(RoundedRectangle(cornerRadius: 8, style: .continuous)) : AnyShape(Capsule())
+                in: Capsule()
             )
         }
         .buttonStyle(.plain)
         .disabled(!ctaEnabled || askingNotificationPermission)
-        .shadow(color: ctaEnabled && isSentinelPreview ? MirrorTheme.ember.opacity(0.28) : .clear, radius: 16, x: 0, y: 6)
         .animation(.easeInOut(duration: 0.2), value: ctaEnabled)
-        .animation(.easeInOut(duration: 0.2), value: selectedDisplayMode)
     }
 
     private var ctaTitle: LocalizedStringKey {
@@ -965,7 +781,7 @@ struct OnboardingFlow: View {
         } else {
             let profile = UserProfile()
             profile.onboardingComplete = true
-            profile.displayMode = selectedDisplayMode
+            profile.displayMode = .classic
             modelContext.insert(profile)
             createdProfile = profile
         }

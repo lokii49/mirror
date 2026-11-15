@@ -6,7 +6,6 @@ import SwiftData
 struct PaywallView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.appDisplayMode) private var displayMode
     @State private var subscriptionService = SubscriptionService.shared
     @State private var selectedTier: PaywallTier
     @State private var selectedProductID = ""
@@ -38,8 +37,7 @@ struct PaywallView: View {
         var id: String { icon }
     }
 
-    private var isSentinel: Bool { displayMode == .sentinel }
-    private var accent: Color { isSentinel ? MirrorTheme.ember : MirrorTheme.primary }
+    private var accent: Color { MirrorTheme.primary }
 
     private var currentPackages: [Package] {
         selectedTier == .core ? subscriptionService.corePackages : subscriptionService.deepPackages
@@ -235,42 +233,23 @@ struct PaywallView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Group {
-                        if isSentinel {
-                            // The plan's own name, in Sentinel's uppercase (owner, 2026-11-06: not "Sentinel Core").
-                            Text(selectedTier == .core ? "MirrorNotes Core" : "MirrorNotes Deep")
-                                .textCase(.uppercase)
-                                .scaledFont(26, weight: .bold, design: .monospaced)
-                                .tracking(0.5)
-                        } else {
-                            Text(selectedTier == .core ? "MirrorNotes Core" : "MirrorNotes Deep")
-                                .scaledFont(30, weight: .bold, design: .rounded)
-                        }
-                    }
-                    .foregroundStyle(.white)
-                    .contentTransition(.opacity)
+                    Text(selectedTier == .core ? "MirrorNotes Core" : "MirrorNotes Deep")
+                        .scaledFont(30, weight: .bold, design: .rounded)
+                        .foregroundStyle(.white)
+                        .contentTransition(.opacity)
 
-                    Group {
-                        if isSentinel {
-                            Text(selectedTier == .core
-                                 ? "PRIVATE SIGNAL INTELLIGENCE,\nBUILT AROUND YOUR OWN LOG."
-                                 : "FULL SPECTRUM: MOOD, PATTERNS,\nAND MONTHLY DEEP DEBRIEF.")
-                                .scaledFont(12, weight: .medium, design: .monospaced)
-                        } else {
-                            Text(selectedTier == .core
-                                 ? "Private journal intelligence,\nbuilt around your writing."
-                                 : "The full picture: mood, patterns,\nand monthly deep reflection.")
-                                .scaledFont(15, weight: .medium)
-                        }
-                    }
-                    .foregroundStyle(.white.opacity(0.8))
-                    .fixedSize(horizontal: false, vertical: true)
+                    Text(selectedTier == .core
+                         ? "Private journal intelligence,\nbuilt around your writing."
+                         : "The full picture: mood, patterns,\nand monthly deep reflection.")
+                        .scaledFont(15, weight: .medium)
+                        .foregroundStyle(.white.opacity(0.8))
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .padding(22)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .clipShape(RoundedRectangle(cornerRadius: isSentinel ? 10 : 26, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
         .shadow(color: MirrorTheme.primary.opacity(0.18), radius: 14, x: 0, y: 8)
         .animation(.easeInOut(duration: 0.25), value: selectedTier)
     }
@@ -280,8 +259,8 @@ struct PaywallView: View {
             Image(systemName: "gift")
                 .scaledFont(12, weight: .semibold)
             Text("Free for \(length)")
-                .scaledFont(isSentinel ? 12 : 13, weight: isSentinel ? .bold : .semibold, design: isSentinel ? .monospaced : .default)
-                .textCase(isSentinel ? .uppercase : nil)
+                .scaledFont(13, weight: .semibold, design: .default)
+                .textCase(nil)
         }
         .foregroundStyle(.white)
         .padding(.horizontal, 12)
@@ -302,10 +281,8 @@ struct PaywallView: View {
                 } label: {
                     VStack(spacing: 3) {
                         Text(tier.displayName)
-                            .font(isSentinel
-                                  ? MirrorTheme.mono(14, weight: isSelected ? .bold : .medium)
-                                  : .system(size: 16, weight: isSelected ? .bold : .medium))
-                            .textCase(isSentinel ? .uppercase : nil)
+                            .font(.system(size: 16, weight: isSelected ? .bold : .medium))
+                            .textCase(nil)
                             .foregroundStyle(isSelected ? accent : MirrorTheme.textSecondary)
                         tierCaption(tier, isSelected: isSelected)
                     }
@@ -313,14 +290,8 @@ struct PaywallView: View {
                     .padding(.vertical, 11)
                     .background {
                         if isSelected {
-                            RoundedRectangle(cornerRadius: isSentinel ? 6 : 14, style: .continuous)
-                                .fill(isSentinel ? MirrorTheme.ember.opacity(0.12) : MirrorTheme.violetDim)
-                                .overlay {
-                                    if isSentinel {
-                                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                            .stroke(MirrorTheme.ember.opacity(0.4), lineWidth: 1)
-                                    }
-                                }
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(MirrorTheme.violetDim)
                         }
                     }
                     .contentShape(Rectangle())
@@ -340,8 +311,8 @@ struct PaywallView: View {
             ? "Current plan"
             : (tier == .core ? "Most popular" : "More AI")
         Text(caption)
-            .scaledFont(isSentinel ? 9 : 11, weight: .semibold, design: isSentinel ? .monospaced : .default)
-            .textCase(isSentinel ? .uppercase : nil)
+            .scaledFont(11, weight: .semibold, design: .default)
+            .textCase(nil)
             .foregroundStyle(isSelected ? accent.opacity(0.85) : MirrorTheme.textTertiary)
     }
 
@@ -377,7 +348,7 @@ struct PaywallView: View {
 
     private var featuresSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionHeader(isSentinel ? "PAYLOAD" : "What's included")
+            sectionHeader("What's included")
 
             VStack(alignment: .leading, spacing: 14) {
                 ForEach(selectedTier == .core ? coreFeatures : deepFeatures) { feature in
@@ -394,8 +365,8 @@ struct PaywallView: View {
                     .scaledFont(15, weight: .semibold)
                     .foregroundStyle(.green)
                 Text("AI runs on your device")
-                    .scaledFont(isSentinel ? 12 : 14, weight: .semibold, design: isSentinel ? .monospaced : .default)
-                    .textCase(isSentinel ? .uppercase : nil)
+                    .scaledFont(14, weight: .semibold, design: .default)
+                    .textCase(nil)
                     .foregroundStyle(MirrorTheme.textSecondary)
             }
         }
@@ -409,20 +380,20 @@ struct PaywallView: View {
         HStack(alignment: feature.detail == nil ? .center : .top, spacing: 14) {
             Image(systemName: feature.icon)
                 .scaledFont(16, weight: .semibold)
-                .foregroundStyle(isSentinel ? MirrorTheme.ember : feature.color)
+                .foregroundStyle(feature.color)
                 .frame(width: 38, height: 38)
                 .background(
-                    (isSentinel ? MirrorTheme.ember : feature.color).opacity(0.12),
-                    in: RoundedRectangle(cornerRadius: isSentinel ? 6 : 10, style: .continuous)
+                    feature.color.opacity(0.12),
+                    in: RoundedRectangle(cornerRadius: 10, style: .continuous)
                 )
             VStack(alignment: .leading, spacing: 2) {
                 Text(feature.title)
-                    .scaledFont(isSentinel ? 13 : 15, weight: isSentinel ? .bold : .semibold, design: isSentinel ? .monospaced : .default)
-                    .textCase(isSentinel ? .uppercase : nil)
+                    .scaledFont(15, weight: .semibold, design: .default)
+                    .textCase(nil)
                     .foregroundStyle(MirrorTheme.textPrimary)
                 if let detail = feature.detail {
                     Text(detail)
-                        .scaledFont(isSentinel ? 11 : 13, weight: isSentinel ? .semibold : .regular, design: isSentinel ? .monospaced : .default)
+                        .scaledFont(13, weight: .regular, design: .default)
                         .foregroundStyle(MirrorTheme.textSecondary)
                 }
             }
@@ -434,7 +405,7 @@ struct PaywallView: View {
 
     private func sectionHeader(_ title: LocalizedStringKey) -> some View {
         Text(title)
-            .scaledFont(isSentinel ? 11 : 12, weight: .semibold, design: isSentinel ? .monospaced : .default)
+            .scaledFont(12, weight: .semibold, design: .default)
             .foregroundStyle(MirrorTheme.textSecondary)
             .textCase(.uppercase)
             .tracking(0.8)
@@ -445,7 +416,7 @@ struct PaywallView: View {
 
     private var planSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionHeader(isSentinel ? "SELECT PLAN" : "Choose a plan")
+            sectionHeader("Choose a plan")
 
             if currentPackages.isEmpty {
                 if subscriptionService.productsLoadFailed {
@@ -454,7 +425,7 @@ struct PaywallView: View {
                     // Placeholder rows the size of real ones, so nothing jumps when plans arrive.
                     VStack(spacing: 10) {
                         ForEach(0..<2, id: \.self) { _ in
-                            RoundedRectangle(cornerRadius: isSentinel ? 6 : 16, style: .continuous)
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
                                 .fill(MirrorTheme.inkMid)
                                 .frame(height: 70)
                         }
@@ -484,7 +455,7 @@ struct PaywallView: View {
     private var plansUnavailable: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Couldn't load plans. Check your connection.")
-                .scaledFont(isSentinel ? 12 : 14, weight: isSentinel ? .semibold : .regular, design: isSentinel ? .monospaced : .default)
+                .scaledFont(14, weight: .regular, design: .default)
                 .foregroundStyle(MirrorTheme.textSecondary)
             Button {
                 Task {
@@ -493,8 +464,8 @@ struct PaywallView: View {
                 }
             } label: {
                 Text("Try Again")
-                    .scaledFont(isSentinel ? 13 : 14, weight: .semibold, design: isSentinel ? .monospaced : .default)
-                    .textCase(isSentinel ? .uppercase : nil)
+                    .scaledFont(14, weight: .semibold, design: .default)
+                    .textCase(nil)
                     .foregroundStyle(accent)
             }
             .buttonStyle(.plain)
@@ -536,8 +507,8 @@ struct PaywallView: View {
                         ProgressView().tint(.white)
                     } else {
                         Text(ctaTitle)
-                            .scaledFont(isSentinel ? 15 : 17, weight: isSentinel ? .bold : .semibold, design: isSentinel ? .monospaced : .default)
-                            .textCase(isSentinel ? .uppercase : nil)
+                            .scaledFont(17, weight: .semibold, design: .default)
+                            .textCase(nil)
                             .foregroundStyle(.white)
                     }
                 }
@@ -545,7 +516,7 @@ struct PaywallView: View {
                 .frame(height: 54)
                 .background(
                     ctaDisabled ? AnyShapeStyle(Color.secondary.opacity(0.3)) : AnyShapeStyle(MirrorTheme.ember),
-                    in: RoundedRectangle(cornerRadius: isSentinel ? 8 : 27, style: .continuous)
+                    in: RoundedRectangle(cornerRadius: 27, style: .continuous)
                 )
                 .contentShape(Rectangle())
             }
@@ -553,8 +524,8 @@ struct PaywallView: View {
             .disabled(ctaDisabled)
 
             Text(showsTrial ? "Cancel anytime in App Store settings. No charge during trial." : "Cancel anytime in App Store settings.")
-                .scaledFont(isSentinel ? 10 : 12, weight: isSentinel ? .medium : .regular, design: isSentinel ? .monospaced : .default)
-                .textCase(isSentinel ? .uppercase : nil)
+                .scaledFont(12, weight: .regular, design: .default)
+                .textCase(nil)
                 .foregroundStyle(MirrorTheme.textTertiary)
                 .multilineTextAlignment(.center)
 
@@ -576,8 +547,8 @@ struct PaywallView: View {
                     legalLinks(separated: false, followsOthers: false)
                 }
             }
-            .scaledFont(isSentinel ? 11 : 12, weight: .medium, design: isSentinel ? .monospaced : .default)
-            .textCase(isSentinel ? .uppercase : nil)
+            .scaledFont(12, weight: .medium, design: .default)
+            .textCase(nil)
             .foregroundStyle(MirrorTheme.textSecondary)
         }
         .padding(.horizontal, 20)
@@ -625,12 +596,10 @@ private struct PlanCard: View {
     let isSelected: Bool
     let isCurrent: Bool
     let onTap: () -> Void
-    @Environment(\.appDisplayMode) private var displayMode
 
-    private var isSentinel: Bool { displayMode == .sentinel }
     private var isYearly: Bool { PaywallView.isYearly(package) }
     private var price: String { package.storeProduct.localizedPriceString }
-    private var accent: Color { isSentinel ? MirrorTheme.ember : MirrorTheme.primary }
+    private var accent: Color { MirrorTheme.primary }
 
     var body: some View {
         Button(action: onTap) {
@@ -640,8 +609,8 @@ private struct PlanCard: View {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 8) {
                         Text(isYearly ? "Yearly" : "Monthly")
-                            .scaledFont(isSentinel ? 14 : 16, weight: .semibold, design: isSentinel ? .monospaced : .default)
-                            .textCase(isSentinel ? .uppercase : nil)
+                            .scaledFont(16, weight: .semibold, design: .default)
+                            .textCase(nil)
                             .foregroundStyle(MirrorTheme.textPrimary)
                         if isCurrent {
                             badge("Current plan")
@@ -650,7 +619,7 @@ private struct PlanCard: View {
                         }
                     }
                     priceLine
-                        .scaledFont(isSentinel ? 12 : 13, weight: isSentinel ? .medium : .regular, design: isSentinel ? .monospaced : .default)
+                        .scaledFont(13, weight: .regular, design: .default)
                         .foregroundStyle(MirrorTheme.textSecondary)
                 }
 
@@ -658,13 +627,13 @@ private struct PlanCard: View {
             }
             .padding(16)
             .background(
-                isSelected ? (isSentinel ? MirrorTheme.ember.opacity(0.10) : MirrorTheme.violetDim) : MirrorTheme.inkMid,
-                in: RoundedRectangle(cornerRadius: isSentinel ? 6 : 16, style: .continuous)
+                isSelected ? MirrorTheme.violetDim : MirrorTheme.inkMid,
+                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
             )
             .overlay {
-                RoundedRectangle(cornerRadius: isSentinel ? 6 : 16, style: .continuous)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(
-                        isSelected ? (isSentinel ? MirrorTheme.ember.opacity(0.5) : MirrorTheme.violet.opacity(0.45)) : MirrorTheme.inkBorder,
+                        isSelected ? MirrorTheme.violet.opacity(0.45) : MirrorTheme.inkBorder,
                         lineWidth: isSelected ? 1.5 : 1
                     )
             }
@@ -678,34 +647,23 @@ private struct PlanCard: View {
     @ViewBuilder
     private var priceLine: some View {
         if isYearly, let savingsPercent {
-            Text(isSentinel ? "\(price) / YR (SAVE ~\(savingsPercent)%)" : "\(price) / year (save ~\(savingsPercent)%)")
+            Text("\(price) / year (save ~\(savingsPercent)%)")
         } else if isYearly {
-            Text("\(price) / year").textCase(isSentinel ? .uppercase : nil)
+            Text("\(price) / year").textCase(nil)
         } else {
-            Text(isSentinel ? "\(price) / MO" : "\(price) / month")
+            Text("\(price) / month")
         }
     }
 
     private var selectionMark: some View {
         ZStack {
-            if isSentinel {
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .stroke(isSelected ? MirrorTheme.ember : Color.secondary.opacity(0.3), lineWidth: isSelected ? 2 : 1.5)
-                    .frame(width: 20, height: 20)
-                if isSelected {
-                    RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                        .fill(MirrorTheme.ember)
-                        .frame(width: 10, height: 10)
-                }
-            } else {
+            Circle()
+                .stroke(isSelected ? MirrorTheme.primary : Color.secondary.opacity(0.3), lineWidth: isSelected ? 2 : 1.5)
+                .frame(width: 22, height: 22)
+            if isSelected {
                 Circle()
-                    .stroke(isSelected ? MirrorTheme.primary : Color.secondary.opacity(0.3), lineWidth: isSelected ? 2 : 1.5)
-                    .frame(width: 22, height: 22)
-                if isSelected {
-                    Circle()
-                        .fill(MirrorTheme.accentGradient)
-                        .frame(width: 12, height: 12)
-                }
+                    .fill(MirrorTheme.accentGradient)
+                    .frame(width: 12, height: 12)
             }
         }
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
@@ -713,8 +671,8 @@ private struct PlanCard: View {
 
     private func badge(_ text: LocalizedStringKey) -> some View {
         Text(text)
-            .scaledFont(isSentinel ? 10 : 11, weight: .bold, design: isSentinel ? .monospaced : .default)
-            .textCase(isSentinel ? .uppercase : nil)
+            .scaledFont(11, weight: .bold, design: .default)
+            .textCase(nil)
             .foregroundStyle(accent)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)

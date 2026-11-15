@@ -637,6 +637,10 @@ struct mirrorApp: App {
         let context = sharedModelContainer.mainContext
         // Recently Deleted keeps entries for 30 days.
         EntryTrash.purgeExpired(in: context)
+        // Ticks made on the Still Open widget since the app was last open: first, before anything
+        // that waits (a reflection can take a while), so Still Open already shows them ticked.
+        StillOpenWidgetSync.applyPendingTicks(context: context)
+        PerfSignpost.interval("widget.stillOpen") { StillOpenWidgetSync.sync(context: context) }
         // Scratch reminders whose note was deleted on another device.
         await ScratchReminders.dropOrphans(in: context)
         await mirrorApp.runDailyNudgeIfNeeded(context: context)
@@ -1314,6 +1318,7 @@ struct mirrorApp: App {
     @MainActor
     static func updateWidgetHeatmaps(context: ModelContext) {
         PerfSignpost.interval("widget.heatmaps") { buildWidgetHeatmaps(context: context) }
+        StillOpenWidgetSync.scheduleSync(context: context)
         WidgetCenter.shared.reloadAllTimelines()
     }
 

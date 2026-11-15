@@ -19,11 +19,9 @@ struct KeyboardDismissHint: View {
     @AppStorage(KeyboardDismissHint.seenKey) private var hasSeen = false
     @State private var isPresented = false
     @State private var chevronDown = false
-    @Environment(\.appDisplayMode) private var displayMode
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private var isSentinel: Bool { displayMode == .sentinel }
-    private var accent: Color { isSentinel ? MirrorTheme.ember : MirrorTheme.violet }
+    private var accent: Color { MirrorTheme.violet }
 
     /// UI tests and store screenshots keep the Write screen as it is.
     private static let isSuppressed: Bool = {
@@ -74,20 +72,20 @@ struct KeyboardDismissHint: View {
                     .opacity(chevronDown ? 0.45 : 1)
                     .frame(width: 18, height: 18)
                 Text("Swipe down to hide the keyboard")
-                    .textCase(isSentinel ? .uppercase : nil)
-                    .scaledFont(isSentinel ? 11 : 13, weight: .semibold, design: isSentinel ? .monospaced : .default)
-                    .kerning(isSentinel ? 0.4 : 0)
+                    .textCase(nil)
+                    .scaledFont(13, weight: .semibold, design: .default)
+                    .kerning(0)
                     .foregroundStyle(MirrorTheme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .background(
-                isSentinel ? AnyShapeStyle(MirrorTheme.inkMid) : AnyShapeStyle(Color(.secondarySystemGroupedBackground)),
+                AnyShapeStyle(Color(.secondarySystemGroupedBackground)),
                 in: Capsule()
             )
             .overlay {
-                Capsule().stroke(accent.opacity(isSentinel ? 0.3 : 0.2), lineWidth: 1)
+                Capsule().stroke(accent.opacity(0.2), lineWidth: 1)
             }
             .shadow(color: .black.opacity(0.08), radius: 10, x: 0, y: 3)
         }

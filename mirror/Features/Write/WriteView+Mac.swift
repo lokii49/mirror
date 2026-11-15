@@ -342,13 +342,20 @@ extension WriteView {
 
     /// Thumbnails of the attached photos and the drop zone, under the chips.
     var macPhotosRow: some View {
-        ScrollView(.horizontal) {
+        let photos = photoDataArray
+        let placements = PhotoPlacement.byPhoto(PhotoPlacement.placements(
+            text: viewModel.text, inlineStyleData: inlineStyleData, hasPicture: { $0 < photos.count },
+            isLandscape: { $0 < photos.count && PhotoRuns.isLandscape(photos[$0]) }))
+        return ScrollView(.horizontal) {
             HStack(spacing: 12) {
                 ForEach(photoDataArray.indices, id: \.self) { index in
                     MacPhotoTile(
                         data: photoDataArray[index],
+                        // How the reader draws it and what each size stores (`PhotoPlacement`).
+                        placement: placements[index],
                         onOpen: { fullscreenPhotoIndex = index },
-                        onRemove: { macRemovePhoto(at: index) }
+                        onRemove: { macRemovePhoto(at: index) },
+                        onSize: { macSetPhotoSize(stored: $0, at: index) }
                     )
                 }
                 MacPhotoDropZone(onChoose: { macChoosePhoto() }, onData: { macAttachPhoto(data: $0) })
@@ -394,9 +401,34 @@ extension WriteView {
 
     func macRemovePhoto(at index: Int) {
         guard photoDataArray.indices.contains(index) else { return }
-        let body = NoteEditorCodec.splitTrailingPhotoTokens(viewModel.text).body
+        let oldText = viewModel.text
+        let oldPhotos = photoDataArray
+        // How the reader drew each photo before, in text order.
+        let before = PhotoPlacement.placements(
+            text: oldText, inlineStyleData: inlineStyleData, hasPicture: { $0 < oldPhotos.count },
+            isLandscape: { $0 < oldPhotos.count && PhotoRuns.isLandscape(oldPhotos[$0]) })
+        // Its token, its line, its styles go; higher photo numbers move down by one, wherever
+        // their tokens are (at the end, or between lines since Mac 1.1.9).
+        guard let removed = NoteEditorCodec.removingPhoto(
+            number: index, text: oldText, textStyleData: viewModel.textStyleData, inlineStyleData: inlineStyleData) else { return }
         photoDataArray.remove(at: index)
-        viewModel.text = NoteEditorCodec.appendingPhotoTokens(to: body, count: photoDataArray.count)
+        viewModel.text = removed.text
+        viewModel.textStyleData = removed.textStyleData
+        // The other photos keep their sizes (and links), and a tile whose row just lost this
+        // photo stays a tile (`PhotoPlacement.keepingTiles`).
+        let photos = photoDataArray
+        let wasTile: [Bool?] = before.filter { $0.photoIndex != index }.map(\.isTile)
+        inlineStyleData = PhotoPlacement.keepingTiles(
+            wasTile: wasTile, text: viewModel.text, inlineStyleData: removed.inlineStyleData,
+            hasPicture: { $0 < photos.count }, isLandscape: { $0 < photos.count && PhotoRuns.isLandscape(photos[$0]) })
+        if entry == nil { saveDraftToStorage() }
+    }
+
+    /// Small / Medium / Full from a thumbnail's menu: how the photo reads in the entry (the
+    /// reader on every device, and the iPhone and iPad editor). Mac's editor keeps thumbnails.
+    func macSetPhotoSize(stored: String?, at index: Int) {
+        guard let offset = PhotoSizes.inlineOffsets(in: viewModel.text).first(where: { $0.photoIndex == index })?.offset else { return }
+        inlineStyleData = PhotoSizes.setting(stored: stored, atInlineOffset: offset, in: inlineStyleData)
         if entry == nil { saveDraftToStorage() }
     }
 
@@ -481,8 +513,11 @@ struct MacEditorColumn: ViewModifier {
 /// hover button.
 struct MacPhotoTile: View {
     let data: Data
+    /// How the reader draws this photo and what each size stores; nil when its token is missing.
+    var placement: PhotoPlacement? = nil
     let onOpen: () -> Void
     let onRemove: () -> Void
+    var onSize: (String?) -> Void = { _ in }
     @State private var image: NSImage?
     @State private var hovering = false
 
@@ -515,7 +550,25 @@ struct MacPhotoTile: View {
             }
         }
         .onHover { hovering = $0 }
-        .contextMenu { Button("Remove photo", role: .destructive, action: onRemove) }
+        .contextMenu {
+            // The tick is what the reader draws; each choice stores what `PhotoPlacement` says (the
+            // one rule the iPhone editor, its menu and the reader share).
+            if let placement {
+                Picker("Photo Size", selection: Binding(get: { placement.tick }, set: { onSize(placement.storedValue(for: $0)) })) {
+                    ForEach(placement.options, id: \.self) { option in
+                        switch option {
+                        case .thumbnail: Text("Thumbnail").tag(option)
+                        case .small: Text("Small").tag(option)
+                        case .medium: Text("Medium").tag(option)
+                        case .full: Text("Full Width").tag(option)
+                        }
+                    }
+                }
+                .pickerStyle(.inline)
+                Divider()
+            }
+            Button("Remove photo", role: .destructive, action: onRemove)
+        }
         .task(id: data.count) { image = Self.thumbnail(from: data) }
         .accessibilityLabel("Photo")
         .accessibilityAddTraits(.isButton)
@@ -821,3 +874,9 @@ struct MacToolbarCapsule: ViewModifier {
     }
 }
 #endif
+
+/// The body the Mac editor last set, and the stored text that produced.
+struct MacEditorBody: Equatable {
+    var text: String
+    var body: String
+}

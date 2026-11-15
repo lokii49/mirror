@@ -58,7 +58,7 @@ struct InsightSignalSourceLocalizationTests {
             #expect(main.note == viaEnglish.note)
         }
         let r = InsightSignalSource.resolve(insight: insights[1], entries: entries, engineLabel: "X", bundle: en)
-        #expect(r.rows.first { $0.label == "CONTEXT" }?.value.hasSuffix("summarized · 4 quoted") == true)
+        #expect(r.rows.first { $0.label == "Context" }?.value.hasSuffix("summarized · 4 quoted") == true)
     }
 
     @Test(arguments: ["de", "ru", "ja"])
@@ -73,7 +73,7 @@ struct InsightSignalSourceLocalizationTests {
                 #expect(e.label != t.label, "\(language) \(i.type): label \(e.label) is still English")
                 // Not the sheet's own text: the engine label is passed in, the stamp is a date, the
                 // question is the user's, and mood names follow the app's language already.
-                if !["ENGINE", "GENERATED", "QUESTION", "MOOD READ", "MOOD ARC"].contains(e.label) {
+                if !["Engine", "Generated", "Question", "Mood read", "Mood arc"].contains(e.label) {
                     #expect(e.value != t.value, "\(language) \(i.type): \(e.label) value \(e.value) is still English")
                 }
             }

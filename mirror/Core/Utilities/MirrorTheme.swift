@@ -40,10 +40,9 @@ enum MirrorTheme {
     // warm off-black and paper instead of the blue-black and lavender of the violet theme, so
     // long night-time writing glares less and the app matches its leather-journal icon. Same
     // three dark steps as the 2026-10-21 review (page → card → raised). Widgets mirror the dark
-    // values in `WidgetTheme`, asserted by `WidgetThemeTokenTests`; Sentinel shares these.
+    // values in `WidgetTheme`, asserted by `WidgetThemeTokenTests`.
     // Paper & Ink (owner 2026-11-07, on every view): a warmer paper ground, a sheet-white card and
     // a fine hairline. Text on the ground: textPrimary 15:1, textSecondary 4.9:1 light / 5.6:1 dark.
-    // Sentinel shares these, so its surfaces warm a shade (as with the plum swap).
     static let inkBase    = hex(0x141012, 0xF7F3EE)  // page background (paper)
     static let inkMid     = hex(0x1C171A, 0xFFFDFB)  // base card (sheet)
     static let inkRaised  = hex(0x241C22, 0xFCF9F5)  // elevated card / sheet
@@ -72,7 +71,7 @@ enum MirrorTheme {
     // MARK: - Fixed dark surfaces
 
     // Brain View draws on the same near-black canvas in both modes (its node and mood colours
-    // are tuned for it); these were written out in four files. Sentinel's hub is `ember`.
+    // are tuned for it); these were written out in four files.
     static let brainCanvas = Color(red: 0.09, green: 0.09, blue: 0.10)
     static let brainHub    = Color(red: 0.835, green: 0.608, blue: 0.816)  // #D59BD0, 8:1 on the canvas
     /// The Brain lock card's icon, a step lighter than the hub.
@@ -347,19 +346,14 @@ extension View {
             }
     }
 
-    /// Mode-aware replacement for `.inkSurface` — Classic keeps the rounded
-    /// card; Sentinel switches to a rectangular hairline-bordered panel.
-    /// Reads displayMode itself so call sites don't thread it through.
+    /// The card in the `classicBase` style.
     func themedCard(cornerRadius: CGFloat = 20, classicBase: ThemedCardClassicBase = .surface) -> some View {
-        modifier(ThemedCardModifier(cornerRadius: cornerRadius, isHero: false, classicBase: classicBase))
+        modifier(ThemedCardModifier(cornerRadius: cornerRadius, classicBase: classicBase))
     }
 
-    /// Same as `themedCard`, plus the viewfinder corner-bracket overlay in
-    /// Sentinel mode. Reserve for the one hero card per screen — that
-    /// restraint is what makes the brackets read as a signature instead of
-    /// visual noise.
+    /// Same as `themedCard`. Reserve for the one hero card per screen.
     func themedHeroCard(cornerRadius: CGFloat = 20, classicBase: ThemedCardClassicBase = .surface) -> some View {
-        modifier(ThemedCardModifier(cornerRadius: cornerRadius, isHero: true, classicBase: classicBase))
+        modifier(ThemedCardModifier(cornerRadius: cornerRadius, classicBase: classicBase))
     }
 
     func mirrorCard(color: Color = MirrorTheme.violet) -> some View {
@@ -380,37 +374,21 @@ extension View {
     }
 }
 
-/// Which existing Classic card style a themedCard/themedHeroCard falls back
-/// to when displayMode is .classic — keeps Classic mode pixel-identical to
-/// before Sentinel mode existed, even for cards that used the stronger
-/// `.inkCard` elevation rather than the default `.inkSurface`.
+/// Which card style a themedCard/themedHeroCard draws, so cards that used the
+/// stronger `.inkCard` elevation keep it rather than the default `.inkSurface`.
 enum ThemedCardClassicBase {
     case surface, elevated, hero
 }
 
 private struct ThemedCardModifier: ViewModifier {
-    @Environment(\.appDisplayMode) private var displayMode
     let cornerRadius: CGFloat
-    let isHero: Bool
     var classicBase: ThemedCardClassicBase = .surface
 
     func body(content: Content) -> some View {
-        if displayMode == .sentinel {
-            content
-                .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(MirrorTheme.ember.opacity(isHero ? 0.45 : 0.24), lineWidth: 1)
-                }
-                .overlay {
-                    if isHero { ViewfinderCorners() }
-                }
-        } else {
-            switch classicBase {
-            case .surface:  content.inkSurface(cornerRadius: cornerRadius)
-            case .elevated: content.inkCard(cornerRadius: cornerRadius)
-            case .hero:     content.inkHero(cornerRadius: cornerRadius)
-            }
+        switch classicBase {
+        case .surface:  content.inkSurface(cornerRadius: cornerRadius)
+        case .elevated: content.inkCard(cornerRadius: cornerRadius)
+        case .hero:     content.inkHero(cornerRadius: cornerRadius)
         }
     }
 }
@@ -561,17 +539,14 @@ extension View {
 import UIKit
 
 /// Navigation bar titles (Paper & Ink, owner 2026-11-07): the default theme sets screen titles in
-/// the reflection's serif, inline and large, growing with the reader's text size. Sentinel keeps
-/// the system font (its own titles are monospaced in-view).
+/// the reflection's serif, inline and large, growing with the reader's text size.
 enum MirrorNavigationAppearance {
     static func apply(_ mode: DisplayMode) {
         let appearance = UINavigationBarAppearance()
         appearance.configureWithDefaultBackground()
         appearance.shadowColor = UIColor(MirrorTheme.inkBorder)
-        if mode != .sentinel {
-            appearance.titleTextAttributes = [.font: serif(17, .semibold, style: .headline)]
-            appearance.largeTitleTextAttributes = [.font: serif(34, .medium, style: .largeTitle)]
-        }
+        appearance.titleTextAttributes = [.font: serif(17, .semibold, style: .headline)]
+        appearance.largeTitleTextAttributes = [.font: serif(34, .medium, style: .largeTitle)]
         UINavigationBar.appearance().standardAppearance = appearance
         UINavigationBar.appearance().scrollEdgeAppearance = appearance
         UINavigationBar.appearance().compactAppearance = appearance

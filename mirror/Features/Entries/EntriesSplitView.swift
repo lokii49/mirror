@@ -14,7 +14,6 @@ struct EntriesSplitView: View {
     var deepLinkEntryID: Binding<UUID?>
 
     @Environment(\.horizontalSizeClass) private var sizeClass
-    @Environment(\.appDisplayMode) private var displayMode
     @State private var selection: Entry?
     /// The layout while an entry editor is open over a reader (pushed or in the column), nil
     /// otherwise. A fold or unfold mid-edit keeps this layout until the editor closes: the
@@ -118,20 +117,6 @@ struct EntriesSplitView: View {
             // Deleted from the list (swipe) or on another device: close the reader instead of
             // showing a deleted record.
             .background(EntrySelectionGuard(entryID: selection.id) { self.selection = nil })
-        } else if displayMode == .sentinel {
-            // The Log's empty-state look (EntriesTabView.emptyState): viewfinder, mono capitals.
-            VStack(spacing: 16) {
-                Image(systemName: "viewfinder")
-                    .scaledFont(48, weight: .light)
-                    .foregroundStyle(.quaternary)
-                Text("Select an entry")
-                    .textCase(.uppercase)
-                    .scaledFont(14, weight: .semibold, design: .monospaced)
-                    .tracking(1)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(MirrorTheme.bgBase)
         } else {
             ContentUnavailableView("Select an entry", systemImage: "book.closed")
                 .background(MirrorTheme.bgBase)

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Shared look for the entry list's journal-safety notices (unreadable entries, not backed
-/// up to iCloud, restore from device), in both the classic and Sentinel themes.
+/// up to iCloud, restore from device).
 struct NoticeBanner<Actions: View>: View {
     let systemImage: String
     let title: Text
@@ -10,25 +10,17 @@ struct NoticeBanner<Actions: View>: View {
     var onDismiss: (() -> Void)? = nil
     @ViewBuilder var actions: () -> Actions
 
-    @Environment(\.appDisplayMode) private var displayMode
-
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: systemImage)
                 .scaledFont(16, weight: .semibold)
-                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : Color.orange)
+                .foregroundStyle(Color.orange)
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: 4) {
-                if displayMode == .sentinel {
-                    sentinelTitle
-                        .scaledFont(12, weight: .bold, design: .monospaced)
-                        .tracking(1)
-                } else {
-                    title
-                        .scaledFont(15, weight: .semibold)
-                }
+                title
+                    .scaledFont(15, weight: .semibold)
                 message
-                    .scaledFont(displayMode == .sentinel ? 11 : 13, design: displayMode == .sentinel ? .monospaced : .default)
+                    .scaledFont(13, design: .default)
                     .foregroundStyle(MirrorTheme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 actions()
@@ -50,17 +42,7 @@ struct NoticeBanner<Actions: View>: View {
         }
         .padding(14)
         .background {
-            if displayMode == .sentinel {
-                RoundedRectangle(cornerRadius: 6, style: .continuous).fill(MirrorTheme.ember.opacity(0.08))
-            } else {
-                RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.orange.opacity(0.10))
-            }
-        }
-        .overlay {
-            if displayMode == .sentinel {
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .stroke(MirrorTheme.ember.opacity(0.4), lineWidth: 1)
-            }
+            RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.orange.opacity(0.10))
         }
         .accessibilityElement(children: .contain)
     }

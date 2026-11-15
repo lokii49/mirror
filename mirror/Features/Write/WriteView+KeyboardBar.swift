@@ -81,7 +81,7 @@ extension WriteView {
         // The row is wider than a phone, so it fades at the capsule's ends instead of cutting a
         // button in half; that reads as "scrolls", not as cropped. Masks the row, not the glass.
         .horizontalEdgeFade(14)
-        .barSurface(isSentinel: displayMode == .sentinel)
+        .barSurface(isSentinel: false)
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .animation(.easeInOut(duration: 0.15), value: panelState.activeParagraphStyle)
@@ -109,7 +109,7 @@ extension WriteView {
     }
 
     private var barAccent: Color {
-        displayMode == .sentinel ? MirrorTheme.ember : Color.accentColor
+        Color.accentColor
     }
 
     private func barGlyph(_ systemImage: String, isOn: Bool = false, isEnabled: Bool = true, taps: Int = 0) -> BarGlyph {
@@ -250,13 +250,13 @@ extension WriteView {
 
     private func countBadge(_ count: Int) -> some View {
         Text("\(count)")
-            .scaledFont(9, weight: .bold, design: displayMode == .sentinel ? .monospaced : .default)
+            .scaledFont(9, weight: .bold, design: .default)
             .foregroundStyle(.white)
             .padding(.horizontal, 4)
             .padding(.vertical, 2)
             .background(
                 barAccent,
-                in: displayMode == .sentinel ? AnyShape(RoundedRectangle(cornerRadius: 3, style: .continuous)) : AnyShape(Capsule())
+                in: AnyShape(Capsule())
             )
     }
 }
@@ -288,16 +288,10 @@ private struct BarGlyph: View {
 }
 
 private extension View {
-    /// Liquid Glass on iOS 26, a material capsule before it. Sentinel keeps its flat ink card with
-    /// an ember hairline instead of glass.
+    /// Liquid Glass on iOS 26, a material capsule before it.
     @ViewBuilder
     func barSurface(isSentinel: Bool) -> some View {
-        if isSentinel {
-            self
-                .background(MirrorTheme.inkMid, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).stroke(MirrorTheme.ember.opacity(0.3), lineWidth: 1))
-        } else if #available(iOS 26, *) {
+        if #available(iOS 26, *) {
             self
                 .clipShape(Capsule())
                 .glassEffect(.regular, in: Capsule())

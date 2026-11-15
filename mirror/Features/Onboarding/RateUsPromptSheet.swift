@@ -26,7 +26,6 @@ final class ReviewPromptCoordinator {
 /// anywhere unless they choose to send that email themselves.
 struct RateUsPromptSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.appDisplayMode) private var displayMode
     /// Whether appearing spends the once-per-install milestone prompt. Off for UI tests and the
     /// DEBUG `--showRatePrompt` launch, which must not consume it.
     var consumesMilestone = true
@@ -82,7 +81,7 @@ struct RateUsPromptSheet: View {
         VStack(spacing: 20) {
             appLogo
             VStack(spacing: 6) {
-                Text(displayMode == .sentinel ? "How's the signal?" : "How's mirror going?")
+                Text("How's mirror going?")
                     .scaledFont(22, weight: .bold, design: .rounded)
                 Text("A quick check before we ask anything else.")
                     .scaledFont(14)
@@ -100,7 +99,7 @@ struct RateUsPromptSheet: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .background(
-                            displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(MirrorTheme.accentGradient),
+                            MirrorTheme.accentGradient,
                             in: RoundedRectangle(cornerRadius: 14, style: .continuous)
                         )
                         .foregroundStyle(.white)
@@ -142,7 +141,7 @@ struct RateUsPromptSheet: View {
         VStack(spacing: 20) {
             Image(systemName: "envelope.fill")
                 .scaledFont(34)
-                .foregroundStyle(displayMode == .sentinel ? MirrorTheme.ember : MirrorTheme.violet)
+                .foregroundStyle(MirrorTheme.violet)
             VStack(spacing: 8) {
                 Text("What would make it better?")
                     .scaledFont(20, weight: .bold, design: .rounded)
@@ -162,7 +161,7 @@ struct RateUsPromptSheet: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .background(
-                        displayMode == .sentinel ? AnyShapeStyle(MirrorTheme.ember) : AnyShapeStyle(MirrorTheme.accentGradient),
+                        MirrorTheme.accentGradient,
                         in: RoundedRectangle(cornerRadius: 14, style: .continuous)
                     )
                     .foregroundStyle(.white)
