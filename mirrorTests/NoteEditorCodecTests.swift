@@ -189,6 +189,24 @@ struct NoteEditorCodecTests {
         #expect(!NoteEditorCodec.canEditOnMac(text: "a\n[[mirror-photo-0]]\n", textStyleData: nil, inlineStyleData: nil, entryFont: .system, photoCount: 0))
     }
 
+    /// Saving trims the text: a saved entry ends with its last token, no line break. Those were
+    /// read-only on Mac (the gate compared with the rebuilt text's trailing break), 2026-11-15.
+    @Test func aSavedEntryEndingInPhotosIsEditableOnMac() {
+        for text in ["Some words\n[[mirror-photo-0]]", "Some words\n[[mirror-photo-0]]\n[[mirror-photo-1]]",
+                     "[[mirror-photo-0]]\n[[mirror-photo-1]]"] {
+            let count = allPhotoTokens(in: text).count
+            #expect(NoteEditorCodec.canEditOnMac(text: text, textStyleData: nil, inlineStyleData: nil, entryFont: .system, photoCount: count), "\(text.debugDescription)")
+        }
+        // As Write saves it: the attached text, trimmed.
+        var attached = "Morning walk."
+        for i in 0..<3 { attached = textWithInlinePhotoToken(attached, at: i) }
+        let saved = attached.trimmingCharacters(in: .whitespacesAndNewlines)
+        #expect(NoteEditorCodec.canEditOnMac(text: saved, textStyleData: nil, inlineStyleData: nil, entryFont: .system, photoCount: 3))
+        // Still read-only: a photo between lines, and words after the last photo.
+        #expect(!NoteEditorCodec.canEditOnMac(text: "a\n[[mirror-photo-0]]\nb", textStyleData: nil, inlineStyleData: nil, entryFont: .system, photoCount: 1))
+        #expect(!NoteEditorCodec.canEditOnMac(text: "a\n[[mirror-photo-0]] b", textStyleData: nil, inlineStyleData: nil, entryFont: .system, photoCount: 1))
+    }
+
     @Test func trailingPhotoTokensSplitAndRebuild() {
         for text in ["Some words\n[[mirror-photo-0]]\n", "Some words\n[[mirror-photo-0]]\n[[mirror-photo-1]]\n", "[[mirror-photo-0]]", "no photos here"] {
             let (body, count) = NoteEditorCodec.splitTrailingPhotoTokens(text)

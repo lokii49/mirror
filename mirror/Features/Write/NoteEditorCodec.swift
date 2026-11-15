@@ -576,9 +576,12 @@ enum NoteEditorCodec {
     /// prove stays read-only on Mac.
     static func canEditOnMac(text: String, textStyleData: Data?, inlineStyleData: Data?, entryFont: WritingFontChoice, photoCount: Int) -> Bool {
         let (body, tokenCount) = splitTrailingPhotoTokens(text)
+        // Saving trims the text, so a saved entry ends with its last token and no line break,
+        // while `appendingPhotoTokens` ends with one: compare without trailing line breaks. (An
+        // exact compare made every saved entry ending in photos read-only on Mac, since 1.0.)
         guard tokenCount == photoCount,
               allPhotoTokens(in: body).isEmpty,
-              appendingPhotoTokens(to: body, count: tokenCount) == text
+              trimmingTrailingNewlines(appendingPhotoTokens(to: body, count: tokenCount)) == trimmingTrailingNewlines(text)
         else { return false }
         if textStyleData == nil, hasLegacyPrefix(body) { return false }
 
