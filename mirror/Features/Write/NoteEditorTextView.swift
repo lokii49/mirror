@@ -40,6 +40,8 @@ struct NoteEditorTextView: UIViewRepresentable {
     /// after (nil: the caret's). Write inserts them the way it inserts any photo. Without it the
     /// editor takes text only, as before.
     var onDropPhotos: (([Data], Int?) -> Void)? = nil
+    /// A selection copied or cut with its photos (`PhotoFragment`), pasted: the caret's paragraph.
+    var onPasteFragment: ((PhotoFragment, Int?) -> Void)? = nil
 
     func makeUIView(context: Context) -> UITextView {
         // An explicit TextKit 1 stack: the editor reads `layoutManager` throughout, and the
@@ -74,6 +76,22 @@ struct NoteEditorTextView: UIViewRepresentable {
                 UTType.text.identifier, UTType.url.identifier, UTType.image.identifier
             ])
             textView.acceptsPastedImages = true
+        }
+        if onPasteFragment != nil {
+            // Copy and Cut of a selection with photos carry the photos; Paste puts them back.
+            let coordinator = context.coordinator
+            textView.photoFragment = { [weak coordinator, weak textView] range in
+                guard let coordinator, let textView else { return nil }
+                return coordinator.photoFragment(in: range, of: textView)
+            }
+            textView.cutRange = { [weak coordinator, weak textView] range in
+                guard let coordinator, let textView else { return }
+                coordinator.applyAsKeyboardEdit(range, "", in: textView)
+            }
+            textView.pasteFragment = { [weak coordinator, weak textView] fragment in
+                guard let coordinator, let textView else { return }
+                coordinator.pasteFragment(fragment, in: textView)
+            }
         }
         // Writing Tools in its panel, plain-text results, photos and list markers left alone
         // (WritingToolsGuard).
@@ -577,6 +595,49 @@ struct NoteEditorTextView: UIViewRepresentable {
             return UIMenu(title: "", children: children)
         }
 
+        /// The selection as lines of words and photos, for the clipboard; nil when it has no photo
+        /// (the system's own Copy handles plain selections). List markers are left out.
+        func photoFragment(in range: NSRange, of textView: UITextView) -> PhotoFragment? {
+            guard range.length > 0, let attributed = textView.attributedText else { return nil }
+            let ns = attributed.string as NSString
+            let end = NSMaxRange(range)
+            guard end <= ns.length, ns.substring(with: range).contains("\u{FFFC}") else { return nil }
+            let sizes = PhotoSizes.storedSizes(text: parent.text, inlineStyleData: parent.inlineStyleData)
+            var lines: [PhotoFragment.Line] = []
+            var lineStart = ns.lineRange(for: NSRange(location: range.location, length: 0)).location
+            while lineStart < end {
+                let line = ns.lineRange(for: NSRange(location: lineStart, length: 0))
+                var contentEnd = NSMaxRange(line)
+                if contentEnd > line.location, ns.character(at: contentEnd - 1) == 10 { contentEnd -= 1 }
+                let from = max(line.location + displayedMarkerLength(of: line, in: attributed), range.location)
+                let to = max(from, min(contentEnd, end))
+                if let photoAt = (from..<to).first(where: { ns.character(at: $0) == 0xFFFC }) {
+                    // An unreadable photo's placeholder has no picture to carry.
+                    if let index = photoIndex(forAttachmentAt: photoAt, in: textView), isPhotoReadable(index) {
+                        let link = attributed.attribute(.link, at: photoAt, effectiveRange: nil)
+                        lines.append(PhotoFragment.Line(
+                            photo: parent.photoDataArray[index], size: sizes[index],
+                            link: (link as? URL)?.absoluteString ?? link as? String,
+                            wasTile: (attributed.attribute(.attachment, at: photoAt, effectiveRange: nil) as? PhotoAttachment)?.isTile ?? false))
+                    }
+                } else {
+                    lines.append(PhotoFragment.Line(text: ns.substring(with: NSRange(location: from, length: to - from))))
+                }
+                guard line.length > 0 else { break }
+                lineStart = NSMaxRange(line)
+            }
+            return lines.contains { $0.photo != nil } ? PhotoFragment(lines: lines) : nil
+        }
+
+        /// Paste of a `PhotoFragment`: a selection gives way first (photos in it included), then
+        /// the lines go in under the caret's paragraph, through Write (one change to the entry).
+        func pasteFragment(_ fragment: PhotoFragment, in textView: UITextView) {
+            if textView.selectedRange.length > 0 { applyAsKeyboardEdit(textView.selectedRange, "", in: textView) }
+            let ns = (textView.text ?? "") as NSString
+            let paragraph = paragraphIndex(atDisplayOffset: min(textView.selectedRange.location, ns.length), in: ns)
+            parent.onPasteFragment?(fragment, paragraph)
+        }
+
         /// The photo index of the attachment at display offset `charIndex` (attachments map to
         /// tokens in text order, as `logicalText` does).
         func photoIndex(forAttachmentAt charIndex: Int, in textView: UITextView) -> Int? {
@@ -916,7 +977,7 @@ struct NoteEditorTextView: UIViewRepresentable {
             if replacement.contains("\u{FFFC}") {
                 // Text copied with a photo in it pastes the photo's placeholder character with no
                 // photo behind it; every such character must be a photo here, so it's dropped.
-                // (A photo is copied from its own menu and pasted as a picture.)
+                // (Copied in this editor, a selection's photos travel as a `PhotoFragment`.)
                 applyAsKeyboardEdit(range, replacement.replacingOccurrences(of: "\u{FFFC}", with: ""), in: textView)
                 return false
             }
@@ -1044,7 +1105,7 @@ struct NoteEditorTextView: UIViewRepresentable {
 
         /// An edit made in code, given every rule a keyboard edit gets: inserts made in code
         /// don't come back through `shouldChangeTextIn`, so it is asked here.
-        private func applyAsKeyboardEdit(_ range: NSRange, _ replacement: String, in textView: UITextView) {
+        func applyAsKeyboardEdit(_ range: NSRange, _ replacement: String, in textView: UITextView) {
             guard range.length > 0 || !replacement.isEmpty, range.location >= 0,
                   NSMaxRange(range) <= (textView.text as NSString).length else { return }
             textView.selectedRange = range
@@ -4919,7 +4980,7 @@ nonisolated func trimmingTrailingNewlines(_ text: String) -> String {
     return trimmed
 }
 
-private nonisolated func isRenderableImageData(_ data: Data) -> Bool {
+nonisolated func isRenderableImageData(_ data: Data) -> Bool {
     guard let source = CGImageSourceCreateWithData(data as CFData, [
         kCGImageSourceShouldCache: false
     ] as CFDictionary) else {
@@ -5139,13 +5200,43 @@ final class MirrorEditorTextView: UITextView {
     /// paste delegate). UITextView offers Paste only for text, so it's offered here for images.
     var acceptsPastedImages = false
 
+    /// Set by the editor: the selection as a `PhotoFragment` when it has photos in it; deleting a
+    /// range the keyboard's way; pasting a fragment.
+    var photoFragment: ((NSRange) -> PhotoFragment?)?
+    var cutRange: ((NSRange) -> Void)?
+    var pasteFragment: ((PhotoFragment) -> Void)?
+
     override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
         if action == #selector(paste(_:)), acceptsPastedImages, UIPasteboard.general.hasImages { return true }
+        if action == #selector(paste(_:)), pasteFragment != nil,
+           UIPasteboard.general.contains(pasteboardTypes: [PhotoFragment.pasteboardType]) { return true }
         return super.canPerformAction(action, withSender: sender)
+    }
+
+    /// A selection with photos: the clipboard gets its lines and pictures for this editor, and
+    /// the words as plain text for everything else. Returns false for a plain selection.
+    private func copyFragment() -> Bool {
+        guard let fragment = photoFragment?(selectedRange), let data = fragment.encoded() else { return false }
+        UIPasteboard.general.items = [[UTType.utf8PlainText.identifier: fragment.plainText, PhotoFragment.pasteboardType: data]]
+        return true
+    }
+
+    override func copy(_ sender: Any?) {
+        if !copyFragment() { super.copy(sender) }
+    }
+
+    override func cut(_ sender: Any?) {
+        guard copyFragment(), let cutRange else { super.cut(sender); return }
+        cutRange(selectedRange)
     }
 
     override func paste(_ sender: Any?) {
         let pasteboard = UIPasteboard.general
+        if let pasteFragment, let data = pasteboard.data(forPasteboardType: PhotoFragment.pasteboardType),
+           let fragment = PhotoFragment.decoded(data) {
+            pasteFragment(fragment)
+            return
+        }
         if acceptsPastedImages, pasteboard.hasImages, !pasteboard.hasStrings {
             paste(itemProviders: pasteboard.itemProviders)
             return

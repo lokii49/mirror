@@ -437,6 +437,8 @@ struct NoteEditorTextView: NSViewRepresentable {
     /// Pictures dropped on the text (3.1.9). On Mac they join the photos under the editor; the
     /// paragraph is always nil.
     var onDropPhotos: (([Data], Int?) -> Void)? = nil
+    /// iPhone and iPad only (`PhotoFragment`); here so Write's one call site serves both editors.
+    var onPasteFragment: ((PhotoFragment, Int?) -> Void)? = nil
     /// Not read: it makes SwiftUI call `updateNSView` when Text size changes in Settings.
     @AppStorage(MacPrefs.sizeKey) var textSizePreference: Double = MacPrefs.defaultSize
 

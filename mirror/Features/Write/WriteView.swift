@@ -397,7 +397,8 @@ struct WriteView: View {
                                 #else
                                 insertDroppedPhotos(photos, afterParagraph: paragraph)
                                 #endif
-                            }
+                            },
+                            onPasteFragment: { fragment, paragraph in pastePhotoFragment(fragment, afterParagraph: paragraph) }
                         )
                         .padding(.horizontal, 20)
                         .padding(.top, 4)

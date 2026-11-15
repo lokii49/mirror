@@ -126,12 +126,43 @@ struct PhotoEditSequenceTests {
         let (coordinator, textView, store) = harness(start, photos: photos, styles: styles)
         if let p = problem(store, textView) { return "seed \(seed) at start: \(p)" }
         var log: [String] = []
+        var clipboard: PhotoFragment?
         for step in 0..<steps {
             let length = (textView.text as NSString).length
             let at = snapped(Int.random(in: 0...length, using: &rng), in: textView)
             let shownBefore = textView.text.replacingOccurrences(of: "\u{FFFC}", with: "¤").debugDescription
             let textBefore = store.text.debugDescription
-            switch Int.random(in: 0..<12, using: &rng) {
+            switch Int.random(in: 0..<15, using: &rng) {
+            case 12, 13:
+                // Copy or Cut a selection with photos in it (the codec, not the system clipboard).
+                guard length > 1 else { continue }
+                let from = snapped(Int.random(in: 0..<length, using: &rng), in: textView)
+                let to = snapped(min(length, from + Int.random(in: 1...8, using: &rng)), in: textView)
+                guard to > from, let fragment = coordinator.photoFragment(in: NSRange(location: from, length: to - from), of: textView),
+                      let data = fragment.encoded(), let decoded = PhotoFragment.decoded(data) else { continue }
+                clipboard = decoded
+                if Bool.random(using: &rng) {
+                    log.append("cut \(from)+\(to - from)")
+                    coordinator.applyAsKeyboardEdit(NSRange(location: from, length: to - from), "", in: textView)
+                } else {
+                    log.append("copy \(from)+\(to - from)")
+                }
+            case 14:
+                guard let fragment = clipboard, store.photos.count + fragment.photos.count <= 8 else { continue }
+                // Paste: a selection gives way, then the lines go in under the caret's paragraph.
+                let selection = NSRange(location: at, length: min(Int.random(in: 0...3, using: &rng), length - at))
+                if selection.length > 0 { coordinator.applyAsKeyboardEdit(selection, "", in: textView) }
+                let shown = textView.text as NSString
+                let paragraph = shown.substring(to: min(textView.selectedRange.location, shown.length)).components(separatedBy: "\n").count - 1
+                let count = store.photos.count
+                let photos = store.photos + fragment.photos
+                let result = fragment.inserted(into: store.text, afterParagraph: paragraph, textStyleData: store.styles, inlineStyleData: store.inline,
+                                               photoCount: count, entryFont: "system", hasPicture: { $0 < photos.count },
+                                               isLandscape: { $0 < photos.count && PhotoRuns.isLandscape(photos[$0]) })
+                store.photos = photos
+                store.text = result.text; store.styles = result.textStyleData; store.inline = result.inlineStyleData
+                log.append("paste \(fragment.lines.count) lines after paragraph \(paragraph)")
+                outsideChange(textView, coordinator)
             case 0, 1:
                 let letter = ["a", "b", " ", "\n"].randomElement(using: &rng)!
                 log.append("type \(letter.debugDescription)@\(at)")
@@ -150,7 +181,7 @@ struct PhotoEditSequenceTests {
                 log.append("replace \(from)+\(count) with \(paste.debugDescription)")
                 replace(NSRange(location: from, length: count), with: paste, in: textView, coordinator)
             case 6, 7:
-                guard store.photos.count < 6 else { continue }
+                guard store.photos.count < 8 else { continue }
                 // The paperclip: the photo is appended, then its token goes in at the caret's paragraph.
                 let paragraph = (textView.text as NSString).substring(to: at).components(separatedBy: "\n").count - 1
                 let index = store.photos.count

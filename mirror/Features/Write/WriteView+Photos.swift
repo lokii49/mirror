@@ -59,6 +59,27 @@ extension WriteView {
         #endif
     }
 
+    /// A selection copied or cut with its photos, pasted (`PhotoFragment`): its lines go in under
+    /// the caret's paragraph, the pictures get the next numbers. One change, so one undo step.
+    func pastePhotoFragment(_ fragment: PhotoFragment, afterParagraph: Int?) {
+        #if os(iOS)
+        // The clipboard is untrusted: a picture that doesn't decode is left out.
+        var fragment = fragment
+        fragment.lines.removeAll { line in line.photo.map { !isRenderableImageData($0) } ?? false }
+        guard !fragment.lines.isEmpty else { return }
+        let count = photoDataArray.count
+        let photos = photoDataArray + fragment.photos
+        let result = fragment.inserted(
+            into: viewModel.text, afterParagraph: afterParagraph, textStyleData: viewModel.textStyleData,
+            inlineStyleData: inlineStyleData, photoCount: count, entryFont: entryFontChoiceRaw,
+            hasPicture: { $0 < photos.count }, isLandscape: { $0 < photos.count && PhotoRuns.isLandscape(photos[$0]) })
+        photoDataArray = photos
+        viewModel.text = result.text
+        viewModel.textStyleData = result.textStyleData
+        inlineStyleData = result.inlineStyleData
+        #endif
+    }
+
     func applySuggestion(_ insert: SuggestionInsert) {
         if let mood = insert.mood, viewModel.selectedMood == nil { viewModel.selectedMood = mood }
         #if os(iOS)
