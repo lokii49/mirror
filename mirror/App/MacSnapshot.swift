@@ -1332,6 +1332,45 @@ enum MacEditorSelfTest {
             check("paste adds no inline styles", box.inline == nil, "\(ranges(box.inline))")
         }
 
+        // 9. Photos between lines (Mac 1.1.9, owner option A): each is one character carrying
+        // its number; words go around it, never on its line; it can't be deleted in the text.
+        do {
+            let text = "Lake\n[[mirror-photo-1]]\nSoup\n[[mirror-photo-0]]"
+            var sized = InlineStyleRange(location: 5, length: 1, bold: false, italic: false, underline: false, strikethrough: false, highlightIndex: nil)
+            sized.photoSize = "small"
+            let bold = InlineStyleRange(location: 7, length: 4, bold: true, italic: false, underline: false, strikethrough: false, highlightIndex: nil)
+            let box = Box(text: text, inline: try? JSONEncoder().encode(InlineStyleDocument(ranges: [sized, bold])))
+            let (tv, _) = makeEditor(box)
+            check("photos: one character each", tv.string == "Lake\n\u{FFFC}\nSoup\n\u{FFFC}", tv.string.debugDescription)
+            check("photos: drawn as tiles", tv.textStorage?.attribute(.attachment, at: 5, effectiveRange: nil) is NSTextAttachment)
+            tv.setSelectedRange(NSRange(location: 6, length: 0))
+            tv.insertText("h", replacementRange: tv.selectedRange())
+            check("photos: typing after one goes on a new line", box.text == "Lake\n[[mirror-photo-1]]\nh\nSoup\n[[mirror-photo-0]]", box.text.debugDescription)
+            check("photos: size and bold keep their places", ranges(box.inline) == [sized, InlineStyleRange(location: 9, length: 4, bold: true, italic: false, underline: false, strikethrough: false, highlightIndex: nil)], "\(ranges(box.inline))")
+            tv.undoManager?.undo()
+            check("photos: undo takes it back", box.text == text, box.text.debugDescription)
+            tv.setSelectedRange(NSRange(location: 5, length: 0))
+            tv.insertText("x", replacementRange: tv.selectedRange())
+            check("photos: typing before one goes on a new line above", box.text == "Lake\nx\n[[mirror-photo-1]]\nSoup\n[[mirror-photo-0]]", box.text.debugDescription)
+            tv.undoManager?.undo()
+            // Backspace at the start of "Soup" would join it to the photo's line: the caret moves.
+            tv.setSelectedRange(NSRange(location: 7, length: 0))
+            tv.deleteBackward(nil)
+            check("photos: backspace into a photo's line moves the caret", box.text == text && tv.selectedRange().location == 6, "\(box.text.debugDescription) caret \(tv.selectedRange())")
+            // The photo itself can't be deleted or typed over.
+            tv.setSelectedRange(NSRange(location: 6, length: 0))
+            tv.deleteBackward(nil)
+            tv.setSelectedRange(NSRange(location: 2, length: 6))
+            tv.insertText("z", replacementRange: tv.selectedRange())
+            check("photos: a photo isn't deleted in the text", box.text == text, box.text.debugDescription)
+            // Text typed after a photo carries none of its attributes.
+            tv.setSelectedRange(NSRange(location: 13, length: 0))
+            tv.insertText("q", replacementRange: tv.selectedRange())
+            let typed = tv.textStorage.map { $0.attributes(at: 14, effectiveRange: nil) } ?? [:]
+            check("photos: typed text carries no photo attributes", typed[.attachment] == nil && typed[NoteEditorCodec.photoNumberKey] == nil && typed[NoteEditorCodec.photoSizeKey] == nil, "\(typed.keys)")
+            check("photos: numbers kept on save", box.text == "Lake\n[[mirror-photo-1]]\nSoup\n[[mirror-photo-0]]\nq", box.text.debugDescription)
+        }
+
         return out
     }
 }

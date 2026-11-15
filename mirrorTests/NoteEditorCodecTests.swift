@@ -182,8 +182,8 @@ struct NoteEditorCodecTests {
         let two = "Some words\n[[mirror-photo-0]]\n[[mirror-photo-1]]\n"
         #expect(NoteEditorCodec.canEditOnMac(text: two, textStyleData: nil, inlineStyleData: nil, entryFont: .system, photoCount: 2))
         #expect(NoteEditorCodec.canEditOnMac(text: "[[mirror-photo-0]]", textStyleData: nil, inlineStyleData: nil, entryFont: .system, photoCount: 1))
-        // A photo in the middle of the text: iOS placed it inline, the Mac editor cannot.
-        #expect(!NoteEditorCodec.canEditOnMac(text: "a\n[[mirror-photo-0]]\nb", textStyleData: nil, inlineStyleData: nil, entryFont: .system, photoCount: 1))
+        // A photo between lines, alone on its line: editable since Mac 1.1.9 (owner, option A).
+        #expect(NoteEditorCodec.canEditOnMac(text: "a\n[[mirror-photo-0]]\nb", textStyleData: nil, inlineStyleData: nil, entryFont: .system, photoCount: 1))
         // Photos stored without a matching token, or tokens without photos.
         #expect(!NoteEditorCodec.canEditOnMac(text: "plain", textStyleData: nil, inlineStyleData: nil, entryFont: .system, photoCount: 1))
         #expect(!NoteEditorCodec.canEditOnMac(text: "a\n[[mirror-photo-0]]\n", textStyleData: nil, inlineStyleData: nil, entryFont: .system, photoCount: 0))
@@ -202,9 +202,13 @@ struct NoteEditorCodecTests {
         for i in 0..<3 { attached = textWithInlinePhotoToken(attached, at: i) }
         let saved = attached.trimmingCharacters(in: .whitespacesAndNewlines)
         #expect(NoteEditorCodec.canEditOnMac(text: saved, textStyleData: nil, inlineStyleData: nil, entryFont: .system, photoCount: 3))
-        // Still read-only: a photo between lines, and words after the last photo.
-        #expect(!NoteEditorCodec.canEditOnMac(text: "a\n[[mirror-photo-0]]\nb", textStyleData: nil, inlineStyleData: nil, entryFont: .system, photoCount: 1))
+        // Still read-only: words on a photo's line, spaces beside it, a number twice or missing.
         #expect(!NoteEditorCodec.canEditOnMac(text: "a\n[[mirror-photo-0]] b", textStyleData: nil, inlineStyleData: nil, entryFont: .system, photoCount: 1))
+        #expect(!NoteEditorCodec.canEditOnMac(text: "a\n [[mirror-photo-0]]\nb", textStyleData: nil, inlineStyleData: nil, entryFont: .system, photoCount: 1))
+        #expect(!NoteEditorCodec.canEditOnMac(text: "a\n[[mirror-photo-0]]\nb\n[[mirror-photo-0]]", textStyleData: nil, inlineStyleData: nil, entryFont: .system, photoCount: 2))
+        #expect(!NoteEditorCodec.canEditOnMac(text: "a\n[[mirror-photo-1]]\nb", textStyleData: nil, inlineStyleData: nil, entryFont: .system, photoCount: 1))
+        // Numbers out of text order (paperclip above an older photo, an iPhone row reorder).
+        #expect(NoteEditorCodec.canEditOnMac(text: "a\n[[mirror-photo-1]]\nb\n[[mirror-photo-2]]\n[[mirror-photo-0]]", textStyleData: nil, inlineStyleData: nil, entryFont: .system, photoCount: 3))
     }
 
     @Test func trailingPhotoTokensSplitAndRebuild() {

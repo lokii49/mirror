@@ -70,6 +70,73 @@ struct MacPhotoTextTests {
         #expect(NoteEditorCodec.trailingPhotoNumbers(edited) == [2, 0])
     }
 
+    // MARK: Editing around a photo (`photoLineEdit`)
+
+    private let doc = "Lake\n\u{FFFC}\nSoup"   // photo at offset 5, its line 5..<6
+
+    @Test func typingAfterAPhotoGoesOnANewLineBelow() {
+        #expect(NoteEditorCodec.photoLineEdit(display: doc, range: NSRange(location: 6, length: 0), replacement: "h")
+                == .replace("\nh", caret: 8))
+    }
+
+    @Test func typingBeforeAPhotoGoesOnANewLineAbove() {
+        #expect(NoteEditorCodec.photoLineEdit(display: doc, range: NSRange(location: 5, length: 0), replacement: "h")
+                == .replace("h\n", caret: 6))
+    }
+
+    @Test func backspaceThatWouldJoinAPhotosLineMovesTheCaret() {
+        // At the start of "Soup": the break after the photo.
+        #expect(NoteEditorCodec.photoLineEdit(display: doc, range: NSRange(location: 6, length: 1), replacement: "") == .moveCaret(6))
+        // At the start of the photo's line: the break after "Lake".
+        #expect(NoteEditorCodec.photoLineEdit(display: doc, range: NSRange(location: 4, length: 1), replacement: "") == .moveCaret(4))
+    }
+
+    @Test func aPhotoCannotBeDeletedOrTypedOverInTheText() {
+        #expect(NoteEditorCodec.photoLineEdit(display: doc, range: NSRange(location: 5, length: 1), replacement: "") == .refuse)
+        #expect(NoteEditorCodec.photoLineEdit(display: doc, range: NSRange(location: 2, length: 6), replacement: "x") == .refuse)
+    }
+
+    @Test func ordinaryEditsAreLeftAlone() {
+        #expect(NoteEditorCodec.photoLineEdit(display: doc, range: NSRange(location: 2, length: 0), replacement: "k") == .asIs)
+        // Return at the end of the photo's line, and deleting a whole line above it.
+        #expect(NoteEditorCodec.photoLineEdit(display: doc, range: NSRange(location: 6, length: 0), replacement: "\n") == .asIs)
+        #expect(NoteEditorCodec.photoLineEdit(display: doc, range: NSRange(location: 0, length: 5), replacement: "") == .asIs)
+        #expect(NoteEditorCodec.photoLineEdit(display: "no photos", range: NSRange(location: 0, length: 2), replacement: "x") == .asIs)
+    }
+
+    @Test func aSelectionEndingAtAPhotoKeepsItsBreak() {
+        // "La|ke\n" deleted: the photo would join "La".
+        #expect(NoteEditorCodec.photoLineEdit(display: doc, range: NSRange(location: 2, length: 3), replacement: "")
+                == .replace("\n", caret: 2))
+    }
+
+    // MARK: Removing a photo (`removingPhoto`)
+
+    @Test func removingAPhotoBetweenLinesRenumbersTheOthersAndMovesStyles() {
+        let text = "Lake\n[[mirror-photo-0]]\nSoup\n[[mirror-photo-1]]"
+        // Bold on "Soup" (inline offset 7..<11) and a size on photo 1 (offset 12).
+        var bold = InlineStyleRange(location: 7, length: 4, bold: true, italic: false, underline: false, strikethrough: false, highlightIndex: nil)
+        bold.linkURL = nil
+        var sized = InlineStyleRange(location: 12, length: 1, bold: false, italic: false, underline: false, strikethrough: false, highlightIndex: nil)
+        sized.photoSize = "small"
+        let inline = try? JSONEncoder().encode(InlineStyleDocument(ranges: [bold, sized]))
+        let styles = try? JSONEncoder().encode(NoteTextStyleDocument(paragraphStyles: [.heading, .body, .checklistUnchecked, .body]))
+        let result = NoteEditorCodec.removingPhoto(number: 0, text: text, textStyleData: styles, inlineStyleData: inline)
+        #expect(result?.text == "Lake\nSoup\n[[mirror-photo-0]]")
+        let models = NoteEditorCodec.storedParagraphs(from: result?.textStyleData, entryFont: .system).map(\.style)
+        #expect(Array(models.prefix(3)) == [.heading, .checklistUnchecked, .body])
+        var boldAfter = bold; boldAfter.location = 5
+        var sizedAfter = sized; sizedAfter.location = 10
+        #expect(ranges(result?.inlineStyleData) == [boldAfter, sizedAfter])
+    }
+
+    @Test func removingTheLastTrailingPhotoKeepsTheOthersNumbers() {
+        let text = "Words\n[[mirror-photo-2]]\n[[mirror-photo-0]]\n[[mirror-photo-1]]"
+        #expect(NoteEditorCodec.removingPhoto(number: 1, text: text, textStyleData: nil, inlineStyleData: nil)?.text
+                == "Words\n[[mirror-photo-1]]\n[[mirror-photo-0]]")
+        #expect(NoteEditorCodec.removingPhoto(number: 5, text: text, textStyleData: nil, inlineStyleData: nil) == nil)
+    }
+
     @Test func textWithoutPhotosIsUntouched() {
         let text = "Plain words\nand a second line\n"
         #expect(NoteEditorCodec.editorDisplay(text).string == text)

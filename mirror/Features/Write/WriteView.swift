@@ -50,7 +50,15 @@ struct WriteView: View {
         #if os(macOS)
         Binding(
             get: { NoteEditorCodec.splitTrailingPhotoTokens(viewModel.text).body },
-            set: { viewModel.text = NoteEditorCodec.appendingPhotoTokens(to: $0, count: photoDataArray.count) }
+            set: { body in
+                // The photos at the end keep their numbers (they aren't 0…n-1 once a photo sits
+                // between lines or the iPhone reordered a row); a photo with no token anywhere
+                // gets one at the end, as before.
+                var numbers = NoteEditorCodec.trailingPhotoNumbers(viewModel.text)
+                let present = Set(allPhotoTokens(in: body).map(\.index)).union(numbers)
+                numbers += (0..<photoDataArray.count).filter { !present.contains($0) }
+                viewModel.text = NoteEditorCodec.appendingPhotoTokens(to: body, numbers: numbers)
+            }
         )
         #else
         $viewModel.text

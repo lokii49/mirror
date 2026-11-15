@@ -403,20 +403,23 @@ extension WriteView {
         guard photoDataArray.indices.contains(index) else { return }
         let oldText = viewModel.text
         let oldPhotos = photoDataArray
-        // How the reader drew each photo before (text order is photo order here: trailing tokens).
-        var wasTile: [Bool?] = PhotoPlacement.placements(
+        // How the reader drew each photo before, in text order.
+        let before = PhotoPlacement.placements(
             text: oldText, inlineStyleData: inlineStyleData, hasPicture: { $0 < oldPhotos.count },
-            isLandscape: { $0 < oldPhotos.count && PhotoRuns.isLandscape(oldPhotos[$0]) }).map(\.isTile)
-        let body = NoteEditorCodec.splitTrailingPhotoTokens(viewModel.text).body
+            isLandscape: { $0 < oldPhotos.count && PhotoRuns.isLandscape(oldPhotos[$0]) })
+        // Its token, its line, its styles go; higher photo numbers move down by one, wherever
+        // their tokens are (at the end, or between lines since Mac 1.1.9).
+        guard let removed = NoteEditorCodec.removingPhoto(
+            number: index, text: oldText, textStyleData: viewModel.textStyleData, inlineStyleData: inlineStyleData) else { return }
         photoDataArray.remove(at: index)
-        viewModel.text = NoteEditorCodec.appendingPhotoTokens(to: body, count: photoDataArray.count)
+        viewModel.text = removed.text
+        viewModel.textStyleData = removed.textStyleData
         // The other photos keep their sizes (and links), and a tile whose row just lost this
         // photo stays a tile (`PhotoPlacement.keepingTiles`).
         let photos = photoDataArray
-        if wasTile.indices.contains(index) { wasTile.remove(at: index) }
+        let wasTile: [Bool?] = before.filter { $0.photoIndex != index }.map(\.isTile)
         inlineStyleData = PhotoPlacement.keepingTiles(
-            wasTile: wasTile, text: viewModel.text,
-            inlineStyleData: PhotoSizes.removingPhoto(at: index, oldText: oldText, newText: viewModel.text, in: inlineStyleData),
+            wasTile: wasTile, text: viewModel.text, inlineStyleData: removed.inlineStyleData,
             hasPicture: { $0 < photos.count }, isLandscape: { $0 < photos.count && PhotoRuns.isLandscape(photos[$0]) })
         if entry == nil { saveDraftToStorage() }
     }
