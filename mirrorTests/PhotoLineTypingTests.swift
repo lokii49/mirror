@@ -168,4 +168,41 @@ struct PhotoLineTypingTests {
         #expect(store.photos.count == 1)
         #expect(store.inline == nil)
     }
+    /// A row's photo that was never given a size stays a thumbnail too when it's left alone:
+    /// the rule can't tell a chosen Thumbnail from one the row made (both store nothing), so
+    /// every photo keeps the look it had.
+    @Test func aRowPhotoNeverSizedStaysAThumbnailWhenLeftAlone() {
+        let (coordinator, textView, store) = harness("\(p0)\n\(p1)", photos: 2)
+        #expect(tiles(textView) == [true, true])
+        backspace(at: (textView.text as NSString).length, in: textView, coordinator)
+        #expect(store.photos.count == 1)
+        #expect(tiles(textView) == [true])
+        #expect(PhotoSizes.storedSizes(text: store.text, inlineStyleData: store.inline) == [0: PhotoSizes.thumbnail])
+    }
+
+    /// Deleting the first photo renumbers the rest: the row photo left alone keeps its tile, the
+    /// full-width photo below the blank line stays full width, and a stored size moves with it.
+    @Test func deletingTheFirstPhotoKeepsEachOtherPhotosLook() {
+        let p2 = inlinePhotoToken(at: 2)
+        let small = PhotoSizes.setting(stored: "small", atInlineOffset: 5, in: nil)   // P0 \n P1 \n \n P2: a photo counts as one
+        let (coordinator, textView, store) = harness("\(p0)\n\(p1)\n\n\(p2)", photos: 3, inline: small)
+        #expect(tiles(textView) == [true, true, false])
+        #expect(PhotoSizes.storedSizes(text: store.text, inlineStyleData: store.inline) == [2: "small"])
+        backspace(at: 1, in: textView, coordinator)   // photo 0
+        #expect(store.photos.count == 2)
+        #expect(store.text == "\(p0)\n\n\(p1)")
+        #expect(tiles(textView) == [true, false])
+        #expect(PhotoSizes.storedSizes(text: store.text, inlineStyleData: store.inline) == [0: PhotoSizes.thumbnail, 1: "small"])
+    }
+
+    /// Deleting a middle photo of a row of three leaves a row of two: nothing to store.
+    @Test func deletingAMiddlePhotoLeavesTheRow() {
+        let p2 = inlinePhotoToken(at: 2), p3 = inlinePhotoToken(at: 3)
+        let (coordinator, textView, store) = harness("\(p0)\n\(p1)\n\(p2)\n\nWords\n\(p3)", photos: 4)
+        #expect(tiles(textView) == [true, true, true, false])
+        backspace(at: 3, in: textView, coordinator)   // photo 1 (display: P0 \n P1)
+        #expect(store.photos.count == 3)
+        #expect(tiles(textView) == [true, true, false])
+        #expect(store.inline == nil)
+    }
 }

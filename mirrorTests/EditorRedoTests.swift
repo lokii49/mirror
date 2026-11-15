@@ -98,4 +98,41 @@ struct EditorRedoTests {
         coordinator.noteOutsideChange(in: textView)
         #expect(store.inline == small)
     }
+    /// Backspace deletes a row's photo and the one left stores "thumbnail" (`keepingTiles`):
+    /// Undo brings back both photos and no size, Redo the delete and the size.
+    @Test func undoAndRedoOfAPhotoDeleteThatKeptATile() {
+        let portrait = UIGraphicsImageRenderer(size: CGSize(width: 70, height: 100)).image { ctx in
+            UIColor.systemTeal.setFill(); ctx.fill(CGRect(x: 0, y: 0, width: 70, height: 100))
+        }.pngData()!
+        let start = "\(inlinePhotoToken(at: 0))\n\(inlinePhotoToken(at: 1))"
+        let store = Store(text: start)
+        store.photos = [portrait, portrait]
+        let (coordinator, textView) = harness(store)
+        let end = (textView.text as NSString).length
+        textView.selectedRange = NSRange(location: end, length: 0)
+        let range = NSRange(location: end - 1, length: 1)
+        #expect(!coordinator.textView(textView, shouldChangeTextIn: range, replacementText: ""), "the editor deletes the photo itself")
+        coordinator.noteOutsideChange(in: textView)   // the update after the delete
+        #expect(store.photos.count == 1)
+        #expect(PhotoSizes.storedSizes(text: store.text, inlineStyleData: store.inline) == [0: PhotoSizes.thumbnail])
+        #expect(coordinator.canUndoEdit)
+
+        store.holdWrites = true
+        coordinator.undoEdit(in: textView)
+        store.flush()
+        coordinator.noteOutsideChange(in: textView)
+        #expect(store.text == start)
+        #expect(store.photos.count == 2)
+        #expect(store.inline == nil)
+        #expect(coordinator.canRedoEdit)
+        #expect(!coordinator.canUndoEdit, "Undo added no step of its own")
+
+        store.holdWrites = true
+        coordinator.redoEdit(in: textView)
+        store.flush()
+        coordinator.noteOutsideChange(in: textView)
+        #expect(store.photos.count == 1)
+        #expect(PhotoSizes.storedSizes(text: store.text, inlineStyleData: store.inline) == [0: PhotoSizes.thumbnail])
+        #expect(coordinator.canUndoEdit)
+    }
 }
