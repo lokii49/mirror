@@ -386,6 +386,70 @@
         }
       }
     },
+    "Add the Still Open widget: the checklist items you haven't ticked, ready to tick from your Home Screen. Its buttons start a checklist, a numbered list or a reminder on every plan." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Füge das Widget „Noch offen“ hinzu: die Checklisten-Punkte, die du noch nicht abgehakt hast, zum Abhaken direkt vom Home-Bildschirm. Seine Tasten beginnen in jedem Plan eine Checkliste, eine nummerierte Liste oder eine Erinnerung."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add the Still Open widget: the checklist items you haven't ticked, ready to tick from your Home Screen. Its buttons start a checklist, a numbered list or a reminder on every plan."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Añade el widget Pendientes: los elementos de tus listas sin marcar, listos para marcar desde la pantalla de inicio. Sus botones empiezan una lista de tareas, una lista numerada o un recordatorio en cualquier plan."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ajoutez le widget Encore à faire : les éléments non cochés de vos listes, à cocher depuis l’écran d’accueil. Ses boutons lancent une liste de tâches, une liste numérotée ou un rappel, avec tous les abonnements."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Aggiungi il widget Ancora aperti: le voci delle liste non spuntate, da spuntare direttamente dalla schermata Home. I suoi pulsanti avviano un elenco di controllo, un elenco numerato o un promemoria con qualsiasi piano."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "「未完了」ウィジェットを追加すると、チェックしていない項目をホーム画面からそのままチェックできます。ボタンからチェックリスト、番号付きリスト、リマインダーを始められます。どのプランでも使えます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "남은 항목 위젯을 추가하면 체크하지 않은 항목을 홈 화면에서 바로 체크할 수 있습니다. 버튼으로 체크리스트, 번호 목록, 알림을 시작할 수 있으며 모든 플랜에서 사용할 수 있습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Adicione o widget Em aberto: os itens de lista que você ainda não marcou, prontos para marcar na Tela de Início. Os botões dele começam uma lista de tarefas, uma lista numerada ou um lembrete em qualquer plano."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Добавьте виджет «Ещё не сделано»: неотмеченные пункты ваших списков, которые можно отметить прямо на экране «Домой». Его кнопки начинают список задач, нумерованный список или напоминание на любом тарифе."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "添加“未完成”小组件：未勾选的清单项目直接在主屏幕上勾选。它的按钮可以开始待办清单、编号列表或提醒，任何方案都能用。"
+          }
+        }
+      }
+    },
     "Adding from your day…" : {
       "localizations" : {
         "de" : {
@@ -774,6 +838,70 @@
         }
       }
     },
+    "Choose Thumbnail, Small, Medium or Full Width for each photo from its menu. Thumbnails sit side by side, three to a row." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Wähle im Menü eines Fotos Miniatur, Klein, Mittel oder Volle Breite. Miniaturen stehen nebeneinander, drei pro Reihe."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose Thumbnail, Small, Medium or Full Width for each photo from its menu. Thumbnails sit side by side, three to a row."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Elige Miniatura, Pequeña, Mediana o Ancho completo para cada foto desde su menú. Las miniaturas se colocan una al lado de otra, tres por fila."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Choisissez Miniature, Petite, Moyenne ou Pleine largeur pour chaque photo depuis son menu. Les miniatures se placent côte à côte, trois par ligne."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Scegli Miniatura, Piccola, Media o Larghezza piena per ogni foto dal suo menu. Le miniature stanno una accanto all’altra, tre per riga."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "写真ごとにメニューから「サムネイル」「小」「中」「全幅」を選べます。サムネイルは1行に3枚ずつ並びます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "사진마다 메뉴에서 썸네일, 작게, 중간, 전체 너비를 고를 수 있습니다. 썸네일은 한 줄에 세 장씩 나란히 놓입니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Escolha Miniatura, Pequena, Média ou Largura total para cada foto no menu dela. As miniaturas ficam lado a lado, três por linha."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Выберите для каждого фото в его меню «Миниатюра», «Маленький», «Средний» или «Во всю ширину». Миниатюры стоят рядом, по три в ряд."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "在每张照片的菜单中选择“缩略图”“小”“中”或“全宽”。缩略图并排显示，每行三张。"
+          }
+        }
+      }
+    },
     "Context" : {
       "comment" : "\"How this was generated\" sheet",
       "localizations" : {
@@ -904,6 +1032,70 @@
         }
       }
     },
+    "Edit entries with photos" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Einträge mit Fotos bearbeiten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit entries with photos"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Edita entradas con fotos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Modifiez les entrées avec photos"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Modifica le voci con foto"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "写真のあるエントリーを編集"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "사진이 있는 항목 편집"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Edite entradas com fotos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Редактируйте записи с фото"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "编辑带照片的条目"
+          }
+        }
+      }
+    },
     "Engine" : {
       "comment" : "\"How this was generated\" sheet",
       "localizations" : {
@@ -965,6 +1157,70 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "引擎"
+          }
+        }
+      }
+    },
+    "Entries with photos can now be edited on the Mac, photos between lines included: they stay in place while you edit the words around them." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Einträge mit Fotos lassen sich jetzt auf dem Mac bearbeiten, auch mit Fotos zwischen den Zeilen: Sie bleiben an ihrem Platz, während du die Wörter darum herum bearbeitest."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entries with photos can now be edited on the Mac, photos between lines included: they stay in place while you edit the words around them."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ahora puedes editar en el Mac las entradas con fotos, también con fotos entre líneas: se quedan en su sitio mientras editas las palabras de alrededor."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Les entrées avec photos se modifient désormais sur le Mac, y compris avec des photos entre les lignes : elles restent en place pendant que vous modifiez les mots autour."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ora puoi modificare sul Mac le voci con foto, anche con foto tra le righe: restano al loro posto mentre modifichi le parole intorno."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "写真のあるエントリーをMacで編集できるようになりました。行の間にある写真もそのままの位置で、まわりの文章を編集できます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "이제 Mac에서 사진이 있는 항목을 편집할 수 있습니다. 줄 사이에 있는 사진도 제자리에 둔 채 주변 글을 편집할 수 있습니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Agora você pode editar no Mac as entradas com fotos, inclusive com fotos entre as linhas: elas ficam no lugar enquanto você edita as palavras ao redor."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Записи с фото теперь можно редактировать на Mac, в том числе с фото между строками: они остаются на месте, пока вы правите слова вокруг."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "现在可以在 Mac 上编辑带照片的条目，行与行之间的照片也包括在内：编辑周围的文字时，照片会留在原位。"
           }
         }
       }
@@ -1289,6 +1545,70 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "健康未允许。你可以在健康 App 的“共享”中更改。"
+          }
+        }
+      }
+    },
+    "Hold a photo and slide it to move it, between thumbnails too. The paperclip adds photos where your cursor is, and photos come along when you copy text and paste it in MirrorNotes." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Halte ein Foto gedrückt und zieh es, um es zu verschieben, auch zwischen Miniaturen. Die Büroklammer fügt Fotos dort ein, wo dein Cursor steht, und Fotos kommen mit, wenn du Text kopierst und in MirrorNotes einfügst."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hold a photo and slide it to move it, between thumbnails too. The paperclip adds photos where your cursor is, and photos come along when you copy text and paste it in MirrorNotes."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Mantén pulsada una foto y deslízala para moverla, también entre miniaturas. El clip añade fotos donde está el cursor, y las fotos te acompañan cuando copias texto y lo pegas en MirrorNotes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Maintenez une photo et faites-la glisser pour la déplacer, y compris entre des miniatures. Le trombone ajoute des photos là où se trouve votre curseur, et les photos suivent quand vous copiez du texte et le collez dans MirrorNotes."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tieni premuta una foto e trascinala per spostarla, anche tra le miniature. La graffetta aggiunge le foto dove si trova il cursore, e le foto ti seguono quando copi del testo e lo incolli in MirrorNotes."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "写真を長押ししてスライドすると移動できます。サムネイルの間にも置けます。クリップはカーソルの位置に写真を追加し、テキストをコピーしてMirrorNotesにペーストすると写真も一緒に移ります。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "사진을 길게 누른 채 밀면 옮길 수 있고, 썸네일 사이로도 옮길 수 있습니다. 클립은 커서가 있는 곳에 사진을 넣고, 텍스트를 복사해 MirrorNotes에 붙여 넣으면 사진도 함께 옮겨집니다."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Mantenha uma foto pressionada e deslize para movê-la, inclusive entre miniaturas. O clipe adiciona fotos onde está o cursor, e as fotos vão junto quando você copia um texto e cola no MirrorNotes."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Удерживайте фото и сдвиньте его, чтобы переместить, в том числе между миниатюрами. Скрепка добавляет фото туда, где стоит курсор, а при копировании текста и вставке в MirrorNotes фото переносятся вместе с ним."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "按住照片并滑动即可移动，也能放到缩略图之间。回形针会在光标处添加照片；拷贝文本并粘贴到 MirrorNotes 时，照片也会一起带过去。"
           }
         }
       }
@@ -1997,6 +2317,70 @@
         }
       }
     },
+    "Move and copy photos" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Fotos verschieben und kopieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move and copy photos"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Mueve y copia fotos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Déplacez et copiez des photos"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Sposta e copia le foto"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "写真の移動とコピー"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "사진 이동과 복사"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Mova e copie fotos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Перемещайте и копируйте фото"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "移动和拷贝照片"
+          }
+        }
+      }
+    },
     "New in %@ · %lld of %lld" : {
       "comment" : "What's New walkthrough label above each page's title: the version that brought the feature, then the page number and page count",
       "localizations" : {
@@ -2369,6 +2753,70 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Размер фото"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "照片大小"
+          }
+        }
+      }
+    },
+    "Photo sizes" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Fotogrößen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photo sizes"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tamaños de foto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tailles des photos"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Dimensioni delle foto"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "写真のサイズ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "사진 크기"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Tamanhos de foto"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Размеры фото"
           }
         },
         "zh-Hans" : {
@@ -3217,6 +3665,70 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "小"
+          }
+        }
+      }
+    },
+    "Still Open on your Home Screen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "„Noch offen“ auf dem Home-Bildschirm"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Still Open on your Home Screen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Pendientes en tu pantalla de inicio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Encore à faire sur l’écran d’accueil"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Ancora aperti nella schermata Home"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ホーム画面に「未完了」"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "홈 화면에 남은 항목"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Em aberto na Tela de Início"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "«Ещё не сделано» на экране «Домой»"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "主屏幕上的“未完成”"
           }
         }
       }
