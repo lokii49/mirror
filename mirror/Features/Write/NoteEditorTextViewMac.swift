@@ -9,8 +9,10 @@ import UniformTypeIdentifiers
 // the stored text and every stored offset are the same thing. iPhone and iPad read back exactly
 // what this editor saves because both go through the same two JSON documents.
 //
-// Deliberately not supported here yet (entries with these stay read-only on Mac, see
-// `NoteEditorCodec.canEditOnMac`): inline photos and the legacy "# " / "○ " prefix entries.
+// Photos at the end show as thumbnails under the editor; a photo between lines (Mac 1.1.9) is one
+// character drawn as a fixed tile, kept on a line of its own (`NoteEditorCodec.photoLineEdit`).
+// Not supported (read-only on Mac, see `NoteEditorCodec.canEditOnMac`): a photo sharing its line
+// with words or spaces, and the legacy "# " / "○ " prefix entries.
 // List behaviors (Return continues or exits a list), indent and the checklist bulk commands
 // are the next step.
 

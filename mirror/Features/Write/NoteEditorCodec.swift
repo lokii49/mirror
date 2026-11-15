@@ -10,8 +10,8 @@ import AppKit
 /// An entry stores its text plus two optional JSON documents (`textStyleData`: one style per
 /// paragraph; `inlineStyleData`: character ranges), both in *logical* coordinates: list
 /// markers and checkbox glyphs are never part of the stored text. Inline ranges count a photo
-/// as one character, not its token (see `InlineStyleRange.location`); the Mac editor only
-/// edits entries whose photos are all at the end, where the two agree. The iOS editor displays
+/// as one character, not its token (see `InlineStyleRange.location`); the Mac editor holds a photo
+/// between lines as that one character (`editorDisplay`, since 1.1.9), so the two agree. The iOS editor displays
 /// markers as real characters and maps display offsets to logical ones; the Mac editor draws
 /// markers outside the text, so its display text IS the logical text and no mapping exists.
 ///

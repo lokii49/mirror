@@ -110,7 +110,7 @@ struct InlineStyleSet: Equatable {
 nonisolated struct InlineStyleRange: Codable, Equatable, Sendable {
     /// UTF-16 offset in the text without list markers, where a photo counts as one character
     /// (its attachment, or a placeholder if it can't be decoded), not its `[[mirror-photo-N]]` token. Equal to `Entry.text` offsets only
-    /// up to the first photo (the Mac editor allows photos only at the end).
+    /// up to the first photo (`NoteEditorCodec.editorDisplay` maps between the two).
     var location: Int
     var length: Int
     var bold: Bool
