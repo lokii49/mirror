@@ -49,15 +49,13 @@ struct WriteView: View {
     var editorTextBinding: Binding<String> {
         #if os(macOS)
         Binding(
-            get: { NoteEditorCodec.splitTrailingPhotoTokens(viewModel.text).body },
+            get: { NoteEditorCodec.editorBody(of: viewModel.text, lastSet: macEditorBody.map { ($0.text, $0.body) }) },
             set: { body in
                 // The photos at the end keep their numbers (they aren't 0…n-1 once a photo sits
-                // between lines or the iPhone reordered a row); a photo with no token anywhere
-                // gets one at the end, as before.
-                var numbers = NoteEditorCodec.trailingPhotoNumbers(viewModel.text)
-                let present = Set(allPhotoTokens(in: body).map(\.index)).union(numbers)
-                numbers += (0..<photoDataArray.count).filter { !present.contains($0) }
-                viewModel.text = NoteEditorCodec.appendingPhotoTokens(to: body, numbers: numbers)
+                // between lines or the iPhone reordered a row).
+                let text = NoteEditorCodec.text(settingEditorBody: body, in: viewModel.text, photoCount: photoDataArray.count)
+                macEditorBody = MacEditorBody(text: text, body: body)
+                viewModel.text = text
             }
         )
         #else
@@ -158,6 +156,10 @@ struct WriteView: View {
     @State var isAttachingPhoto = false
     @State var photoDataArray: [Data] = []
     @State var inlineStyleData: Data? = nil
+    #if os(macOS)
+    /// The body the Mac editor last set and the text it produced (`NoteEditorCodec.editorBody`).
+    @State var macEditorBody: MacEditorBody? = nil
+    #endif
     @State var activeInlineStyles = InlineStyleSet()
     @State var showFormattingPanel = false
     /// Long-press on the mic button (audit 2.3) — the app's own mic only

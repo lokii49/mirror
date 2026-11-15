@@ -874,3 +874,9 @@ struct MacToolbarCapsule: ViewModifier {
     }
 }
 #endif
+
+/// The body the Mac editor last set, and the stored text that produced.
+struct MacEditorBody: Equatable {
+    var text: String
+    var body: String
+}

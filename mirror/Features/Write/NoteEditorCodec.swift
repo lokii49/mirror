@@ -681,6 +681,26 @@ enum NoteEditorCodec {
         appendingPhotoTokens(to: body, numbers: trailingPhotoNumbers(text))
     }
 
+    /// What the Mac editor shows of `text`: the body the editor last set while `text` is still
+    /// what that produced, else the text without its trailing photo tokens. Without the first,
+    /// emptying the line under a photo between lines made it look trailing: the editor reloaded
+    /// without it and typing went above it.
+    static func editorBody(of text: String, lastSet: (text: String, body: String)?) -> String {
+        if let lastSet, lastSet.text == text { return lastSet.body }
+        return splitTrailingPhotoTokens(text).body
+    }
+
+    /// The stored text after the Mac editor set its body to `body`: the photos at the end of
+    /// `text` follow it, numbers kept, except any now in the body; a photo with no token
+    /// anywhere gets one at the end.
+    static func text(settingEditorBody body: String, in text: String, photoCount: Int) -> String {
+        let inBody = Set(allPhotoTokens(in: body).map(\.index))
+        var numbers = trailingPhotoNumbers(text).filter { !inBody.contains($0) }
+        let present = inBody.union(numbers)
+        numbers += (0..<photoCount).filter { !present.contains($0) }
+        return appendingPhotoTokens(to: body, numbers: numbers)
+    }
+
     /// `body` with one token line per number, in order.
     static func appendingPhotoTokens(to body: String, numbers: [Int]) -> String {
         var text = body

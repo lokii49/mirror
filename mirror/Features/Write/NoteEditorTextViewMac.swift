@@ -572,6 +572,8 @@ struct NoteEditorTextView: NSViewRepresentable {
         private var isRedirectingPhotoEdit = false
         /// Photo tiles drawn in the text, by photo number, with the data size they were made from.
         private var photoTiles: [Int: (bytes: Int, image: NSImage)] = [:]
+        /// The photo count the tiles were made for: Remove shifts numbers, so they're redrawn.
+        private var photoTilesCount = -1
         static let photoTileSide: CGFloat = 120
         private var lastFontChoiceRaw = ""
         private var lastTextSize: CGFloat = 0
@@ -648,6 +650,10 @@ struct NoteEditorTextView: NSViewRepresentable {
         private func attachPhotoTiles(to attributed: NSMutableAttributedString) {
             let ns = attributed.string as NSString
             guard ns.range(of: "\u{FFFC}").location != NSNotFound else { return }
+            if photoTilesCount != parent.photoDataArray.count {
+                photoTiles = [:]
+                photoTilesCount = parent.photoDataArray.count
+            }
             let side = Self.photoTileSide
             for i in 0..<ns.length where ns.character(at: i) == 0xFFFC {
                 guard let number = attributed.attribute(NoteEditorCodec.photoNumberKey, at: i, effectiveRange: nil) as? Int else { continue }
@@ -691,6 +697,14 @@ struct NoteEditorTextView: NSViewRepresentable {
             guard hasPhotoCharacter || (display as NSString).range(of: "\u{FFFC}").location != NSNotFound else { return true }
             // A pasted or dropped picture character has no photo behind it here: dropped.
             let clean = replacement.replacingOccurrences(of: "\u{FFFC}", with: "")
+            // Composing keyboards (Japanese, Chinese, Korean) build the word in place; moving their
+            // first keystroke onto a new line would commit it unfinished. As on iPhone, they keep
+            // only the rule that a photo isn't deleted or typed over.
+            if Self.isComposingInputSource(textView) {
+                let removed = (display as NSString).substring(with: NSIntersectionRange(range, NSRange(location: 0, length: (display as NSString).length)))
+                if removed.contains("\u{FFFC}") { NSSound.beep(); return false }
+                return !hasPhotoCharacter
+            }
             switch NoteEditorCodec.photoLineEdit(display: display, range: range, replacement: clean) {
             case .asIs:
                 if !hasPhotoCharacter { return true }
@@ -717,6 +731,11 @@ struct NoteEditorTextView: NSViewRepresentable {
                 textView.didChangeText()
             }
             textView.setSelectedRange(NSRange(location: min(caret, storage.length), length: 0))
+        }
+
+        static func isComposingInputSource(_ textView: NSTextView) -> Bool {
+            guard let source = textView.inputContext?.selectedKeyboardInputSource else { return false }
+            return ["Kotoeri", "Japanese", "SCIM", "TCIM", "Korean", "Cantonese", "Zhuyin", "Pinyin", "Wubi"].contains { source.contains($0) }
         }
 
         static func withoutPhotoAttributes(_ attributes: [NSAttributedString.Key: Any]) -> [NSAttributedString.Key: Any] {

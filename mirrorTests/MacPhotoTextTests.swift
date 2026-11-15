@@ -137,6 +137,31 @@ struct MacPhotoTextTests {
         #expect(NoteEditorCodec.removingPhoto(number: 5, text: text, textStyleData: nil, inlineStyleData: nil) == nil)
     }
 
+    // MARK: Write's body binding on Mac
+
+    @Test func emptyingTheLineUnderAPhotoKeepsItInTheBody() {
+        let start = "words\n[[mirror-photo-0]]\nmore"
+        #expect(NoteEditorCodec.editorBody(of: start, lastSet: nil) == start)
+        // The editor empties "more": the photo now looks trailing in the stored text...
+        let emptied = NoteEditorCodec.text(settingEditorBody: "words\n[[mirror-photo-0]]\n", in: start, photoCount: 1)
+        #expect(emptied == "words\n[[mirror-photo-0]]\n")
+        // ...but the editor keeps seeing the body it set, and typing goes under the photo, once.
+        let last = (emptied, "words\n[[mirror-photo-0]]\n")
+        #expect(NoteEditorCodec.editorBody(of: emptied, lastSet: last) == last.1)
+        let typed = NoteEditorCodec.text(settingEditorBody: "words\n[[mirror-photo-0]]\nnew", in: emptied, photoCount: 1)
+        #expect(typed == "words\n[[mirror-photo-0]]\nnew")
+        // An outside change (a photo attached) shows the split again.
+        #expect(NoteEditorCodec.editorBody(of: "x\n[[mirror-photo-0]]", lastSet: last) == "x")
+    }
+
+    @Test func settingTheBodyKeepsTrailingNumbersAndAddsMissingPhotos() {
+        let text = "a\n[[mirror-photo-1]]\nb\n[[mirror-photo-2]]\n[[mirror-photo-0]]"
+        #expect(NoteEditorCodec.text(settingEditorBody: "a\n[[mirror-photo-1]]\nbc", in: text, photoCount: 3)
+                == "a\n[[mirror-photo-1]]\nbc\n[[mirror-photo-2]]\n[[mirror-photo-0]]\n")
+        // A photo with no token anywhere gets one at the end.
+        #expect(NoteEditorCodec.text(settingEditorBody: "plain", in: "plain", photoCount: 1) == "plain\n[[mirror-photo-0]]\n")
+    }
+
     @Test func textWithoutPhotosIsUntouched() {
         let text = "Plain words\nand a second line\n"
         #expect(NoteEditorCodec.editorDisplay(text).string == text)
