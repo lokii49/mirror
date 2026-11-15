@@ -4182,8 +4182,25 @@ struct NoteEditorTextView: UIViewRepresentable {
 
             // Inline ranges move with their rows (they used to be dropped, wiping every bold,
             // link and highlight in the entry).
+            // How each photo was drawn, by its number (a move changes text order, not numbers).
+            let photos = parent.photoDataArray
+            var wasTileByPhoto: [Int: Bool] = [:]
+            if !photos.isEmpty {
+                let drawn = drawnPhotoTiles(in: textView)
+                for (k, placement) in photoPlacements(in: parent.text).enumerated() where k < drawn.count {
+                    if let tile = drawn[k] { wasTileByPhoto[placement.photoIndex] = tile }
+                }
+            }
             parent.inlineStyleData = remappedInlineStyles(rowOrder: rows.map { $0.source }, rowCount: rows.count, displayed: attributed)
             parent.text = rows.map { $0.text }.joined(separator: "\n")
+            if !wasTileByPhoto.isEmpty {
+                // A thumbnail moved out of its row stays a thumbnail, as after Backspace or Remove
+                // (owner, 2026-11-15: "Stay a thumbnail").
+                parent.inlineStyleData = PhotoPlacement.keepingTiles(
+                    wasTile: photoPlacements(in: parent.text).map { wasTileByPhoto[$0.photoIndex] },
+                    text: parent.text, inlineStyleData: parent.inlineStyleData,
+                    hasPicture: { $0 < photos.count }, isLandscape: { $0 < photos.count && PhotoRuns.isLandscape(photos[$0]) })
+            }
             let styles = rows.map { $0.style }
             let levels = rows.map { $0.level }
             let fontChoices = rows.map { $0.fontChoice }
