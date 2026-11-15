@@ -983,7 +983,10 @@ struct NoteEditorTextView: UIViewRepresentable {
                 applyAsKeyboardEdit(range, replacement.replacingOccurrences(of: "\u{FFFC}", with: ""), in: textView)
                 return false
             }
-            if !isSplittingPhotoLine, keepsPhotoOnItsLine(textView, range: range, replacement: replacement) { return false }
+            if !isSplittingPhotoLine, keepsPhotoOnItsLine(textView, range: range, replacement: replacement) {
+                keyboardContextChanged(textView)
+                return false
+            }
             let allowed = handleChange(textView, range: range, replacement: replacement)
             if allowed {
                 // UIKit applies it; textViewDidChange records the result.
@@ -1103,6 +1106,21 @@ struct NoteEditorTextView: UIViewRepresentable {
                 textView.selectedRange = NSRange(location: max(0, textView.selectedRange.location - 1), length: 0)
             }
             return true
+        }
+
+        /// Tells the keyboard the text and caret changed under it. The photo-line rule turns a
+        /// keystroke into an edit made in code (a line break added, the caret moved across one),
+        /// which the keyboard isn't told about: it kept its own idea of the word being typed, and
+        /// autocorrect then rebuilt the word from that ("hello" typed after a photo became
+        /// "hhello", 14 Pro 2026-11-15). Run after the keyboard's own keystroke returns.
+        func keyboardContextChanged(_ textView: UITextView) {
+            DispatchQueue.main.async { [weak textView] in
+                guard let textView, textView.markedTextRange == nil else { return }
+                textView.inputDelegate?.selectionWillChange(textView)
+                textView.inputDelegate?.selectionDidChange(textView)
+                textView.inputDelegate?.textWillChange(textView)
+                textView.inputDelegate?.textDidChange(textView)
+            }
         }
 
         /// An edit made in code, given every rule a keyboard edit gets: inserts made in code
