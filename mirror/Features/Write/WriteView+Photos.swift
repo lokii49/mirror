@@ -89,14 +89,18 @@ extension WriteView {
     /// On a blank entry the suggestion becomes the text; after writing it's added at the end, after
     /// a blank line, keeping the entry's paragraph styles and links (`SuggestionInsert.appended`).
     /// Places, songs and the map open Maps / Music / Podcasts as ordinary entry links.
-    private func setSuggestionText(_ insert: SuggestionInsert, tokens: [String], mapLeads: Bool = false, afterParagraph paragraph: Int? = nil) {
+    private func setSuggestionText(_ insert: SuggestionInsert, tokens allTokens: [String], mapLeads: Bool = false, afterParagraph paragraph: Int? = nil) {
+        // A token already in the text (left by a photo that failed to save) already shows the new
+        // picture; writing it again would put two tokens on one photo.
+        let tokens = allTokens.filter { !viewModel.text.contains($0) }
         guard !insert.text(withPhotoTokens: tokens).isEmpty else { return }
         let existingStyles = viewModel.textStyleData.flatMap { try? JSONDecoder().decode(NoteTextStyleDocument.self, from: $0) }
         let existingInline = inlineStyleData.flatMap { try? JSONDecoder().decode(InlineStyleDocument.self, from: $0) }?.ranges ?? []
         // After the paragraph the cursor is in (UI checklist 2026-11-07); the end when there's none.
         let afterParagraph = paragraph ?? panelState.caretParagraph?()
         let result = insert.inserted(into: viewModel.text, afterParagraph: afterParagraph, existingStyles: existingStyles,
-                                     existingInline: existingInline, tokens: tokens, mapLeads: mapLeads, entryFont: entryFontChoiceRaw)
+                                     existingInline: existingInline, tokens: tokens, mapLeads: mapLeads && tokens.first == allTokens.first,
+                                     entryFont: entryFontChoiceRaw)
         viewModel.text = result.text
         if let styles = result.styles { viewModel.textStyleData = try? JSONEncoder().encode(styles) }
         inlineStyleData = result.inline.isEmpty ? nil : try? JSONEncoder().encode(InlineStyleDocument(ranges: result.inline))

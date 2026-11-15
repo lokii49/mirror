@@ -202,6 +202,20 @@ struct JournalingSuggestionTextTests {
 
     /// Pictures alone (paperclip, paste, drop) after a picture join its row, with no blank line, so
     /// a photo added under a thumbnail is a tile beside it (owner, 2026-11-14).
+    /// A suggestion picked with the caret on a photo of a row goes in after the whole row, so
+    /// no photo of the row changes look (nothing for `PhotoPlacement.keepingTiles` to keep).
+    @Test func aSuggestionNeverSplitsARow() {
+        let p0 = inlinePhotoToken(at: 0), p1 = inlinePhotoToken(at: 1), p2 = inlinePhotoToken(at: 2)
+        let suggestion = SuggestionInsert(title: "Walk", lines: ["Park loop"])
+        for caret in 0...2 {
+            let result = suggestion.inserted(into: "\(p0)\n\(p1)\n\(p2)\nAfter.", afterParagraph: caret, existingStyles: nil,
+                                             existingInline: [], tokens: [], mapLeads: false, entryFont: "system")
+            #expect(result.text.hasPrefix("\(p0)\n\(p1)\n\(p2)\n\n"), "caret on photo \(caret): \(result.text.debugDescription)")
+            let tiles = PhotoPlacement.placements(text: result.text, inlineStyleData: nil, hasPicture: { _ in true }, isLandscape: { _ in false }).map(\.isTile)
+            #expect(tiles == [true, true, true])
+        }
+    }
+
     @Test func picturesAloneJoinTheRowTheyFollow() throws {
         let photo = SuggestionInsert()
         let p0 = inlinePhotoToken(at: 0), p1 = inlinePhotoToken(at: 1), p2 = inlinePhotoToken(at: 2)

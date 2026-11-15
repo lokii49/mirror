@@ -951,22 +951,43 @@ struct NoteEditorTextView: UIViewRepresentable {
                 guard char >= 0, char < length, ns.character(at: char) == 0xFFFC else { return false }
                 return (char == 0 || ns.character(at: char - 1) == 10) && (char + 1 == length || ns.character(at: char + 1) == 10)
             }
-            if replacement.isEmpty {
-                // Backspace over the line break between a photo's line and a line of words.
-                guard range.length == 1, range.location < length, ns.character(at: range.location) == 10 else { return false }
-                let before = range.location - 1, after = range.location + 1
-                let wordsAfter = after < length && ns.character(at: after) != 10
-                let wordsBefore = before >= 0 && ns.character(at: before) != 10
-                if isPhotoAloneOnLine(before), wordsAfter, !isPhotoAloneOnLine(after) {
+            if range.length > 0, NSMaxRange(range) <= length {
+                // An edit across a line break (Backspace, a selection deleted, cut or pasted over)
+                // that would put a photo on one line with words or another photo: keep a line
+                // break on the photo's side. Backspace over the break itself moves the caret.
+                let removed = ns.substring(with: range)
+                guard removed.contains("\n"), !removed.contains("\u{FFFC}"), !replacement.contains("\u{FFFC}") else { return false }
+                let lineStart = ns.lineRange(for: NSRange(location: range.location, length: 0)).location
+                let head = ns.substring(with: NSRange(location: lineStart, length: range.location - lineStart))
+                var tailEnd = NSMaxRange(range)
+                while tailEnd < length, ns.character(at: tailEnd) != 10 { tailEnd += 1 }
+                let tail = ns.substring(with: NSRange(location: NSMaxRange(range), length: tailEnd - NSMaxRange(range)))
+                func sharesPhotoLine(_ text: String) -> Bool {
+                    text.components(separatedBy: "\n").contains { line in
+                        let photos = line.filter { $0 == "\u{FFFC}" }.count
+                        return photos > 1 || (photos == 1 && !line.filter { $0 != "\u{FFFC}" }.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                }
+                guard sharesPhotoLine(head + replacement + tail), !sharesPhotoLine(head), !sharesPhotoLine(tail) else { return false }
+                let tailFirst = tail.contains("\u{FFFC}") && !head.contains("\u{FFFC}")
+                let candidates = tailFirst
+                    ? [(replacement + "\n", true), ("\n" + replacement, false), ("\n" + replacement + "\n", true)]
+                    : [("\n" + replacement, false), (replacement + "\n", true), ("\n" + replacement + "\n", true)]
+                guard let (safe, caretBeforeBreak) = candidates.first(where: { !sharesPhotoLine(head + $0.0 + tail) }) else { return false }
+                if safe == removed {
                     textView.selectedRange = NSRange(location: range.location, length: 0)
                     return true
                 }
-                if isPhotoAloneOnLine(after), wordsBefore, !isPhotoAloneOnLine(before) {
-                    textView.selectedRange = NSRange(location: range.location, length: 0)
-                    return true
+                isSplittingPhotoLine = true
+                defer { isSplittingPhotoLine = false }
+                textView.selectedRange = range
+                textView.insertText(safe)
+                if caretBeforeBreak {
+                    textView.selectedRange = NSRange(location: max(0, textView.selectedRange.location - 1), length: 0)
                 }
-                return false
+                return true
             }
+            if replacement.isEmpty { return false }
             guard range.length == 0, replacement != "\n" else { return false }
             if let language = textView.textInputMode?.primaryLanguage,
                ["ja", "zh", "ko", "yue"].contains(where: { language.hasPrefix($0) }) { return false }
@@ -977,14 +998,13 @@ struct NoteEditorTextView: UIViewRepresentable {
             isSplittingPhotoLine = true
             defer { isSplittingPhotoLine = false }
             textView.selectedRange = NSRange(location: location, length: 0)
+            // One insert (one undo step, one redraw): the line break goes in with the words, so
+            // the photo is never seen sharing its line, even for a moment.
             if afterPhoto {
-                textView.insertText("\n")
-                textView.insertText(replacement)
+                textView.insertText("\n" + replacement)
             } else {
-                textView.insertText(replacement)
-                let caret = textView.selectedRange
-                textView.insertText("\n")
-                textView.selectedRange = caret
+                textView.insertText(replacement + "\n")
+                textView.selectedRange = NSRange(location: location + (replacement as NSString).length, length: 0)
             }
             return true
         }
@@ -992,8 +1012,12 @@ struct NoteEditorTextView: UIViewRepresentable {
         private func handleChange(_ textView: UITextView, range: NSRange, replacement: String) -> Bool {
             let rendered = textView.attributedText?.string ?? textView.text ?? ""
             if replacement.isEmpty, deletesInlinePhoto(in: rendered, range: range) {
-                // Find which attachment char is being deleted
-                let deleteTarget = range.length > 0 ? range.location : range.location - 1
+                // Find which attachment char is being deleted: in a selection, the first photo in
+                // it (not the selection's first character, which may be a word before it).
+                let firstPhotoInRange = (range.location..<NSMaxRange(range)).first {
+                    $0 < (rendered as NSString).length && (rendered as NSString).character(at: $0) == 0xFFFC
+                }
+                let deleteTarget = range.length > 0 ? (firstPhotoInRange ?? range.location) : range.location - 1
                 if deleteTarget >= 0 {
                     removeInlinePhoto(at: deleteTarget, from: textView)
                 }
@@ -2651,7 +2675,6 @@ struct NoteEditorTextView: UIViewRepresentable {
             }
             guard attachCount < photoTokensSorted.count else { return }
             let token = photoTokensSorted[attachCount]
-            let tokenStr = inlinePhotoToken(at: token.index)
 
             // Remove from photoDataArray
             var photos = parent.photoDataArray
@@ -2660,7 +2683,8 @@ struct NoteEditorTextView: UIViewRepresentable {
             var updatedText = parent.text as NSString
             var removedBreakBefore = false
             var removedBreakAfter = false
-            let tokenRange = updatedText.range(of: tokenStr)
+            // This token's own place (a token written twice would match its first copy by text).
+            let tokenRange = NSRange(token.range, in: parent.text)
             if tokenRange.location != NSNotFound {
                 let tokenEnd = NSMaxRange(tokenRange)
                 var removal = tokenRange

@@ -205,4 +205,97 @@ struct PhotoLineTypingTests {
         #expect(tiles(textView) == [true, true, false])
         #expect(store.inline == nil)
     }
+    /// Replaces `range` with `replacement` the way the keyboard does (a selection delete, Cut,
+    /// or a paste over a selection).
+    private func replace(_ range: NSRange, with replacement: String, in textView: UITextView, _ coordinator: NoteEditorTextView.Coordinator) {
+        textView.selectedRange = range
+        if coordinator.textView(textView, shouldChangeTextIn: range, replacementText: replacement) {
+            textView.textStorage.replaceCharacters(in: range, with: replacement)
+            textView.selectedRange = NSRange(location: range.location + (replacement as NSString).length, length: 0)
+            coordinator.textViewDidChange(textView)
+        }
+    }
+
+    /// Backspace at the start of the second photo's line never puts two photos on one line
+    /// (3.1.7's reader and the Mac would show the raw tokens): the caret moves up instead.
+    @Test func backspaceBetweenTwoPhotoLinesNeverJoinsThem() {
+        let (coordinator, textView, store) = harness("\(p0)\n\(p1)", photos: 2)
+        backspace(at: 2, in: textView, coordinator)
+        #expect(store.text == "\(p0)\n\(p1)")
+        #expect(textView.selectedRange.location == 1)
+        #expect(tiles(textView) == [true, true])
+    }
+
+    /// A selection from words down to a photo's line, deleted: the photo keeps its own line.
+    @Test func selectionDeleteFromWordsOntoAPhotoKeepsItsLine() {
+        let (coordinator, textView, store) = harness("ab\ncd\n\(p0)", photos: 1)
+        replace(NSRange(location: 1, length: 5), with: "", in: textView, coordinator)   // "b\ncd\n"
+        #expect(store.text == "a\n\(p0)")
+        #expect(textView.selectedRange.location == 1, "caret after the kept words")
+    }
+
+    /// Words pasted over a selection that ran from one photo's line to the next: each photo
+    /// keeps its own line and the words go between them.
+    @Test func pasteOverASelectionBetweenTwoPhotos() {
+        let (coordinator, textView, store) = harness("\(p0)\nab\n\(p1)", photos: 2)
+        replace(NSRange(location: 1, length: 4), with: "xy", in: textView, coordinator)   // "\nab\n"
+        #expect(store.text == "\(p0)\nxy\n\(p1)")
+        #expect(textView.selectedRange.location == 4, "caret after the pasted words")
+    }
+
+    /// A paste of words with a line break, between two tiles: both keep their look.
+    @Test func pasteBetweenTwoTilesKeepsThemTiles() {
+        let (coordinator, textView, store) = harness("\(p0)\n\(p1)", photos: 2)
+        type("\nPasted words", at: 1, in: textView, coordinator)
+        #expect(store.text == "\(p0)\nPasted words\n\(p1)")
+        #expect(tiles(textView) == [true, true])
+    }
+
+    /// Selecting the words between two thumbnails and deleting them makes the row again.
+    @Test func selectionDeleteOfWordsBetweenPhotosRejoinsTheRow() {
+        let (coordinator, textView, store) = harness("\(p0)\nab\n\(p1)", photos: 2)
+        replace(NSRange(location: 2, length: 3), with: "", in: textView, coordinator)   // "ab\n"
+        #expect(store.text == "\(p0)\n\(p1)")
+        #expect(tiles(textView) == [true, true])
+    }
+
+    /// A selection over a photo and the words under it.
+    @Test func selectionDeleteOverAPhotoAndWords() {
+        let (coordinator, textView, store) = harness("\(p0)\n\(p1)\nab", photos: 2)
+        replace(NSRange(location: 2, length: 4), with: "", in: textView, coordinator)   // P1 \n a b
+        #expect(!store.text.contains("\(p0)\(p1)"))
+        #expect(onePhotoPerLine(store.text), "each photo on a line of its own: \(store.text.debugDescription)")
+        #expect(store.text.contains("ab"), "the words outside the photo are kept or the whole selection goes")
+    }
+
+    private func onePhotoPerLine(_ text: String) -> Bool {
+        text.components(separatedBy: "\n").allSatisfy { line in
+            let tokens = allPhotoTokens(in: line).count
+            return tokens == 0 || (tokens == 1 && allPhotoTokens(in: line).first.map { line.trimmingCharacters(in: .whitespaces) == String(line[$0.range]) } == true)
+        }
+    }
+    /// Typing just before the second photo of a row: the words go on their own line and both
+    /// photos keep their look (the line break goes in with the words, never after them).
+    @Test func typingJustBeforeASecondRowPhotoKeepsBothTiles() {
+        let (coordinator, textView, store) = harness("\(p0)\n\(p1)", photos: 2)
+        type("a", at: 2, in: textView, coordinator)
+        #expect(store.text == "\(p0)\na\n\(p1)")
+        #expect(textView.selectedRange.location == 3, "caret after the typed letter")
+        #expect(tiles(textView) == [true, true])
+        #expect(PhotoSizes.storedSizes(text: store.text, inlineStyleData: store.inline) == [0: PhotoSizes.thumbnail, 1: PhotoSizes.thumbnail])
+    }
+
+    /// A selection from words over the photo under them: the photo goes and the words' bold
+    /// stays where it was (the removal is made at the photo, not at the selection's start).
+    @Test func selectionDeleteFromWordsOverAPhotoKeepsTheWordsFormatting() throws {
+        let bold = InlineStyleRange(location: 0, length: 2, bold: true, italic: false, underline: false,
+                                    strikethrough: false, highlightIndex: nil, photoSize: nil)
+        let inline = try JSONEncoder().encode(InlineStyleDocument(ranges: [bold]))
+        let (coordinator, textView, store) = harness("ab\n\(p0)", photos: 1, inline: inline)
+        replace(NSRange(location: 1, length: 3), with: "", in: textView, coordinator)   // "b\n" + photo
+        #expect(store.photos.isEmpty)
+        #expect(!store.text.contains("mirror-photo"))
+        let ranges = store.inline.flatMap { try? JSONDecoder().decode(InlineStyleDocument.self, from: $0) }?.ranges ?? []
+        #expect(ranges.contains { $0.bold && $0.location == 0 && $0.length == 2 }, "bold still on \"ab\": \(ranges)")
+    }
 }
